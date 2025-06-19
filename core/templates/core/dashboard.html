@@ -1,0 +1,144 @@
+{% extends 'base.html' %}
+{% block title %}Dashboard | Fees Management System{% endblock %}
+{% block extra_css %}
+<style>
+    .dashboard-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 2rem;
+    }
+    .dashboard-title {
+        font-size: 2.2rem;
+        font-weight: 700;
+        color: #4e73df;
+    }
+    .dashboard-cards {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 1.5rem;
+        margin-bottom: 2rem;
+    }
+    .dashboard-card {
+        flex: 1 1 220px;
+        background: #fff;
+        border-radius: 12px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.07);
+        padding: 1.5rem 1.2rem;
+        min-width: 220px;
+        text-align: center;
+        transition: box-shadow 0.2s;
+    }
+    .dashboard-card:hover {
+        box-shadow: 0 4px 16px rgba(78,115,223,0.15);
+    }
+    .dashboard-card h3 {
+        font-size: 1.1rem;
+        color: #6c757d;
+        margin-bottom: 0.5rem;
+    }
+    .dashboard-card p {
+        font-size: 1.7rem;
+        font-weight: 600;
+        color: #1b1e23;
+        margin: 0;
+    }
+    .dashboard-section {
+        margin-bottom: 2rem;
+    }
+    .dashboard-section h4 {
+        font-size: 1.2rem;
+        color: #4e73df;
+        margin-bottom: 1rem;
+        font-weight: 600;
+    }
+    .dashboard-list {
+        background: #fff;
+        border-radius: 10px;
+        box-shadow: 0 1px 4px rgba(0,0,0,0.05);
+        padding: 1.2rem;
+        margin-bottom: 1.5rem;
+    }
+    .dashboard-list ul {
+        list-style: none;
+        padding: 0;
+        margin: 0;
+    }
+    .dashboard-list li {
+        padding: 0.5rem 0;
+        border-bottom: 1px solid #f1f1f1;
+        font-size: 1rem;
+    }
+    .dashboard-list li:last-child {
+        border-bottom: none;
+    }
+    @media (max-width: 900px) {
+        .dashboard-cards {
+            flex-direction: column;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="dashboard-header">
+        <div class="dashboard-title">Welcome, {{ user.get_full_name|default:user.username }}</div>
+        <div>
+            <span class="badge bg-primary fs-6">{{ current_term|default:'No Active Term' }}</span>
+        </div>
+    </div>
+    <div class="dashboard-cards">
+        <div class="dashboard-card">
+            <h3>Total Students</h3>
+            <p><i class="fas fa-users text-primary me-2"></i>{{ total_students }}</p>
+        </div>
+        <div class="dashboard-card">
+            <h3>Total Terms</h3>
+            <p><i class="fas fa-calendar-alt text-success me-2"></i>{{ total_terms }}</p>
+        </div>
+        <div class="dashboard-card">
+            <h3>Total Grades</h3>
+            <p><i class="fas fa-graduation-cap text-info me-2"></i>{{ total_grades }}</p>
+        </div>
+        <div class="dashboard-card">
+            <h3>Fees Charged</h3>
+            <p><i class="fas fa-money-bill text-warning me-2"></i>{{ total_fees_charged|floatformat:2 }}</p>
+        </div>
+        <div class="dashboard-card">
+            <h3>Fees Paid</h3>
+            <p><i class="fas fa-credit-card text-success me-2"></i>{{ total_fees_paid|floatformat:2 }}</p>
+        </div>
+        <div class="dashboard-card">
+            <h3>Overdue Fees</h3>
+            <p><i class="fas fa-exclamation-circle text-danger me-2"></i>{{ overdue_fees }}</p>
+        </div>
+    </div>
+    <div class="row">
+        <div class="col-md-6 dashboard-section">
+            <div class="dashboard-list">
+                <h4><i class="fas fa-user-plus me-2"></i>Recent Students</h4>
+                <ul>
+                    {% for student in recent_students %}
+                        <li>{{ student.first_name }} {{ student.last_name }} <span class="text-muted">({{ student.student_id }})</span></li>
+                    {% empty %}
+                        <li class="text-muted">No recent students.</li>
+                    {% endfor %}
+                </ul>
+            </div>
+        </div>
+        <div class="col-md-6 dashboard-section">
+            <div class="dashboard-list">
+                <h4><i class="fas fa-exclamation-triangle me-2"></i>Overdue Payments</h4>
+                <ul>
+                    {% for fee in overdue_payments %}
+                        <li>{{ fee.student }} - {{ fee.fee_category }}: <span class="text-danger">{{ fee.amount_charged|floatformat:2 }}</span> <span class="text-muted">(Due: {{ fee.due_date }})</span></li>
+                    {% empty %}
+                        <li class="text-muted">No overdue payments.</li>
+                    {% endfor %}
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

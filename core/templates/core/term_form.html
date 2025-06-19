@@ -1,0 +1,68 @@
+{% extends 'base.html' %}
+{% block title %}{% if term %}Edit Term{% else %}Add Term{% endif %} | Fees Management System{% endblock %}
+{% block content %}
+<div class="container py-4">
+    <div class="row justify-content-center">
+        <div class="col-md-7">
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <h4 class="mb-0">{% if term %}Edit Term{% else %}Add Term{% endif %}</h4>
+                </div>
+                <div class="card-body">
+                    {% if messages %}
+                        {% for message in messages %}
+                            <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                                {{ message }}
+                                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                            </div>
+                        {% endfor %}
+                    {% endif %}
+                    <form method="post" novalidate>
+                        {% csrf_token %}
+                        <div class="mb-3">
+                            <label for="id_term_number" class="form-label">Term</label>
+                            <select name="term_number" id="id_term_number" class="form-select" required>
+                                <option value="">Select Term</option>
+                                {% for val, label in TERM_CHOICES %}
+                                    {% if post.term_number %}
+                                        <option value="{{ val }}" {% if post.term_number|stringformat:'s' == val|stringformat:'s' %}selected{% endif %}>{{ label }}</option>
+                                    {% elif term %}
+                                        <option value="{{ val }}" {% if term.term_number|stringformat:'s' == val|stringformat:'s' %}selected{% endif %}>{{ label }}</option>
+                                    {% else %}
+                                        <option value="{{ val }}">{{ label }}</option>
+                                    {% endif %}
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label for="id_academic_year" class="form-label">Academic Year</label>
+                            <input type="text" name="academic_year" id="id_academic_year" class="form-control" value="{{ post.academic_year|default_if_none:''|default:'' }}{% if not post.academic_year and term %}{{ term.academic_year }}{% endif %}" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="id_start_date" class="form-label">Start Date</label>
+                            <input type="date" name="start_date" id="id_start_date" class="form-control" value="{% if post.start_date %}{{ post.start_date }}{% elif term and term.start_date %}{{ term.start_date|date:'Y-m-d' }}{% else %}{% endif %}" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="id_end_date" class="form-label">End Date</label>
+                            <input type="date" name="end_date" id="id_end_date" class="form-control" value="{% if post.end_date %}{{ post.end_date }}{% elif term and term.end_date %}{{ term.end_date|date:'Y-m-d' }}{% else %}{% endif %}" required>
+                        </div>
+                        <div class="mb-3 form-check">
+                            <input type="checkbox" name="is_active" id="id_is_active" class="form-check-input" {% if post.is_active %}checked{% elif term and term.is_active %}checked{% endif %}>
+                            <label for="id_is_active" class="form-check-label">Active</label>
+                        </div>
+                        <div class="d-flex justify-content-between">
+                            <a href="{% url 'core:term_list' %}" class="btn btn-outline-secondary">Cancel</a>
+                            <div>
+                                {% if term %}
+                                    <a href="{% url 'core:term_delete' term.id %}" class="btn btn-danger me-2" onclick="return confirm('Are you sure you want to delete this term?');">Delete</a>
+                                {% endif %}
+                                <button type="submit" class="btn btn-primary">{% if term %}Update{% else %}Add{% endif %} Term</button>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

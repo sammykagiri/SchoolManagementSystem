@@ -1,0 +1,131 @@
+{% load static %}
+
+<nav class="navbar navbar-expand-lg navbar-dark bg-primary">
+    <div class="container-fluid">
+        {% if user.is_authenticated and user.profile.school and user.profile.school.logo %}
+            <img src="{{ user.profile.school.logo.url }}" alt="School Logo" style="max-height: 32px; margin-right: 10px;">
+        {% endif %}
+        <a class="navbar-brand" href="{% url 'core:dashboard' %}">
+            {% if user.is_authenticated and user.profile.school %}
+                {{ user.profile.school.name|title }} Fees Management
+            {% else %}
+                Fees Management
+            {% endif %}
+        </a>
+        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+            <span class="navbar-toggler-icon"></span>
+        </button>
+        <div class="collapse navbar-collapse justify-content-center" id="navbarNav">
+            <ul class="navbar-nav">
+                <!-- Terms -->
+                <li class="nav-item">
+                    <a class="nav-link {% if request.resolver_match.url_name == 'term_list' %}active{% endif %}" href="{% url 'core:term_list' %}">
+                        <i class="fas fa-calendar-alt me-2"></i>Terms
+                    </a>
+                </li>
+                <!-- Activities (placeholder) -->
+                <li class="nav-item">
+                    <a class="nav-link disabled" href="#">
+                        <i class="fas fa-futbol me-2"></i>Activities
+                    </a>
+                </li>
+                <!-- Grades -->
+                <li class="nav-item">
+                    <a class="nav-link {% if request.resolver_match.url_name == 'grade_list' %}active{% endif %}" href="{% url 'core:grade_list' %}">
+                        <i class="fas fa-graduation-cap me-2"></i>Grades
+                    </a>
+                </li>
+                <!-- Classes -->
+                <li class="nav-item">
+                    <a class="nav-link {% if request.resolver_match.url_name == 'class_list' %}active{% endif %}" href="{% url 'core:class_list' %}">
+                        <i class="fas fa-chalkboard me-2"></i>Classes
+                    </a>
+                </li>
+                <!-- Teachers (placeholder) -->
+                <li class="nav-item">
+                    <a class="nav-link disabled" href="#">
+                        <i class="fas fa-user-tie me-2"></i>Teachers
+                    </a>
+                </li>
+                <!-- Students -->
+                <li class="nav-item">
+                    <a class="nav-link {% if request.resolver_match.url_name == 'student_list' %}active{% endif %}" href="{% url 'core:student_list' %}">
+                        <i class="fas fa-users me-2"></i>Students
+                    </a>
+                </li>
+                <!-- Drivers (placeholder) -->
+                <li class="nav-item">
+                    <a class="nav-link disabled" href="#">
+                        <i class="fas fa-id-badge me-2"></i>Drivers
+                    </a>
+                </li>
+                <!-- Vehicle Details (placeholder) -->
+                <li class="nav-item">
+                    <a class="nav-link disabled" href="#">
+                        <i class="fas fa-bus me-2"></i>Vehicle Details
+                    </a>
+                </li>
+                <!-- Routes (placeholder) -->
+                <li class="nav-item">
+                    <a class="nav-link disabled" href="#">
+                        <i class="fas fa-route me-2"></i>Routes
+                    </a>
+                </li>
+                <!-- Fee Structures -->
+                <li class="nav-item">
+                    <a class="nav-link {% if request.resolver_match.url_name == 'fee_structure_list' %}active{% endif %}" href="{% url 'core:fee_structure_list' %}">
+                        <i class="fas fa-money-bill me-2"></i>Fee Structures
+                    </a>
+                </li>
+                <!-- Payments -->
+                <li class="nav-item">
+                    <a class="nav-link {% if request.resolver_match.url_name == 'payment_list' %}active{% endif %}" href="{% url 'payments:payment_list' %}">
+                        <i class="fas fa-credit-card me-2"></i>Payments
+                    </a>
+                </li>
+                <!-- Communications -->
+                <li class="nav-item">
+                    <a class="nav-link {% if request.resolver_match.url_name == 'log_list' %}active{% endif %}" href="{% url 'communications:log_list' %}">
+                        <i class="fas fa-envelope me-2"></i>Communications
+                    </a>
+                </li>
+                {% if user.is_superuser %}
+                <li class="nav-item">
+                    <a class="nav-link {% if request.resolver_match.url_name == 'school_admin_list' %}active{% endif %}" href="{% url 'core:school_admin_list' %}">
+                        <i class="fas fa-cogs me-2"></i>Manage Schools
+                    </a>
+                </li>
+                {% endif %}
+            </ul>
+        </div>
+        <ul class="navbar-nav ms-auto">
+            {% if user.is_authenticated %}
+            <li class="nav-item dropdown">
+                <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                    <i class="fas fa-user-circle"></i> {{ user.username }}
+                </a>
+                <ul class="dropdown-menu dropdown-menu-end">
+                    <li><a class="dropdown-item" href="#">Profile</a></li>
+                    <li><a class="dropdown-item" href="#" onclick="event.preventDefault(); document.getElementById('logout-form').submit();">Logout</a></li>
+                </ul>
+                <form id="logout-form" method="post" action="{% url 'logout' %}" style="display: none;">
+                    {% csrf_token %}
+                </form>
+            </li>
+            {% else %}
+            <li class="nav-item">
+                <a class="nav-link" href="{% url 'login' %}"><i class="fas fa-sign-in-alt"></i> Login</a>
+            </li>
+            {% endif %}
+        </ul>
+    </div>
+</nav>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    var dropdownElementList = [].slice.call(document.querySelectorAll('.dropdown-toggle'));
+    var dropdownList = dropdownElementList.map(function (dropdownToggleEl) {
+        return new bootstrap.Dropdown(dropdownToggleEl);
+    });
+});
+</script>

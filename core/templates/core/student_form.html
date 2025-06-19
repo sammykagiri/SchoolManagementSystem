@@ -1,0 +1,116 @@
+{% extends 'base.html' %}
+{% block title %}{{ title|default:'Add Student' }} | Fees Management System{% endblock %}
+{% block content %}
+<div class="container py-4">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <h4 class="mb-0">{{ title|default:'Add Student' }}</h4>
+                </div>
+                <div class="card-body">
+                    {% if messages %}
+                        {% for message in messages %}
+                            <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                                {{ message }}
+                                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                            </div>
+                        {% endfor %}
+                    {% endif %}
+                    <form method="post" novalidate>
+                        {% csrf_token %}
+                        <div class="row g-3">
+                            <!-- Student ID is now auto-generated, so do not show input -->
+                            <div class="col-md-4">
+                                <label class="form-label">Student ID</label>
+                                <input type="text" class="form-control" value="{% if student %}{{ student.student_id }}{% endif %}" disabled>
+                                <div class="form-text">Student ID will be auto-generated</div>
+                            </div>
+                            <div class="col-md-4">
+                                <label for="id_first_name" class="form-label">First Name</label>
+                                <input type="text" name="first_name" id="id_first_name" class="form-control" value="{% if student %}{{ student.first_name }}{% elif post.first_name %}{{ post.first_name }}{% else %}{% endif %}" required>
+                            </div>
+                            <div class="col-md-4">
+                                <label for="id_last_name" class="form-label">Last Name</label>
+                                <input type="text" name="last_name" id="id_last_name" class="form-control" value="{% if student %}{{ student.last_name }}{% elif post.last_name %}{{ post.last_name }}{% else %}{% endif %}" required>
+                            </div>
+                            <div class="col-md-4">
+                                <label for="id_gender" class="form-label">Gender</label>
+                                <select name="gender" id="id_gender" class="form-select" required>
+                                    <option value="">Select Gender</option>
+                                    <option value="M" {% if student and student.gender == 'M' or post.gender == 'M' %}selected{% endif %}>Male</option>
+                                    <option value="F" {% if student and student.gender == 'F' or post.gender == 'F' %}selected{% endif %}>Female</option>
+                                </select>
+                            </div>
+                            <div class="col-md-4">
+                                <label for="id_date_of_birth" class="form-label">Date of Birth</label>
+                                <input type="date" name="date_of_birth" id="id_date_of_birth" class="form-control" value="{% if student and student.date_of_birth %}{{ student.date_of_birth|date:'Y-m-d' }}{% elif post.date_of_birth %}{{ post.date_of_birth }}{% else %}{% endif %}" required>
+                            </div>
+                            <div class="col-md-4">
+                                <label for="id_grade" class="form-label">Grade</label>
+                                <select name="grade" id="id_grade" class="form-select" required>
+                                    <option value="">Select Grade</option>
+{% for grade in grades %}
+                                        <option value="{{ grade.id }}" {% if student and student.grade.id == grade.id or post.grade == grade.id|stringformat:'s' %}selected{% endif %}>{{ grade.name }}</option>
+{% endfor %}
+                                </select>
+                            </div>
+                            <div class="col-md-4">
+                                <label for="id_admission_date" class="form-label">Admission Date</label>
+                                <input type="date" name="admission_date" id="id_admission_date" class="form-control" value="{% if student and student.admission_date %}{{ student.admission_date|date:'Y-m-d' }}{% elif post.admission_date %}{{ post.admission_date }}{% else %}{% endif %}" required>
+                            </div>
+                            <div class="col-md-4">
+                                <label for="id_parent_name" class="form-label">Parent Name</label>
+                                <input type="text" name="parent_name" id="id_parent_name" class="form-control" value="{% if student %}{{ student.parent_name }}{% elif post.parent_name %}{{ post.parent_name }}{% else %}{% endif %}" required>
+                            </div>
+                            <div class="col-md-4">
+                                <label for="id_parent_phone" class="form-label">Parent Phone</label>
+                                <input type="text" name="parent_phone" id="id_parent_phone" class="form-control" value="{% if student %}{{ student.parent_phone }}{% elif post.parent_phone %}{{ post.parent_phone }}{% else %}{% endif %}" required>
+                            </div>
+                            <div class="col-md-4">
+                                <label for="id_parent_email" class="form-label">Parent Email</label>
+                                <input type="email" name="parent_email" id="id_parent_email" class="form-control" value="{% if student %}{{ student.parent_email }}{% elif post.parent_email %}{{ post.parent_email }}{% else %}{% endif %}">
+                            </div>
+                            <div class="col-md-8">
+                                <label for="id_address" class="form-label">Address</label>
+                                <input type="text" name="address" id="id_address" class="form-control" value="{% if student %}{{ student.address }}{% elif post.address %}{{ post.address }}{% else %}{% endif %}">
+                            </div>
+                            <div class="col-md-4">
+                                <label for="id_transport_route" class="form-label">Transport Route</label>
+                                <select name="transport_route" id="id_transport_route" class="form-select">
+                                    <option value="">None</option>
+{% for route in transport_routes %}
+                                        <option value="{{ route.id }}" {% if student and student.transport_route and student.transport_route.id == route.id or post.transport_route == route.id|stringformat:'s' %}selected{% endif %}>{{ route.name }}</option>
+{% endfor %}
+                                </select>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="form-check mt-4">
+                                    <input type="checkbox" name="uses_transport" id="id_uses_transport" class="form-check-input" {% if student and student.uses_transport or post.uses_transport %}checked{% endif %}>
+                                    <label for="id_uses_transport" class="form-check-label">Uses Transport</label>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="form-check mt-4">
+                                    <input type="checkbox" name="pays_meals" id="id_pays_meals" class="form-check-input" {% if student and student.pays_meals or post.pays_meals %}checked{% endif %}>
+                                    <label for="id_pays_meals" class="form-check-label">Pays Meals</label>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="form-check mt-4">
+                                    <input type="checkbox" name="pays_activities" id="id_pays_activities" class="form-check-input" {% if student and student.pays_activities or post.pays_activities %}checked{% endif %}>
+                                    <label for="id_pays_activities" class="form-check-label">Pays Activities</label>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="mt-4 d-flex justify-content-between">
+                            <a href="{% url 'core:student_list' %}" class="btn btn-outline-secondary">Cancel</a>
+                            <button type="submit" class="btn btn-primary">{{ title|default:'Add Student' }}</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

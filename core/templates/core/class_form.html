@@ -1,0 +1,36 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="container mt-4">
+    <h2>{% if school_class %}Edit Class{% else %}Add Class{% endif %}</h2>
+    <form method="post">
+        {% csrf_token %}
+        <div class="mb-3">
+            <label for="name" class="form-label">Class Name</label>
+            <input type="text" class="form-control" id="name" name="name" value="{% if post.name %}{{ post.name }}{% elif school_class %}{{ school_class.name }}{% else %}{% endif %}" required>
+        </div>
+        <div class="mb-3">
+            <label for="grade" class="form-label">Grade</label>
+            <select class="form-control" id="grade" name="grade" required>
+                <option value="">Select Grade</option>
+                {% for grade in grades %}
+                <option value="{{ grade.id }}"
+                    {% if post.grade %}{% if post.grade == grade.id|stringformat:'s' %}selected{% endif %}
+                    {% elif school_class %}{% if school_class.grade.id == grade.id %}selected{% endif %}
+                    {% endif %}
+                >{{ grade.name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="mb-3">
+            <label for="class_teacher" class="form-label">Class Teacher</label>
+            <input type="text" class="form-control" id="class_teacher" name="class_teacher" value="{% if post.class_teacher %}{{ post.class_teacher }}{% elif school_class %}{{ school_class.class_teacher }}{% else %}{% endif %}">
+        </div>
+        <div class="mb-3">
+            <label for="description" class="form-label">Description</label>
+            <textarea class="form-control" id="description" name="description">{% if post.description %}{{ post.description }}{% elif school_class %}{{ school_class.description }}{% else %}{% endif %}</textarea>
+        </div>
+        <button type="submit" class="btn btn-success">{% if school_class %}Update{% else %}Add{% endif %} Class</button>
+        <a href="{% url 'core:class_list' %}" class="btn btn-secondary">Cancel</a>
+    </form>
+</div>
+{% endblock %}

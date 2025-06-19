@@ -1,0 +1,23 @@
+{% extends 'base.html' %}
+{% block title %}Delete Term | Fees Management System{% endblock %}
+{% block content %}
+<div class="container py-4">
+    <div class="row justify-content-center">
+        <div class="col-md-7">
+            <div class="card">
+                <div class="card-header bg-danger text-white">
+                    <h4 class="mb-0">Delete Term</h4>
+                </div>
+                <div class="card-body">
+                    <p>Are you sure you want to delete <strong>Term {{ term.term_number }} {{ term.academic_year }}</strong>?</p>
+                    <form method="post">
+                        {% csrf_token %}
+                        <a href="{% url 'core:term_edit' term.id %}" class="btn btn-secondary">Cancel</a>
+                        <button type="submit" class="btn btn-danger">Delete</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
