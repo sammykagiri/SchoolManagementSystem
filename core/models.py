@@ -234,8 +234,8 @@ def save_user_profile(sender, instance, **kwargs):
 
 
 class SchoolClass(models.Model):
-    school = models.ForeignKey(School, on_delete=models.CASCADE, related_name='classes')
-    grade = models.ForeignKey(Grade, on_delete=models.CASCADE, related_name='classes')
+    school = models.ForeignKey(School, on_delete=models.CASCADE, related_name='school_classes')
+    grade = models.ForeignKey(Grade, on_delete=models.CASCADE, related_name='school_classes')
     name = models.CharField(max_length=100)
     class_teacher = models.CharField(max_length=100, blank=True, null=True)
     description = models.TextField(blank=True, null=True)

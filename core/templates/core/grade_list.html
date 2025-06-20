@@ -1,11 +1,14 @@
 {% extends 'base.html' %}
+
 {% block title %}Grades | Fees Management System{% endblock %}
+
 {% block content %}
 <div class="container py-4">
-    <div class="row justify-content-center">
+    <div class="row">
+        <!-- Grades List (Left Side) -->
         <div class="col-md-8">
-            <div class="card mb-4">
-                <div class="card-header bg-primary text-white">
+            <div class="card">
+                <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
                     <h4 class="mb-0">Grades</h4>
                 </div>
                 <div class="card-body">
@@ -17,27 +20,51 @@
                             </div>
                         {% endfor %}
                     {% endif %}
-                    <table class="table table-bordered table-striped">
-                        <thead>
-                            <tr>
-                                <th>Name</th>
-                                <th>Description</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for grade in grades %}
-                            <tr>
-                                <td>{{ grade.name }}</td>
-                                <td>{{ grade.description }}</td>
-                            </tr>
-                            {% empty %}
-                            <tr><td colspan="2">No grades found.</td></tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
+                    
+                    {% if grades %}
+                        <table class="table table-bordered table-striped">
+                            <thead>
+                                <tr>
+                                    <th>Name</th>
+                                    <th>Description</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for grade in grades %}
+                                <tr>
+                                    <td>{{ grade.name }}</td>
+                                    <td>{{ grade.description|default:"-" }}</td>
+                                    <td>
+                                        <div class="btn-group btn-group-sm" role="group">
+                                            <a href="{% url 'core:grade_edit' grade.id %}" class="btn btn-outline-primary" title="Edit">
+                                                <i class="fas fa-edit"></i>
+                                            </a>
+                                            <a href="{% url 'core:grade_delete' grade.id %}" class="btn btn-outline-danger" title="Delete" 
+                                               onclick="return confirm('Are you sure you want to delete this grade?');">
+                                                <i class="fas fa-trash"></i>
+                                            </a>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% empty %}
+                                <tr><td colspan="3">No grades found.</td></tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    {% else %}
+                        <div class="text-center py-4">
+                            <i class="fas fa-graduation-cap fa-3x text-muted mb-3"></i>
+                            <p class="text-muted">No grades found. Add your first grade using the form on the right.</p>
+                        </div>
+                    {% endif %}
                 </div>
             </div>
-            <div class="card">
+        </div>
+
+        <!-- Add New Grade Card (Right Side) -->
+        <div class="col-md-4 mb-4">
+            <div class="card h-100">
                 <div class="card-header bg-secondary text-white">
                     <h5 class="mb-0">Add New Grade</h5>
                 </div>
@@ -50,11 +77,11 @@
                         </div>
                         <div class="mb-3">
                             <label for="id_description" class="form-label">Description</label>
-                            <input type="text" name="description" id="id_description" class="form-control">
+                            <textarea name="description" id="id_description" class="form-control" rows="2"></textarea>
                         </div>
-                        <div class="d-flex justify-content-end">
-                            <button type="submit" class="btn btn-primary">Add Grade</button>
-                        </div>
+                        <button type="submit" class="btn btn-primary w-100">
+                            <i class="fas fa-plus-circle me-2"></i>Add Grade
+                        </button>
                     </form>
                 </div>
             </div>
