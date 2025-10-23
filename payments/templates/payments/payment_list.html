@@ -1,0 +1,187 @@
+{% extends 'base.html' %}
+
+{% block title %}Payments | Fees Management System{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+                    <h4 class="mb-0">Payment Records</h4>
+                    <div class="d-flex gap-2">
+                        <a href="{% url 'payments:receipt_list' %}" class="btn btn-success btn-sm">
+                            <i class="fas fa-receipt me-1"></i>Receipts
+                        </a>
+                        <a href="{% url 'payments:reminder_list' %}" class="btn btn-warning btn-sm">
+                            <i class="fas fa-bell me-1"></i>Reminders
+                        </a>
+                    </div>
+                </div>
+                <div class="card-body">
+                    {% if messages %}
+                        {% for message in messages %}
+                            <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                                {{ message }}
+                                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                            </div>
+                        {% endfor %}
+                    {% endif %}
+                    
+                    <!-- Search and Filter Form -->
+                    <form method="get" class="mb-4">
+                        <div class="row g-3">
+                            <div class="col-md-4">
+                                <div class="input-group">
+                                    <span class="input-group-text"><i class="fas fa-search"></i></span>
+                                    <input type="text" name="search" class="form-control" 
+                                           placeholder="Search by student ID, name, or reference..." 
+                                           value="{{ search_query }}">
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <select name="status" class="form-select">
+                                    <option value="">All Status</option>
+                                    <option value="pending" {% if status_filter == 'pending' %}selected{% endif %}>Pending</option>
+                                    <option value="processing" {% if status_filter == 'processing' %}selected{% endif %}>Processing</option>
+                                    <option value="completed" {% if status_filter == 'completed' %}selected{% endif %}>Completed</option>
+                                    <option value="failed" {% if status_filter == 'failed' %}selected{% endif %}>Failed</option>
+                                </select>
+                            </div>
+                            <div class="col-md-3">
+                                <select name="method" class="form-select">
+                                    <option value="">All Methods</option>
+                                    <option value="cash" {% if method_filter == 'cash' %}selected{% endif %}>Cash</option>
+                                    <option value="mpesa" {% if method_filter == 'mpesa' %}selected{% endif %}>M-Pesa</option>
+                                    <option value="bank_transfer" {% if method_filter == 'bank_transfer' %}selected{% endif %}>Bank Transfer</option>
+                                </select>
+                            </div>
+                            <div class="col-md-2">
+                                <button type="submit" class="btn btn-outline-primary w-100">
+                                    <i class="fas fa-filter me-1"></i>Filter
+                                </button>
+                            </div>
+                        </div>
+                    </form>
+                    
+                    {% if page_obj %}
+                        <div class="table-responsive">
+                            <table class="table table-bordered table-striped">
+                                <thead>
+                                    <tr>
+                                        <th>Payment ID</th>
+                                        <th>Student</th>
+                                        <th>Fee Category</th>
+                                        <th>Term</th>
+                                        <th>Amount</th>
+                                        <th>Method</th>
+                                        <th>Status</th>
+                                        <th>Date</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for payment in page_obj %}
+                                    <tr>
+                                        <td>
+                                            <a href="{% url 'payments:payment_detail' payment.payment_id %}" class="text-decoration-none">
+                                                {{ payment.payment_id|truncatechars:10 }}
+                                            </a>
+                                        </td>
+                                        <td>
+                                            <div>
+                                                <strong>{{ payment.student.full_name }}</strong><br>
+                                                <small class="text-muted">{{ payment.student.student_id }}</small>
+                                            </div>
+                                        </td>
+                                        <td>{{ payment.student_fee.fee_category.name }}</td>
+                                        <td>{{ payment.student_fee.term.academic_year }} - Term {{ payment.student_fee.term.term_number }}</td>
+                                        <td class="text-end">KES {{ payment.amount|floatformat:2 }}</td>
+                                        <td>
+                                            <span class="badge bg-secondary">{{ payment.get_payment_method_display }}</span>
+                                        </td>
+                                        <td>
+                                            {% if payment.status == 'completed' %}
+                                                <span class="badge bg-success">{{ payment.get_status_display }}</span>
+                                            {% elif payment.status == 'processing' %}
+                                                <span class="badge bg-warning">{{ payment.get_status_display }}</span>
+                                            {% elif payment.status == 'failed' %}
+                                                <span class="badge bg-danger">{{ payment.get_status_display }}</span>
+                                            {% else %}
+                                                <span class="badge bg-info">{{ payment.get_status_display }}</span>
+                                            {% endif %}
+                                        </td>
+                                        <td>{{ payment.payment_date|date:"M d, Y" }}</td>
+                                        <td>
+                                            <div class="btn-group btn-group-sm" role="group">
+                                                <a href="{% url 'payments:payment_detail' payment.payment_id %}" 
+                                                   class="btn btn-outline-primary" title="View Details">
+                                                    <i class="fas fa-eye"></i>
+                                                </a>
+                                                {% if payment.status == 'completed' %}
+                                                    <a href="{% url 'payments:generate_receipt' payment.payment_id %}" 
+                                                       class="btn btn-outline-success" title="Generate Receipt">
+                                                        <i class="fas fa-receipt"></i>
+                                                    </a>
+                                                {% endif %}
+                                            </div>
+                                        </td>
+                                    </tr>
+                                    {% empty %}
+                                    <tr>
+                                        <td colspan="9" class="text-center py-4">
+                                            <i class="fas fa-money-bill-wave fa-3x text-muted mb-3"></i>
+                                            <p class="text-muted">No payments found.</p>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                        
+                        <!-- Pagination -->
+                        {% if page_obj.has_other_pages %}
+                            <nav aria-label="Payment pagination">
+                                <ul class="pagination justify-content-center">
+                                    {% if page_obj.has_previous %}
+                                        <li class="page-item">
+                                            <a class="page-link" href="?page=1{% if search_query %}&search={{ search_query }}{% endif %}{% if status_filter %}&status={{ status_filter }}{% endif %}{% if method_filter %}&method={{ method_filter }}{% endif %}">First</a>
+                                        </li>
+                                        <li class="page-item">
+                                            <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if search_query %}&search={{ search_query }}{% endif %}{% if status_filter %}&status={{ status_filter }}{% endif %}{% if method_filter %}&method={{ method_filter }}{% endif %}">Previous</a>
+                                        </li>
+                                    {% endif %}
+                                    
+                                    <li class="page-item active">
+                                        <span class="page-link">
+                                            Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}
+                                        </span>
+                                    </li>
+                                    
+                                    {% if page_obj.has_next %}
+                                        <li class="page-item">
+                                            <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if search_query %}&search={{ search_query }}{% endif %}{% if status_filter %}&status={{ status_filter }}{% endif %}{% if method_filter %}&method={{ method_filter }}{% endif %}">Next</a>
+                                        </li>
+                                        <li class="page-item">
+                                            <a class="page-link" href="?page={{ page_obj.paginator.num_pages }}{% if search_query %}&search={{ search_query }}{% endif %}{% if status_filter %}&status={{ status_filter }}{% endif %}{% if method_filter %}&method={{ method_filter }}{% endif %}">Last</a>
+                                        </li>
+                                    {% endif %}
+                                </ul>
+                            </nav>
+                        {% endif %}
+                    {% else %}
+                        <div class="text-center py-5">
+                            <i class="fas fa-money-bill-wave fa-4x text-muted mb-4"></i>
+                            <h5 class="text-muted">No Payments Found</h5>
+                            <p class="text-muted">No payment records match your current filters.</p>
+                            <a href="{% url 'core:student_list' %}" class="btn btn-primary">
+                                <i class="fas fa-users me-2"></i>View Students
+                            </a>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -84,10 +84,28 @@
                     </a>
                 </li>
                 <!-- Communications -->
-                <li class="nav-item">
-                    <a class="nav-link {% if request.resolver_match.url_name == 'log_list' %}active{% endif %}" href="{% url 'communications:log_list' %}">
+                <li class="nav-item dropdown">
+                    <a class="nav-link dropdown-toggle {% if 'communications' in request.resolver_match.namespace %}active{% endif %}" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
                         <i class="fas fa-envelope me-2"></i>Communications
                     </a>
+                    <ul class="dropdown-menu">
+                        <li><a class="dropdown-item" href="{% url 'communications:dashboard' %}">
+                            <i class="fas fa-tachometer-alt me-2"></i>Dashboard
+                        </a></li>
+                        <li><hr class="dropdown-divider"></li>
+                        <li><a class="dropdown-item" href="{% url 'communications:template_list' %}">
+                            <i class="fas fa-file-alt me-2"></i>Templates
+                        </a></li>
+                        <li><a class="dropdown-item" href="{% url 'communications:email_list' %}">
+                            <i class="fas fa-envelope me-2"></i>Emails
+                        </a></li>
+                        <li><a class="dropdown-item" href="{% url 'communications:sms_list' %}">
+                            <i class="fas fa-sms me-2"></i>SMS Messages
+                        </a></li>
+                        <li><a class="dropdown-item" href="{% url 'communications:log_list' %}">
+                            <i class="fas fa-list me-2"></i>Communication Logs
+                        </a></li>
+                    </ul>
                 </li>
                 {% if user.is_superuser %}
                 <li class="nav-item">

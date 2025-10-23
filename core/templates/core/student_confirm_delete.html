@@ -1,0 +1,95 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Delete Student - {{ student.first_name }} {{ student.last_name }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header">
+                    <h3 class="card-title text-danger">
+                        <i class="fas fa-exclamation-triangle"></i> Delete Student
+                    </h3>
+                </div>
+                <div class="card-body">
+                    <div class="alert alert-warning">
+                        <h5>Are you sure you want to delete this student?</h5>
+                        <p>This action cannot be undone. The student record and all associated data will be permanently removed from the system.</p>
+                    </div>
+                    
+                    <div class="card">
+                        <div class="card-header">
+                            <h5>Student Details</h5>
+                        </div>
+                        <div class="card-body">
+                            <table class="table table-borderless">
+                                <tr>
+                                    <th width="30%">Student ID:</th>
+                                    <td>{{ student.student_id }}</td>
+                                </tr>
+                                <tr>
+                                    <th>Name:</th>
+                                    <td>{{ student.first_name }} {{ student.last_name }}</td>
+                                </tr>
+                                <tr>
+                                    <th>Grade:</th>
+                                    <td>{{ student.grade.name }}</td>
+                                </tr>
+                                <tr>
+                                    <th>Class:</th>
+                                    <td>{{ student.school_class.name|default:"Not assigned" }}</td>
+                                </tr>
+                                <tr>
+                                    <th>Parent Name:</th>
+                                    <td>{{ student.parent_name }}</td>
+                                </tr>
+                                <tr>
+                                    <th>Parent Phone:</th>
+                                    <td>{{ student.parent_phone }}</td>
+                                </tr>
+                                <tr>
+                                    <th>Admission Date:</th>
+                                    <td>{{ student.admission_date|date:"M d, Y" }}</td>
+                                </tr>
+                                <tr>
+                                    <th>Status:</th>
+                                    <td>
+                                        <span class="badge bg-{% if student.is_active %}success{% else %}secondary{% endif %}">
+                                            {% if student.is_active %}Active{% else %}Inactive{% endif %}
+                                        </span>
+                                    </td>
+                                </tr>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- Associated Data Warning -->
+                    <div class="alert alert-danger mt-3">
+                        <h6><i class="fas fa-warning"></i> Warning: Associated Data</h6>
+                        <p>The following data will also be deleted:</p>
+                        <ul class="mb-0">
+                            <li>All payment records ({{ student.payment_set.count }} payments)</li>
+                            <li>All communication logs</li>
+                            <li>All fee structures</li>
+                            <li>All reminders</li>
+                        </ul>
+                    </div>
+                </div>
+                <div class="card-footer">
+                    <form method="post" class="d-flex justify-content-between">
+                        {% csrf_token %}
+                        <a href="{% url 'core:student_detail' student.student_id %}" class="btn btn-secondary">
+                            <i class="fas fa-arrow-left"></i> Cancel
+                        </a>
+                        <button type="submit" class="btn btn-danger">
+                            <i class="fas fa-trash"></i> Yes, Delete Student
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

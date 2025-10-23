@@ -1,0 +1,192 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Communications Dashboard{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h3 class="card-title">
+                        <i class="fas fa-envelope me-2"></i>Communications Dashboard
+                    </h3>
+                </div>
+                <div class="card-body">
+                    <!-- Statistics Cards -->
+                    <div class="row mb-4">
+                        <div class="col-md-3">
+                            <div class="card bg-primary text-white">
+                                <div class="card-body">
+                                    <div class="d-flex justify-content-between">
+                                        <div>
+                                            <h4>{{ total_templates }}</h4>
+                                            <p class="mb-0">Templates</p>
+                                        </div>
+                                        <div class="align-self-center">
+                                            <i class="fas fa-file-alt fa-2x"></i>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="card-footer">
+                                    <a href="{% url 'communications:template_list' %}" class="text-white text-decoration-none">
+                                        <small>View Templates <i class="fas fa-arrow-right"></i></small>
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="card bg-success text-white">
+                                <div class="card-body">
+                                    <div class="d-flex justify-content-between">
+                                        <div>
+                                            <h4>{{ total_emails }}</h4>
+                                            <p class="mb-0">Emails Sent</p>
+                                        </div>
+                                        <div class="align-self-center">
+                                            <i class="fas fa-envelope fa-2x"></i>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="card-footer">
+                                    <a href="{% url 'communications:email_list' %}" class="text-white text-decoration-none">
+                                        <small>View Emails <i class="fas fa-arrow-right"></i></small>
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="card bg-info text-white">
+                                <div class="card-body">
+                                    <div class="d-flex justify-content-between">
+                                        <div>
+                                            <h4>{{ total_sms }}</h4>
+                                            <p class="mb-0">SMS Sent</p>
+                                        </div>
+                                        <div class="align-self-center">
+                                            <i class="fas fa-sms fa-2x"></i>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="card-footer">
+                                    <a href="{% url 'communications:sms_list' %}" class="text-white text-decoration-none">
+                                        <small>View SMS <i class="fas fa-arrow-right"></i></small>
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="card bg-warning text-white">
+                                <div class="card-body">
+                                    <div class="d-flex justify-content-between">
+                                        <div>
+                                            <h4>{{ total_logs }}</h4>
+                                            <p class="mb-0">Total Logs</p>
+                                        </div>
+                                        <div class="align-self-center">
+                                            <i class="fas fa-list fa-2x"></i>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="card-footer">
+                                    <a href="{% url 'communications:log_list' %}" class="text-white text-decoration-none">
+                                        <small>View Logs <i class="fas fa-arrow-right"></i></small>
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Quick Actions -->
+                    <div class="row mb-4">
+                        <div class="col-12">
+                            <h5>Quick Actions</h5>
+                            <div class="btn-group" role="group">
+                                <a href="{% url 'communications:template_list' %}" class="btn btn-outline-primary">
+                                    <i class="fas fa-file-alt"></i> Manage Templates
+                                </a>
+                                <a href="{% url 'communications:email_list' %}" class="btn btn-outline-success">
+                                    <i class="fas fa-envelope"></i> View Emails
+                                </a>
+                                <a href="{% url 'communications:sms_list' %}" class="btn btn-outline-info">
+                                    <i class="fas fa-sms"></i> View SMS
+                                </a>
+                                <a href="{% url 'communications:log_list' %}" class="btn btn-outline-warning">
+                                    <i class="fas fa-list"></i> View Logs
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Recent Activity -->
+                    <div class="row">
+                        <div class="col-md-4">
+                            <div class="card">
+                                <div class="card-header">
+                                    <h6 class="card-title">Recent Emails</h6>
+                                </div>
+                                <div class="card-body">
+                                    {% for email in recent_emails %}
+                                    <div class="d-flex justify-content-between align-items-center mb-2">
+                                        <div>
+                                            <small class="text-muted">{{ email.recipient_email }}</small><br>
+                                            <small>{{ email.subject|truncatechars:30 }}</small>
+                                        </div>
+                                        <small class="text-muted">{{ email.created_at|date:"M d" }}</small>
+                                    </div>
+                                    {% empty %}
+                                    <p class="text-muted">No recent emails</p>
+                                    {% endfor %}
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="card">
+                                <div class="card-header">
+                                    <h6 class="card-title">Recent SMS</h6>
+                                </div>
+                                <div class="card-body">
+                                    {% for sms in recent_sms %}
+                                    <div class="d-flex justify-content-between align-items-center mb-2">
+                                        <div>
+                                            <small class="text-muted">{{ sms.recipient_phone }}</small><br>
+                                            <small>{{ sms.content|truncatechars:30 }}</small>
+                                        </div>
+                                        <small class="text-muted">{{ sms.created_at|date:"M d" }}</small>
+                                    </div>
+                                    {% empty %}
+                                    <p class="text-muted">No recent SMS</p>
+                                    {% endfor %}
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="card">
+                                <div class="card-header">
+                                    <h6 class="card-title">Recent Logs</h6>
+                                </div>
+                                <div class="card-body">
+                                    {% for log in recent_logs %}
+                                    <div class="d-flex justify-content-between align-items-center mb-2">
+                                        <div>
+                                            <span class="badge bg-{% if log.communication_type == 'email' %}primary{% else %}success{% endif %}">
+                                                {{ log.get_communication_type_display }}
+                                            </span><br>
+                                            <small>{{ log.student.first_name|default:"N/A" }} {{ log.student.last_name|default:"" }}</small>
+                                        </div>
+                                        <small class="text-muted">{{ log.created_at|date:"M d" }}</small>
+                                    </div>
+                                    {% empty %}
+                                    <p class="text-muted">No recent logs</p>
+                                    {% endfor %}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

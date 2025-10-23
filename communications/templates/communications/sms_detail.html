@@ -1,0 +1,131 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}SMS Detail{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h3 class="card-title">SMS Message Detail</h3>
+                    <a href="{% url 'communications:sms_list' %}" class="btn btn-secondary">
+                        <i class="fas fa-arrow-left"></i> Back to List
+                    </a>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <table class="table table-borderless">
+                                <tr>
+                                    <th width="30%">Recipient:</th>
+                                    <td>{{ sms.recipient_phone }}</td>
+                                </tr>
+                                <tr>
+                                    <th>Status:</th>
+                                    <td>
+                                        <span class="badge bg-{% if sms.status == 'sent' %}success{% elif sms.status == 'failed' %}danger{% else %}warning{% endif %}">
+                                            {{ sms.get_status_display }}
+                                        </span>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <th>Created:</th>
+                                    <td>{{ sms.created_at|date:"M d, Y H:i" }}</td>
+                                </tr>
+                                <tr>
+                                    <th>Sent At:</th>
+                                    <td>
+                                        {% if sms.sent_at %}
+                                            {{ sms.sent_at|date:"M d, Y H:i" }}
+                                        {% else %}
+                                            <span class="text-muted">Not sent</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                            </table>
+                        </div>
+                        <div class="col-md-6">
+                            <table class="table table-borderless">
+                                <tr>
+                                    <th width="30%">Student:</th>
+                                    <td>
+                                        {% if sms.student %}
+                                            <a href="{% url 'core:student_detail' sms.student.student_id %}">
+                                                {{ sms.student.first_name }} {{ sms.student.last_name }}
+                                            </a>
+                                            <br><small class="text-muted">{{ sms.student.student_id }}</small>
+                                        {% else %}
+                                            <span class="text-muted">N/A</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <th>Template:</th>
+                                    <td>
+                                        {% if sms.template %}
+                                            <a href="{% url 'communications:template_detail' sms.template.id %}">
+                                                {{ sms.template.name }}
+                                            </a>
+                                        {% else %}
+                                            <span class="text-muted">Custom message</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <th>Payment:</th>
+                                    <td>
+                                        {% if sms.payment %}
+                                            <a href="{% url 'payments:payment_detail' sms.payment.id %}">
+                                                Payment #{{ sms.payment.id }}
+                                            </a>
+                                        {% else %}
+                                            <span class="text-muted">N/A</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <th>Sent By:</th>
+                                    <td>{{ sms.sent_by.get_full_name|default:sms.sent_by.username }}</td>
+                                </tr>
+                            </table>
+                        </div>
+                    </div>
+                    
+                    <div class="row mt-4">
+                        <div class="col-12">
+                            <h5>SMS Content:</h5>
+                            <div class="border p-3 bg-light">
+                                <div class="sms-preview">
+                                    <div class="sms-header mb-3">
+                                        <strong>To:</strong> {{ sms.recipient_phone }}<br>
+                                        <hr>
+                                    </div>
+                                    <div class="sms-body">
+                                        <pre style="white-space: pre-wrap; font-family: inherit;">{{ sms.content }}</pre>
+                                    </div>
+                                    <div class="sms-footer text-muted mt-2">
+                                        <small>Character count: {{ sms.content|length }}</small>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    {% if sms.error_message %}
+                    <div class="row mt-4">
+                        <div class="col-12">
+                            <div class="alert alert-danger">
+                                <h5>Error Details:</h5>
+                                <p>{{ sms.error_message }}</p>
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

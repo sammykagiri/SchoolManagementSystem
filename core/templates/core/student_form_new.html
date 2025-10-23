@@ -1,0 +1,273 @@
+{% extends 'base.html' %}
+{% block title %}{{ title|default:'Add Student' }} | Fees Management System{% endblock %}
+{% block content %}
+<div class="container py-4">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <h4 class="mb-0">{{ title|default:'Add Student' }}</h4>
+                </div>
+                <div class="card-body">
+                    {% if messages %}
+                        {% for message in messages %}
+                            <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                                {{ message }}
+                                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                            </div>
+                        {% endfor %}
+                    {% endif %}
+                    
+                    <form method="post" novalidate>
+                        {% csrf_token %}
+                        
+                        <!-- Display form errors at the top -->
+                        {% if form.non_field_errors %}
+                            <div class="alert alert-danger">
+                                {{ form.non_field_errors }}
+                            </div>
+                        {% endif %}
+                        
+                        <div class="row g-3">
+                            <!-- Student ID (Auto-generated) -->
+                            <div class="col-md-4">
+                                <label class="form-label">Student ID</label>
+                                <input type="text" class="form-control" value="Auto-generated" disabled>
+                                <div class="form-text">Student ID will be auto-generated</div>
+                            </div>
+                            
+                            <!-- First Name -->
+                            <div class="col-md-4">
+                                <label for="{{ form.first_name.id_for_label }}" class="form-label">
+                                    {{ form.first_name.label }}
+                                    {% if form.first_name.field.required %}<span class="text-danger">*</span>{% endif %}
+                                </label>
+                                {{ form.first_name }}
+                                {% if form.first_name.errors %}
+                                    <div class="text-danger small">
+                                        {% for error in form.first_name.errors %}
+                                            <div>{{ error }}</div>
+                                        {% endfor %}
+                                    </div>
+                                {% endif %}
+                            </div>
+                            
+                            <!-- Last Name -->
+                            <div class="col-md-4">
+                                <label for="{{ form.last_name.id_for_label }}" class="form-label">
+                                    {{ form.last_name.label }}
+                                    {% if form.last_name.field.required %}<span class="text-danger">*</span>{% endif %}
+                                </label>
+                                {{ form.last_name }}
+                                {% if form.last_name.errors %}
+                                    <div class="text-danger small">
+                                        {% for error in form.last_name.errors %}
+                                            <div>{{ error }}</div>
+                                        {% endfor %}
+                                    </div>
+                                {% endif %}
+                            </div>
+                            
+                            <!-- Gender -->
+                            <div class="col-md-4">
+                                <label for="{{ form.gender.id_for_label }}" class="form-label">
+                                    {{ form.gender.label }}
+                                    {% if form.gender.field.required %}<span class="text-danger">*</span>{% endif %}
+                                </label>
+                                {{ form.gender }}
+                                {% if form.gender.errors %}
+                                    <div class="text-danger small">
+                                        {% for error in form.gender.errors %}
+                                            <div>{{ error }}</div>
+                                        {% endfor %}
+                                    </div>
+                                {% endif %}
+                            </div>
+                            
+                            <!-- Date of Birth -->
+                            <div class="col-md-4">
+                                <label for="{{ form.date_of_birth.id_for_label }}" class="form-label">
+                                    {{ form.date_of_birth.label }}
+                                    {% if form.date_of_birth.field.required %}<span class="text-danger">*</span>{% endif %}
+                                </label>
+                                {{ form.date_of_birth }}
+                                {% if form.date_of_birth.errors %}
+                                    <div class="text-danger small">
+                                        {% for error in form.date_of_birth.errors %}
+                                            <div>{{ error }}</div>
+                                        {% endfor %}
+                                    </div>
+                                {% endif %}
+                            </div>
+                            
+                            <!-- Grade -->
+                            <div class="col-md-4">
+                                <label for="{{ form.grade.id_for_label }}" class="form-label">
+                                    {{ form.grade.label }}
+                                    {% if form.grade.field.required %}<span class="text-danger">*</span>{% endif %}
+                                </label>
+                                {{ form.grade }}
+                                {% if form.grade.errors %}
+                                    <div class="text-danger small">
+                                        {% for error in form.grade.errors %}
+                                            <div>{{ error }}</div>
+                                        {% endfor %}
+                                    </div>
+                                {% endif %}
+                            </div>
+                            
+                            <!-- Admission Date -->
+                            <div class="col-md-4">
+                                <label for="{{ form.admission_date.id_for_label }}" class="form-label">
+                                    {{ form.admission_date.label }}
+                                    {% if form.admission_date.field.required %}<span class="text-danger">*</span>{% endif %}
+                                </label>
+                                {{ form.admission_date }}
+                                {% if form.admission_date.errors %}
+                                    <div class="text-danger small">
+                                        {% for error in form.admission_date.errors %}
+                                            <div>{{ error }}</div>
+                                        {% endfor %}
+                                    </div>
+                                {% endif %}
+                            </div>
+                            
+                            <!-- Parent Name -->
+                            <div class="col-md-4">
+                                <label for="{{ form.parent_name.id_for_label }}" class="form-label">
+                                    {{ form.parent_name.label }}
+                                    {% if form.parent_name.field.required %}<span class="text-danger">*</span>{% endif %}
+                                </label>
+                                {{ form.parent_name }}
+                                {% if form.parent_name.errors %}
+                                    <div class="text-danger small">
+                                        {% for error in form.parent_name.errors %}
+                                            <div>{{ error }}</div>
+                                        {% endfor %}
+                                    </div>
+                                {% endif %}
+                            </div>
+                            
+                            <!-- Parent Phone -->
+                            <div class="col-md-4">
+                                <label for="{{ form.parent_phone.id_for_label }}" class="form-label">
+                                    {{ form.parent_phone.label }}
+                                    {% if form.parent_phone.field.required %}<span class="text-danger">*</span>{% endif %}
+                                </label>
+                                {{ form.parent_phone }}
+                                {% if form.parent_phone.errors %}
+                                    <div class="text-danger small">
+                                        {% for error in form.parent_phone.errors %}
+                                            <div>{{ error }}</div>
+                                        {% endfor %}
+                                    </div>
+                                {% endif %}
+                            </div>
+                            
+                            <!-- Parent Email -->
+                            <div class="col-md-4">
+                                <label for="{{ form.parent_email.id_for_label }}" class="form-label">
+                                    {{ form.parent_email.label }}
+                                    {% if form.parent_email.field.required %}<span class="text-danger">*</span>{% endif %}
+                                </label>
+                                {{ form.parent_email }}
+                                {% if form.parent_email.help_text %}
+                                    <div class="form-text">{{ form.parent_email.help_text }}</div>
+                                {% endif %}
+                                {% if form.parent_email.errors %}
+                                    <div class="text-danger small">
+                                        {% for error in form.parent_email.errors %}
+                                            <div>{{ error }}</div>
+                                        {% endfor %}
+                                    </div>
+                                {% endif %}
+                            </div>
+                            
+                            <!-- Address -->
+                            <div class="col-md-8">
+                                <label for="{{ form.address.id_for_label }}" class="form-label">
+                                    {{ form.address.label }}
+                                    {% if form.address.field.required %}<span class="text-danger">*</span>{% endif %}
+                                </label>
+                                {{ form.address }}
+                                {% if form.address.help_text %}
+                                    <div class="form-text">{{ form.address.help_text }}</div>
+                                {% endif %}
+                                {% if form.address.errors %}
+                                    <div class="text-danger small">
+                                        {% for error in form.address.errors %}
+                                            <div>{{ error }}</div>
+                                        {% endfor %}
+                                    </div>
+                                {% endif %}
+                            </div>
+                            
+                            <!-- Transport Route -->
+                            <div class="col-md-4">
+                                <label for="{{ form.transport_route.id_for_label }}" class="form-label">
+                                    {{ form.transport_route.label }}
+                                    {% if form.transport_route.field.required %}<span class="text-danger">*</span>{% endif %}
+                                </label>
+                                {{ form.transport_route }}
+                                {% if form.transport_route.help_text %}
+                                    <div class="form-text">{{ form.transport_route.help_text }}</div>
+                                {% endif %}
+                                {% if form.transport_route.errors %}
+                                    <div class="text-danger small">
+                                        {% for error in form.transport_route.errors %}
+                                            <div>{{ error }}</div>
+                                        {% endfor %}
+                                    </div>
+                                {% endif %}
+                            </div>
+                            
+                            <!-- Checkboxes -->
+                            <div class="col-12">
+                                <div class="row">
+                                    <div class="col-md-4">
+                                        <div class="form-check">
+                                            {{ form.uses_transport }}
+                                            <label class="form-check-label" for="{{ form.uses_transport.id_for_label }}">
+                                                {{ form.uses_transport.label }}
+                                            </label>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <div class="form-check">
+                                            {{ form.pays_meals }}
+                                            <label class="form-check-label" for="{{ form.pays_meals.id_for_label }}">
+                                                {{ form.pays_meals.label }}
+                                            </label>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <div class="form-check">
+                                            {{ form.pays_activities }}
+                                            <label class="form-check-label" for="{{ form.pays_activities.id_for_label }}">
+                                                {{ form.pays_activities.label }}
+                                            </label>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="row mt-4">
+                            <div class="col-12">
+                                <div class="d-flex justify-content-between">
+                                    <a href="{% url 'core:student_list' %}" class="btn btn-secondary">
+                                        <i class="fas fa-arrow-left"></i> Back to Students
+                                    </a>
+                                    <button type="submit" class="btn btn-primary">
+                                        <i class="fas fa-save"></i> Create Student
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

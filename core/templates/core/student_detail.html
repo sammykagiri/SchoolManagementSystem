@@ -1,0 +1,194 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Student Detail - {{ student.first_name }} {{ student.last_name }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h3 class="card-title">{{ student.first_name }} {{ student.last_name }}</h3>
+                    <div>
+                        <a href="{% url 'core:student_update' student.student_id %}" class="btn btn-warning">
+                            <i class="fas fa-edit"></i> Edit
+                        </a>
+                        <a href="{% url 'core:student_delete' student.student_id %}" class="btn btn-danger">
+                            <i class="fas fa-trash"></i> Delete
+                        </a>
+                        <a href="{% url 'core:student_list' %}" class="btn btn-secondary">
+                            <i class="fas fa-arrow-left"></i> Back to List
+                        </a>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h5>Student Information:</h5>
+                            <table class="table table-borderless">
+                                <tr>
+                                    <th width="30%">Student ID:</th>
+                                    <td>{{ student.student_id }}</td>
+                                </tr>
+                                <tr>
+                                    <th>First Name:</th>
+                                    <td>{{ student.first_name }}</td>
+                                </tr>
+                                <tr>
+                                    <th>Last Name:</th>
+                                    <td>{{ student.last_name }}</td>
+                                </tr>
+                                <tr>
+                                    <th>Date of Birth:</th>
+                                    <td>{{ student.date_of_birth|date:"M d, Y" }}</td>
+                                </tr>
+                                <tr>
+                                    <th>Gender:</th>
+                                    <td>{{ student.get_gender_display }}</td>
+                                </tr>
+                                <tr>
+                                    <th>Grade:</th>
+                                    <td>{{ student.grade.name }}</td>
+                                </tr>
+                                <tr>
+                                    <th>Class:</th>
+                                    <td>{{ student.school_class.name|default:"Not assigned" }}</td>
+                                </tr>
+                                <tr>
+                                    <th>Admission Date:</th>
+                                    <td>{{ student.admission_date|date:"M d, Y" }}</td>
+                                </tr>
+                            </table>
+                        </div>
+                        <div class="col-md-6">
+                            <h5>Contact Information:</h5>
+                            <table class="table table-borderless">
+                                <tr>
+                                    <th width="30%">Parent Name:</th>
+                                    <td>{{ student.parent_name }}</td>
+                                </tr>
+                                <tr>
+                                    <th>Parent Phone:</th>
+                                    <td>{{ student.parent_phone }}</td>
+                                </tr>
+                                <tr>
+                                    <th>Parent Email:</th>
+                                    <td>{{ student.parent_email }}</td>
+                                </tr>
+                                <tr>
+                                    <th>Address:</th>
+                                    <td>{{ student.address|default:"Not provided" }}</td>
+                                </tr>
+                                <tr>
+                                    <th>Emergency Contact:</th>
+                                    <td>{{ student.emergency_contact|default:"Not provided" }}</td>
+                                </tr>
+                                <tr>
+                                    <th>Emergency Phone:</th>
+                                    <td>{{ student.emergency_phone|default:"Not provided" }}</td>
+                                </tr>
+                            </table>
+                        </div>
+                    </div>
+
+                    <div class="row mt-4">
+                        <div class="col-12">
+                            <h5>Additional Information:</h5>
+                            <table class="table table-borderless">
+                                <tr>
+                                    <th width="15%">Status:</th>
+                                    <td>
+                                        <span class="badge bg-{% if student.is_active %}success{% else %}secondary{% endif %}">
+                                            {% if student.is_active %}Active{% else %}Inactive{% endif %}
+                                        </span>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <th>Created:</th>
+                                    <td>{{ student.created_at|date:"M d, Y H:i" }}</td>
+                                </tr>
+                                <tr>
+                                    <th>Last Updated:</th>
+                                    <td>{{ student.updated_at|date:"M d, Y H:i" }}</td>
+                                </tr>
+                                {% if student.notes %}
+                                <tr>
+                                    <th>Notes:</th>
+                                    <td>{{ student.notes }}</td>
+                                </tr>
+                                {% endif %}
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- Communication Actions -->
+                    <div class="row mt-4">
+                        <div class="col-12">
+                            <h5>Communication Actions:</h5>
+                            <div class="btn-group" role="group">
+                                <a href="{% url 'communications:send_email' student.id %}" class="btn btn-primary">
+                                    <i class="fas fa-envelope"></i> Send Email
+                                </a>
+                                <a href="{% url 'communications:send_sms' student.id %}" class="btn btn-success">
+                                    <i class="fas fa-sms"></i> Send SMS
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Payment History -->
+                    <div class="row mt-4">
+                        <div class="col-12">
+                            <h5>Recent Payments:</h5>
+                            <div class="table-responsive">
+                                <table class="table table-striped">
+                                    <thead>
+                                        <tr>
+                                            <th>Date</th>
+                                            <th>Amount</th>
+                                            <th>Method</th>
+                                            <th>Status</th>
+                                            <th>Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for payment in student.payment_set.all|slice:":5" %}
+                                        <tr>
+                                            <td>{{ payment.created_at|date:"M d, Y" }}</td>
+                                            <td>KSh {{ payment.amount|floatformat:2 }}</td>
+                                            <td>{{ payment.get_payment_method_display }}</td>
+                                            <td>
+                                                <span class="badge bg-{% if payment.status == 'completed' %}success{% elif payment.status == 'pending' %}warning{% else %}danger{% endif %}">
+                                                    {{ payment.get_status_display }}
+                                                </span>
+                                            </td>
+                                            <td>
+                                                <a href="{% url 'payments:payment_detail' payment.id %}" class="btn btn-sm btn-outline-primary">
+                                                    <i class="fas fa-eye"></i>
+                                                </a>
+                                            </td>
+                                        </tr>
+                                        {% empty %}
+                                        <tr>
+                                            <td colspan="5" class="text-center">No payments found.</td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                            {% if student.payment_set.count > 5 %}
+                            <div class="text-center mt-2">
+                                <a href="{% url 'payments:payment_list' %}?student={{ student.student_id }}" class="btn btn-outline-primary">
+                                    View All Payments
+                                </a>
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

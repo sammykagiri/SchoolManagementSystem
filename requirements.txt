@@ -2,5 +2,4 @@ Django==5.2.3
 djangorestframework==3.16.0
 django-cors-headers==4.7.0
 requests==2.32.4
-python-decouple==3.8
-twilio==9.6.3 
+python-decouple==3.8 

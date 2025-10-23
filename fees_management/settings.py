@@ -62,7 +62,11 @@ ROOT_URLCONF = 'fees_management.urls'
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [os.path.join(BASE_DIR, 'core', 'templates')],
+        'DIRS': [
+            os.path.join(BASE_DIR, 'core', 'templates'),
+            os.path.join(BASE_DIR, 'payments', 'templates'),
+            os.path.join(BASE_DIR, 'communications', 'templates'),
+        ],
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [
@@ -159,10 +163,13 @@ EMAIL_USE_TLS = config('EMAIL_USE_TLS', default=True, cast=bool)
 EMAIL_HOST_USER = config('EMAIL_HOST_USER', default='')
 EMAIL_HOST_PASSWORD = config('EMAIL_HOST_PASSWORD', default='')
 
-# Twilio settings for SMS
-TWILIO_ACCOUNT_SID = config('TWILIO_ACCOUNT_SID', default='')
-TWILIO_AUTH_TOKEN = config('TWILIO_AUTH_TOKEN', default='')
-TWILIO_PHONE_NUMBER = config('TWILIO_PHONE_NUMBER', default='')
+# Celcom Africa settings for SMS
+CELCOM_URL_SENDSMS = config('CELCOM_URL_SENDSMS', default='')
+CELCOM_URL_GETBALANCE = config('CELCOM_URL_GETBALANCE', default='')
+CELCOM_API_KEY = config('CELCOM_API_KEY', default='')
+CELCOM_PARTNER_ID = config('CELCOM_PARTNER_ID', default='')
+CELCOM_SHORTCODE = config('CELCOM_SHORTCODE', default='')
+CELCOM_COMPANY_PHONE = config('CELCOM_COMPANY_PHONE', default='')
 
 # M-Pesa settings
 MPESA_CONSUMER_KEY = config('MPESA_CONSUMER_KEY', default='')

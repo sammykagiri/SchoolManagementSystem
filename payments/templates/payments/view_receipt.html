@@ -1,0 +1,117 @@
+{% extends 'base.html' %}
+
+{% block title %}Receipt - {{ receipt.receipt_number }} | Fees Management System{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="row">
+        <div class="col-md-8 offset-md-2">
+            <div class="card">
+                <div class="card-header bg-success text-white text-center">
+                    <h4 class="mb-0">PAYMENT RECEIPT</h4>
+                </div>
+                <div class="card-body">
+                    <div class="row mb-4">
+                        <div class="col-md-6">
+                            <h6 class="text-muted">Receipt Details</h6>
+                            <table class="table table-borderless">
+                                <tr>
+                                    <td><strong>Receipt Number:</strong></td>
+                                    <td>{{ receipt.receipt_number }}</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Date Issued:</strong></td>
+                                    <td>{{ receipt.issued_at|date:"F d, Y" }}</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Amount Paid:</strong></td>
+                                    <td><span class="h5 text-success">KES {{ receipt.amount_paid|floatformat:2 }}</span></td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Payment Method:</strong></td>
+                                    <td>{{ receipt.payment_method }}</td>
+                                </tr>
+                            </table>
+                        </div>
+                        <div class="col-md-6">
+                            <h6 class="text-muted">Student Information</h6>
+                            <table class="table table-borderless">
+                                <tr>
+                                    <td><strong>Student ID:</strong></td>
+                                    <td>{{ receipt.student.student_id }}</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Name:</strong></td>
+                                    <td>{{ receipt.student.full_name }}</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Grade:</strong></td>
+                                    <td>{{ receipt.student.grade.name }}</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Fee Category:</strong></td>
+                                    <td>{{ receipt.fee_category }}</td>
+                                </tr>
+                            </table>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h6 class="text-muted">Academic Information</h6>
+                            <table class="table table-borderless">
+                                <tr>
+                                    <td><strong>Term:</strong></td>
+                                    <td>{{ receipt.term }}</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Academic Year:</strong></td>
+                                    <td>{{ receipt.academic_year }}</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Payment Date:</strong></td>
+                                    <td>{{ receipt.payment_date|date:"F d, Y" }}</td>
+                                </tr>
+                            </table>
+                        </div>
+                        <div class="col-md-6">
+                            <h6 class="text-muted">School Information</h6>
+                            <table class="table table-borderless">
+                                <tr>
+                                    <td><strong>School:</strong></td>
+                                    <td>{{ receipt.school.name }}</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Issued By:</strong></td>
+                                    <td>{{ receipt.issued_by.get_full_name|default:receipt.issued_by.username }}</td>
+                                </tr>
+                            </table>
+                        </div>
+                    </div>
+                    
+                    <div class="text-center mt-4">
+                        <button onclick="window.print()" class="btn btn-primary me-2">
+                            <i class="fas fa-print me-2"></i>Print Receipt
+                        </button>
+                        <a href="{% url 'payments:receipt_list' %}" class="btn btn-secondary">
+                            <i class="fas fa-arrow-left me-2"></i>Back to Receipts
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+@media print {
+    .btn, .card-header {
+        display: none !important;
+    }
+    .card {
+        border: none !important;
+        box-shadow: none !important;
+    }
+}
+</style>
+{% endblock %}

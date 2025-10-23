@@ -1,0 +1,139 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Communication Logs{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h3 class="card-title">Communication Logs</h3>
+                </div>
+                <div class="card-body">
+                    <!-- Filter -->
+                    <div class="row mb-3">
+                        <div class="col-md-4">
+                            <form method="get" class="d-flex">
+                                <select name="type" class="form-select me-2">
+                                    <option value="">All Types</option>
+                                    <option value="email" {% if comm_type == 'email' %}selected{% endif %}>Email</option>
+                                    <option value="sms" {% if comm_type == 'sms' %}selected{% endif %}>SMS</option>
+                                </select>
+                                <button type="submit" class="btn btn-outline-primary">Filter</button>
+                            </form>
+                        </div>
+                    </div>
+
+                    <!-- Communication Logs Table -->
+                    <div class="table-responsive">
+                        <table class="table table-striped">
+                            <thead>
+                                <tr>
+                                    <th>Type</th>
+                                    <th>Student</th>
+                                    <th>Recipient</th>
+                                    <th>Template</th>
+                                    <th>Status</th>
+                                    <th>Created</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for log in page_obj %}
+                                <tr>
+                                    <td>
+                                        <span class="badge bg-{% if log.communication_type == 'email' %}primary{% else %}success{% endif %}">
+                                            {{ log.get_communication_type_display }}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        {% if log.student %}
+                                            <a href="{% url 'core:student_detail' log.student.student_id %}">
+                                                {{ log.student.first_name }} {{ log.student.last_name }}
+                                            </a>
+                                            <br><small class="text-muted">{{ log.student.student_id }}</small>
+                                        {% else %}
+                                            <span class="text-muted">N/A</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if log.communication_type == 'email' %}
+                                            {{ log.email_message.recipient_email|default:"N/A" }}
+                                        {% else %}
+                                            {{ log.sms_message.recipient_phone|default:"N/A" }}
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if log.template %}
+                                            <a href="{% url 'communications:template_detail' log.template.id %}">
+                                                {{ log.template.name }}
+                                            </a>
+                                        {% else %}
+                                            <span class="text-muted">Custom message</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if log.communication_type == 'email' %}
+                                            <span class="badge bg-{% if log.email_message.status == 'sent' %}success{% elif log.email_message.status == 'failed' %}danger{% else %}warning{% endif %}">
+                                                {{ log.email_message.get_status_display }}
+                                            </span>
+                                        {% else %}
+                                            <span class="badge bg-{% if log.sms_message.status == 'sent' %}success{% elif log.sms_message.status == 'failed' %}danger{% else %}warning{% endif %}">
+                                                {{ log.sms_message.get_status_display }}
+                                            </span>
+                                        {% endif %}
+                                    </td>
+                                    <td>{{ log.created_at|date:"M d, Y H:i" }}</td>
+                                    <td>
+                                        <a href="{% url 'communications:log_detail' log.id %}" class="btn btn-sm btn-outline-primary">
+                                            <i class="fas fa-eye"></i>
+                                        </a>
+                                    </td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="7" class="text-center">No communication logs found.</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- Pagination -->
+                    {% if page_obj.has_other_pages %}
+                    <nav aria-label="Communication logs pagination">
+                        <ul class="pagination justify-content-center">
+                            {% if page_obj.has_previous %}
+                                <li class="page-item">
+                                    <a class="page-link" href="?page=1{% if comm_type %}&type={{ comm_type }}{% endif %}">First</a>
+                                </li>
+                                <li class="page-item">
+                                    <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if comm_type %}&type={{ comm_type }}{% endif %}">Previous</a>
+                                </li>
+                            {% endif %}
+                            
+                            <li class="page-item active">
+                                <span class="page-link">
+                                    Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}
+                                </span>
+                            </li>
+                            
+                            {% if page_obj.has_next %}
+                                <li class="page-item">
+                                    <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if comm_type %}&type={{ comm_type }}{% endif %}">Next</a>
+                                </li>
+                                <li class="page-item">
+                                    <a class="page-link" href="?page={{ page_obj.paginator.num_pages }}{% if comm_type %}&type={{ comm_type }}{% endif %}">Last</a>
+                                </li>
+                            {% endif %}
+                        </ul>
+                    </nav>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

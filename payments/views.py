@@ -83,13 +83,13 @@ def initiate_mpesa_payment(request, student_fee_id):
         
         if not phone_number or not amount:
             messages.error(request, 'Phone number and amount are required.')
-            return redirect('student_detail', student_id=student_fee.student.student_id)
+            return redirect('core:student_detail', student_id=student_fee.student.student_id)
         
         try:
             amount = float(amount)
             if amount <= 0:
                 messages.error(request, 'Amount must be greater than 0.')
-                return redirect('student_detail', student_id=student_fee.student.student_id)
+                return redirect('core:student_detail', student_id=student_fee.student.student_id)
             
             # Generate reference number
             reference = f"FEES{student_fee.student.student_id}{int(timezone.now().timestamp())}"
@@ -105,7 +105,7 @@ def initiate_mpesa_payment(request, student_fee_id):
             
             if result['success']:
                 messages.success(request, 'M-Pesa payment initiated. Please check your phone for the STK push.')
-                return redirect('payment_detail', payment_id=result['payment_id'])
+                return redirect('payments:payment_detail', payment_id=result['payment_id'])
             else:
                 messages.error(request, f'Failed to initiate payment: {result["message"]}')
                 
@@ -135,13 +135,13 @@ def record_cash_payment(request, student_fee_id):
         
         if not amount:
             messages.error(request, 'Amount is required.')
-            return redirect('student_detail', student_id=student_fee.student.student_id)
+            return redirect('core:student_detail', student_id=student_fee.student.student_id)
         
         try:
             amount = float(amount)
             if amount <= 0:
                 messages.error(request, 'Amount must be greater than 0.')
-                return redirect('student_detail', student_id=student_fee.student.student_id)
+                return redirect('core:student_detail', student_id=student_fee.student.student_id)
             
             # Create payment record
             payment = Payment.objects.create(
@@ -167,7 +167,7 @@ def record_cash_payment(request, student_fee_id):
             communication_service.send_payment_receipt(payment)
             
             messages.success(request, f'Cash payment of KES {amount} recorded successfully.')
-            return redirect('payment_detail', payment_id=payment.payment_id)
+            return redirect('payments:payment_detail', payment_id=payment.payment_id)
             
         except ValueError:
             messages.error(request, 'Invalid amount.')
@@ -196,13 +196,13 @@ def record_bank_payment(request, student_fee_id):
         
         if not amount or not reference_number:
             messages.error(request, 'Amount and reference number are required.')
-            return redirect('student_detail', student_id=student_fee.student.student_id)
+            return redirect('core:student_detail', student_id=student_fee.student.student_id)
         
         try:
             amount = float(amount)
             if amount <= 0:
                 messages.error(request, 'Amount must be greater than 0.')
-                return redirect('student_detail', student_id=student_fee.student.student_id)
+                return redirect('core:student_detail', student_id=student_fee.student.student_id)
             
             # Create payment record
             payment = Payment.objects.create(
@@ -229,7 +229,7 @@ def record_bank_payment(request, student_fee_id):
             communication_service.send_payment_receipt(payment)
             
             messages.success(request, f'Bank payment of KES {amount} recorded successfully.')
-            return redirect('payment_detail', payment_id=payment.payment_id)
+            return redirect('payments:payment_detail', payment_id=payment.payment_id)
             
         except ValueError:
             messages.error(request, 'Invalid amount.')
@@ -344,7 +344,7 @@ def generate_receipt(request, payment_id):
     # Check if receipt already exists
     if hasattr(payment, 'receipt'):
         messages.info(request, 'Receipt already exists for this payment.')
-        return redirect('payment_detail', payment_id=payment.payment_id)
+        return redirect('payments:payment_detail', payment_id=payment.payment_id)
     
     try:
         # Create receipt
@@ -362,11 +362,11 @@ def generate_receipt(request, payment_id):
         )
         
         messages.success(request, f'Receipt {receipt.receipt_number} generated successfully.')
-        return redirect('payment_detail', payment_id=payment.payment_id)
+        return redirect('payments:payment_detail', payment_id=payment.payment_id)
         
     except Exception as e:
         messages.error(request, f'Error generating receipt: {str(e)}')
-        return redirect('payment_detail', payment_id=payment.payment_id)
+        return redirect('payments:payment_detail', payment_id=payment.payment_id)
 
 
 @login_required
@@ -448,7 +448,7 @@ def send_reminder(request, student_fee_id):
             reminder.save()
             
             messages.success(request, 'Payment reminder sent successfully.')
-            return redirect('student_detail', student_id=student_fee.student.student_id)
+            return redirect('core:student_detail', student_id=student_fee.student.student_id)
             
         except Exception as e:
             messages.error(request, f'Error sending reminder: {str(e)}')

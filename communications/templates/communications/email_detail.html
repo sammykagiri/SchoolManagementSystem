@@ -1,0 +1,133 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Email Detail{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h3 class="card-title">Email Message Detail</h3>
+                    <a href="{% url 'communications:email_list' %}" class="btn btn-secondary">
+                        <i class="fas fa-arrow-left"></i> Back to List
+                    </a>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <table class="table table-borderless">
+                                <tr>
+                                    <th width="30%">Recipient:</th>
+                                    <td>{{ email.recipient_email }}</td>
+                                </tr>
+                                <tr>
+                                    <th>Subject:</th>
+                                    <td>{{ email.subject }}</td>
+                                </tr>
+                                <tr>
+                                    <th>Status:</th>
+                                    <td>
+                                        <span class="badge bg-{% if email.status == 'sent' %}success{% elif email.status == 'failed' %}danger{% else %}warning{% endif %}">
+                                            {{ email.get_status_display }}
+                                        </span>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <th>Created:</th>
+                                    <td>{{ email.created_at|date:"M d, Y H:i" }}</td>
+                                </tr>
+                                <tr>
+                                    <th>Sent At:</th>
+                                    <td>
+                                        {% if email.sent_at %}
+                                            {{ email.sent_at|date:"M d, Y H:i" }}
+                                        {% else %}
+                                            <span class="text-muted">Not sent</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                            </table>
+                        </div>
+                        <div class="col-md-6">
+                            <table class="table table-borderless">
+                                <tr>
+                                    <th width="30%">Student:</th>
+                                    <td>
+                                        {% if email.student %}
+                                            <a href="{% url 'core:student_detail' email.student.student_id %}">
+                                                {{ email.student.first_name }} {{ email.student.last_name }}
+                                            </a>
+                                            <br><small class="text-muted">{{ email.student.student_id }}</small>
+                                        {% else %}
+                                            <span class="text-muted">N/A</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <th>Template:</th>
+                                    <td>
+                                        {% if email.template %}
+                                            <a href="{% url 'communications:template_detail' email.template.id %}">
+                                                {{ email.template.name }}
+                                            </a>
+                                        {% else %}
+                                            <span class="text-muted">Custom message</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <th>Payment:</th>
+                                    <td>
+                                        {% if email.payment %}
+                                            <a href="{% url 'payments:payment_detail' email.payment.id %}">
+                                                Payment #{{ email.payment.id }}
+                                            </a>
+                                        {% else %}
+                                            <span class="text-muted">N/A</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <th>Sent By:</th>
+                                    <td>{{ email.sent_by.get_full_name|default:email.sent_by.username }}</td>
+                                </tr>
+                            </table>
+                        </div>
+                    </div>
+                    
+                    <div class="row mt-4">
+                        <div class="col-12">
+                            <h5>Email Content:</h5>
+                            <div class="border p-3 bg-light">
+                                <div class="email-preview">
+                                    <div class="email-header mb-3">
+                                        <strong>To:</strong> {{ email.recipient_email }}<br>
+                                        <strong>Subject:</strong> {{ email.subject }}<br>
+                                        <hr>
+                                    </div>
+                                    <div class="email-body">
+                                        <pre style="white-space: pre-wrap; font-family: inherit;">{{ email.content }}</pre>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    {% if email.error_message %}
+                    <div class="row mt-4">
+                        <div class="col-12">
+                            <div class="alert alert-danger">
+                                <h5>Error Details:</h5>
+                                <p>{{ email.error_message }}</p>
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

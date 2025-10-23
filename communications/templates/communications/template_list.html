@@ -1,0 +1,161 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Communication Templates{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h3 class="card-title">Communication Templates</h3>
+                    <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addTemplateModal">
+                        <i class="fas fa-plus"></i> Add Template
+                    </button>
+                </div>
+                <div class="card-body">
+                    <!-- Filters -->
+                    <div class="row mb-3">
+                        <div class="col-md-4">
+                            <form method="get" class="d-flex">
+                                <select name="template_type" class="form-select me-2">
+                                    <option value="">All Types</option>
+                                    <option value="email" {% if template_type == 'email' %}selected{% endif %}>Email</option>
+                                    <option value="sms" {% if template_type == 'sms' %}selected{% endif %}>SMS</option>
+                                    <option value="both" {% if template_type == 'both' %}selected{% endif %}>Both</option>
+                                </select>
+                                <select name="message_type" class="form-select me-2">
+                                    <option value="">All Message Types</option>
+                                    <option value="payment_reminder" {% if message_type == 'payment_reminder' %}selected{% endif %}>Payment Reminder</option>
+                                    <option value="payment_confirmation" {% if message_type == 'payment_confirmation' %}selected{% endif %}>Payment Confirmation</option>
+                                    <option value="general" {% if message_type == 'general' %}selected{% endif %}>General</option>
+                                </select>
+                                <button type="submit" class="btn btn-outline-primary">Filter</button>
+                            </form>
+                        </div>
+                    </div>
+
+                    <!-- Templates Table -->
+                    <div class="table-responsive">
+                        <table class="table table-striped">
+                            <thead>
+                                <tr>
+                                    <th>Name</th>
+                                    <th>Type</th>
+                                    <th>Message Type</th>
+                                    <th>Subject</th>
+                                    <th>Status</th>
+                                    <th>Created</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for template in templates %}
+                                <tr>
+                                    <td>{{ template.name }}</td>
+                                    <td>
+                                        <span class="badge bg-{% if template.template_type == 'email' %}primary{% elif template.template_type == 'sms' %}success{% else %}info{% endif %}">
+                                            {{ template.get_template_type_display }}
+                                        </span>
+                                    </td>
+                                    <td>{{ template.get_message_type_display }}</td>
+                                    <td>{{ template.subject|truncatechars:30 }}</td>
+                                    <td>
+                                        <span class="badge bg-{% if template.is_active %}success{% else %}secondary{% endif %}">
+                                            {% if template.is_active %}Active{% else %}Inactive{% endif %}
+                                        </span>
+                                    </td>
+                                    <td>{{ template.created_at|date:"M d, Y" }}</td>
+                                    <td>
+                                        <a href="{% url 'communications:template_detail' template.id %}" class="btn btn-sm btn-outline-primary">
+                                            <i class="fas fa-eye"></i>
+                                        </a>
+                                        <a href="{% url 'communications:template_update' template.id %}" class="btn btn-sm btn-outline-warning">
+                                            <i class="fas fa-edit"></i>
+                                        </a>
+                                        <a href="{% url 'communications:template_delete' template.id %}" class="btn btn-sm btn-outline-danger">
+                                            <i class="fas fa-trash"></i>
+                                        </a>
+                                    </td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="7" class="text-center">No templates found.</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Add Template Modal -->
+<div class="modal fade" id="addTemplateModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Add Communication Template</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="post">
+                {% csrf_token %}
+                <div class="modal-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="name" class="form-label">Template Name</label>
+                                <input type="text" class="form-control" id="name" name="name" required>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="template_type" class="form-label">Template Type</label>
+                                <select class="form-select" id="template_type" name="template_type" required>
+                                    <option value="">Select Type</option>
+                                    <option value="email">Email</option>
+                                    <option value="sms">SMS</option>
+                                    <option value="both">Both</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="message_type" class="form-label">Message Type</label>
+                                <select class="form-select" id="message_type" name="message_type" required>
+                                    <option value="">Select Message Type</option>
+                                    <option value="payment_reminder">Payment Reminder</option>
+                                    <option value="payment_confirmation">Payment Confirmation</option>
+                                    <option value="general">General</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="subject" class="form-label">Subject (Email only)</label>
+                                <input type="text" class="form-control" id="subject" name="subject">
+                            </div>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="content" class="form-label">Content</label>
+                        <textarea class="form-control" id="content" name="content" rows="6" required></textarea>
+                        <div class="form-text">
+                            Use placeholders: {student_name}, {parent_name}, {amount}, {due_date}, {school_name}
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Create Template</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -2,7 +2,8 @@ from django.conf import settings
 from django.core.mail import send_mail
 from django.template.loader import render_to_string
 from django.utils import timezone
-from twilio.rest import Client
+import requests
+import re
 from .models import EmailMessage, SMSMessage, CommunicationTemplate, CommunicationLog
 from core.models import Student
 from payments.models import Payment, PaymentReminder
@@ -193,51 +194,198 @@ class EmailService:
 
 
 class SMSService:
-    """Service class for SMS communications"""
+    """Service class for SMS communications using Celcom Africa"""
     
     def __init__(self):
-        self.client = Client(settings.TWILIO_ACCOUNT_SID, settings.TWILIO_AUTH_TOKEN)
-        self.from_number = settings.TWILIO_PHONE_NUMBER
+        self.api_url = settings.CELCOM_URL_SENDSMS
+        self.api_key = settings.CELCOM_API_KEY
+        self.partner_id = settings.CELCOM_PARTNER_ID
+        self.shortcode = settings.CELCOM_SHORTCODE
+        
+        # Celcom Africa API return codes and descriptions
+        self.api_codes = {
+            200: "Successful Request Call",
+            1001: "Invalid sender id",
+            1002: "Network not allowed",
+            1003: "Invalid mobile number",
+            1004: "Low bulk credits",
+            1005: "Failed. System error",
+            1006: "Invalid credentials",
+            1007: "Failed. System error",
+            1008: "No Delivery Report",
+            1009: "unsupported data type",
+            1010: "unsupported request type",
+            4090: "Internal Error. Try again after 5 minutes",
+            4091: "No Partner ID is Set",
+            4092: "No API KEY Provided",
+            4093: "Details Not Found"
+        }
+    
+    def validate_phone_number(self, phone_number):
+        """
+        Validate and format phone number for Celcom Africa (expected: 254xxxxxxxxxx)
+        """
+        # Remove any whitespace or special characters
+        phone_number = re.sub(r'\D', '', phone_number)
+        
+        # Check if it starts with + or 0, and convert to 254 format
+        if phone_number.startswith('254'):
+            pass  # Already in correct format
+        elif phone_number.startswith('+254'):
+            phone_number = phone_number[1:]  # Remove the +
+        elif phone_number.startswith('0'):
+            phone_number = '254' + phone_number[1:]
+        elif phone_number.startswith('+'):
+            return None  # Unsupported country code
+        else:
+            # Assume it's a Kenyan number without prefix
+            phone_number = '254' + phone_number
+
+        # Validate length and format (should be 12 digits: 254xxxxxxxxxx)
+        if not re.match(r'^254\d{9}$', phone_number):
+            return None
+        
+        return phone_number
     
     def send_sms(self, recipient_phone, content, student=None, 
                  template=None, payment_reminder=None, payment=None, sent_by=None):
         """Send SMS and log it"""
         try:
-            # Send SMS
-            message = self.client.messages.create(
-                body=content,
-                from_=self.from_number,
-                to=recipient_phone
-            )
+            # Validate and format phone number
+            formatted_phone = self.validate_phone_number(recipient_phone)
+            if not formatted_phone:
+                error_msg = f"Invalid phone number format: {recipient_phone}"
+                logger.error(error_msg)
+                
+                # Log failed SMS
+                if student:
+                    SMSMessage.objects.create(
+                        template=template,
+                        student=student,
+                        recipient_phone=recipient_phone,
+                        content=content,
+                        status='failed',
+                        error_message=error_msg,
+                        payment_reminder=payment_reminder,
+                        payment=payment,
+                        sent_by=sent_by
+                    )
+                return False
             
-            # Log the SMS
-            sms_message = SMSMessage.objects.create(
-                template=template,
-                student=student,
-                recipient_phone=recipient_phone,
-                content=content,
-                status='sent',
-                sent_at=timezone.now(),
-                twilio_sid=message.sid,
-                payment_reminder=payment_reminder,
-                payment=payment,
-                sent_by=sent_by
-            )
+            # Construct the JSON payload for Celcom Africa
+            payload = {
+                "partnerID": str(self.partner_id),
+                "apikey": self.api_key,
+                "mobile": formatted_phone,
+                "message": content,
+                "shortcode": self.shortcode,
+                "pass_type": "plain"
+            }
+
+            headers = {
+                "Content-Type": "application/json"
+            }
+
+            # Send the POST request to Celcom Africa
+            response = requests.post(self.api_url, json=payload, headers=headers)
+            response.raise_for_status()
+
+            # Parse the JSON response
+            result = response.json()
+            logger.info(f"Celcom Africa API response: {result}")
+
+            # Check if the SMS was sent successfully
+            if result.get("responses"):
+                recipient = result["responses"][0]
+                response_code = recipient.get("respose-code") or recipient.get("response-code")
+                response_description = recipient.get("response-description", "Unknown")
+                message_id = recipient.get("messageid")
+
+                # Update SMS tracker
+                if response_code == 200 or (response_code is None and response_description.lower() == "success"):
+                    # Log the SMS
+                    sms_message = SMSMessage.objects.create(
+                        template=template,
+                        student=student,
+                        recipient_phone=formatted_phone,
+                        content=content,
+                        status='sent',
+                        sent_at=timezone.now(),
+                        twilio_sid=message_id,  # Using twilio_sid field to store Celcom message ID
+                        payment_reminder=payment_reminder,
+                        payment=payment,
+                        sent_by=sent_by
+                    )
+                    
+                    # Create communication log
+                    if student:
+                        CommunicationLog.objects.create(
+                            student=student,
+                            communication_type='sms',
+                            template=template,
+                            sms_message=sms_message,
+                            payment_reminder=payment_reminder,
+                            payment=payment,
+                            sent_by=sent_by
+                        )
+                    
+                    logger.info(f"SMS sent successfully to {formatted_phone}, Message ID: {message_id}")
+                    return True
+                else:
+                    error_message = self.api_codes.get(response_code, response_description)
+                    logger.error(f"SMS failed with response code {response_code}: {error_message}")
+                    
+                    # Log failed SMS
+                    if student:
+                        SMSMessage.objects.create(
+                            template=template,
+                            student=student,
+                            recipient_phone=formatted_phone,
+                            content=content,
+                            status='failed',
+                            error_message=error_message,
+                            payment_reminder=payment_reminder,
+                            payment=payment,
+                            sent_by=sent_by
+                        )
+                    return False
             
-            # Create communication log
+            # No recipient data in response
+            error_msg = "No recipient data in response"
+            logger.error(error_msg)
+            
+            # Log failed SMS
             if student:
-                CommunicationLog.objects.create(
-                    student=student,
-                    communication_type='sms',
+                SMSMessage.objects.create(
                     template=template,
-                    sms_message=sms_message,
+                    student=student,
+                    recipient_phone=formatted_phone,
+                    content=content,
+                    status='failed',
+                    error_message=error_msg,
                     payment_reminder=payment_reminder,
                     payment=payment,
                     sent_by=sent_by
                 )
+            return False
             
-            logger.info(f"SMS sent successfully to {recipient_phone}")
-            return True
+        except requests.exceptions.RequestException as e:
+            logger.error(f"Network error sending SMS to {recipient_phone}: {str(e)}")
+            
+            # Log failed SMS
+            if student:
+                SMSMessage.objects.create(
+                    template=template,
+                    student=student,
+                    recipient_phone=recipient_phone,
+                    content=content,
+                    status='failed',
+                    error_message=f"Network error: {str(e)}",
+                    payment_reminder=payment_reminder,
+                    payment=payment,
+                    sent_by=sent_by
+                )
+            return False
             
         except Exception as e:
             logger.error(f"Error sending SMS to {recipient_phone}: {str(e)}")

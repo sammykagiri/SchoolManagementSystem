@@ -1,0 +1,175 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Communication Log Detail{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h3 class="card-title">Communication Log Detail</h3>
+                    <a href="{% url 'communications:log_list' %}" class="btn btn-secondary">
+                        <i class="fas fa-arrow-left"></i> Back to List
+                    </a>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <table class="table table-borderless">
+                                <tr>
+                                    <th width="30%">Type:</th>
+                                    <td>
+                                        <span class="badge bg-{% if log.communication_type == 'email' %}primary{% else %}success{% endif %}">
+                                            {{ log.get_communication_type_display }}
+                                        </span>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <th>Student:</th>
+                                    <td>
+                                        {% if log.student %}
+                                            <a href="{% url 'core:student_detail' log.student.student_id %}">
+                                                {{ log.student.first_name }} {{ log.student.last_name }}
+                                            </a>
+                                            <br><small class="text-muted">{{ log.student.student_id }}</small>
+                                        {% else %}
+                                            <span class="text-muted">N/A</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <th>Template:</th>
+                                    <td>
+                                        {% if log.template %}
+                                            <a href="{% url 'communications:template_detail' log.template.id %}">
+                                                {{ log.template.name }}
+                                            </a>
+                                        {% else %}
+                                            <span class="text-muted">Custom message</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <th>Created:</th>
+                                    <td>{{ log.created_at|date:"M d, Y H:i" }}</td>
+                                </tr>
+                            </table>
+                        </div>
+                        <div class="col-md-6">
+                            <table class="table table-borderless">
+                                <tr>
+                                    <th width="30%">Status:</th>
+                                    <td>
+                                        {% if log.communication_type == 'email' %}
+                                            <span class="badge bg-{% if log.email_message.status == 'sent' %}success{% elif log.email_message.status == 'failed' %}danger{% else %}warning{% endif %}">
+                                                {{ log.email_message.get_status_display }}
+                                            </span>
+                                        {% else %}
+                                            <span class="badge bg-{% if log.sms_message.status == 'sent' %}success{% elif log.sms_message.status == 'failed' %}danger{% else %}warning{% endif %}">
+                                                {{ log.sms_message.get_status_display }}
+                                            </span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <th>Recipient:</th>
+                                    <td>
+                                        {% if log.communication_type == 'email' %}
+                                            {{ log.email_message.recipient_email|default:"N/A" }}
+                                        {% else %}
+                                            {{ log.sms_message.recipient_phone|default:"N/A" }}
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <th>Sent At:</th>
+                                    <td>
+                                        {% if log.communication_type == 'email' %}
+                                            {% if log.email_message.sent_at %}
+                                                {{ log.email_message.sent_at|date:"M d, Y H:i" }}
+                                            {% else %}
+                                                <span class="text-muted">Not sent</span>
+                                            {% endif %}
+                                        {% else %}
+                                            {% if log.sms_message.sent_at %}
+                                                {{ log.sms_message.sent_at|date:"M d, Y H:i" }}
+                                            {% else %}
+                                                <span class="text-muted">Not sent</span>
+                                            {% endif %}
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <th>Sent By:</th>
+                                    <td>
+                                        {% if log.communication_type == 'email' %}
+                                            {{ log.email_message.sent_by.get_full_name|default:log.email_message.sent_by.username }}
+                                        {% else %}
+                                            {{ log.sms_message.sent_by.get_full_name|default:log.sms_message.sent_by.username }}
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                            </table>
+                        </div>
+                    </div>
+                    
+                    <div class="row mt-4">
+                        <div class="col-12">
+                            <h5>Message Content:</h5>
+                            <div class="border p-3 bg-light">
+                                {% if log.communication_type == 'email' %}
+                                    <div class="email-preview">
+                                        <div class="email-header mb-3">
+                                            <strong>To:</strong> {{ log.email_message.recipient_email }}<br>
+                                            <strong>Subject:</strong> {{ log.email_message.subject }}<br>
+                                            <hr>
+                                        </div>
+                                        <div class="email-body">
+                                            <pre style="white-space: pre-wrap; font-family: inherit;">{{ log.email_message.content }}</pre>
+                                        </div>
+                                    </div>
+                                {% else %}
+                                    <div class="sms-preview">
+                                        <div class="sms-header mb-3">
+                                            <strong>To:</strong> {{ log.sms_message.recipient_phone }}<br>
+                                            <hr>
+                                        </div>
+                                        <div class="sms-body">
+                                            <pre style="white-space: pre-wrap; font-family: inherit;">{{ log.sms_message.content }}</pre>
+                                        </div>
+                                        <div class="sms-footer text-muted mt-2">
+                                            <small>Character count: {{ log.sms_message.content|length }}</small>
+                                        </div>
+                                    </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+
+                    {% if log.communication_type == 'email' and log.email_message.error_message %}
+                    <div class="row mt-4">
+                        <div class="col-12">
+                            <div class="alert alert-danger">
+                                <h5>Error Details:</h5>
+                                <p>{{ log.email_message.error_message }}</p>
+                            </div>
+                        </div>
+                    </div>
+                    {% elif log.communication_type == 'sms' and log.sms_message.error_message %}
+                    <div class="row mt-4">
+                        <div class="col-12">
+                            <div class="alert alert-danger">
+                                <h5>Error Details:</h5>
+                                <p>{{ log.sms_message.error_message }}</p>
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -10,6 +10,34 @@ import json
 
 
 @login_required
+def communications_dashboard(request):
+    """Communications dashboard"""
+    school = request.user.profile.school
+    
+    # Get recent statistics
+    recent_emails = EmailMessage.objects.filter(school=school).order_by('-created_at')[:5]
+    recent_sms = SMSMessage.objects.filter(school=school).order_by('-created_at')[:5]
+    recent_logs = CommunicationLog.objects.filter(school=school).order_by('-created_at')[:5]
+    
+    # Get counts
+    total_templates = CommunicationTemplate.objects.filter(school=school).count()
+    total_emails = EmailMessage.objects.filter(school=school).count()
+    total_sms = SMSMessage.objects.filter(school=school).count()
+    total_logs = CommunicationLog.objects.filter(school=school).count()
+    
+    context = {
+        'recent_emails': recent_emails,
+        'recent_sms': recent_sms,
+        'recent_logs': recent_logs,
+        'total_templates': total_templates,
+        'total_emails': total_emails,
+        'total_sms': total_sms,
+        'total_logs': total_logs,
+    }
+    return render(request, 'communications/dashboard.html', context)
+
+
+@login_required
 def template_list(request):
     """List communication templates"""
     school = request.user.profile.school

@@ -1,0 +1,155 @@
+{% extends 'base.html' %}
+
+{% block title %}Fee Structures | Fees Management System{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="row">
+        <!-- Fee Structures List (Left Side) -->
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+                    <h4 class="mb-0">Fee Structures</h4>
+                    <div class="d-flex gap-2">
+                        <a href="{% url 'core:generate_student_fees' %}" class="btn btn-success btn-sm">
+                            <i class="fas fa-calculator me-1"></i>Generate Fees
+                        </a>
+                    </div>
+                </div>
+                <div class="card-body">
+                    {% if messages %}
+                        {% for message in messages %}
+                            <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                                {{ message }}
+                                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                            </div>
+                        {% endfor %}
+                    {% endif %}
+                    
+                    <!-- Filter Form -->
+                    <form method="get" class="mb-3">
+                        <div class="row g-2">
+                            <div class="col-md-4">
+                                <select name="grade" class="form-select">
+                                    <option value="">All Grades</option>
+                                    {% for grade in grades %}
+                                        <option value="{{ grade.id }}" {% if grade_filter == grade.id|stringformat:"s" %}selected{% endif %}>
+                                            {{ grade.name }}
+                                        </option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="col-md-4">
+                                <select name="term" class="form-select">
+                                    <option value="">All Terms</option>
+                                    {% for term in terms %}
+                                        <option value="{{ term.id }}" {% if term_filter == term.id|stringformat:"s" %}selected{% endif %}>
+                                            {{ term.academic_year }} - Term {{ term.term_number }}
+                                        </option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="col-md-4">
+                                <button type="submit" class="btn btn-outline-primary w-100">
+                                    <i class="fas fa-filter me-1"></i>Filter
+                                </button>
+                            </div>
+                        </div>
+                    </form>
+                    
+                    {% if fee_structures %}
+                        <div class="table-responsive">
+                            <table class="table table-bordered table-striped">
+                                <thead>
+                                    <tr>
+                                        <th>Grade</th>
+                                        <th>Term</th>
+                                        <th>Fee Category</th>
+                                        <th>Amount</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for fee_structure in fee_structures %}
+                                    <tr>
+                                        <td>{{ fee_structure.grade.name }}</td>
+                                        <td>{{ fee_structure.term.academic_year }} - Term {{ fee_structure.term.term_number }}</td>
+                                        <td>{{ fee_structure.fee_category.name }}</td>
+                                        <td class="text-end">KES {{ fee_structure.amount|floatformat:2 }}</td>
+                                        <td>
+                                            <div class="btn-group btn-group-sm" role="group">
+                                                <button type="button" class="btn btn-outline-primary" title="Edit" disabled>
+                                                    <i class="fas fa-edit"></i>
+                                                </button>
+                                                <button type="button" class="btn btn-outline-danger" title="Delete" disabled>
+                                                    <i class="fas fa-trash"></i>
+                                                </button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                    {% empty %}
+                                    <tr><td colspan="5">No fee structures found.</td></tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    {% else %}
+                        <div class="text-center py-4">
+                            <i class="fas fa-money-bill-wave fa-3x text-muted mb-3"></i>
+                            <p class="text-muted">No fee structures found. Add your first fee structure using the form on the right.</p>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Add New Fee Structure Card (Right Side) -->
+        <div class="col-md-4 mb-4">
+            <div class="card h-100">
+                <div class="card-header bg-secondary text-white">
+                    <h5 class="mb-0">Add New Fee Structure</h5>
+                </div>
+                <div class="card-body">
+                    <form method="post" novalidate>
+                        {% csrf_token %}
+                        <div class="mb-3">
+                            <label for="id_grade" class="form-label">Grade</label>
+                            <select name="grade" id="id_grade" class="form-select" required>
+                                <option value="">Select Grade</option>
+                                {% for grade in grades %}
+                                    <option value="{{ grade.id }}">{{ grade.name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label for="id_term" class="form-label">Term</label>
+                            <select name="term" id="id_term" class="form-select" required>
+                                <option value="">Select Term</option>
+                                {% for term in terms %}
+                                    <option value="{{ term.id }}">{{ term.academic_year }} - Term {{ term.term_number }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label for="id_fee_category" class="form-label">Fee Category</label>
+                            <select name="fee_category" id="id_fee_category" class="form-select" required>
+                                <option value="">Select Fee Category</option>
+                                {% for category in fee_categories %}
+                                    <option value="{{ category.id }}">{{ category.name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label for="id_amount" class="form-label">Amount (KES)</label>
+                            <input type="number" name="amount" id="id_amount" class="form-control" step="0.01" min="0" required>
+                        </div>
+                        <button type="submit" class="btn btn-primary w-100">
+                            <i class="fas fa-plus-circle me-2"></i>Add Fee Structure
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,101 @@
+{% extends 'base.html' %}
+
+{% block title %}Generate Student Fees | Fees Management System{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="row">
+        <div class="col-md-8 offset-md-2">
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <h4 class="mb-0">Generate Student Fees</h4>
+                </div>
+                <div class="card-body">
+                    {% if messages %}
+                        {% for message in messages %}
+                            <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                                {{ message }}
+                                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                            </div>
+                        {% endfor %}
+                    {% endif %}
+                    
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle me-2"></i>
+                        <strong>How it works:</strong> This will generate fee records for all active students in the selected grade and term based on the fee structures you've defined.
+                    </div>
+                    
+                    <form method="post" novalidate>
+                        {% csrf_token %}
+                        <div class="mb-3">
+                            <label for="id_term" class="form-label">Select Term</label>
+                            <select name="term_id" id="id_term" class="form-select" required>
+                                <option value="">Choose a term...</option>
+                                {% for term in terms %}
+                                    <option value="{{ term.id }}">
+                                        {{ term.academic_year }} - Term {{ term.term_number }}
+                                        {% if term.is_active %}(Active){% endif %}
+                                    </option>
+                                {% endfor %}
+                            </select>
+                            <div class="form-text">Select the term for which to generate fees.</div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="id_grade" class="form-label">Select Grade</label>
+                            <select name="grade_id" id="id_grade" class="form-select" required>
+                                <option value="">Choose a grade...</option>
+                                {% for grade in grades %}
+                                    <option value="{{ grade.id }}">{{ grade.name }}</option>
+                                {% endfor %}
+                            </select>
+                            <div class="form-text">Select the grade for which to generate fees.</div>
+                        </div>
+                        
+                        <div class="alert alert-warning">
+                            <i class="fas fa-exclamation-triangle me-2"></i>
+                            <strong>Warning:</strong> This action will create fee records for all students in the selected grade. Make sure you have defined the appropriate fee structures first.
+                        </div>
+                        
+                        <div class="d-flex justify-content-between">
+                            <a href="{% url 'core:fee_structure_list' %}" class="btn btn-secondary">
+                                <i class="fas fa-arrow-left me-2"></i>Back to Fee Structures
+                            </a>
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-calculator me-2"></i>Generate Fees
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+            
+            <!-- Additional Information Card -->
+            <div class="card mt-4">
+                <div class="card-header bg-light">
+                    <h6 class="mb-0">Before Generating Fees</h6>
+                </div>
+                <div class="card-body">
+                    <ul class="list-unstyled mb-0">
+                        <li class="mb-2">
+                            <i class="fas fa-check text-success me-2"></i>
+                            Ensure you have created fee structures for the selected grade and term
+                        </li>
+                        <li class="mb-2">
+                            <i class="fas fa-check text-success me-2"></i>
+                            Verify that students are properly assigned to grades
+                        </li>
+                        <li class="mb-2">
+                            <i class="fas fa-check text-success me-2"></i>
+                            Check that fee categories are properly configured
+                        </li>
+                        <li class="mb-0">
+                            <i class="fas fa-check text-success me-2"></i>
+                            Confirm that the term dates are correctly set
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

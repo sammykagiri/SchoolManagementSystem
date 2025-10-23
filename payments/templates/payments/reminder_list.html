@@ -1,0 +1,142 @@
+{% extends 'base.html' %}
+
+{% block title %}Payment Reminders | Fees Management System{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+                    <h4 class="mb-0">Payment Reminders</h4>
+                    <a href="{% url 'payments:payment_list' %}" class="btn btn-secondary btn-sm">
+                        <i class="fas fa-arrow-left me-1"></i>Back to Payments
+                    </a>
+                </div>
+                <div class="card-body">
+                    {% if messages %}
+                        {% for message in messages %}
+                            <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                                {{ message }}
+                                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                            </div>
+                        {% endfor %}
+                    {% endif %}
+                    
+                    <!-- Filter Form -->
+                    <form method="get" class="mb-4">
+                        <div class="row g-3">
+                            <div class="col-md-4">
+                                <select name="type" class="form-select">
+                                    <option value="">All Reminder Types</option>
+                                    <option value="due_date_reminder" {% if reminder_type == 'due_date_reminder' %}selected{% endif %}>Due Date Reminder</option>
+                                    <option value="overdue" {% if reminder_type == 'overdue' %}selected{% endif %}>Overdue Notice</option>
+                                </select>
+                            </div>
+                            <div class="col-md-2">
+                                <button type="submit" class="btn btn-outline-primary w-100">
+                                    <i class="fas fa-filter me-1"></i>Filter
+                                </button>
+                            </div>
+                        </div>
+                    </form>
+                    
+                    {% if page_obj %}
+                        <div class="table-responsive">
+                            <table class="table table-bordered table-striped">
+                                <thead>
+                                    <tr>
+                                        <th>Student</th>
+                                        <th>Fee Category</th>
+                                        <th>Term</th>
+                                        <th>Reminder Type</th>
+                                        <th>Sent Via</th>
+                                        <th>Date Sent</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for reminder in page_obj %}
+                                    <tr>
+                                        <td>
+                                            <div>
+                                                <strong>{{ reminder.student.full_name }}</strong><br>
+                                                <small class="text-muted">{{ reminder.student.student_id }}</small>
+                                            </div>
+                                        </td>
+                                        <td>{{ reminder.student_fee.fee_category.name }}</td>
+                                        <td>{{ reminder.student_fee.term.academic_year }} - Term {{ reminder.student_fee.term.term_number }}</td>
+                                        <td>
+                                            <span class="badge bg-info">{{ reminder.get_reminder_type_display }}</span>
+                                        </td>
+                                        <td>
+                                            {% if reminder.sent_via_email %}
+                                                <span class="badge bg-primary me-1">Email</span>
+                                            {% endif %}
+                                            {% if reminder.sent_via_sms %}
+                                                <span class="badge bg-success">SMS</span>
+                                            {% endif %}
+                                        </td>
+                                        <td>{{ reminder.created_at|date:"M d, Y H:i" }}</td>
+                                        <td>
+                                            <a href="{% url 'core:student_detail' reminder.student.student_id %}" 
+                                               class="btn btn-outline-primary btn-sm" title="View Student">
+                                                <i class="fas fa-user"></i>
+                                            </a>
+                                        </td>
+                                    </tr>
+                                    {% empty %}
+                                    <tr>
+                                        <td colspan="7" class="text-center py-4">
+                                            <i class="fas fa-bell fa-3x text-muted mb-3"></i>
+                                            <p class="text-muted">No reminders found.</p>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                        
+                        <!-- Pagination -->
+                        {% if page_obj.has_other_pages %}
+                            <nav aria-label="Reminder pagination">
+                                <ul class="pagination justify-content-center">
+                                    {% if page_obj.has_previous %}
+                                        <li class="page-item">
+                                            <a class="page-link" href="?page=1{% if reminder_type %}&type={{ reminder_type }}{% endif %}">First</a>
+                                        </li>
+                                        <li class="page-item">
+                                            <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if reminder_type %}&type={{ reminder_type }}{% endif %}">Previous</a>
+                                        </li>
+                                    {% endif %}
+                                    
+                                    <li class="page-item active">
+                                        <span class="page-link">
+                                            Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}
+                                        </span>
+                                    </li>
+                                    
+                                    {% if page_obj.has_next %}
+                                        <li class="page-item">
+                                            <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if reminder_type %}&type={{ reminder_type }}{% endif %}">Next</a>
+                                        </li>
+                                        <li class="page-item">
+                                            <a class="page-link" href="?page={{ page_obj.paginator.num_pages }}{% if reminder_type %}&type={{ reminder_type }}{% endif %}">Last</a>
+                                        </li>
+                                    {% endif %}
+                                </ul>
+                            </nav>
+                        {% endif %}
+                    {% else %}
+                        <div class="text-center py-5">
+                            <i class="fas fa-bell fa-4x text-muted mb-4"></i>
+                            <h5 class="text-muted">No Reminders Found</h5>
+                            <p class="text-muted">No reminder records match your current filters.</p>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

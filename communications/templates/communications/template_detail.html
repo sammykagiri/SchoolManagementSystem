@@ -1,0 +1,128 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Template Detail - {{ template.name }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h3 class="card-title">{{ template.name }}</h3>
+                    <div>
+                        <a href="{% url 'communications:template_update' template.id %}" class="btn btn-warning">
+                            <i class="fas fa-edit"></i> Edit
+                        </a>
+                        <a href="{% url 'communications:template_delete' template.id %}" class="btn btn-danger">
+                            <i class="fas fa-trash"></i> Delete
+                        </a>
+                        <a href="{% url 'communications:template_list' %}" class="btn btn-secondary">
+                            <i class="fas fa-arrow-left"></i> Back to List
+                        </a>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <table class="table table-borderless">
+                                <tr>
+                                    <th width="30%">Template Name:</th>
+                                    <td>{{ template.name }}</td>
+                                </tr>
+                                <tr>
+                                    <th>Template Type:</th>
+                                    <td>
+                                        <span class="badge bg-{% if template.template_type == 'email' %}primary{% elif template.template_type == 'sms' %}success{% else %}info{% endif %}">
+                                            {{ template.get_template_type_display }}
+                                        </span>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <th>Message Type:</th>
+                                    <td>{{ template.get_message_type_display }}</td>
+                                </tr>
+                                <tr>
+                                    <th>Status:</th>
+                                    <td>
+                                        <span class="badge bg-{% if template.is_active %}success{% else %}secondary{% endif %}">
+                                            {% if template.is_active %}Active{% else %}Inactive{% endif %}
+                                        </span>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <th>Created:</th>
+                                    <td>{{ template.created_at|date:"M d, Y H:i" }}</td>
+                                </tr>
+                                <tr>
+                                    <th>Created By:</th>
+                                    <td>{{ template.created_by.get_full_name|default:template.created_by.username }}</td>
+                                </tr>
+                            </table>
+                        </div>
+                        <div class="col-md-6">
+                            {% if template.subject %}
+                            <div class="mb-3">
+                                <h5>Subject:</h5>
+                                <p class="border p-3 bg-light">{{ template.subject }}</p>
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-12">
+                            <h5>Content:</h5>
+                            <div class="border p-3 bg-light">
+                                <pre style="white-space: pre-wrap; font-family: inherit;">{{ template.content }}</pre>
+                            </div>
+                        </div>
+                    </div>
+
+                    {% if template.template_type == 'email' or template.template_type == 'both' %}
+                    <div class="row mt-4">
+                        <div class="col-12">
+                            <h5>Email Preview:</h5>
+                            <div class="border p-3 bg-white">
+                                <div class="email-preview">
+                                    <div class="email-header">
+                                        <strong>To:</strong> parent@example.com<br>
+                                        <strong>Subject:</strong> {{ template.subject }}<br>
+                                        <hr>
+                                    </div>
+                                    <div class="email-body">
+                                        <pre style="white-space: pre-wrap; font-family: inherit;">{{ template.content }}</pre>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+
+                    {% if template.template_type == 'sms' or template.template_type == 'both' %}
+                    <div class="row mt-4">
+                        <div class="col-12">
+                            <h5>SMS Preview:</h5>
+                            <div class="border p-3 bg-white">
+                                <div class="sms-preview">
+                                    <div class="sms-header">
+                                        <strong>To:</strong> +254700000000<br>
+                                        <hr>
+                                    </div>
+                                    <div class="sms-body">
+                                        <pre style="white-space: pre-wrap; font-family: inherit;">{{ template.content }}</pre>
+                                    </div>
+                                    <div class="sms-footer text-muted">
+                                        <small>Character count: {{ template.content|length }}</small>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

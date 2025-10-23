@@ -4,6 +4,9 @@ from . import views
 app_name = 'communications'
 
 urlpatterns = [
+    # Communications dashboard
+    path('', views.communications_dashboard, name='dashboard'),
+    
     # Communication templates
     path('templates/', views.template_list, name='template_list'),
     #path('templates/create/', views.template_create, name='template_create'),

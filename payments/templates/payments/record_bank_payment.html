@@ -1,0 +1,73 @@
+{% extends 'base.html' %}
+
+{% block title %}Record Bank Payment | Fees Management System{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="row">
+        <div class="col-md-8 offset-md-2">
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <h4 class="mb-0">Record Bank Transfer Payment</h4>
+                </div>
+                <div class="card-body">
+                    {% if messages %}
+                        {% for message in messages %}
+                            <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                                {{ message }}
+                                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                            </div>
+                        {% endfor %}
+                    {% endif %}
+                    
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle me-2"></i>
+                        <strong>Student:</strong> {{ student.full_name }} ({{ student.student_id }})<br>
+                        <strong>Fee Category:</strong> {{ student_fee.fee_category.name }}<br>
+                        <strong>Amount Due:</strong> KES {{ student_fee.balance|floatformat:2 }}
+                    </div>
+                    
+                    <form method="post" novalidate>
+                        {% csrf_token %}
+                        <div class="mb-3">
+                            <label for="id_amount" class="form-label">Amount Paid (KES)</label>
+                            <input type="number" name="amount" id="id_amount" class="form-control" 
+                                   step="0.01" min="1" max="{{ student_fee.balance }}" required>
+                            <div class="form-text">Maximum amount: KES {{ student_fee.balance|floatformat:2 }}</div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="id_reference_number" class="form-label">Reference Number *</label>
+                            <input type="text" name="reference_number" id="id_reference_number" class="form-control" 
+                                   placeholder="Bank reference number" required>
+                            <div class="form-text">Bank transfer reference number</div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="id_transaction_id" class="form-label">Transaction ID</label>
+                            <input type="text" name="transaction_id" id="id_transaction_id" class="form-control" 
+                                   placeholder="Optional transaction ID">
+                            <div class="form-text">Optional transaction ID from bank</div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="id_notes" class="form-label">Notes</label>
+                            <textarea name="notes" id="id_notes" class="form-control" rows="3" 
+                                      placeholder="Optional notes about this payment"></textarea>
+                        </div>
+                        
+                        <div class="d-flex justify-content-between">
+                            <a href="{% url 'core:student_detail' student.student_id %}" class="btn btn-secondary">
+                                <i class="fas fa-arrow-left me-2"></i>Cancel
+                            </a>
+                            <button type="submit" class="btn btn-success">
+                                <i class="fas fa-university me-2"></i>Record Payment
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

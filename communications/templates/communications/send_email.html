@@ -1,0 +1,93 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Send Email to {{ student.first_name }} {{ student.last_name }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h3 class="card-title">Send Email to {{ student.first_name }} {{ student.last_name }}</h3>
+                    <a href="{% url 'core:student_detail' student.student_id %}" class="btn btn-secondary">
+                        <i class="fas fa-arrow-left"></i> Back to Student
+                    </a>
+                </div>
+                <div class="card-body">
+                    <div class="row mb-4">
+                        <div class="col-md-6">
+                            <h5>Student Information:</h5>
+                            <table class="table table-borderless">
+                                <tr>
+                                    <th width="30%">Name:</th>
+                                    <td>{{ student.first_name }} {{ student.last_name }}</td>
+                                </tr>
+                                <tr>
+                                    <th>Student ID:</th>
+                                    <td>{{ student.student_id }}</td>
+                                </tr>
+                                <tr>
+                                    <th>Parent Email:</th>
+                                    <td>{{ student.parent_email }}</td>
+                                </tr>
+                                <tr>
+                                    <th>Parent Phone:</th>
+                                    <td>{{ student.parent_phone }}</td>
+                                </tr>
+                            </table>
+                        </div>
+                    </div>
+
+                    <form method="post">
+                        {% csrf_token %}
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="template" class="form-label">Use Template (Optional)</label>
+                                    <select class="form-select" id="template" name="template">
+                                        <option value="">Custom Message</option>
+                                        {% for template in templates %}
+                                        <option value="{{ template.id }}">{{ template.name }}</option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <label for="subject" class="form-label">Subject</label>
+                            <input type="text" class="form-control" id="subject" name="subject" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="content" class="form-label">Email Content</label>
+                            <textarea class="form-control" id="content" name="content" rows="10" required></textarea>
+                            <div class="form-text">
+                                Use placeholders: {student_name}, {parent_name}, {amount}, {due_date}, {school_name}
+                            </div>
+                        </div>
+                        <div class="d-flex justify-content-between">
+                            <a href="{% url 'core:student_detail' student.student_id %}" class="btn btn-secondary">
+                                <i class="fas fa-times"></i> Cancel
+                            </a>
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-paper-plane"></i> Send Email
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.getElementById('template').addEventListener('change', function() {
+    const templateId = this.value;
+    if (templateId) {
+        // You can add JavaScript here to load template content via AJAX
+        // For now, we'll just show a placeholder
+        console.log('Template selected:', templateId);
+    }
+});
+</script>
+{% endblock %}

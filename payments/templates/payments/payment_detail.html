@@ -1,0 +1,225 @@
+{% extends 'base.html' %}
+
+{% block title %}Payment Details - {{ payment.payment_id }} | Fees Management System{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="row">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+                    <h4 class="mb-0">Payment Details</h4>
+                    <div class="d-flex gap-2">
+                        {% if payment.status == 'completed' %}
+                            <a href="{% url 'payments:generate_receipt' payment.payment_id %}" class="btn btn-success btn-sm">
+                                <i class="fas fa-receipt me-1"></i>Generate Receipt
+                            </a>
+                        {% endif %}
+                        <a href="{% url 'payments:payment_list' %}" class="btn btn-secondary btn-sm">
+                            <i class="fas fa-arrow-left me-1"></i>Back to List
+                        </a>
+                    </div>
+                </div>
+                <div class="card-body">
+                    {% if messages %}
+                        {% for message in messages %}
+                            <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                                {{ message }}
+                                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                            </div>
+                        {% endfor %}
+                    {% endif %}
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h6 class="text-muted">Payment Information</h6>
+                            <table class="table table-borderless">
+                                <tr>
+                                    <td><strong>Payment ID:</strong></td>
+                                    <td>{{ payment.payment_id }}</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Reference Number:</strong></td>
+                                    <td>{{ payment.reference_number|default:"-" }}</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Transaction ID:</strong></td>
+                                    <td>{{ payment.transaction_id|default:"-" }}</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Amount:</strong></td>
+                                    <td><span class="h5 text-success">KES {{ payment.amount|floatformat:2 }}</span></td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Payment Method:</strong></td>
+                                    <td>{{ payment.get_payment_method_display }}</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Status:</strong></td>
+                                    <td>
+                                        {% if payment.status == 'completed' %}
+                                            <span class="badge bg-success">{{ payment.get_status_display }}</span>
+                                        {% elif payment.status == 'processing' %}
+                                            <span class="badge bg-warning">{{ payment.get_status_display }}</span>
+                                        {% elif payment.status == 'failed' %}
+                                            <span class="badge bg-danger">{{ payment.get_status_display }}</span>
+                                        {% else %}
+                                            <span class="badge bg-info">{{ payment.get_status_display }}</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Payment Date:</strong></td>
+                                    <td>{{ payment.payment_date|date:"F d, Y H:i" }}</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Processed By:</strong></td>
+                                    <td>{{ payment.processed_by.get_full_name|default:payment.processed_by.username }}</td>
+                                </tr>
+                            </table>
+                        </div>
+                        <div class="col-md-6">
+                            <h6 class="text-muted">Student Information</h6>
+                            <table class="table table-borderless">
+                                <tr>
+                                    <td><strong>Student ID:</strong></td>
+                                    <td>{{ payment.student.student_id }}</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Name:</strong></td>
+                                    <td>{{ payment.student.full_name }}</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Grade:</strong></td>
+                                    <td>{{ payment.student.grade.name }}</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Fee Category:</strong></td>
+                                    <td>{{ payment.student_fee.fee_category.name }}</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Term:</strong></td>
+                                    <td>{{ payment.student_fee.term.academic_year }} - Term {{ payment.student_fee.term.term_number }}</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Amount Charged:</strong></td>
+                                    <td>KES {{ payment.student_fee.amount_charged|floatformat:2 }}</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Amount Paid:</strong></td>
+                                    <td>KES {{ payment.student_fee.amount_paid|floatformat:2 }}</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Balance:</strong></td>
+                                    <td>
+                                        {% if payment.student_fee.balance > 0 %}
+                                            <span class="text-danger">KES {{ payment.student_fee.balance|floatformat:2 }}</span>
+                                        {% else %}
+                                            <span class="text-success">KES 0.00</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                            </table>
+                        </div>
+                    </div>
+                    
+                    {% if payment.notes %}
+                        <div class="mt-4">
+                            <h6 class="text-muted">Notes</h6>
+                            <div class="alert alert-light">
+                                {{ payment.notes }}
+                            </div>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-header bg-secondary text-white">
+                    <h6 class="mb-0">Quick Actions</h6>
+                </div>
+                <div class="card-body">
+                    <div class="d-grid gap-2">
+                        <a href="{% url 'core:student_detail' payment.student.student_id %}" class="btn btn-outline-primary">
+                            <i class="fas fa-user me-2"></i>View Student Profile
+                        </a>
+                        {% if payment.status == 'processing' and payment.payment_method == 'mpesa' %}
+                            <button type="button" class="btn btn-outline-warning" onclick="checkPaymentStatus()">
+                                <i class="fas fa-sync me-2"></i>Check Status
+                            </button>
+                        {% endif %}
+                        {% if payment.status == 'completed' %}
+                            <a href="{% url 'payments:view_receipt' payment.receipt.receipt_number %}" class="btn btn-outline-success">
+                                <i class="fas fa-receipt me-2"></i>View Receipt
+                            </a>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            
+            {% if payment.status == 'processing' and payment.payment_method == 'mpesa' %}
+                <div class="card mt-3">
+                    <div class="card-header bg-warning text-dark">
+                        <h6 class="mb-0">M-Pesa Payment Status</h6>
+                    </div>
+                    <div class="card-body">
+                        <div id="mpesa-status" class="text-center">
+                            <div class="spinner-border text-warning" role="status">
+                                <span class="visually-hidden">Loading...</span>
+                            </div>
+                            <p class="mt-2 mb-0">Checking payment status...</p>
+                        </div>
+                    </div>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+{% if payment.status == 'processing' and payment.payment_method == 'mpesa' %}
+<script>
+function checkPaymentStatus() {
+    const statusDiv = document.getElementById('mpesa-status');
+    statusDiv.innerHTML = `
+        <div class="spinner-border text-warning" role="status">
+            <span class="visually-hidden">Loading...</span>
+        </div>
+        <p class="mt-2 mb-0">Checking payment status...</p>
+    `;
+    
+    fetch('{% url "payments:check_payment_status" payment.payment_id %}')
+        .then(response => response.json())
+        .then(data => {
+            if (data.status) {
+                statusDiv.innerHTML = `
+                    <div class="alert alert-${data.status === 'completed' ? 'success' : 'warning'}">
+                        <strong>Status:</strong> ${data.status}
+                        ${data.message ? `<br><small>${data.message}</small>` : ''}
+                    </div>
+                `;
+            } else {
+                statusDiv.innerHTML = `
+                    <div class="alert alert-danger">
+                        <strong>Error:</strong> ${data.error || 'Failed to check status'}
+                    </div>
+                `;
+            }
+        })
+        .catch(error => {
+            statusDiv.innerHTML = `
+                <div class="alert alert-danger">
+                    <strong>Error:</strong> Failed to check payment status
+                </div>
+            `;
+        });
+}
+
+// Auto-check status on page load
+document.addEventListener('DOMContentLoaded', function() {
+    checkPaymentStatus();
+});
+</script>
+{% endif %}
+{% endblock %}

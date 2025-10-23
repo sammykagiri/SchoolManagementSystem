@@ -13,6 +13,7 @@ from .serializers import (
     SchoolSerializer, GradeSerializer, TermSerializer, FeeCategorySerializer,
     TransportRouteSerializer, StudentSerializer, FeeStructureSerializer, StudentFeeSerializer, SchoolClassSerializer
 )
+from .forms import StudentForm
 import json
 from django.contrib.admin.views.decorators import staff_member_required
 from rest_framework import status
@@ -100,7 +101,16 @@ def student_list(request):
     page_number = request.GET.get('page')
     page_obj = paginator.get_page(page_number)
     
+    # Debug: Check user's school and available grades
+    school = request.user.profile.school
+    print(f"User's school: {school.id} - {school.name}")
     grades = Grade.objects.filter(school=school)
+    print(f"Grades for school {school.id}: {list(grades.values('id', 'name'))}")
+    
+    # If no grades for this school, show all grades for debugging
+    if not grades.exists():
+        print("No grades found for user's school, showing all grades for debugging")
+        grades = Grade.objects.all()
     
     context = {
         'page_obj': page_obj,
@@ -138,88 +148,40 @@ def student_detail(request, student_id):
 
 @login_required
 def student_create(request):
-    """Create new student"""
+    """Create new student using Django form"""
     school = request.user.profile.school
+    
     if request.method == 'POST':
-        # Handle form submission
-        # student_id = request.POST.get('student_id')  # Remove manual input
-        first_name = request.POST.get('first_name')
-        last_name = request.POST.get('last_name')
-        gender = request.POST.get('gender')
-        date_of_birth = request.POST.get('date_of_birth')
-        grade_id = request.POST.get('grade')
-        admission_date = request.POST.get('admission_date')
-        parent_name = request.POST.get('parent_name')
-        parent_phone = request.POST.get('parent_phone')
-        parent_email = request.POST.get('parent_email')
-        address = request.POST.get('address')
-        transport_route_id = request.POST.get('transport_route')
-        uses_transport = request.POST.get('uses_transport') == 'on'
-        pays_meals = request.POST.get('pays_meals') == 'on'
-        pays_activities = request.POST.get('pays_activities') == 'on'
-        
-        try:
-            grade = Grade.objects.get(id=grade_id, school=school)
-            transport_route = None
-            if transport_route_id:
-                try:
-                    transport_route = TransportRoute.objects.get(id=transport_route_id, school=school)
-                except (TransportRoute.DoesNotExist, ValueError):
-                    transport_route = None
-            # Auto-generate student_id
-            last_student = Student.objects.filter(school=school).exclude(student_id='').order_by('-id').first()
-            # Only use last_student if its student_id is all digits and not blank
-            if last_student and last_student.student_id and last_student.student_id.isdigit():
-                next_id = int(last_student.student_id) + 1
-                student_id = str(next_id).zfill(5)
-            else:
-                student_id = '00001'
-            # Defensive: ensure grade_id is not blank and is a valid int
-            if not grade_id or not str(grade_id).isdigit():
-                raise Exception('Invalid grade selected.')
-            # Defensive: ensure transport_route_id is valid or None
-            if transport_route_id and not str(transport_route_id).isdigit():
-                transport_route = None
-            student = Student.objects.create(
-                school=school,
-                student_id=student_id,
-                first_name=first_name,
-                last_name=last_name,
-                gender=gender,
-                date_of_birth=date_of_birth,
-                grade=grade,
-                admission_date=admission_date,
-                parent_name=parent_name,
-                parent_phone=parent_phone,
-                parent_email=parent_email,
-                address=address,
-                transport_route=transport_route,
-                uses_transport=uses_transport,
-                pays_meals=pays_meals,
-                pays_activities=pays_activities,
-            )
-            messages.success(request, f'Student {student.full_name} created successfully.')
-            return redirect('student_detail', student_id=student.student_id)
-        except Exception as e:
-            messages.error(request, f'Error creating student: {str(e)}')
-            grades = Grade.objects.filter(school=school)
-            transport_routes = TransportRoute.objects.filter(school=school, is_active=True)
-            context = {
-                'grades': grades,
-                'transport_routes': transport_routes,
-                'title': 'Add New Student',
-                'post': request.POST
-            }
-            return render(request, 'core/student_form.html', context)
-    grades = Grade.objects.filter(school=school)
-    transport_routes = TransportRoute.objects.filter(school=school, is_active=True)
+        form = StudentForm(request.POST, school=school)
+        if form.is_valid():
+            try:
+                # Auto-generate student_id
+                last_student = Student.objects.filter(school=school).exclude(student_id='').order_by('-id').first()
+                if last_student and last_student.student_id and last_student.student_id.isdigit():
+                    next_id = int(last_student.student_id) + 1
+                    student_id = str(next_id).zfill(5)
+                else:
+                    student_id = '00001'
+                
+                # Create student with auto-generated ID
+                student = form.save(commit=False)
+                student.school = school
+                student.student_id = student_id
+                student.save()
+                
+                messages.success(request, f'Student {student.full_name} created successfully.')
+                return redirect('core:student_detail', student_id=student.student_id)
+                
+            except Exception as e:
+                messages.error(request, f'Error creating student: {str(e)}')
+    else:
+        form = StudentForm(school=school)
+    
     context = {
-        'grades': grades,
-        'transport_routes': transport_routes,
+        'form': form,
         'title': 'Add New Student',
-        'post': {}
     }
-    return render(request, 'core/student_form.html', context)
+    return render(request, 'core/student_form_new.html', context)
 
 
 @login_required
@@ -252,7 +214,7 @@ def student_update(request, student_id):
         try:
             student.save()
             messages.success(request, f'Student {student.full_name} updated successfully.')
-            return redirect('student_detail', student_id=student.student_id)
+            return redirect('core:student_detail', student_id=student.student_id)
         except Exception as e:
             messages.error(request, f'Error updating student: {str(e)}')
     
@@ -277,7 +239,7 @@ def student_delete(request, student_id):
         student.is_active = False
         student.save()
         messages.success(request, f'Student {student.full_name} deactivated successfully.')
-        return redirect('student_list')
+        return redirect('core:student_list')
     
     context = {'student': student}
     return render(request, 'core/student_confirm_delete.html', context)
@@ -295,12 +257,51 @@ def grade_list(request):
         try:
             Grade.objects.create(name=name, description=description)
             messages.success(request, 'Grade created successfully.')
-            return redirect('grade_list')
+            return redirect('core:grade_list')
         except Exception as e:
             messages.error(request, f'Error creating grade: {str(e)}')
     
     context = {'grades': grades}
     return render(request, 'core/grade_list.html', context)
+
+
+@login_required
+def grade_edit(request, grade_id):
+    """Edit a grade"""
+    grade = get_object_or_404(Grade, id=grade_id)
+    
+    if request.method == 'POST':
+        name = request.POST.get('name')
+        description = request.POST.get('description')
+        
+        try:
+            grade.name = name
+            grade.description = description
+            grade.save()
+            messages.success(request, 'Grade updated successfully.')
+            return redirect('core:grade_list')
+        except Exception as e:
+            messages.error(request, f'Error updating grade: {str(e)}')
+    
+    context = {'grade': grade}
+    return render(request, 'core/grade_edit.html', context)
+
+
+@login_required
+def grade_delete(request, grade_id):
+    """Delete a grade"""
+    grade = get_object_or_404(Grade, id=grade_id)
+    
+    if request.method == 'POST':
+        try:
+            grade.delete()
+            messages.success(request, 'Grade deleted successfully.')
+        except Exception as e:
+            messages.error(request, f'Error deleting grade: {str(e)}')
+        return redirect('core:grade_list')
+    
+    context = {'grade': grade}
+    return render(request, 'core/grade_confirm_delete.html', context)
 
 
 @login_required
@@ -460,7 +461,7 @@ def fee_structure_list(request):
                 amount=amount
             )
             messages.success(request, 'Fee structure created successfully.')
-            return redirect('fee_structure_list')
+            return redirect('core:fee_structure_list')
         except Exception as e:
             messages.error(request, f'Error creating fee structure: {str(e)}')
     
@@ -531,7 +532,7 @@ def generate_student_fees(request):
                         created_count += 1
             
             messages.success(request, f'Generated {created_count} fee records for {grade.name} in {term.name}.')
-            return redirect('fee_structure_list')
+            return redirect('core:fee_structure_list')
     
     terms = Term.objects.all().order_by('-academic_year', '-term_number')
     grades = Grade.objects.all()
@@ -856,7 +857,16 @@ def class_list(request):
 @login_required
 def class_add(request):
     school = request.user.profile.school
+    # Debug: Check user's school and available grades
+    school = request.user.profile.school
+    print(f"User's school: {school.id} - {school.name}")
     grades = Grade.objects.filter(school=school)
+    print(f"Grades for school {school.id}: {list(grades.values('id', 'name'))}")
+    
+    # If no grades for this school, show all grades for debugging
+    if not grades.exists():
+        print("No grades found for user's school, showing all grades for debugging")
+        grades = Grade.objects.all()
     if request.method == 'POST':
         name = request.POST.get('name', '').strip()
         grade_id = request.POST.get('grade')
@@ -882,7 +892,16 @@ def class_add(request):
 def class_edit(request, class_id):
     school = request.user.profile.school
     school_class = get_object_or_404(SchoolClass, id=class_id, school=school)
+    # Debug: Check user's school and available grades
+    school = request.user.profile.school
+    print(f"User's school: {school.id} - {school.name}")
     grades = Grade.objects.filter(school=school)
+    print(f"Grades for school {school.id}: {list(grades.values('id', 'name'))}")
+    
+    # If no grades for this school, show all grades for debugging
+    if not grades.exists():
+        print("No grades found for user's school, showing all grades for debugging")
+        grades = Grade.objects.all()
     if request.method == 'POST':
         name = request.POST.get('name', '').strip()
         grade_id = request.POST.get('grade')

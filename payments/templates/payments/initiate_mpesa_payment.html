@@ -1,0 +1,66 @@
+{% extends 'base.html' %}
+
+{% block title %}Initiate M-Pesa Payment | Fees Management System{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="row">
+        <div class="col-md-8 offset-md-2">
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <h4 class="mb-0">Initiate M-Pesa Payment</h4>
+                </div>
+                <div class="card-body">
+                    {% if messages %}
+                        {% for message in messages %}
+                            <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                                {{ message }}
+                                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                            </div>
+                        {% endfor %}
+                    {% endif %}
+                    
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle me-2"></i>
+                        <strong>Student:</strong> {{ student.full_name }} ({{ student.student_id }})<br>
+                        <strong>Fee Category:</strong> {{ student_fee.fee_category.name }}<br>
+                        <strong>Amount Due:</strong> KES {{ student_fee.balance|floatformat:2 }}
+                    </div>
+                    
+                    <form method="post" novalidate>
+                        {% csrf_token %}
+                        <div class="mb-3">
+                            <label for="id_phone_number" class="form-label">Phone Number</label>
+                            <input type="tel" name="phone_number" id="id_phone_number" class="form-control" 
+                                   placeholder="254XXXXXXXXX" required>
+                            <div class="form-text">Enter the phone number registered with M-Pesa (format: 254XXXXXXXXX)</div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="id_amount" class="form-label">Amount (KES)</label>
+                            <input type="number" name="amount" id="id_amount" class="form-control" 
+                                   step="0.01" min="1" max="{{ student_fee.balance }}" 
+                                   value="{{ student_fee.balance }}" required>
+                            <div class="form-text">Maximum amount: KES {{ student_fee.balance|floatformat:2 }}</div>
+                        </div>
+                        
+                        <div class="alert alert-warning">
+                            <i class="fas fa-exclamation-triangle me-2"></i>
+                            <strong>Important:</strong> Make sure the phone number is correct and the phone is accessible for the STK push notification.
+                        </div>
+                        
+                        <div class="d-flex justify-content-between">
+                            <a href="{% url 'core:student_detail' student.student_id %}" class="btn btn-secondary">
+                                <i class="fas fa-arrow-left me-2"></i>Cancel
+                            </a>
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-mobile-alt me-2"></i>Initiate Payment
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
