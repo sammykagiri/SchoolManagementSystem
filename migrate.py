@@ -4,7 +4,7 @@ import sys
 import django
 
 # Setup Django
-os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'fees_management.settings')
+os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'school_management.settings')
 django.setup()
 
 from django.core.management import execute_from_command_line

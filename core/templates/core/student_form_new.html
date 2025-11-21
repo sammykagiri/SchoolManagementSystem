@@ -1,5 +1,5 @@
 {% extends 'base.html' %}
-{% block title %}{{ title|default:'Add Student' }} | Fees Management System{% endblock %}
+{% block title %}{{ title|default:'Add Student' }} | School Management System{% endblock %}
 {% block content %}
 <div class="container py-4">
     <div class="row justify-content-center">
@@ -18,7 +18,7 @@
                         {% endfor %}
                     {% endif %}
                     
-                    <form method="post" novalidate>
+                    <form method="post" enctype="multipart/form-data" novalidate>
                         {% csrf_token %}
                         
                         <!-- Display form errors at the top -->
@@ -221,6 +221,31 @@
                                 {% endif %}
                             </div>
                             
+                            <!-- Student Photo -->
+                            <div class="col-md-6">
+                                <label for="{{ form.photo.id_for_label }}" class="form-label">
+                                    {{ form.photo.label }}
+                                    {% if form.photo.field.required %}<span class="text-danger">*</span>{% endif %}
+                                </label>
+                                {% if student and student.photo %}
+                                    <div class="mb-2">
+                                        <img src="{{ student.photo.url }}" alt="Current photo" class="img-thumbnail" style="max-width: 200px; max-height: 200px;">
+                                        <div class="form-text">Current photo</div>
+                                    </div>
+                                {% endif %}
+                                {{ form.photo }}
+                                {% if form.photo.help_text %}
+                                    <div class="form-text">{{ form.photo.help_text }}</div>
+                                {% endif %}
+                                {% if form.photo.errors %}
+                                    <div class="text-danger small">
+                                        {% for error in form.photo.errors %}
+                                            <div>{{ error }}</div>
+                                        {% endfor %}
+                                    </div>
+                                {% endif %}
+                            </div>
+                            
                             <!-- Checkboxes -->
                             <div class="col-12">
                                 <div class="row">
@@ -259,7 +284,7 @@
                                         <i class="fas fa-arrow-left"></i> Back to Students
                                     </a>
                                     <button type="submit" class="btn btn-primary">
-                                        <i class="fas fa-save"></i> Create Student
+                                        <i class="fas fa-save"></i> {% if student %}Update{% else %}Create{% endif %} Student
                                     </button>
                                 </div>
                             </div>

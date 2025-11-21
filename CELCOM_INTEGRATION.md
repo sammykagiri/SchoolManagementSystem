@@ -1,4 +1,4 @@
-# Fees Management System - Celcom Africa SMS Integration
+# School Management System - Celcom Africa SMS Integration
 
 ## SMS Service Configuration
 
@@ -61,7 +61,7 @@ from communications.services import SMSService
 sms_service = SMSService()
 result = sms_service.send_sms(
     recipient_phone="254712345678",
-    content="Test message from Fees Management System"
+    content="Test message from School Management System"
 )
 print(f"SMS sent: {result}")
 ```

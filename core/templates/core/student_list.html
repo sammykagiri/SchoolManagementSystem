@@ -1,17 +1,17 @@
 {% extends 'base.html' %}
-{% block title %}Students | Fees Management System{% endblock %}
+{% block title %}Students | School Management System{% endblock %}
 {% block content %}
 <div class="container py-4">
     <div class="d-flex justify-content-between align-items-center mb-4">
         <h2 class="mb-0">Students</h2>
         <a href="{% url 'core:student_create' %}" class="btn btn-primary"><i class="fas fa-plus me-2"></i>Add Student</a>
     </div>
-    <form method="get" class="mb-3 row g-2">
+    <form method="get" class="mb-3 row g-2" id="filterForm">
         <div class="col-md-4">
-            <input type="text" name="search" class="form-control" placeholder="Search by name, ID, parent..." value="{{ search_query }}">
+            <input type="text" name="search" id="searchInput" class="form-control" placeholder="Search by name, ID, parent..." value="{{ search_query }}">
         </div>
         <div class="col-md-3">
-            <select name="grade" class="form-select">
+            <select name="grade" id="gradeSelect" class="form-select">
                 <option value="">All Grades</option>
                 {% for grade in grades %}
                     <option value="{{ grade.id }}" {% if grade_filter|default:'' == grade.id|stringformat:'s' %}selected{% endif %}>{{ grade.name }}</option>
@@ -21,12 +21,18 @@
         <div class="col-md-2">
             <button type="submit" class="btn btn-outline-primary w-100">Filter</button>
         </div>
+        <div class="col-md-3">
+            <a href="{% url 'core:student_list' %}" class="btn btn-outline-secondary w-100">
+                <i class="fas fa-times"></i> Clear Filters
+            </a>
+        </div>
     </form>
     <div class="card">
         <div class="card-body p-0">
             <table class="table table-hover mb-0">
                 <thead class="table-light">
                     <tr>
+                        <th style="width: 60px;">Photo</th>
                         <th>Student ID</th>
                         <th>Name</th>
                         <th>Grade</th>
@@ -38,6 +44,15 @@
                 <tbody>
                     {% for student in page_obj %}
                     <tr>
+                        <td>
+                            {% if student.photo %}
+                                <img src="{{ student.photo.url }}" alt="{{ student.full_name }}" class="rounded-circle" style="width: 40px; height: 40px; object-fit: cover;">
+                            {% else %}
+                                <div class="bg-light rounded-circle d-flex align-items-center justify-content-center" style="width: 40px; height: 40px;">
+                                    <i class="fas fa-user text-muted"></i>
+                                </div>
+                            {% endif %}
+                        </td>
                         <td>{{ student.student_id }}</td>
                         <td>{{ student.first_name }} {{ student.last_name }}</td>
                         <td>{{ student.grade.name }}</td>
@@ -50,7 +65,7 @@
                         </td>
                     </tr>
                     {% empty %}
-                    <tr><td colspan="6" class="text-center text-muted">No students found.</td></tr>
+                    <tr><td colspan="7" class="text-center text-muted">No students found.</td></tr>
                     {% endfor %}
                 </tbody>
             </table>
@@ -74,4 +89,49 @@
         </nav>
     </div>
 </div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const searchInput = document.getElementById('searchInput');
+    const gradeSelect = document.getElementById('gradeSelect');
+    const filterForm = document.getElementById('filterForm');
+    const submitForm = () => {
+        if (typeof filterForm.requestSubmit === 'function') {
+            filterForm.requestSubmit();
+        } else {
+            filterForm.submit();
+        }
+    };
+    
+    // Debounced auto-submit while typing
+    let typingTimer;
+    const DEBOUNCE_DELAY = 400; // ms
+    
+    searchInput.addEventListener('input', function() {
+        clearTimeout(typingTimer);
+        typingTimer = setTimeout(submitForm, DEBOUNCE_DELAY);
+    });
+    
+    // Immediate submit on Enter key
+    searchInput.addEventListener('keydown', function(e) {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            clearTimeout(typingTimer);
+            submitForm();
+        }
+    });
+    
+    // Auto-submit on grade selection change
+    gradeSelect.addEventListener('change', function() {
+        submitForm();
+    });
+    
+    // Keep focus in search box after reloads
+    if (searchInput) {
+        const valueLength = searchInput.value.length;
+        searchInput.focus();
+        searchInput.setSelectionRange(valueLength, valueLength);
+    }
+});
+</script>
 {% endblock %}

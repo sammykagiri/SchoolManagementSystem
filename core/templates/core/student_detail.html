@@ -24,9 +24,25 @@
                 </div>
                 <div class="card-body">
                     <div class="row">
-                        <div class="col-md-6">
-                            <h5>Student Information:</h5>
-                            <table class="table table-borderless">
+                        <!-- Student Photo -->
+                        <div class="col-md-3 text-center mb-4">
+                            {% if student.photo %}
+                                <img src="{{ student.photo.url }}" alt="{{ student.full_name }}" class="img-thumbnail rounded-circle" style="width: 200px; height: 200px; object-fit: cover;">
+                            {% else %}
+                                <div class="bg-light rounded-circle d-flex align-items-center justify-content-center" style="width: 200px; height: 200px; margin: 0 auto;">
+                                    <i class="fas fa-user fa-5x text-muted"></i>
+                                </div>
+                            {% endif %}
+                            <div class="mt-2">
+                                <small class="text-muted">Student Photo</small>
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-9">
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <h5>Student Information:</h5>
+                                    <table class="table table-borderless">
                                 <tr>
                                     <th width="30%">Student ID:</th>
                                     <td>{{ student.student_id }}</td>
@@ -53,16 +69,16 @@
                                 </tr>
                                 <tr>
                                     <th>Class:</th>
-                                    <td>{{ student.school_class.name|default:"Not assigned" }}</td>
+                                    <td>{% with current_class=student.get_current_class %}{{ current_class.name|default:"Not assigned" }}{% endwith %}</td>
                                 </tr>
                                 <tr>
                                     <th>Admission Date:</th>
                                     <td>{{ student.admission_date|date:"M d, Y" }}</td>
                                 </tr>
-                            </table>
-                        </div>
-                        <div class="col-md-6">
-                            <h5>Contact Information:</h5>
+                                    </table>
+                                </div>
+                                <div class="col-md-6">
+                                    <h5>Contact Information:</h5>
                             <table class="table table-borderless">
                                 <tr>
                                     <th width="30%">Parent Name:</th>
@@ -80,15 +96,9 @@
                                     <th>Address:</th>
                                     <td>{{ student.address|default:"Not provided" }}</td>
                                 </tr>
-                                <tr>
-                                    <th>Emergency Contact:</th>
-                                    <td>{{ student.emergency_contact|default:"Not provided" }}</td>
-                                </tr>
-                                <tr>
-                                    <th>Emergency Phone:</th>
-                                    <td>{{ student.emergency_phone|default:"Not provided" }}</td>
-                                </tr>
-                            </table>
+                                    </table>
+                                </div>
+                            </div>
                         </div>
                     </div>
 
@@ -112,12 +122,6 @@
                                     <th>Last Updated:</th>
                                     <td>{{ student.updated_at|date:"M d, Y H:i" }}</td>
                                 </tr>
-                                {% if student.notes %}
-                                <tr>
-                                    <th>Notes:</th>
-                                    <td>{{ student.notes }}</td>
-                                </tr>
-                                {% endif %}
                             </table>
                         </div>
                     </div>

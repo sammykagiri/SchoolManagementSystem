@@ -1,6 +1,7 @@
 from rest_framework import serializers
+from django.contrib.auth.models import User
 from .models import (
-    School, Grade, Term, FeeCategory, TransportRoute, Student, FeeStructure, StudentFee, SchoolClass
+    School, Grade, Term, FeeCategory, TransportRoute, Student, FeeStructure, StudentFee, SchoolClass, UserProfile
 )
 
 class SchoolSerializer(serializers.ModelSerializer):
@@ -45,7 +46,7 @@ class StudentSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'student_id', 'first_name', 'last_name', 'gender', 'date_of_birth',
             'grade', 'grade_id', 'admission_date', 'parent_name', 'parent_phone', 'parent_email',
-            'address', 'transport_route', 'transport_route_id', 'uses_transport', 'pays_meals', 'pays_activities', 'is_active'
+            'address', 'transport_route', 'transport_route_id', 'uses_transport', 'pays_meals', 'pays_activities', 'is_active', 'photo'
         ]
         read_only_fields = ['id', 'student_id', 'grade', 'transport_route']
 
@@ -84,3 +85,26 @@ class SchoolClassSerializer(serializers.ModelSerializer):
     class Meta:
         model = SchoolClass
         fields = '__all__'
+
+
+class UserProfileSerializer(serializers.ModelSerializer):
+    username = serializers.CharField(source='user.username', read_only=True)
+    email = serializers.EmailField(source='user.email', read_only=True)
+    school_name = serializers.CharField(source='school.name', read_only=True)
+    
+    class Meta:
+        model = UserProfile
+        fields = [
+            'id', 'username', 'email', 'role', 'school', 'school_name',
+            'is_active', 'created_at', 'updated_at'
+        ]
+        read_only_fields = ['id', 'username', 'email', 'school_name', 'created_at', 'updated_at']
+
+
+class UserSerializer(serializers.ModelSerializer):
+    profile = UserProfileSerializer(read_only=True)
+    
+    class Meta:
+        model = User
+        fields = ['id', 'username', 'email', 'first_name', 'last_name', 'profile']
+        read_only_fields = ['id']

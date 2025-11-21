@@ -148,6 +148,9 @@ class Student(models.Model):
     pays_meals = models.BooleanField(default=True)
     pays_activities = models.BooleanField(default=True)
     
+    # Photo
+    photo = models.ImageField(upload_to='student_photos/', blank=True, null=True, help_text='Student photo')
+    
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -157,6 +160,27 @@ class Student(models.Model):
     @property
     def full_name(self):
         return f"{self.first_name} {self.last_name}"
+    
+    def get_school_classes(self):
+        """Get all school classes for this student's grade"""
+        return self.grade.school_classes.filter(is_active=True)
+    
+    def get_current_class(self):
+        """Get the first active class for this student's grade (if multiple, returns first)"""
+        classes = self.get_school_classes()
+        return classes.first() if classes.exists() else None
+    
+    def get_subjects(self):
+        """Get all subjects for this student's grade classes"""
+        from timetable.models import Subject
+        classes = self.get_school_classes()
+        subject_ids = set()
+        for school_class in classes:
+            # Get subjects from timetables for this class
+            timetables = school_class.timetables.filter(is_active=True)
+            for timetable in timetables:
+                subject_ids.add(timetable.subject_id)
+        return Subject.objects.filter(id__in=subject_ids, school=self.school, is_active=True)
 
     class Meta:
         ordering = ['grade', 'first_name', 'last_name']
@@ -215,11 +239,48 @@ class StudentFee(models.Model):
 
 
 class UserProfile(models.Model):
+    ROLE_CHOICES = [
+        ('super_admin', 'Super Admin'),
+        ('school_admin', 'School Admin'),
+        ('teacher', 'Teacher'),
+        ('accountant', 'Accountant'),
+        ('parent', 'Parent'),
+        ('student', 'Student'),
+    ]
+    
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='profile')
     school = models.ForeignKey(School, on_delete=models.CASCADE, related_name='users', null=True, blank=True)
+    role = models.CharField(max_length=20, choices=ROLE_CHOICES, default='teacher')
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
     
     def __str__(self):
-        return f"{self.user.username} - {self.school.name if self.school else 'No School'}"
+        return f"{self.user.username} - {self.get_role_display()} - {self.school.name if self.school else 'No School'}"
+    
+    @property
+    def is_super_admin(self):
+        return self.role == 'super_admin'
+    
+    @property
+    def is_school_admin(self):
+        return self.role == 'school_admin'
+    
+    @property
+    def is_teacher(self):
+        return self.role == 'teacher'
+    
+    @property
+    def is_accountant(self):
+        return self.role == 'accountant'
+    
+    @property
+    def is_parent(self):
+        return self.role == 'parent'
+    
+    @property
+    def is_student(self):
+        return self.role == 'student'
 
 # @receiver(post_save, sender=User)
 def create_user_profile(sender, instance, created, **kwargs):
@@ -230,7 +291,13 @@ def create_user_profile(sender, instance, created, **kwargs):
 
 @receiver(post_save, sender=User)
 def save_user_profile(sender, instance, **kwargs):
-    instance.profile.save()
+    # Only save if profile exists and avoid triggering during migrations
+    if hasattr(instance, 'profile'):
+        try:
+            instance.profile.save()
+        except Exception:
+            # Ignore errors during migrations or if profile doesn't exist yet
+            pass
 
 
 class SchoolClass(models.Model):

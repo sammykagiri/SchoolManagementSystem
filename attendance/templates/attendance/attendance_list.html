@@ -1,0 +1,104 @@
+{% extends 'base.html' %}
+{% block title %}Attendance | School Management System{% endblock %}
+{% block content %}
+<div class="container py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2 class="mb-0">Attendance Records</h2>
+        <a href="{% url 'attendance:mark_attendance' %}" class="btn btn-primary"><i class="fas fa-plus me-2"></i>Mark Attendance</a>
+    </div>
+    
+    <form method="get" class="mb-3 row g-2">
+        <div class="col-md-3">
+            <input type="date" name="date_from" class="form-control" value="{{ date_from }}" placeholder="From Date">
+        </div>
+        <div class="col-md-3">
+            <input type="date" name="date_to" class="form-control" value="{{ date_to }}" placeholder="To Date">
+        </div>
+        <div class="col-md-2">
+            <select name="student_id" class="form-select">
+                <option value="">All Students</option>
+                {% for student in students %}
+                    <option value="{{ student.id }}" {% if student_id|default:'' == student.id|stringformat:'s' %}selected{% endif %}>{{ student.full_name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="col-md-2">
+            <select name="class_id" class="form-select">
+                <option value="">All Classes</option>
+                {% for class in classes %}
+                    <option value="{{ class.id }}" {% if class_id|default:'' == class.id|stringformat:'s' %}selected{% endif %}>{{ class.name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="col-md-2">
+            <select name="status" class="form-select">
+                <option value="">All Status</option>
+                <option value="present" {% if status_filter == 'present' %}selected{% endif %}>Present</option>
+                <option value="absent" {% if status_filter == 'absent' %}selected{% endif %}>Absent</option>
+                <option value="late" {% if status_filter == 'late' %}selected{% endif %}>Late</option>
+                <option value="excused" {% if status_filter == 'excused' %}selected{% endif %}>Excused</option>
+            </select>
+        </div>
+        <div class="col-md-12 mt-2">
+            <button type="submit" class="btn btn-outline-primary">Filter</button>
+            <a href="{% url 'attendance:attendance_list' %}" class="btn btn-outline-secondary">Clear</a>
+        </div>
+    </form>
+    
+    <div class="card">
+        <div class="card-body p-0">
+            <table class="table table-hover mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>Date</th>
+                        <th>Student</th>
+                        <th>Class</th>
+                        <th>Status</th>
+                        <th>Remarks</th>
+                        <th>Marked By</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for attendance in page_obj %}
+                    <tr>
+                        <td>{{ attendance.date }}</td>
+                        <td>{{ attendance.student.full_name }}</td>
+                        <td>{{ attendance.school_class.name|default:"-" }}</td>
+                        <td>
+                            <span class="badge {% if attendance.status == 'present' %}bg-success{% elif attendance.status == 'absent' %}bg-danger{% elif attendance.status == 'late' %}bg-warning{% else %}bg-info{% endif %}">
+                                {{ attendance.get_status_display }}
+                            </span>
+                        </td>
+                        <td>{{ attendance.remarks|default:"-" }}</td>
+                        <td>{{ attendance.marked_by.username|default:"-" }}</td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="6" class="text-center">No attendance records found.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    
+    {% if page_obj.has_other_pages %}
+    <nav aria-label="Page navigation" class="mt-3">
+        <ul class="pagination justify-content-center">
+            {% if page_obj.has_previous %}
+            <li class="page-item"><a class="page-link" href="?page={{ page_obj.previous_page_number }}">Previous</a></li>
+            {% endif %}
+            <li class="page-item disabled"><span class="page-link">Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span></li>
+            {% if page_obj.has_next %}
+            <li class="page-item"><a class="page-link" href="?page={{ page_obj.next_page_number }}">Next</a></li>
+            {% endif %}
+        </ul>
+    </nav>
+    {% endif %}
+    
+    <div class="mt-3">
+        <a href="{% url 'attendance:attendance_summary' %}" class="btn btn-outline-info"><i class="fas fa-chart-bar me-2"></i>View Summary</a>
+    </div>
+</div>
+{% endblock %}
+

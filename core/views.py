@@ -21,6 +21,8 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAdminUser
 from rest_framework.response import Response
 from rest_framework.permissions import BasePermission
+from rest_framework import permissions
+from .services import DashboardService, StudentService
 
 
 class IsSuperUser(BasePermission):
@@ -31,47 +33,31 @@ class IsSuperUser(BasePermission):
 
 @login_required
 def dashboard(request):
-    """Main dashboard view"""
+    """Main dashboard view - uses service for business logic"""
     school = request.user.profile.school
-    total_students = Student.objects.filter(school=school, is_active=True).count()
-    total_terms = Term.objects.filter(school=school).count()
-    total_grades = Grade.objects.filter(school=school).count()
-    current_term = Term.objects.filter(school=school, is_active=True).first()
-    if current_term:
-        total_fees_charged = StudentFee.objects.filter(school=school, term=current_term).aggregate(
-            total=Sum('amount_charged')
-        )['total'] or 0
-        total_fees_paid = StudentFee.objects.filter(school=school, term=current_term).aggregate(
-            total=Sum('amount_paid')
-        )['total'] or 0
-        overdue_fees = StudentFee.objects.filter(
-            school=school,
-            term=current_term,
-            is_paid=False,
-            due_date__lt=timezone.now().date()
-        ).count()
-    else:
-        total_fees_charged = 0
-        total_fees_paid = 0
-        overdue_fees = 0
-    recent_students = Student.objects.filter(school=school, is_active=True).order_by('-created_at')[:5]
+    dashboard_data = DashboardService.get_dashboard_data(school, request.user)
+    
+    # Get overdue payments for template
     overdue_payments = StudentFee.objects.filter(
         school=school,
         is_paid=False,
         due_date__lt=timezone.now().date()
     ).select_related('student', 'fee_category', 'term')[:10]
+    
     context = {
-        'total_students': total_students,
-        'total_terms': total_terms,
-        'total_grades': total_grades,
-        'current_term': current_term,
-        'total_fees_charged': total_fees_charged,
-        'total_fees_paid': total_fees_paid,
-        'overdue_fees': overdue_fees,
-        'recent_students': recent_students,
+        **dashboard_data,
         'overdue_payments': overdue_payments,
     }
     return render(request, 'core/dashboard.html', context)
+
+
+@api_view(['GET'])
+@permission_classes([permissions.IsAuthenticated])
+def api_dashboard(request):
+    """API endpoint for dashboard data"""
+    school = request.user.profile.school
+    dashboard_data = DashboardService.get_dashboard_data(school, request.user)
+    return Response(dashboard_data)
 
 
 @login_required
@@ -152,16 +138,11 @@ def student_create(request):
     school = request.user.profile.school
     
     if request.method == 'POST':
-        form = StudentForm(request.POST, school=school)
+        form = StudentForm(request.POST, request.FILES, school=school)
         if form.is_valid():
             try:
-                # Auto-generate student_id
-                last_student = Student.objects.filter(school=school).exclude(student_id='').order_by('-id').first()
-                if last_student and last_student.student_id and last_student.student_id.isdigit():
-                    next_id = int(last_student.student_id) + 1
-                    student_id = str(next_id).zfill(5)
-                else:
-                    student_id = '00001'
+                # Use service to generate student_id
+                student_id = StudentService.generate_student_id(school)
                 
                 # Create student with auto-generated ID
                 student = form.save(commit=False)
@@ -186,48 +167,30 @@ def student_create(request):
 
 @login_required
 def student_update(request, student_id):
-    """Update student"""
-    student = get_object_or_404(Student, student_id=student_id)
+    """Update student using Django form"""
+    school = request.user.profile.school
+    student = get_object_or_404(Student, student_id=student_id, school=school)
     
     if request.method == 'POST':
-        # Handle form submission
-        student.first_name = request.POST.get('first_name')
-        student.last_name = request.POST.get('last_name')
-        student.gender = request.POST.get('gender')
-        student.date_of_birth = request.POST.get('date_of_birth')
-        student.grade_id = request.POST.get('grade')
-        student.admission_date = request.POST.get('admission_date')
-        student.parent_name = request.POST.get('parent_name')
-        student.parent_phone = request.POST.get('parent_phone')
-        student.parent_email = request.POST.get('parent_email')
-        student.address = request.POST.get('address')
-        student.uses_transport = request.POST.get('uses_transport') == 'on'
-        student.pays_meals = request.POST.get('pays_meals') == 'on'
-        student.pays_activities = request.POST.get('pays_activities') == 'on'
-        
-        transport_route_id = request.POST.get('transport_route')
-        if transport_route_id:
-            student.transport_route_id = transport_route_id
+        form = StudentForm(request.POST, request.FILES, instance=student, school=school)
+        if form.is_valid():
+            try:
+                form.save()
+                messages.success(request, f'Student {student.full_name} updated successfully.')
+                return redirect('core:student_detail', student_id=student.student_id)
+            except Exception as e:
+                messages.error(request, f'Error updating student: {str(e)}')
         else:
-            student.transport_route = None
-        
-        try:
-            student.save()
-            messages.success(request, f'Student {student.full_name} updated successfully.')
-            return redirect('core:student_detail', student_id=student.student_id)
-        except Exception as e:
-            messages.error(request, f'Error updating student: {str(e)}')
-    
-    grades = Grade.objects.all()
-    transport_routes = TransportRoute.objects.filter(is_active=True)
+            messages.error(request, 'Please correct the errors below.')
+    else:
+        form = StudentForm(instance=student, school=school)
     
     context = {
+        'form': form,
         'student': student,
-        'grades': grades,
-        'transport_routes': transport_routes,
-        'title': 'Update Student'
+        'title': 'Update Student',
     }
-    return render(request, 'core/student_form.html', context)
+    return render(request, 'core/student_form_new.html', context)
 
 
 @login_required
@@ -593,13 +556,8 @@ class StudentViewSet(viewsets.ModelViewSet):
 
     def perform_create(self, serializer):
         school = self.request.user.profile.school
-        # Auto-generate student_id
-        last_student = Student.objects.filter(school=school).exclude(student_id='').order_by('-id').first()
-        if last_student and last_student.student_id and last_student.student_id.isdigit():
-            next_id = int(last_student.student_id) + 1
-            student_id = str(next_id).zfill(5)
-        else:
-            student_id = '00001'
+        # Use service to generate student_id
+        student_id = StudentService.generate_student_id(school)
         serializer.save(school=school, student_id=student_id)
 
 

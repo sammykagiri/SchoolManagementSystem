@@ -47,6 +47,7 @@ urlpatterns = [
     path('generate-fees/', views.generate_student_fees, name='generate_student_fees'),
     
     # API endpoints
+    path('api/dashboard/', views.api_dashboard, name='api_dashboard'),
     path('api/students/<str:student_id>/fees/', views.get_student_fees, name='get_student_fees'),
     path('api/transport-routes/', views.get_transport_routes, name='get_transport_routes'),
 

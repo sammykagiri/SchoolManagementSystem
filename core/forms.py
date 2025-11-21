@@ -11,7 +11,7 @@ class StudentForm(forms.ModelForm):
             'first_name', 'last_name', 'gender', 'date_of_birth', 
             'grade', 'admission_date', 'parent_name', 'parent_phone', 
             'parent_email', 'address', 'transport_route', 'uses_transport', 
-            'pays_meals', 'pays_activities'
+            'pays_meals', 'pays_activities', 'photo'
         ]
         widgets = {
             'date_of_birth': forms.DateInput(attrs={'type': 'date'}),
@@ -21,6 +21,7 @@ class StudentForm(forms.ModelForm):
             'uses_transport': forms.CheckboxInput(),
             'pays_meals': forms.CheckboxInput(),
             'pays_activities': forms.CheckboxInput(),
+            'photo': forms.FileInput(attrs={'accept': 'image/*', 'class': 'form-control'}),
         }
     
     def __init__(self, *args, **kwargs):
@@ -46,6 +47,7 @@ class StudentForm(forms.ModelForm):
         self.fields['parent_email'].help_text = 'Optional - for sending receipts and notifications'
         self.fields['address'].help_text = 'Optional - student home address'
         self.fields['transport_route'].help_text = 'Optional - if student uses school transport'
+        self.fields['photo'].help_text = 'Optional - Upload student photo (JPG, PNG, max 5MB)'
         
         # Add CSS classes for styling
         for field_name, field in self.fields.items():
@@ -57,6 +59,8 @@ class StudentForm(forms.ModelForm):
                 field.widget.attrs['class'] = 'form-control'
             elif field.widget.__class__.__name__ == 'CheckboxInput':
                 field.widget.attrs['class'] = 'form-check-input'
+            elif field.widget.__class__.__name__ == 'FileInput':
+                field.widget.attrs['class'] = 'form-control'
     
     def clean_parent_phone(self):
         """Validate parent phone number"""

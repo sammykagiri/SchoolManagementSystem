@@ -7,9 +7,9 @@
         {% endif %}
         <a class="navbar-brand" href="{% url 'core:dashboard' %}">
             {% if user.is_authenticated and user.profile.school %}
-                {{ user.profile.school.name|title }} Fees Management
+                {{ user.profile.school.name|title }} School Management
             {% else %}
-                Fees Management
+                School Management
             {% endif %}
         </a>
         <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
@@ -17,73 +17,100 @@
         </button>
         <div class="collapse navbar-collapse justify-content-center" id="navbarNav">
             <ul class="navbar-nav">
-                <!-- Terms -->
+                <!-- Dashboard -->
                 <li class="nav-item">
-                    <a class="nav-link {% if request.resolver_match.url_name == 'term_list' %}active{% endif %}" href="{% url 'core:term_list' %}">
-                        <i class="fas fa-calendar-alt me-2"></i>Terms
+                    <a class="nav-link {% if request.resolver_match.url_name == 'dashboard' %}active{% endif %}" href="{% url 'core:dashboard' %}">
+                        <i class="fas fa-tachometer-alt me-2"></i>Dashboard
                     </a>
                 </li>
-                <!-- Activities (placeholder) -->
+                
+                <!-- Students (MVP Module 2: Student Registration and Profile) -->
                 <li class="nav-item">
-                    <a class="nav-link disabled" href="#">
-                        <i class="fas fa-futbol me-2"></i>Activities
-                    </a>
-                </li>
-                <!-- Grades -->
-                <li class="nav-item">
-                    <a class="nav-link {% if request.resolver_match.url_name == 'grade_list' %}active{% endif %}" href="{% url 'core:grade_list' %}">
-                        <i class="fas fa-graduation-cap me-2"></i>Grades
-                    </a>
-                </li>
-                <!-- Classes -->
-                <li class="nav-item">
-                    <a class="nav-link {% if request.resolver_match.url_name == 'class_list' %}active{% endif %}" href="{% url 'core:class_list' %}">
-                        <i class="fas fa-chalkboard me-2"></i>Classes
-                    </a>
-                </li>
-                <!-- Teachers (placeholder) -->
-                <li class="nav-item">
-                    <a class="nav-link disabled" href="#">
-                        <i class="fas fa-user-tie me-2"></i>Teachers
-                    </a>
-                </li>
-                <!-- Students -->
-                <li class="nav-item">
-                    <a class="nav-link {% if request.resolver_match.url_name == 'student_list' %}active{% endif %}" href="{% url 'core:student_list' %}">
+                    <a class="nav-link {% if request.resolver_match.url_name == 'student_list' or request.resolver_match.url_name == 'student_detail' or request.resolver_match.url_name == 'student_create' %}active{% endif %}" href="{% url 'core:student_list' %}">
                         <i class="fas fa-users me-2"></i>Students
                     </a>
                 </li>
-                <!-- Drivers (placeholder) -->
-                <li class="nav-item">
-                    <a class="nav-link disabled" href="#">
-                        <i class="fas fa-id-badge me-2"></i>Drivers
+                
+                <!-- Fees Management (MVP Module 3: Fees Management) -->
+                <li class="nav-item dropdown">
+                    <a class="nav-link dropdown-toggle {% if 'payments' in request.resolver_match.namespace or request.resolver_match.url_name == 'fee_structure_list' or request.resolver_match.url_name == 'generate_student_fees' %}active{% endif %}" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                        <i class="fas fa-money-bill-wave me-2"></i>Fees
                     </a>
+                    <ul class="dropdown-menu">
+                        <li><a class="dropdown-item" href="{% url 'core:fee_structure_list' %}">
+                            <i class="fas fa-list-alt me-2"></i>Fee Structures
+                        </a></li>
+                        <li><a class="dropdown-item" href="{% url 'core:generate_student_fees' %}">
+                            <i class="fas fa-cogs me-2"></i>Generate Fees
+                        </a></li>
+                        <li><hr class="dropdown-divider"></li>
+                        <li><a class="dropdown-item" href="{% url 'payments:payment_list' %}">
+                            <i class="fas fa-credit-card me-2"></i>Payments
+                        </a></li>
+                        <li><a class="dropdown-item" href="{% url 'payments:receipt_list' %}">
+                            <i class="fas fa-receipt me-2"></i>Receipts
+                        </a></li>
+                        <li><a class="dropdown-item" href="{% url 'payments:reminder_list' %}">
+                            <i class="fas fa-bell me-2"></i>Reminders
+                        </a></li>
+                    </ul>
                 </li>
-                <!-- Vehicle Details (placeholder) -->
-                <li class="nav-item">
-                    <a class="nav-link disabled" href="#">
-                        <i class="fas fa-bus me-2"></i>Vehicle Details
+                
+                <!-- Attendance Management (MVP Module 4: Attendance Management) -->
+                <li class="nav-item dropdown">
+                    <a class="nav-link dropdown-toggle {% if 'attendance' in request.resolver_match.namespace %}active{% endif %}" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                        <i class="fas fa-check-circle me-2"></i>Attendance
                     </a>
+                    <ul class="dropdown-menu">
+                        <li><a class="dropdown-item" href="{% url 'attendance:attendance_list' %}">
+                            <i class="fas fa-list me-2"></i>Attendance Records
+                        </a></li>
+                        <li><a class="dropdown-item" href="{% url 'attendance:mark_attendance' %}">
+                            <i class="fas fa-edit me-2"></i>Mark Attendance
+                        </a></li>
+                        <li><a class="dropdown-item" href="{% url 'attendance:attendance_summary' %}">
+                            <i class="fas fa-chart-bar me-2"></i>Summary
+                        </a></li>
+                    </ul>
                 </li>
-                <!-- Routes (placeholder) -->
-                <li class="nav-item">
-                    <a class="nav-link disabled" href="#">
-                        <i class="fas fa-route me-2"></i>Routes
+                
+                <!-- Timetable Management (MVP Module 5: Time Table Management) -->
+                <li class="nav-item dropdown">
+                    <a class="nav-link dropdown-toggle {% if 'timetable' in request.resolver_match.namespace %}active{% endif %}" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                        <i class="fas fa-calendar-week me-2"></i>Timetable
                     </a>
+                    <ul class="dropdown-menu">
+                        <li><a class="dropdown-item" href="{% url 'timetable:timetable_list' %}">
+                            <i class="fas fa-calendar me-2"></i>Class Timetables
+                        </a></li>
+                        <li><a class="dropdown-item" href="{% url 'timetable:subject_list' %}">
+                            <i class="fas fa-book-open me-2"></i>Subjects
+                        </a></li>
+                        <li><a class="dropdown-item" href="{% url 'timetable:teacher_list' %}">
+                            <i class="fas fa-user-tie me-2"></i>Teachers
+                        </a></li>
+                    </ul>
                 </li>
-                <!-- Fee Structures -->
-                <li class="nav-item">
-                    <a class="nav-link {% if request.resolver_match.url_name == 'fee_structure_list' %}active{% endif %}" href="{% url 'core:fee_structure_list' %}">
-                        <i class="fas fa-money-bill me-2"></i>Fee Structures
+                
+                <!-- Exams & Gradebook (MVP Module 6: Exam and Gradebook) -->
+                <li class="nav-item dropdown">
+                    <a class="nav-link dropdown-toggle {% if 'exams' in request.resolver_match.namespace %}active{% endif %}" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                        <i class="fas fa-clipboard-list me-2"></i>Exams
                     </a>
+                    <ul class="dropdown-menu">
+                        <li><a class="dropdown-item" href="{% url 'exams:exam_list' %}">
+                            <i class="fas fa-file-alt me-2"></i>Exams
+                        </a></li>
+                        <li><a class="dropdown-item" href="{% url 'exams:gradebook_list' %}">
+                            <i class="fas fa-book me-2"></i>Gradebook
+                        </a></li>
+                        <li><a class="dropdown-item" href="{% url 'exams:gradebook_summary_list' %}">
+                            <i class="fas fa-chart-bar me-2"></i>Summary
+                        </a></li>
+                    </ul>
                 </li>
-                <!-- Payments -->
-                <li class="nav-item">
-                    <a class="nav-link {% if request.resolver_match.url_name == 'payment_list' %}active{% endif %}" href="{% url 'payments:payment_list' %}">
-                        <i class="fas fa-credit-card me-2"></i>Payments
-                    </a>
-                </li>
-                <!-- Communications -->
+                
+                <!-- Communications (MVP Module 7: Communication and Notifications) -->
                 <li class="nav-item dropdown">
                     <a class="nav-link dropdown-toggle {% if 'communications' in request.resolver_match.namespace %}active{% endif %}" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
                         <i class="fas fa-envelope me-2"></i>Communications
@@ -107,10 +134,30 @@
                         </a></li>
                     </ul>
                 </li>
+                
+                <!-- Settings/Configuration -->
+                <li class="nav-item dropdown">
+                    <a class="nav-link dropdown-toggle {% if request.resolver_match.url_name == 'term_list' or request.resolver_match.url_name == 'grade_list' or request.resolver_match.url_name == 'class_list' %}active{% endif %}" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                        <i class="fas fa-cog me-2"></i>Settings
+                    </a>
+                    <ul class="dropdown-menu">
+                        <li><a class="dropdown-item" href="{% url 'core:term_list' %}">
+                            <i class="fas fa-calendar-alt me-2"></i>Terms
+                        </a></li>
+                        <li><a class="dropdown-item" href="{% url 'core:grade_list' %}">
+                            <i class="fas fa-graduation-cap me-2"></i>Grades
+                        </a></li>
+                        <li><a class="dropdown-item" href="{% url 'core:class_list' %}">
+                            <i class="fas fa-chalkboard me-2"></i>Classes
+                        </a></li>
+                    </ul>
+                </li>
+                
                 {% if user.is_superuser %}
+                <!-- Super Admin: Manage Schools -->
                 <li class="nav-item">
                     <a class="nav-link {% if request.resolver_match.url_name == 'school_admin_list' %}active{% endif %}" href="{% url 'core:school_admin_list' %}">
-                        <i class="fas fa-cogs me-2"></i>Manage Schools
+                        <i class="fas fa-school me-2"></i>Manage Schools
                     </a>
                 </li>
                 {% endif %}
