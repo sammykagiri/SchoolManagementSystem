@@ -275,6 +275,24 @@
                                     </div>
                                 </div>
                             </div>
+
+                            <!-- Linked Parents -->
+                            <div class="col-md-6">
+                                <label for="{{ form.parents.id_for_label }}" class="form-label">
+                                    Linked Parent Accounts
+                                </label>
+                                {{ form.parents }}
+                                {% if form.parents.help_text %}
+                                    <div class="form-text">{{ form.parents.help_text }}</div>
+                                {% endif %}
+                                {% if form.parents.errors %}
+                                    <div class="text-danger small">
+                                        {% for error in form.parents.errors %}
+                                            <div>{{ error }}</div>
+                                        {% endfor %}
+                                    </div>
+                                {% endif %}
+                            </div>
                         </div>
                         
                         <div class="row mt-4">

@@ -1,4 +1,5 @@
 {% extends 'base.html' %}
+{% load currency date_format %}
 {% block title %}Dashboard | School Management System{% endblock %}
 {% block extra_css %}
 <style>
@@ -103,11 +104,11 @@
         </div>
         <div class="dashboard-card">
             <h3>Fees Charged</h3>
-            <p><i class="fas fa-money-bill text-warning me-2"></i>{{ total_fees_charged|floatformat:2 }}</p>
+            <p><i class="fas fa-money-bill text-warning me-2"></i>KES {{ total_fees_charged|floatformat:2 }}</p>
         </div>
         <div class="dashboard-card">
             <h3>Fees Paid</h3>
-            <p><i class="fas fa-credit-card text-success me-2"></i>{{ total_fees_paid|floatformat:2 }}</p>
+            <p><i class="fas fa-credit-card text-success me-2"></i>KES {{ total_fees_paid|floatformat:2 }}</p>
         </div>
         <div class="dashboard-card">
             <h3>Overdue Fees</h3>
@@ -132,7 +133,7 @@
                 <h4><i class="fas fa-exclamation-triangle me-2"></i>Overdue Payments</h4>
                 <ul>
                     {% for fee in overdue_payments %}
-                        <li>{{ fee.student }} - {{ fee.fee_category }}: <span class="text-danger">{{ fee.amount_charged|floatformat:2 }}</span> <span class="text-muted">(Due: {{ fee.due_date }})</span></li>
+                        <li>{{ fee.student }} - {{ fee.fee_category }}: <span class="text-danger">KES {{ fee.amount_charged|floatformat:2 }}</span> <span class="text-muted">(Due: {{ fee.due_date|indian_date }})</span></li>
                     {% empty %}
                         <li class="text-muted">No overdue payments.</li>
                     {% endfor %}

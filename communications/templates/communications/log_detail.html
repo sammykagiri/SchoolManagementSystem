@@ -1,5 +1,6 @@
 {% extends 'base.html' %}
 {% load static %}
+{% load date_format %}
 
 {% block title %}Communication Log Detail{% endblock %}
 
@@ -53,7 +54,7 @@
                                 </tr>
                                 <tr>
                                     <th>Created:</th>
-                                    <td>{{ log.created_at|date:"M d, Y H:i" }}</td>
+                                    <td>{{ log.created_at|indian_datetime }}</td>
                                 </tr>
                             </table>
                         </div>
@@ -88,13 +89,13 @@
                                     <td>
                                         {% if log.communication_type == 'email' %}
                                             {% if log.email_message.sent_at %}
-                                                {{ log.email_message.sent_at|date:"M d, Y H:i" }}
+                                                {{ log.email_message.sent_at|indian_datetime }}
                                             {% else %}
                                                 <span class="text-muted">Not sent</span>
                                             {% endif %}
                                         {% else %}
                                             {% if log.sms_message.sent_at %}
-                                                {{ log.sms_message.sent_at|date:"M d, Y H:i" }}
+                                                {{ log.sms_message.sent_at|indian_datetime }}
                                             {% else %}
                                                 <span class="text-muted">Not sent</span>
                                             {% endif %}

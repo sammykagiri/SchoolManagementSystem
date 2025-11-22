@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Grade, Term, FeeCategory, TransportRoute, Student, FeeStructure, StudentFee, SchoolClass
+from .models import Grade, Term, FeeCategory, TransportRoute, Student, FeeStructure, StudentFee, SchoolClass, Parent
 
 
 @admin.register(Grade)
@@ -35,14 +35,18 @@ class TransportRouteAdmin(admin.ModelAdmin):
 
 @admin.register(Student)
 class StudentAdmin(admin.ModelAdmin):
-    list_display = ['student_id', 'first_name', 'last_name', 'grade', 'parent_name', 'parent_phone', 'is_active']
+    list_display = ['student_id', 'first_name', 'last_name', 'grade', 'linked_account', 'parent_name', 'parent_phone', 'linked_parents', 'is_active']
     list_filter = ['grade', 'gender', 'is_active', 'uses_transport', 'pays_meals', 'pays_activities']
-    search_fields = ['student_id', 'first_name', 'last_name', 'parent_name', 'parent_phone', 'parent_email']
+    search_fields = ['student_id', 'first_name', 'last_name', 'parent_name', 'parent_phone', 'parent_email', 'user__username', 'user__email']
     ordering = ['grade', 'first_name', 'last_name']
     readonly_fields = ['created_at', 'updated_at']
+    filter_horizontal = ['parents']
     fieldsets = (
         ('Basic Information', {
             'fields': ('student_id', 'first_name', 'last_name', 'gender', 'date_of_birth', 'grade', 'admission_date', 'is_active')
+        }),
+        ('Linked Accounts', {
+            'fields': ('user', 'parents')
         }),
         ('Contact Information', {
             'fields': ('parent_name', 'parent_phone', 'parent_email', 'address')
@@ -55,6 +59,14 @@ class StudentAdmin(admin.ModelAdmin):
             'classes': ('collapse',)
         }),
     )
+
+    def linked_parents(self, obj):
+        return ", ".join(parent.full_name for parent in obj.parents.all()) or "—"
+    linked_parents.short_description = 'Linked Parents'
+
+    def linked_account(self, obj):
+        return obj.user.username if obj.user else "—"
+    linked_account.short_description = 'Student Account'
 
 
 @admin.register(FeeStructure)
@@ -84,3 +96,12 @@ class StudentFeeAdmin(admin.ModelAdmin):
 
 
 admin.site.register(SchoolClass)
+
+
+@admin.register(Parent)
+class ParentAdmin(admin.ModelAdmin):
+    list_display = ['full_name', 'school', 'phone', 'email', 'is_active']
+    search_fields = ['user__username', 'user__first_name', 'user__last_name', 'phone', 'email']
+    list_filter = ['school', 'is_active']
+    ordering = ['school', 'user__first_name', 'user__last_name']
+    readonly_fields = ['created_at', 'updated_at']

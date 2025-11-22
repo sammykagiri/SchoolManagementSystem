@@ -1,0 +1,37 @@
+{% extends 'base.html' %}
+{% block title %}Select Student | School Management System{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="row justify-content-center">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <h4 class="mb-0">Select Student</h4>
+                </div>
+                <div class="card-body">
+                    <p>Please select which child you want to submit the assignment for:</p>
+                    <ul class="list-group">
+                        {% for student in students %}
+                        <li class="list-group-item">
+                            <a href="{% url 'homework:submission_create' assignment.id %}?student_id={{ student.id }}" class="text-decoration-none">
+                                <strong>{{ student.full_name }}</strong> ({{ student.student_id }})<br>
+                                <small class="text-muted">{{ student.grade.name }} - {{ assignment.school_class.name }}</small>
+                            </a>
+                        </li>
+                        {% empty %}
+                        <li class="list-group-item text-muted">No students found.</li>
+                        {% endfor %}
+                    </ul>
+                    <div class="mt-3">
+                        <a href="{% url 'homework:assignment_detail' assignment.id %}" class="btn btn-secondary">
+                            <i class="fas fa-arrow-left"></i> Back
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+

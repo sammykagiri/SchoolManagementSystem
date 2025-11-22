@@ -1,5 +1,6 @@
 {% extends 'base.html' %}
 {% load static %}
+{% load date_format %}
 
 {% block title %}Email Detail{% endblock %}
 
@@ -36,13 +37,13 @@
                                 </tr>
                                 <tr>
                                     <th>Created:</th>
-                                    <td>{{ email.created_at|date:"M d, Y H:i" }}</td>
+                                    <td>{{ email.created_at|indian_datetime }}</td>
                                 </tr>
                                 <tr>
                                     <th>Sent At:</th>
                                     <td>
                                         {% if email.sent_at %}
-                                            {{ email.sent_at|date:"M d, Y H:i" }}
+                                            {{ email.sent_at|indian_datetime }}
                                         {% else %}
                                             <span class="text-muted">Not sent</span>
                                         {% endif %}

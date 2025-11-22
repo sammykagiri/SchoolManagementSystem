@@ -23,6 +23,7 @@ from rest_framework.response import Response
 from rest_framework.permissions import BasePermission
 from rest_framework import permissions
 from .services import DashboardService, StudentService
+from .decorators import role_required
 
 
 class IsSuperUser(BasePermission):
@@ -32,8 +33,9 @@ class IsSuperUser(BasePermission):
 
 
 @login_required
+@role_required('super_admin', 'school_admin', 'teacher', 'accountant')
 def dashboard(request):
-    """Main dashboard view - uses service for business logic"""
+    """Main dashboard view - uses service for business logic (Admin/Teacher only for MVP)"""
     school = request.user.profile.school
     dashboard_data = DashboardService.get_dashboard_data(school, request.user)
     
@@ -61,10 +63,14 @@ def api_dashboard(request):
 
 
 @login_required
+@role_required('super_admin', 'school_admin', 'teacher', 'accountant')
 def student_list(request):
     """List all students"""
     school = request.user.profile.school
-    students = Student.objects.filter(school=school, is_active=True).select_related('grade', 'transport_route')
+    students = Student.objects.filter(
+        school=school,
+        is_active=True
+    ).select_related('grade', 'transport_route').prefetch_related('parents__user')
     
     # Search functionality
     search_query = request.GET.get('search', '')
@@ -109,9 +115,13 @@ def student_list(request):
 
 
 @login_required
+@role_required('super_admin', 'school_admin', 'teacher', 'accountant')
 def student_detail(request, student_id):
     """Student detail view"""
-    student = get_object_or_404(Student, student_id=student_id)
+    student = get_object_or_404(
+        Student.objects.select_related('grade', 'transport_route').prefetch_related('parents__user'),
+        student_id=student_id
+    )
     student_fees = StudentFee.objects.filter(student=student).select_related(
         'fee_category', 'term'
     ).order_by('-term__academic_year', '-term__term_number')
@@ -133,6 +143,7 @@ def student_detail(request, student_id):
 
 
 @login_required
+@role_required('super_admin', 'school_admin', 'teacher')
 def student_create(request):
     """Create new student using Django form"""
     school = request.user.profile.school
@@ -166,6 +177,7 @@ def student_create(request):
 
 
 @login_required
+@role_required('super_admin', 'school_admin', 'teacher')
 def student_update(request, student_id):
     """Update student using Django form"""
     school = request.user.profile.school
@@ -194,6 +206,7 @@ def student_update(request, student_id):
 
 
 @login_required
+@role_required('super_admin', 'school_admin')
 def student_delete(request, student_id):
     """Delete student"""
     student = get_object_or_404(Student, student_id=student_id)
@@ -209,6 +222,7 @@ def student_delete(request, student_id):
 
 
 @login_required
+@role_required('super_admin', 'school_admin', 'teacher')
 def grade_list(request):
     """List all grades"""
     grades = Grade.objects.all()
@@ -229,6 +243,7 @@ def grade_list(request):
 
 
 @login_required
+@role_required('super_admin', 'school_admin', 'teacher')
 def grade_edit(request, grade_id):
     """Edit a grade"""
     grade = get_object_or_404(Grade, id=grade_id)
@@ -251,6 +266,7 @@ def grade_edit(request, grade_id):
 
 
 @login_required
+@role_required('super_admin', 'school_admin')
 def grade_delete(request, grade_id):
     """Delete a grade"""
     grade = get_object_or_404(Grade, id=grade_id)
@@ -268,6 +284,7 @@ def grade_delete(request, grade_id):
 
 
 @login_required
+@role_required('super_admin', 'school_admin', 'teacher', 'accountant')
 def term_list(request):
     """List all terms"""
     school = request.user.profile.school
@@ -278,6 +295,7 @@ def term_list(request):
 
 
 @login_required
+@role_required('super_admin', 'school_admin', 'teacher')
 def term_add(request):
     """Add new term"""
     school = request.user.profile.school
@@ -331,6 +349,7 @@ def term_add(request):
 
 
 @login_required
+@role_required('super_admin', 'school_admin', 'teacher')
 def term_edit(request, term_id):
     """Edit existing term"""
     school = request.user.profile.school
@@ -383,6 +402,7 @@ def term_edit(request, term_id):
 
 
 @login_required
+@role_required('super_admin', 'school_admin')
 def term_delete(request, term_id):
     """Delete a term (soft delete)"""
     school = request.user.profile.school
@@ -395,6 +415,7 @@ def term_delete(request, term_id):
 
 
 @login_required
+@role_required('super_admin', 'school_admin', 'accountant')
 def fee_structure_list(request):
     """List fee structures"""
     fee_structures = FeeStructure.objects.filter(is_active=True).select_related(
@@ -444,6 +465,7 @@ def fee_structure_list(request):
 
 
 @login_required
+@role_required('super_admin', 'school_admin', 'accountant')
 def generate_student_fees(request):
     """Generate student fees for a term"""
     if request.method == 'POST':
@@ -807,12 +829,14 @@ def api_school_update(request, pk):
 
 
 @login_required
+@role_required('super_admin', 'school_admin', 'teacher')
 def class_list(request):
     school = request.user.profile.school
     classes = SchoolClass.objects.filter(school=school).select_related('grade')
     return render(request, 'core/class_list.html', {'classes': classes})
 
 @login_required
+@role_required('super_admin', 'school_admin', 'teacher')
 def class_add(request):
     school = request.user.profile.school
     # Debug: Check user's school and available grades
@@ -847,6 +871,7 @@ def class_add(request):
     return render(request, 'core/class_form.html', {'grades': grades, 'post': {}, 'school_class': None})
 
 @login_required
+@role_required('super_admin', 'school_admin', 'teacher')
 def class_edit(request, class_id):
     school = request.user.profile.school
     school_class = get_object_or_404(SchoolClass, id=class_id, school=school)
@@ -886,6 +911,7 @@ def class_edit(request, class_id):
     return render(request, 'core/class_form.html', {'grades': grades, 'school_class': school_class})
 
 @login_required
+@role_required('super_admin', 'school_admin')
 def class_delete(request, class_id):
     school = request.user.profile.school
     school_class = get_object_or_404(SchoolClass, id=class_id, school=school)

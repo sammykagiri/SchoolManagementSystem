@@ -1,4 +1,5 @@
 {% extends 'base.html' %}
+{% load date_format %}
 
 {% block title %}Send Payment Reminder | School Management System{% endblock %}
 
@@ -25,7 +26,7 @@
                         <strong>Student:</strong> {{ student.full_name }} ({{ student.student_id }})<br>
                         <strong>Fee Category:</strong> {{ student_fee.fee_category.name }}<br>
                         <strong>Amount Due:</strong> KES {{ student_fee.balance|floatformat:2 }}<br>
-                        <strong>Due Date:</strong> {{ student_fee.due_date|date:"F d, Y" }}
+                        <strong>Due Date:</strong> {{ student_fee.due_date|indian_date }}
                     </div>
                     
                     <form method="post" novalidate>

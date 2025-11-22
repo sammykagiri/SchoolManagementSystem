@@ -1,4 +1,5 @@
 {% extends 'base.html' %}
+{% load date_format %}
 
 {% block title %}Receipts | School Management System{% endblock %}
 
@@ -67,7 +68,7 @@
                                         </td>
                                         <td class="text-end">KES {{ receipt.amount_paid|floatformat:2 }}</td>
                                         <td>{{ receipt.payment_method }}</td>
-                                        <td>{{ receipt.issued_at|date:"M d, Y" }}</td>
+                                        <td>{{ receipt.issued_at|indian_date }}</td>
                                         <td>
                                             <a href="{% url 'payments:view_receipt' receipt.receipt_number %}" 
                                                class="btn btn-outline-primary btn-sm" title="View Receipt">

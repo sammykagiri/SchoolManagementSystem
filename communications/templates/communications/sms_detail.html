@@ -1,5 +1,6 @@
 {% extends 'base.html' %}
 {% load static %}
+{% load date_format %}
 
 {% block title %}SMS Detail{% endblock %}
 
@@ -32,13 +33,13 @@
                                 </tr>
                                 <tr>
                                     <th>Created:</th>
-                                    <td>{{ sms.created_at|date:"M d, Y H:i" }}</td>
+                                    <td>{{ sms.created_at|indian_datetime }}</td>
                                 </tr>
                                 <tr>
                                     <th>Sent At:</th>
                                     <td>
                                         {% if sms.sent_at %}
-                                            {{ sms.sent_at|date:"M d, Y H:i" }}
+                                            {{ sms.sent_at|indian_datetime }}
                                         {% else %}
                                             <span class="text-muted">Not sent</span>
                                         {% endif %}

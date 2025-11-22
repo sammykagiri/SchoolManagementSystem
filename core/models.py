@@ -112,6 +112,46 @@ class TransportRoute(models.Model):
         unique_together = ['school', 'name']
 
 
+class Parent(models.Model):
+    """Parent/guardian profile linked to a user account."""
+    user = models.OneToOneField(
+        User,
+        on_delete=models.CASCADE,
+        related_name='parent_profile'
+    )
+    school = models.ForeignKey(
+        School,
+        on_delete=models.CASCADE,
+        related_name='parents'
+    )
+    phone = models.CharField(max_length=15, blank=True)
+    email = models.EmailField(blank=True)
+    address = models.TextField(blank=True)
+    is_active = models.BooleanField(default=True)
+    preferred_contact_method = models.CharField(
+        max_length=20,
+        choices=[
+            ('phone', 'Phone'),
+            ('sms', 'SMS'),
+            ('email', 'Email'),
+        ],
+        default='phone'
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['user__first_name', 'user__last_name']
+        unique_together = ['school', 'user']
+
+    def __str__(self):
+        return f"{self.user.get_full_name() or self.user.username} ({self.school.name})"
+
+    @property
+    def full_name(self):
+        return self.user.get_full_name() or self.user.username
+
+
 class Student(models.Model):
     school = models.ForeignKey(School, on_delete=models.CASCADE, related_name='students')
     GENDER_CHOICES = [
@@ -150,6 +190,24 @@ class Student(models.Model):
     
     # Photo
     photo = models.ImageField(upload_to='student_photos/', blank=True, null=True, help_text='Student photo')
+
+    # Linked parent accounts (one parent can have multiple children)
+    parents = models.ManyToManyField(
+        'Parent',
+        related_name='children',
+        blank=True,
+        help_text='Linked parent user accounts'
+    )
+
+    # Linked student user account (optional)
+    user = models.OneToOneField(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='student_profile',
+        help_text='Link to student user account (optional)'
+    )
     
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)

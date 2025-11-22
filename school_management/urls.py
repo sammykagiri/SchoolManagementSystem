@@ -28,6 +28,7 @@ urlpatterns = [
     path('attendance/', include('attendance.urls')),
     path('timetable/', include('timetable.urls')),
     path('exams/', include('exams.urls')),
+    path('homework/', include('homework.urls')),
     path('accounts/login/', auth_views.LoginView.as_view(template_name='auth/login.html'), name='login'),
     path('accounts/logout/', auth_views.LogoutView.as_view(template_name='auth/logout.html'), name='logout'),
     path('accounts/password_reset/', auth_views.PasswordResetView.as_view(template_name='auth/password_reset_form.html'), name='password_reset'),

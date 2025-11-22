@@ -1,0 +1,141 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load currency date_format %}
+{% block title %}Submission Details | School Management System{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="card">
+        <div class="card-header">
+            <h3 class="mb-0">Submission: {{ submission.assignment.title }}</h3>
+        </div>
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-6">
+                    <h5>Submission Information</h5>
+                    <table class="table table-borderless">
+                        <tr>
+                            <th width="40%">Student:</th>
+                            <td>{{ submission.student.full_name }} ({{ submission.student.student_id }})</td>
+                        </tr>
+                        <tr>
+                            <th>Assignment:</th>
+                            <td>{{ submission.assignment.title }}</td>
+                        </tr>
+                        <tr>
+                            <th>Subject:</th>
+                            <td>{{ submission.assignment.subject.name }}</td>
+                        </tr>
+                        <tr>
+                            <th>Submitted At:</th>
+                            <td>{{ submission.submitted_at|indian_datetime }}</td>
+                        </tr>
+                        <tr>
+                            <th>Status:</th>
+                            <td>
+                                {% if submission.status == 'graded' %}
+                                    <span class="badge bg-success">Graded</span>
+                                {% elif submission.status == 'late' %}
+                                    <span class="badge bg-warning">Late Submission</span>
+                                {% else %}
+                                    <span class="badge bg-info">Submitted</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% if submission.is_late %}
+                        <tr>
+                            <th>Late By:</th>
+                            <td class="text-warning">
+                                {{ submission.submitted_at|timesince:submission.assignment.due_date }}
+                            </td>
+                        </tr>
+                        {% endif %}
+                    </table>
+                </div>
+                
+                <div class="col-md-6">
+                    <h5>Grading Information</h5>
+                    <table class="table table-borderless">
+                        <tr>
+                            <th width="40%">Marks Obtained:</th>
+                            <td>
+                                {% if submission.marks_obtained is not None %}
+                                    <strong class="h5">{{ submission.marks_obtained }}/{{ submission.assignment.max_marks }}</strong>
+                                    ({{ submission.percentage|floatformat:1 }}%)
+                                {% else %}
+                                    <span class="text-muted">Not graded yet</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        <tr>
+                            <th>Graded By:</th>
+                            <td>
+                                {% if submission.graded_by %}
+                                    {{ submission.graded_by.get_full_name|default:submission.graded_by.username }}
+                                {% else %}
+                                    <span class="text-muted">Not graded</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        <tr>
+                            <th>Graded At:</th>
+                            <td>
+                                {% if submission.graded_at %}
+                                    {{ submission.graded_at|indian_datetime }}
+                                {% else %}
+                                    <span class="text-muted">Not graded</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                    </table>
+                </div>
+            </div>
+            
+            {% if submission.submission_file %}
+            <div class="mt-4">
+                <h5>Submitted File</h5>
+                <a href="{{ submission.submission_file.url }}" target="_blank" class="btn btn-outline-primary">
+                    <i class="fas fa-download"></i> Download Submission File
+                </a>
+            </div>
+            {% endif %}
+            
+            {% if submission.submission_text %}
+            <div class="mt-4">
+                <h5>Submission Text</h5>
+                <div class="border p-3 rounded">
+                    {{ submission.submission_text|linebreaks }}
+                </div>
+            </div>
+            {% endif %}
+            
+            {% if submission.feedback %}
+            <div class="mt-4">
+                <h5>Teacher Feedback</h5>
+                <div class="border p-3 rounded bg-light">
+                    {{ submission.feedback|linebreaks }}
+                </div>
+            </div>
+            {% endif %}
+            
+            <div class="mt-4">
+                {% if user.profile.role in 'school_admin,teacher'|make_list %}
+                    {% if submission.marks_obtained is None %}
+                    <a href="{% url 'homework:grade_submission' submission.id %}" class="btn btn-success">
+                        <i class="fas fa-check"></i> Grade Submission
+                    </a>
+                    {% else %}
+                    <a href="{% url 'homework:grade_submission' submission.id %}" class="btn btn-warning">
+                        <i class="fas fa-edit"></i> Update Grade
+                    </a>
+                    {% endif %}
+                {% endif %}
+                <a href="{% url 'homework:assignment_detail' submission.assignment.id %}" class="btn btn-secondary">
+                    <i class="fas fa-arrow-left"></i> Back to Assignment
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+

@@ -1,0 +1,183 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load currency date_format %}
+{% block title %}Assignments | School Management System{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2 class="mb-0">Assignments</h2>
+        {% if user.profile.role in 'school_admin,teacher'|make_list %}
+        <a href="{% url 'homework:assignment_create' %}" class="btn btn-primary">
+            <i class="fas fa-plus me-2"></i>Create Assignment
+        </a>
+        {% endif %}
+    </div>
+
+    <form method="get" class="row g-3 mb-4" id="filterForm">
+        <div class="col-md-4">
+            <input type="text" name="search" id="searchInput" class="form-control" placeholder="Search assignments..." value="{{ search_query }}">
+        </div>
+        <div class="col-md-3">
+            <select name="class_id" id="classSelect" class="form-select">
+                <option value="">All Classes</option>
+                {% for class in classes %}
+                    <option value="{{ class.id }}" {% if class_id == class.id|stringformat:'s' %}selected{% endif %}>{{ class.name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="col-md-3">
+            <select name="subject_id" id="subjectSelect" class="form-select">
+                <option value="">All Subjects</option>
+                {% for subject in subjects %}
+                    <option value="{{ subject.id }}" {% if subject_id == subject.id|stringformat:'s' %}selected{% endif %}>{{ subject.name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="col-md-2">
+            <select name="status" id="statusSelect" class="form-select">
+                <option value="">All Status</option>
+                <option value="active" {% if status_filter == 'active' %}selected{% endif %}>Active</option>
+                <option value="inactive" {% if status_filter == 'inactive' %}selected{% endif %}>Inactive</option>
+                <option value="overdue" {% if status_filter == 'overdue' %}selected{% endif %}>Overdue</option>
+            </select>
+        </div>
+    </form>
+
+    <div class="card">
+        <div class="card-body p-0">
+            <table class="table table-hover mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>Title</th>
+                        <th>Subject</th>
+                        <th>Class</th>
+                        <th>Teacher</th>
+                        <th>Due Date</th>
+                        <th>Max Marks</th>
+                        <th>Submissions</th>
+                        <th>Status</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for assignment in page_obj %}
+                    <tr>
+                        <td>
+                            <strong><a href="{% url 'homework:assignment_detail' assignment.id %}">{{ assignment.title }}</a></strong><br>
+                            <small class="text-muted">{{ assignment.description|truncatewords:10 }}</small>
+                        </td>
+                        <td>{{ assignment.subject.name }}</td>
+                        <td>{{ assignment.school_class.name }}</td>
+                        <td>{{ assignment.teacher.get_full_name|default:assignment.teacher.username }}</td>
+                        <td>{{ assignment.due_date|indian_datetime }}</td>
+                        <td>{{ assignment.max_marks }}</td>
+                        <td>
+                            <span class="badge bg-info">{{ assignment.submission_count }}</span>
+                            {% if assignment.pending_submissions_count > 0 %}
+                            <span class="badge bg-warning">{{ assignment.pending_submissions_count }} pending</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if assignment.is_overdue %}
+                                <span class="badge bg-danger">Overdue</span>
+                            {% elif assignment.is_active %}
+                                <span class="badge bg-success">Active</span>
+                            {% else %}
+                                <span class="badge bg-secondary">Inactive</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <a href="{% url 'homework:assignment_detail' assignment.id %}" class="btn btn-sm btn-outline-primary">
+                                <i class="fas fa-eye"></i> View
+                            </a>
+                            {% if user.profile.role in 'school_admin,teacher'|make_list %}
+                                {% if assignment.teacher == user or user.profile.role == 'school_admin' %}
+                                <a href="{% url 'homework:assignment_update' assignment.id %}" class="btn btn-sm btn-outline-secondary">
+                                    <i class="fas fa-edit"></i>
+                                </a>
+                                {% endif %}
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="9" class="text-center text-muted py-4">
+                            No assignments found.
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Pagination -->
+    {% if page_obj.has_other_pages %}
+    <div class="mt-3">
+        <nav aria-label="Page navigation">
+            <ul class="pagination justify-content-center">
+                {% if page_obj.has_previous %}
+                    <li class="page-item"><a class="page-link" href="?page={{ page_obj.previous_page_number }}&search={{ search_query }}&class_id={{ class_id }}&subject_id={{ subject_id }}&status={{ status_filter }}">Previous</a></li>
+                {% else %}
+                    <li class="page-item disabled"><span class="page-link">Previous</span></li>
+                {% endif %}
+                <li class="page-item disabled"><span class="page-link">Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span></li>
+                {% if page_obj.has_next %}
+                    <li class="page-item"><a class="page-link" href="?page={{ page_obj.next_page_number }}&search={{ search_query }}&class_id={{ class_id }}&subject_id={{ subject_id }}&status={{ status_filter }}">Next</a></li>
+                {% else %}
+                    <li class="page-item disabled"><span class="page-link">Next</span></li>
+                {% endif %}
+            </ul>
+        </nav>
+    </div>
+    {% endif %}
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const searchInput = document.getElementById('searchInput');
+    const classSelect = document.getElementById('classSelect');
+    const subjectSelect = document.getElementById('subjectSelect');
+    const statusSelect = document.getElementById('statusSelect');
+    const filterForm = document.getElementById('filterForm');
+    
+    // Auto-submit on search input (debounced)
+    let searchTimeout;
+    searchInput.addEventListener('input', function() {
+        clearTimeout(searchTimeout);
+        searchTimeout = setTimeout(function() {
+            filterForm.submit();
+        }, 400);
+    });
+    
+    // Auto-submit on Enter
+    searchInput.addEventListener('keypress', function(e) {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            clearTimeout(searchTimeout);
+            filterForm.submit();
+        }
+    });
+    
+    // Auto-submit on dropdown changes
+    classSelect.addEventListener('change', function() {
+        filterForm.submit();
+    });
+    
+    subjectSelect.addEventListener('change', function() {
+        filterForm.submit();
+    });
+    
+    statusSelect.addEventListener('change', function() {
+        filterForm.submit();
+    });
+    
+    // Restore focus after form submission
+    if (searchInput.value) {
+        searchInput.focus();
+        searchInput.setSelectionRange(searchInput.value.length, searchInput.value.length);
+    }
+});
+</script>
+{% endblock %}

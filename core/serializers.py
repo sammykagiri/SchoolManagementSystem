@@ -1,7 +1,7 @@
 from rest_framework import serializers
 from django.contrib.auth.models import User
 from .models import (
-    School, Grade, Term, FeeCategory, TransportRoute, Student, FeeStructure, StudentFee, SchoolClass, UserProfile
+    School, Grade, Term, FeeCategory, TransportRoute, Student, FeeStructure, StudentFee, SchoolClass, UserProfile, Parent
 )
 
 class SchoolSerializer(serializers.ModelSerializer):
@@ -31,6 +31,16 @@ class TransportRouteSerializer(serializers.ModelSerializer):
         model = TransportRoute
         fields = ['id', 'name', 'description', 'base_fare', 'is_active']
 
+class ParentSerializer(serializers.ModelSerializer):
+    full_name = serializers.CharField(source='full_name', read_only=True)
+    username = serializers.CharField(source='user.username', read_only=True)
+
+    class Meta:
+        model = Parent
+        fields = ['id', 'full_name', 'username', 'phone', 'email', 'preferred_contact_method']
+        read_only_fields = ['id', 'full_name', 'username']
+
+
 class StudentSerializer(serializers.ModelSerializer):
     grade = GradeSerializer(read_only=True)
     grade_id = serializers.PrimaryKeyRelatedField(
@@ -40,15 +50,24 @@ class StudentSerializer(serializers.ModelSerializer):
     transport_route_id = serializers.PrimaryKeyRelatedField(
         queryset=TransportRoute.objects.all(), source='transport_route', write_only=True, required=False, allow_null=True
     )
+    parents = ParentSerializer(many=True, read_only=True)
+    parent_ids = serializers.PrimaryKeyRelatedField(
+        queryset=Parent.objects.all(),
+        source='parents',
+        write_only=True,
+        many=True,
+        required=False
+    )
 
     class Meta:
         model = Student
         fields = [
             'id', 'student_id', 'first_name', 'last_name', 'gender', 'date_of_birth',
             'grade', 'grade_id', 'admission_date', 'parent_name', 'parent_phone', 'parent_email',
-            'address', 'transport_route', 'transport_route_id', 'uses_transport', 'pays_meals', 'pays_activities', 'is_active', 'photo'
+            'address', 'transport_route', 'transport_route_id', 'uses_transport', 'pays_meals', 'pays_activities',
+            'is_active', 'photo', 'parents', 'parent_ids'
         ]
-        read_only_fields = ['id', 'student_id', 'grade', 'transport_route']
+        read_only_fields = ['id', 'student_id', 'grade', 'transport_route', 'parents']
 
 class FeeStructureSerializer(serializers.ModelSerializer):
     grade = GradeSerializer(read_only=True)

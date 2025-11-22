@@ -1,5 +1,6 @@
 {% extends 'base.html' %}
 {% load static %}
+{% load date_format %}
 
 {% block title %}Email Messages{% endblock %}
 
@@ -69,7 +70,7 @@
                                     </td>
                                     <td>
                                         {% if email.sent_at %}
-                                            {{ email.sent_at|date:"M d, Y H:i" }}
+                                            {{ email.sent_at|indian_datetime }}
                                         {% else %}
                                             <span class="text-muted">Not sent</span>
                                         {% endif %}

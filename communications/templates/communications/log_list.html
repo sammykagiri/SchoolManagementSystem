@@ -1,5 +1,6 @@
 {% extends 'base.html' %}
 {% load static %}
+{% load date_format %}
 
 {% block title %}Communication Logs{% endblock %}
 
@@ -85,7 +86,7 @@
                                             </span>
                                         {% endif %}
                                     </td>
-                                    <td>{{ log.created_at|date:"M d, Y H:i" }}</td>
+                                    <td>{{ log.created_at|indian_datetime }}</td>
                                     <td>
                                         <a href="{% url 'communications:log_detail' log.id %}" class="btn btn-sm btn-outline-primary">
                                             <i class="fas fa-eye"></i>

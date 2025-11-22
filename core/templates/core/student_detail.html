@@ -1,5 +1,6 @@
 {% extends 'base.html' %}
 {% load static %}
+{% load currency date_format %}
 
 {% block title %}Student Detail - {{ student.first_name }} {{ student.last_name }}{% endblock %}
 
@@ -57,7 +58,7 @@
                                 </tr>
                                 <tr>
                                     <th>Date of Birth:</th>
-                                    <td>{{ student.date_of_birth|date:"M d, Y" }}</td>
+                                    <td>{{ student.date_of_birth|indian_date }}</td>
                                 </tr>
                                 <tr>
                                     <th>Gender:</th>
@@ -73,7 +74,7 @@
                                 </tr>
                                 <tr>
                                     <th>Admission Date:</th>
-                                    <td>{{ student.admission_date|date:"M d, Y" }}</td>
+                                    <td>{{ student.admission_date|indian_date }}</td>
                                 </tr>
                                     </table>
                                 </div>
@@ -116,13 +117,48 @@
                                 </tr>
                                 <tr>
                                     <th>Created:</th>
-                                    <td>{{ student.created_at|date:"M d, Y H:i" }}</td>
+                                    <td>{{ student.created_at|indian_datetime }}</td>
                                 </tr>
                                 <tr>
                                     <th>Last Updated:</th>
-                                    <td>{{ student.updated_at|date:"M d, Y H:i" }}</td>
+                                    <td>{{ student.updated_at|indian_datetime }}</td>
                                 </tr>
                             </table>
+                        </div>
+                    </div>
+
+                    <!-- Linked Parents -->
+                    <div class="row mt-4">
+                        <div class="col-12">
+                            <h5>Linked Parent Accounts:</h5>
+                            <div class="table-responsive">
+                                <table class="table table-striped">
+                                    <thead>
+                                        <tr>
+                                            <th>Name</th>
+                                            <th>Email</th>
+                                            <th>Phone</th>
+                                            <th>Preferred Contact</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for parent in student.parents.all %}
+                                        <tr>
+                                            <td>{{ parent.full_name }}</td>
+                                            <td>{{ parent.email|default:parent.user.email|default:"Not provided" }}</td>
+                                            <td>{{ parent.phone|default:"Not provided" }}</td>
+                                            <td>{{ parent.get_preferred_contact_method_display }}</td>
+                                        </tr>
+                                        {% empty %}
+                                        <tr>
+                                            <td colspan="4" class="text-muted text-center">
+                                                No linked parent accounts. You can link parents when editing the student profile.
+                                            </td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
                         </div>
                     </div>
 
@@ -159,8 +195,8 @@
                                     <tbody>
                                         {% for payment in student.payment_set.all|slice:":5" %}
                                         <tr>
-                                            <td>{{ payment.created_at|date:"M d, Y" }}</td>
-                                            <td>KSh {{ payment.amount|floatformat:2 }}</td>
+                                            <td>{{ payment.created_at|indian_date }}</td>
+                                            <td>KES {{ payment.amount|floatformat:2 }}</td>
                                             <td>{{ payment.get_payment_method_display }}</td>
                                             <td>
                                                 <span class="badge bg-{% if payment.status == 'completed' %}success{% elif payment.status == 'pending' %}warning{% else %}danger{% endif %}">

@@ -1,4 +1,5 @@
 {% extends 'base.html' %}
+{% load date_format %}
 {% load static %}
 
 {% block title %}Delete Student - {{ student.first_name }} {{ student.last_name }}{% endblock %}
@@ -51,7 +52,7 @@
                                 </tr>
                                 <tr>
                                     <th>Admission Date:</th>
-                                    <td>{{ student.admission_date|date:"M d, Y" }}</td>
+                                    <td>{{ student.admission_date|indian_date }}</td>
                                 </tr>
                                 <tr>
                                     <th>Status:</th>

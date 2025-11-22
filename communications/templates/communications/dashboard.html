@@ -1,5 +1,6 @@
 {% extends 'base.html' %}
 {% load static %}
+{% load date_format %}
 
 {% block title %}Communications Dashboard{% endblock %}
 
@@ -133,7 +134,7 @@
                                             <small class="text-muted">{{ email.recipient_email }}</small><br>
                                             <small>{{ email.subject|truncatechars:30 }}</small>
                                         </div>
-                                        <small class="text-muted">{{ email.created_at|date:"M d" }}</small>
+                                        <small class="text-muted">{{ email.created_at|indian_date|slice:":5" }}</small>
                                     </div>
                                     {% empty %}
                                     <p class="text-muted">No recent emails</p>
@@ -153,7 +154,7 @@
                                             <small class="text-muted">{{ sms.recipient_phone }}</small><br>
                                             <small>{{ sms.content|truncatechars:30 }}</small>
                                         </div>
-                                        <small class="text-muted">{{ sms.created_at|date:"M d" }}</small>
+                                        <small class="text-muted">{{ sms.created_at|indian_date|slice:":5" }}</small>
                                     </div>
                                     {% empty %}
                                     <p class="text-muted">No recent SMS</p>
@@ -175,7 +176,7 @@
                                             </span><br>
                                             <small>{{ log.student.first_name|default:"N/A" }} {{ log.student.last_name|default:"" }}</small>
                                         </div>
-                                        <small class="text-muted">{{ log.created_at|date:"M d" }}</small>
+                                        <small class="text-muted">{{ log.created_at|indian_date|slice:":5" }}</small>
                                     </div>
                                     {% empty %}
                                     <p class="text-muted">No recent logs</p>

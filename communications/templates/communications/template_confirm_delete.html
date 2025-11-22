@@ -1,5 +1,6 @@
 {% extends 'base.html' %}
 {% load static %}
+{% load date_format %}
 
 {% block title %}Delete Template - {{ template.name }}{% endblock %}
 
@@ -51,7 +52,7 @@
                                 </tr>
                                 <tr>
                                     <th>Created:</th>
-                                    <td>{{ template.created_at|date:"M d, Y H:i" }}</td>
+                                    <td>{{ template.created_at|indian_datetime }}</td>
                                 </tr>
                             </table>
                             

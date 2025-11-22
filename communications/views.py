@@ -6,10 +6,12 @@ from django.db.models import Q
 from .models import CommunicationTemplate, EmailMessage, SMSMessage, CommunicationLog
 from .services import CommunicationService
 from core.models import Student
+from core.decorators import role_required
 import json
 
 
 @login_required
+@role_required('super_admin', 'school_admin', 'teacher', 'accountant')
 def communications_dashboard(request):
     """Communications dashboard"""
     school = request.user.profile.school
@@ -38,6 +40,7 @@ def communications_dashboard(request):
 
 
 @login_required
+@role_required('super_admin', 'school_admin', 'teacher')
 def template_list(request):
     """List communication templates"""
     school = request.user.profile.school
@@ -84,6 +87,7 @@ def template_list(request):
 
 
 @login_required
+@role_required('super_admin', 'school_admin', 'teacher')
 def template_detail(request, template_id):
     """Template detail view"""
     school = request.user.profile.school
@@ -96,6 +100,7 @@ def template_detail(request, template_id):
 
 
 @login_required
+@role_required('super_admin', 'school_admin', 'teacher')
 def template_update(request, template_id):
     """Update template"""
     school = request.user.profile.school
@@ -123,6 +128,7 @@ def template_update(request, template_id):
 
 
 @login_required
+@role_required('super_admin', 'school_admin')
 def template_delete(request, template_id):
     """Delete template"""
     school = request.user.profile.school
@@ -140,6 +146,7 @@ def template_delete(request, template_id):
 
 
 @login_required
+@role_required('super_admin', 'school_admin', 'teacher', 'accountant')
 def email_list(request):
     """List email messages"""
     school = request.user.profile.school
@@ -177,6 +184,7 @@ def email_list(request):
 
 
 @login_required
+@role_required('super_admin', 'school_admin', 'teacher', 'accountant')
 def email_detail(request, email_id):
     """Email detail view"""
     school = request.user.profile.school
@@ -189,6 +197,7 @@ def email_detail(request, email_id):
 
 
 @login_required
+@role_required('super_admin', 'school_admin', 'teacher', 'accountant')
 def sms_list(request):
     """List SMS messages"""
     school = request.user.profile.school
@@ -225,6 +234,7 @@ def sms_list(request):
 
 
 @login_required
+@role_required('super_admin', 'school_admin', 'teacher', 'accountant')
 def sms_detail(request, sms_id):
     """SMS detail view"""
     school = request.user.profile.school
@@ -237,6 +247,7 @@ def sms_detail(request, sms_id):
 
 
 @login_required
+@role_required('super_admin', 'school_admin', 'teacher', 'accountant')
 def communication_log_list(request):
     """List communication logs"""
     school = request.user.profile.school
@@ -262,6 +273,7 @@ def communication_log_list(request):
 
 
 @login_required
+@role_required('super_admin', 'school_admin', 'teacher', 'accountant')
 def communication_log_detail(request, log_id):
     """Communication log detail view"""
     school = request.user.profile.school
@@ -274,6 +286,7 @@ def communication_log_detail(request, log_id):
 
 
 @login_required
+@role_required('super_admin', 'school_admin', 'teacher')
 def send_email(request, student_id):
     """Send custom email to student"""
     school = request.user.profile.school
@@ -325,6 +338,7 @@ def send_email(request, student_id):
 
 
 @login_required
+@role_required('super_admin', 'school_admin', 'teacher')
 def send_sms(request, student_id):
     """Send custom SMS to student"""
     school = request.user.profile.school

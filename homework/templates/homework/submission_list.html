@@ -1,0 +1,100 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load currency date_format %}
+{% block title %}My Submissions | School Management System{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2 class="mb-0">My Submissions</h2>
+    </div>
+
+    <form method="get" class="row g-3 mb-4">
+        <div class="col-md-4">
+            <input type="text" name="assignment_id" class="form-control" placeholder="Filter by assignment ID..." value="{{ assignment_id }}">
+        </div>
+        <div class="col-md-2">
+            <button type="submit" class="btn btn-outline-primary w-100">Filter</button>
+        </div>
+    </form>
+
+    <div class="card">
+        <div class="card-body p-0">
+            <table class="table table-hover mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>Assignment</th>
+                        <th>Subject</th>
+                        <th>Submitted At</th>
+                        <th>Marks</th>
+                        <th>Status</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for submission in page_obj %}
+                    <tr>
+                        <td>
+                            <strong>{{ submission.assignment.title }}</strong><br>
+                            <small class="text-muted">{{ submission.assignment.school_class.name }}</small>
+                        </td>
+                        <td>{{ submission.assignment.subject.name }}</td>
+                        <td>{{ submission.submitted_at|indian_datetime }}</td>
+                        <td>
+                            {% if submission.marks_obtained is not None %}
+                                <strong>{{ submission.marks_obtained }}/{{ submission.assignment.max_marks }}</strong>
+                                <br><small>({{ submission.percentage|floatformat:1 }}%)</small>
+                            {% else %}
+                                <span class="text-muted">Pending</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if submission.status == 'graded' %}
+                                <span class="badge bg-success">Graded</span>
+                            {% elif submission.status == 'late' %}
+                                <span class="badge bg-warning">Late</span>
+                            {% else %}
+                                <span class="badge bg-info">Submitted</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <a href="{% url 'homework:submission_detail' submission.id %}" class="btn btn-sm btn-outline-primary">
+                                <i class="fas fa-eye"></i> View
+                            </a>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="6" class="text-center text-muted py-4">
+                            No submissions found.
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Pagination -->
+    {% if page_obj.has_other_pages %}
+    <div class="mt-3">
+        <nav aria-label="Page navigation">
+            <ul class="pagination justify-content-center">
+                {% if page_obj.has_previous %}
+                    <li class="page-item"><a class="page-link" href="?page={{ page_obj.previous_page_number }}&assignment_id={{ assignment_id }}">Previous</a></li>
+                {% else %}
+                    <li class="page-item disabled"><span class="page-link">Previous</span></li>
+                {% endif %}
+                <li class="page-item disabled"><span class="page-link">Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span></li>
+                {% if page_obj.has_next %}
+                    <li class="page-item"><a class="page-link" href="?page={{ page_obj.next_page_number }}&assignment_id={{ assignment_id }}">Next</a></li>
+                {% else %}
+                    <li class="page-item disabled"><span class="page-link">Next</span></li>
+                {% endif %}
+            </ul>
+        </nav>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
+

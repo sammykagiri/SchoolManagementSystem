@@ -1,4 +1,5 @@
 {% extends 'base.html' %}
+{% load date_format %}
 
 {% block title %}Payment Reminders | School Management System{% endblock %}
 
@@ -77,7 +78,7 @@
                                                 <span class="badge bg-success">SMS</span>
                                             {% endif %}
                                         </td>
-                                        <td>{{ reminder.created_at|date:"M d, Y H:i" }}</td>
+                                        <td>{{ reminder.created_at|indian_datetime }}</td>
                                         <td>
                                             <a href="{% url 'core:student_detail' reminder.student.student_id %}" 
                                                class="btn btn-outline-primary btn-sm" title="View Student">
