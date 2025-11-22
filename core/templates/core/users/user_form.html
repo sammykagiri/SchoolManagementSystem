@@ -1,0 +1,268 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}{{ title }} | School Management System{% endblock %}
+
+{% block extra_css %}
+<style>
+    .user-form-container {
+        max-width: 800px;
+        margin: 0 auto;
+        padding: 15px;
+    }
+    .form-card {
+        border-radius: 8px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        overflow: hidden;
+    }
+    .form-header {
+        background-color: #0d6efd;
+        color: white;
+        padding: 15px;
+    }
+    .form-body {
+        padding: 20px;
+    }
+    .form-section {
+        background-color: #f8f9fc;
+        padding: 12px;
+        border-radius: 4px;
+        margin-bottom: 15px;
+    }
+    .form-section-title {
+        border-bottom: 1px solid #e3e6f0;
+        padding-bottom: 8px;
+        margin-bottom: 12px;
+        font-size: 1.1rem;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="user-form-container">
+    <div class="card form-card">
+        <div class="form-header">
+            <h3 class="mb-0">
+                {% if user %}
+                    <i class="fas fa-user-edit me-2"></i>
+                {% else %}
+                    <i class="fas fa-user-plus me-2"></i>
+                {% endif %}
+                {{ title }}
+            </h3>
+        </div>
+        <div class="form-body">
+            <form method="post" novalidate>
+                {% csrf_token %}
+                
+                {% if user_form.non_field_errors or profile_form.non_field_errors %}
+                    <div class="alert alert-danger">
+                        {% for error in user_form.non_field_errors %}
+                            {{ error }}
+                        {% endfor %}
+                        {% for error in profile_form.non_field_errors %}
+                            {{ error }}
+                        {% endfor %}
+                    </div>
+                {% endif %}
+                
+                <div class="form-section">
+                    <h5 class="form-section-title"><i class="fas fa-user me-2"></i>User Information</h5>
+                    
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="{{ user_form.username.id_for_label }}" class="form-label">Username</label>
+                            <input type="text" name="{{ user_form.username.name }}" 
+                                   class="form-control {% if user_form.username.errors %}is-invalid{% endif %}" 
+                                   id="{{ user_form.username.id_for_label }}" 
+                                   value="{{ user_form.username.value|default:'' }}" 
+                                   {% if user %}{% if not user.is_superuser %}readonly{% endif %}{% endif %}>
+                            {% if user_form.username.errors %}
+                                <div class="invalid-feedback">
+                                    {{ user_form.username.errors.0 }}
+                                </div>
+                            {% endif %}
+                        </div>
+                        
+                        <div class="col-md-6 mb-3">
+                            <label for="{{ user_form.email.id_for_label }}" class="form-label">Email</label>
+                            <input type="email" name="{{ user_form.email.name }}" 
+                                   class="form-control {% if user_form.email.errors %}is-invalid{% endif %}" 
+                                   id="{{ user_form.email.id_for_label }}" 
+                                   value="{{ user_form.email.value|default:'' }}">
+                            {% if user_form.email.errors %}
+                                <div class="invalid-feedback">
+                                    {{ user_form.email.errors.0 }}
+                                </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="{{ user_form.first_name.id_for_label }}" class="form-label">First Name</label>
+                            <input type="text" name="{{ user_form.first_name.name }}" 
+                                   class="form-control {% if user_form.first_name.errors %}is-invalid{% endif %}" 
+                                   id="{{ user_form.first_name.id_for_label }}" 
+                                   value="{{ user_form.first_name.value|default:'' }}">
+                            {% if user_form.first_name.errors %}
+                                <div class="invalid-feedback">
+                                    {{ user_form.first_name.errors.0 }}
+                                </div>
+                            {% endif %}
+                        </div>
+                        
+                        <div class="col-md-6 mb-3">
+                            <label for="{{ user_form.last_name.id_for_label }}" class="form-label">Last Name</label>
+                            <input type="text" name="{{ user_form.last_name.name }}" 
+                                   class="form-control {% if user_form.last_name.errors %}is-invalid{% endif %}" 
+                                   id="{{ user_form.last_name.id_for_label }}" 
+                                   value="{{ user_form.last_name.value|default:'' }}">
+                            {% if user_form.last_name.errors %}
+                                <div class="invalid-feedback">
+                                    {{ user_form.last_name.errors.0 }}
+                                </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    
+                    {% if not user %}
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="{{ user_form.password1.id_for_label }}" class="form-label">Password *</label>
+                            <input type="password" name="{{ user_form.password1.name }}" 
+                                   class="form-control {% if user_form.password1.errors %}is-invalid{% endif %}" 
+                                   id="{{ user_form.password1.id_for_label }}"
+                                   required>
+                            {% if user_form.password1.errors %}
+                                <div class="invalid-feedback">
+                                    {{ user_form.password1.errors.0 }}
+                                </div>
+                            {% endif %}
+                            <div class="form-text">
+                                <ul class="mb-0">
+                                    <li>Your password can't be too similar to your other personal information.</li>
+                                    <li>Your password must contain at least 8 characters.</li>
+                                    <li>Your password can't be a commonly used password.</li>
+                                    <li>Your password can't be entirely numeric.</li>
+                                </ul>
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-6 mb-3">
+                            <label for="{{ user_form.password2.id_for_label }}" class="form-label">Confirm Password *</label>
+                            <input type="password" name="{{ user_form.password2.name }}" 
+                                   class="form-control {% if user_form.password2.errors %}is-invalid{% endif %}" 
+                                   id="{{ user_form.password2.id_for_label }}"
+                                   required>
+                            {% if user_form.password2.errors %}
+                                <div class="invalid-feedback">
+                                    {{ user_form.password2.errors.0 }}
+                                </div>
+                            {% endif %}
+                            <div class="form-text">Enter the same password as before, for verification.</div>
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+                
+                <div class="form-section">
+                    <h5 class="form-section-title"><i class="fas fa-id-badge me-2"></i>Role & Permissions</h5>
+                    
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="{{ profile_form.school.id_for_label }}" class="form-label">School</label>
+                            {{ profile_form.school }}
+                            {% if profile_form.school.errors %}
+                                <div class="text-danger small">
+                                    {{ profile_form.school.errors.0 }}
+                                </div>
+                            {% endif %}
+                            {% if profile_form.school.help_text %}
+                                <div class="form-text">{{ profile_form.school.help_text }}</div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <div class="form-check mt-4">
+                                <input class="form-check-input" type="checkbox" 
+                                       name="{{ user_form.is_staff.name }}" 
+                                       id="{{ user_form.is_staff.id_for_label }}" 
+                                       {% if user_form.is_staff.value %}checked{% endif %}>
+                                <label class="form-check-label" for="{{ user_form.is_staff.id_for_label }}">
+                                    Staff Status (Can access admin site)
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" 
+                                       name="{{ user_form.is_active.name }}" 
+                                       id="{{ user_form.is_active.id_for_label }}" 
+                                       {% if user_form.is_active.value %}checked{% endif %}>
+                                <label class="form-check-label" for="{{ user_form.is_active.id_for_label }}">
+                                    Active (Can login to system)
+                                </label>
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-6 mb-3">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" 
+                                       name="{{ profile_form.is_active.name }}" 
+                                       id="{{ profile_form.is_active.id_for_label }}" 
+                                       {% if profile_form.is_active.value %}checked{% endif %}>
+                                <label class="form-check-label" for="{{ profile_form.is_active.id_for_label }}">
+                                    Active Profile
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="form-section">
+                    <h5 class="form-section-title">User Roles</h5>
+                    <p class="text-muted mb-3">Select one or more roles for this user:</p>
+                    
+                    <div class="row">
+                        {% for role_option in profile_form.roles %}
+                            <div class="col-md-4 mb-3">
+                                <div class="form-check">
+                                    {{ role_option.tag }}
+                                    <label class="form-check-label" for="{{ role_option.id_for_label }}">
+                                        {{ role_option.choice_label }}
+                                    </label>
+                                </div>
+                            </div>
+                        {% endfor %}
+                    </div>
+                    {% if profile_form.roles.errors %}
+                        <div class="text-danger small">
+                            {{ profile_form.roles.errors.0 }}
+                        </div>
+                    {% endif %}
+                </div>
+                
+                <div class="d-flex justify-content-between">
+                    <a href="{% url 'core:user_list' %}" class="btn btn-outline-secondary">
+                        <i class="fas fa-arrow-left me-2"></i>Back to User List
+                    </a>
+                    <button type="submit" class="btn btn-primary">
+                        {% if user %}
+                            <i class="fas fa-save me-2"></i>Update User
+                        {% else %}
+                            <i class="fas fa-user-plus me-2"></i>Create User
+                        {% endif %}
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+

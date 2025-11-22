@@ -1,5 +1,8 @@
 from django.contrib import admin
-from .models import Grade, Term, FeeCategory, TransportRoute, Student, FeeStructure, StudentFee, SchoolClass, Parent
+from .models import (
+    Grade, Term, FeeCategory, TransportRoute, Student, FeeStructure, StudentFee, 
+    SchoolClass, Role, Permission, UserProfile, Parent
+)
 
 
 @admin.register(Grade)
@@ -98,10 +101,104 @@ class StudentFeeAdmin(admin.ModelAdmin):
 admin.site.register(SchoolClass)
 
 
+@admin.register(Role)
+class RoleAdmin(admin.ModelAdmin):
+    list_display = ['name', 'get_display_name', 'is_active', 'permissions_count', 'users_count']
+    list_filter = ['is_active', 'name']
+    search_fields = ['name', 'description']
+    filter_horizontal = ['permissions']
+    readonly_fields = ['created_at', 'updated_at']
+    
+    def permissions_count(self, obj):
+        return obj.permissions.count()
+    permissions_count.short_description = 'Permissions'
+    
+    def users_count(self, obj):
+        return obj.user_profiles.count()
+    users_count.short_description = 'Users'
+    
+    fieldsets = (
+        ('Basic Information', {
+            'fields': ('name', 'description', 'is_active')
+        }),
+        ('Permissions', {
+            'fields': ('permissions',)
+        }),
+        ('Timestamps', {
+            'fields': ('created_at', 'updated_at'),
+            'classes': ('collapse',)
+        }),
+    )
+
+
+@admin.register(Permission)
+class PermissionAdmin(admin.ModelAdmin):
+    list_display = ['codename', 'permission_type', 'resource_type', 'roles_count']
+    list_filter = ['permission_type', 'resource_type']
+    search_fields = ['permission_type', 'resource_type']
+    readonly_fields = ['codename', 'roles_count']
+    
+    def roles_count(self, obj):
+        return obj.roles.count()
+    roles_count.short_description = 'Roles'
+    
+    fieldsets = (
+        ('Permission Details', {
+            'fields': ('permission_type', 'resource_type', 'codename')
+        }),
+        ('Statistics', {
+            'fields': ('roles_count',),
+            'classes': ('collapse',)
+        }),
+    )
+
+
+@admin.register(UserProfile)
+class UserProfileAdmin(admin.ModelAdmin):
+    list_display = ['user', 'school', 'get_roles_display', 'is_active']
+    list_filter = ['is_active', 'school', 'roles']
+    search_fields = ['user__username', 'user__email', 'user__first_name', 'user__last_name']
+    filter_horizontal = ['roles']
+    readonly_fields = ['created_at', 'updated_at']
+    
+    fieldsets = (
+        ('User Information', {
+            'fields': ('user', 'school', 'is_active')
+        }),
+        ('Roles', {
+            'fields': ('roles',)
+        }),
+        ('Timestamps', {
+            'fields': ('created_at', 'updated_at'),
+            'classes': ('collapse',)
+        }),
+    )
+
+
 @admin.register(Parent)
 class ParentAdmin(admin.ModelAdmin):
-    list_display = ['full_name', 'school', 'phone', 'email', 'is_active']
-    search_fields = ['user__username', 'user__first_name', 'user__last_name', 'phone', 'email']
-    list_filter = ['school', 'is_active']
-    ordering = ['school', 'user__first_name', 'user__last_name']
-    readonly_fields = ['created_at', 'updated_at']
+    list_display = ['user', 'school', 'phone', 'email', 'is_active', 'children_count']
+    list_filter = ['is_active', 'school']
+    search_fields = ['user__username', 'user__email', 'phone', 'email']
+    readonly_fields = ['created_at', 'updated_at', 'children_count']
+    
+    def children_count(self, obj):
+        return obj.students.count()
+    children_count.short_description = 'Children'
+    
+    fieldsets = (
+        ('Basic Information', {
+            'fields': ('user', 'school', 'is_active')
+        }),
+        ('Contact Information', {
+            'fields': ('phone', 'email', 'address')
+        }),
+        ('Statistics', {
+            'fields': ('children_count',),
+            'classes': ('collapse',)
+        }),
+        ('Timestamps', {
+            'fields': ('created_at', 'updated_at'),
+            'classes': ('collapse',)
+        }),
+    )

@@ -82,6 +82,16 @@ urlpatterns = [
     path('classes/add/', views.class_add, name='class_add'),
     path('classes/<int:class_id>/edit/', views.class_edit, name='class_edit'),
     path('classes/<int:class_id>/delete/', views.class_delete, name='class_delete'),
+    
+    # User Management
+    path('users/', views.user_list, name='user_list'),
+    path('users/create/', views.user_create, name='user_create'),
+    path('users/<int:user_id>/edit/', views.user_edit, name='user_edit'),
+    path('users/<int:user_id>/delete/', views.user_delete, name='user_delete'),
+    
+    # Role Management
+    path('roles/', views.role_list, name='role_list'),
+    path('roles/<int:role_id>/permissions/', views.role_permissions, name='role_permissions'),
 ]
 
 urlpatterns += router.urls

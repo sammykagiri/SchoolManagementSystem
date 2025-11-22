@@ -296,7 +296,8 @@ class StudentFee(models.Model):
         ordering = ['student', 'term', 'fee_category']
 
 
-class UserProfile(models.Model):
+class Role(models.Model):
+    """Model to store available roles"""
     ROLE_CHOICES = [
         ('super_admin', 'Super Admin'),
         ('school_admin', 'School Admin'),
@@ -306,39 +307,175 @@ class UserProfile(models.Model):
         ('student', 'Student'),
     ]
     
-    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='profile')
-    school = models.ForeignKey(School, on_delete=models.CASCADE, related_name='users', null=True, blank=True)
-    role = models.CharField(max_length=20, choices=ROLE_CHOICES, default='teacher')
+    name = models.CharField(max_length=20, choices=ROLE_CHOICES, unique=True)
+    permissions = models.ManyToManyField('Permission', related_name='roles', blank=True)
+    description = models.TextField(blank=True, help_text='Description of this role')
     is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     
     def __str__(self):
-        return f"{self.user.username} - {self.get_role_display()} - {self.school.name if self.school else 'No School'}"
+        return self.get_display_name()
+    
+    def get_display_name(self):
+        """Get the human-readable name for this role"""
+        return dict(self.ROLE_CHOICES).get(self.name, self.name)
+    
+    def has_permission(self, permission_type, resource_type):
+        """Check if this role has a specific permission"""
+        return self.permissions.filter(
+            permission_type=permission_type,
+            resource_type=resource_type
+        ).exists()
+    
+    class Meta:
+        ordering = ['name']
+        verbose_name = 'Role'
+        verbose_name_plural = 'Roles'
+
+
+class Permission(models.Model):
+    """Model to store individual permissions"""
+    PERMISSION_TYPES = [
+        ('view', 'View'),
+        ('add', 'Add'),
+        ('change', 'Change'),
+        ('delete', 'Delete'),
+    ]
+    
+    RESOURCE_TYPES = [
+        ('student', 'Student'),
+        ('grade', 'Grade'),
+        ('term', 'Term'),
+        ('class', 'Class'),
+        ('fee_structure', 'Fee Structure'),
+        ('fee', 'Fee'),
+        ('payment', 'Payment'),
+        ('receipt', 'Receipt'),
+        ('reminder', 'Reminder'),
+        ('attendance', 'Attendance'),
+        ('subject', 'Subject'),
+        ('teacher', 'Teacher'),
+        ('timetable', 'Timetable'),
+        ('exam', 'Exam'),
+        ('gradebook', 'Gradebook'),
+        ('assignment', 'Assignment'),
+        ('submission', 'Submission'),
+        ('template', 'Template'),
+        ('email', 'Email'),
+        ('sms', 'SMS'),
+        ('log', 'Communication Log'),
+        ('dashboard', 'Dashboard'),
+        ('report', 'Report'),
+        ('user_management', 'User Management'),
+        ('role_management', 'Role Management'),
+        ('school_management', 'School Management'),
+    ]
+    
+    permission_type = models.CharField(max_length=20, choices=PERMISSION_TYPES)
+    resource_type = models.CharField(max_length=30, choices=RESOURCE_TYPES)
+    
+    class Meta:
+        unique_together = ('permission_type', 'resource_type')
+        ordering = ['resource_type', 'permission_type']
+        verbose_name = 'Permission'
+        verbose_name_plural = 'Permissions'
+    
+    def __str__(self):
+        return f"{self.get_permission_type_display()} {self.get_resource_type_display()}"
     
     @property
+    def codename(self):
+        """Generate a codename like 'add_student', 'view_payment', etc."""
+        return f"{self.permission_type}_{self.resource_type}"
+
+
+class UserProfile(models.Model):
+    """User profile with role-based permissions"""
+    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='profile')
+    school = models.ForeignKey(School, on_delete=models.CASCADE, related_name='users', null=True, blank=True)
+    roles = models.ManyToManyField(Role, related_name='user_profiles', blank=True)
+    # Keep role field for backward compatibility (will be deprecated)
+    role = models.CharField(max_length=20, null=True, blank=True, help_text='Deprecated: Use roles instead')
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    def __str__(self):
+        roles_display = ', '.join([role.get_display_name() for role in self.roles.all()])
+        if not roles_display and self.role:
+            # Fallback to old role field if no roles assigned
+            roles_display = self.get_role_display() if hasattr(self, 'get_role_display') else self.role
+        return f"{self.user.username} - {roles_display or 'No Roles'} - {self.school.name if self.school else 'No School'}"
+    
+    def has_role(self, role_name):
+        """Check if user has a specific role"""
+        return self.roles.filter(name=role_name).exists()
+    
+    def get_roles_display(self):
+        """Get comma-separated list of role display names"""
+        return ', '.join([role.get_display_name() for role in self.roles.all()])
+    
+    @property
+    def roles_list(self):
+        """Return a list of role names for this user"""
+        return [role.name for role in self.roles.all()]
+    
+    def has_permission(self, permission_type, resource_type):
+        """Check if the user has a specific permission through any of their roles"""
+        # Superusers have all permissions
+        if self.user.is_superuser:
+            return True
+        
+        # Check if any of the user's roles have this permission
+        for role in self.roles.all():
+            if role.has_permission(permission_type, resource_type):
+                return True
+        
+        return False
+    
+    # Backward compatibility properties (check roles, fallback to old role field)
+    @property
     def is_super_admin(self):
-        return self.role == 'super_admin'
+        if self.has_role('super_admin'):
+            return True
+        # Fallback to old role field
+        return self.role == 'super_admin' if self.role else False
     
     @property
     def is_school_admin(self):
-        return self.role == 'school_admin'
+        if self.has_role('school_admin'):
+            return True
+        # Fallback to old role field
+        return self.role == 'school_admin' if self.role else False
     
     @property
     def is_teacher(self):
-        return self.role == 'teacher'
+        if self.has_role('teacher'):
+            return True
+        # Fallback to old role field
+        return self.role == 'teacher' if self.role else False
     
     @property
     def is_accountant(self):
-        return self.role == 'accountant'
+        if self.has_role('accountant'):
+            return True
+        # Fallback to old role field
+        return self.role == 'accountant' if self.role else False
     
     @property
     def is_parent(self):
-        return self.role == 'parent'
+        if self.has_role('parent'):
+            return True
+        # Fallback to old role field
+        return self.role == 'parent' if self.role else False
     
     @property
     def is_student(self):
-        return self.role == 'student'
+        if self.has_role('student'):
+            return True
+        # Fallback to old role field
+        return self.role == 'student' if self.role else False
 
 # @receiver(post_save, sender=User)
 def create_user_profile(sender, instance, created, **kwargs):

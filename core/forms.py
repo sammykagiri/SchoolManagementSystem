@@ -1,6 +1,9 @@
 from django import forms
+from django.contrib.auth.forms import UserCreationForm
+from django.contrib.auth.models import User
 from django.core.exceptions import ValidationError
-from .models import Student, Grade, TransportRoute, Parent
+from .models import Student, Grade, TransportRoute, Role, UserProfile, School
+
 
 class StudentForm(forms.ModelForm):
     """Form for creating and updating students"""
@@ -22,7 +25,7 @@ class StudentForm(forms.ModelForm):
             'pays_meals': forms.CheckboxInput(),
             'pays_activities': forms.CheckboxInput(),
             'photo': forms.FileInput(attrs={'accept': 'image/*', 'class': 'form-control'}),
-            'parents': forms.SelectMultiple(attrs={'class': 'form-select', 'data-placeholder': 'Select linked parent accounts'}),
+            'parents': forms.CheckboxSelectMultiple(),
         }
     
     def __init__(self, *args, **kwargs):
@@ -33,7 +36,9 @@ class StudentForm(forms.ModelForm):
             # Filter grades by school
             self.fields['grade'].queryset = Grade.objects.filter(school=school)
             self.fields['transport_route'].queryset = TransportRoute.objects.filter(school=school, is_active=True)
-            self.fields['parents'].queryset = Parent.objects.filter(school=school, is_active=True).select_related('user')
+            # Filter parents by school
+            from .models import Parent
+            self.fields['parents'].queryset = Parent.objects.filter(school=school, is_active=True)
         
         # Make required fields more obvious
         self.fields['first_name'].required = True
@@ -50,14 +55,13 @@ class StudentForm(forms.ModelForm):
         self.fields['address'].help_text = 'Optional - student home address'
         self.fields['transport_route'].help_text = 'Optional - if student uses school transport'
         self.fields['photo'].help_text = 'Optional - Upload student photo (JPG, PNG, max 5MB)'
-        self.fields['parents'].help_text = 'Optional - link parent user accounts (one parent can have multiple children)'
-        self.fields['parents'].required = False
+        self.fields['parents'].help_text = 'Select parent accounts linked to this student (optional)'
         
         # Add CSS classes for styling
         for field_name, field in self.fields.items():
             if field.widget.__class__.__name__ in ['TextInput', 'EmailInput', 'DateInput']:
                 field.widget.attrs['class'] = 'form-control'
-            elif field.widget.__class__.__name__ in ['Select', 'SelectMultiple']:
+            elif field.widget.__class__.__name__ == 'Select':
                 field.widget.attrs['class'] = 'form-select'
             elif field.widget.__class__.__name__ == 'Textarea':
                 field.widget.attrs['class'] = 'form-control'
@@ -108,3 +112,58 @@ class StudentForm(forms.ModelForm):
                 raise ValidationError('Admission date cannot be before date of birth.')
         
         return admission_date
+
+
+class UserForm(UserCreationForm):
+    """Form for creating users"""
+    email = forms.EmailField(required=True)
+    first_name = forms.CharField(required=True)
+    last_name = forms.CharField(required=True)
+    is_staff = forms.BooleanField(required=False, label="Staff Status", 
+                                  help_text="Designates whether the user can log into the admin site.")
+    is_active = forms.BooleanField(required=False, label="Active", 
+                                    help_text="Designates whether this user should be treated as active.")
+    
+    class Meta:
+        model = User
+        fields = ('username', 'email', 'first_name', 'last_name', 'password1', 'password2', 'is_staff', 'is_active')
+
+
+class UserEditForm(forms.ModelForm):
+    """Form for editing users"""
+    email = forms.EmailField(required=True)
+    first_name = forms.CharField(required=True)
+    last_name = forms.CharField(required=True)
+    is_staff = forms.BooleanField(required=False, label="Staff Status", 
+                                  help_text="Designates whether the user can log into the admin site.")
+    is_active = forms.BooleanField(required=False, label="Active", 
+                                    help_text="Designates whether this user should be treated as active.")
+    
+    class Meta:
+        model = User
+        fields = ('username', 'email', 'first_name', 'last_name', 'is_staff', 'is_active')
+
+
+class UserProfileForm(forms.ModelForm):
+    """Form for user profile with role assignment"""
+    class Meta:
+        model = UserProfile
+        fields = ('school', 'roles', 'is_active')
+        widgets = {
+            'school': forms.Select(attrs={'class': 'form-select'}),
+            'roles': forms.CheckboxSelectMultiple(),
+            'is_active': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+        }
+    
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Filter active roles only
+        self.fields['roles'].queryset = Role.objects.filter(is_active=True)
+        self.fields['roles'].help_text = 'Select one or more roles for this user'
+        self.fields['school'].help_text = 'Assign user to a school'
+    
+    def clean_roles(self):
+        roles = self.cleaned_data.get('roles')
+        if not roles or roles.count() == 0:
+            raise ValidationError("Please assign at least one role to this user.")
+        return roles

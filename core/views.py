@@ -13,7 +13,9 @@ from .serializers import (
     SchoolSerializer, GradeSerializer, TermSerializer, FeeCategorySerializer,
     TransportRouteSerializer, StudentSerializer, FeeStructureSerializer, StudentFeeSerializer, SchoolClassSerializer
 )
-from .forms import StudentForm
+from .forms import StudentForm, UserForm, UserEditForm, UserProfileForm
+from .models import Role, Permission
+from django.contrib.auth.models import User
 import json
 from django.contrib.admin.views.decorators import staff_member_required
 from rest_framework import status
@@ -920,3 +922,156 @@ def class_delete(request, class_id):
         messages.success(request, 'Class deleted successfully!')
         return redirect('core:class_list')
     return render(request, 'core/class_confirm_delete.html', {'school_class': school_class})
+
+
+# User Management Views
+@login_required
+@role_required('super_admin', 'school_admin')
+def user_list(request):
+    """List all users"""
+    users = User.objects.select_related('profile').all().order_by('-date_joined')
+    return render(request, 'core/users/user_list.html', {'users': users})
+
+
+@login_required
+@role_required('super_admin', 'school_admin')
+def user_create(request):
+    """Create a new user with role assignment"""
+    if request.method == 'POST':
+        user_form = UserForm(request.POST)
+        profile_form = UserProfileForm(request.POST)
+        
+        if user_form.is_valid() and profile_form.is_valid():
+            try:
+                # Create user first
+                user = user_form.save()
+                
+                # Check if profile already exists
+                if hasattr(user, 'profile'):
+                    profile = user.profile
+                    # Update existing profile
+                    for field, value in profile_form.cleaned_data.items():
+                        if field != 'roles':  # Skip roles field
+                            setattr(profile, field, value)
+                    profile.save()
+                    # Update roles separately
+                    profile.roles.set(profile_form.cleaned_data['roles'])
+                else:
+                    # Create new profile
+                    profile = profile_form.save(commit=False)
+                    profile.user = user
+                    profile.save()
+                    # Set roles after saving
+                    profile.roles.set(profile_form.cleaned_data['roles'])
+                
+                messages.success(request, f"User {user.username} created successfully!")
+                return redirect('core:user_list')
+            except Exception as e:
+                messages.error(request, f"Error creating user: {str(e)}")
+        else:
+            if 'password1' in user_form.errors or 'password2' in user_form.errors:
+                messages.error(request, "Please provide a valid password and confirm it.")
+            else:
+                messages.error(request, "Please correct the errors below.")
+    else:
+        user_form = UserForm()
+        profile_form = UserProfileForm()
+    
+    return render(request, 'core/users/user_form.html', {
+        'user_form': user_form,
+        'profile_form': profile_form,
+        'title': 'Create New User',
+        'user': None
+    })
+
+
+@login_required
+@role_required('super_admin', 'school_admin')
+def user_edit(request, user_id):
+    """Edit an existing user"""
+    user = get_object_or_404(User, id=user_id)
+    
+    if request.method == 'POST':
+        user_form = UserEditForm(request.POST, instance=user)
+        profile_form = UserProfileForm(request.POST, instance=user.profile)
+        
+        if user_form.is_valid() and profile_form.is_valid():
+            user_form.save()
+            profile_form.save()
+            
+            messages.success(request, f"User {user.username} updated successfully!")
+            return redirect('core:user_list')
+    else:
+        user_form = UserEditForm(instance=user)
+        profile_form = UserProfileForm(instance=user.profile)
+    
+    return render(request, 'core/users/user_form.html', {
+        'user_form': user_form,
+        'profile_form': profile_form,
+        'title': f'Edit User: {user.username}',
+        'user': user
+    })
+
+
+@login_required
+@role_required('super_admin', 'school_admin')
+def user_delete(request, user_id):
+    """Delete a user"""
+    user = get_object_or_404(User, id=user_id)
+    
+    if request.method == 'POST':
+        username = user.username
+        user.delete()
+        messages.success(request, f"User {username} deleted successfully!")
+        return redirect('core:user_list')
+    
+    return render(request, 'core/users/user_confirm_delete.html', {'user': user})
+
+
+# Role Management Views
+@login_required
+@role_required('super_admin', 'school_admin')
+def role_list(request):
+    """List all roles"""
+    roles = Role.objects.all()
+    return render(request, 'core/roles/role_list.html', {'roles': roles})
+
+
+@login_required
+@role_required('super_admin', 'school_admin')
+def role_permissions(request, role_id):
+    """Manage permissions for a role"""
+    role = get_object_or_404(Role, id=role_id)
+    
+    if request.method == 'POST':
+        permission_ids = request.POST.getlist('permissions')
+        role.permissions.clear()
+        role.permissions.add(*Permission.objects.filter(id__in=permission_ids))
+        messages.success(request, 'Role permissions updated successfully.')
+        return redirect('core:role_list')
+    
+    # Get all permissions and group them by resource type
+    all_permissions = Permission.objects.all().order_by('resource_type', 'permission_type')
+    grouped_permissions = {}
+    
+    # Get the role's current permissions
+    role_permissions = set(role.permissions.values_list('id', flat=True))
+    
+    # Group permissions by resource type
+    for perm in all_permissions:
+        if perm.resource_type not in grouped_permissions:
+            grouped_permissions[perm.resource_type] = []
+        
+        # Add permission with checked status
+        grouped_permissions[perm.resource_type].append({
+            'id': perm.id,
+            'permission_type': perm.permission_type,
+            'resource_type': perm.resource_type,
+            'codename': f"{perm.permission_type}_{perm.resource_type}",
+            'checked': perm.id in role_permissions
+        })
+    
+    return render(request, 'core/roles/role_permissions.html', {
+        'role': role,
+        'grouped_permissions': grouped_permissions
+    })

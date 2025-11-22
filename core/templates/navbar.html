@@ -16,7 +16,7 @@
             <span class="navbar-toggler-icon"></span>
         </button>
         <div class="collapse navbar-collapse justify-content-center" id="navbarNav">
-            {% if user.is_authenticated and user.profile.role != 'student' and user.profile.role != 'parent' %}
+            {% if user.is_authenticated and not user.profile.is_student and not user.profile.is_parent %}
             <ul class="navbar-nav">
                 <!-- Dashboard -->
                 <li class="nav-item">
@@ -120,7 +120,7 @@
                         <li><a class="dropdown-item" href="{% url 'homework:assignment_list' %}">
                             <i class="fas fa-list me-2"></i>Assignments
                         </a></li>
-                        {% if user.profile.role == 'school_admin' or user.profile.role == 'teacher' %}
+                        {% if user.profile.is_school_admin or user.profile.is_teacher %}
                         <li><a class="dropdown-item" href="{% url 'homework:submission_list' %}">
                             <i class="fas fa-check-circle me-2"></i>View Submissions
                         </a></li>
@@ -155,7 +155,7 @@
                 
                 <!-- Settings/Configuration -->
                 <li class="nav-item dropdown">
-                    <a class="nav-link dropdown-toggle {% if request.resolver_match.url_name == 'term_list' or request.resolver_match.url_name == 'grade_list' or request.resolver_match.url_name == 'class_list' %}active{% endif %}" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                    <a class="nav-link dropdown-toggle {% if request.resolver_match.url_name == 'term_list' or request.resolver_match.url_name == 'grade_list' or request.resolver_match.url_name == 'class_list' or request.resolver_match.url_name == 'user_list' or request.resolver_match.url_name == 'role_list' %}active{% endif %}" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
                         <i class="fas fa-cog me-2"></i>Settings
                     </a>
                     <ul class="dropdown-menu">
@@ -168,6 +168,16 @@
                         <li><a class="dropdown-item" href="{% url 'core:class_list' %}">
                             <i class="fas fa-chalkboard me-2"></i>Classes
                         </a></li>
+                      
+                        {% if user.is_superuser or user.profile.is_school_admin %}
+                        <li><hr class="dropdown-divider"></li>
+                        <li><a class="dropdown-item" href="{% url 'core:user_list' %}">
+                            <i class="fas fa-users me-2"></i>User Management
+                        </a></li>
+                        <li><a class="dropdown-item" href="{% url 'core:role_list' %}">
+                            <i class="fas fa-user-tag me-2"></i>Role Management
+                        </a></li>
+                        {% endif %}
                     </ul>
                 </li>
                 

@@ -1,0 +1,139 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load string_filters %}
+
+{% block title %}Role Permissions | School Management System{% endblock %}
+
+{% block extra_css %}
+<style>
+    .permissions-table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-bottom: 1rem;
+    }
+    .permissions-table th,
+    .permissions-table td {
+        border: 1px solid #e3e6f0;
+        padding: 0.75rem;
+        text-align: left;
+    }
+    .permissions-table th {
+        background-color: #0d6efd;
+        color: white;
+        font-weight: 600;
+    }
+    .permissions-table tr:nth-child(even) {
+        background-color: #f8f9fc;
+    }
+    .permissions-table tr:hover {
+        background-color: #eaecf4;
+    }
+    .module-name {
+        font-weight: 600;
+        text-transform: capitalize;
+    }
+    .form-check {
+        display: flex;
+        justify-content: center;
+        margin: 0;
+    }
+    .form-check-input {
+        margin: 0;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h4 class="mb-0"><i class="fas fa-key me-2"></i> Permissions for {{ role.get_display_name }}</h4>
+        <a href="{% url 'core:role_list' %}" class="btn btn-outline-secondary">
+            <i class="fas fa-arrow-left me-2"></i>Back to Roles
+        </a>
+    </div>
+    
+    <div class="card shadow-sm">
+        <div class="card-header bg-primary text-white py-2">
+            <h5 class="mb-0">Manage Permissions</h5>
+        </div>
+        <div class="card-body">
+            <form method="post">
+                {% csrf_token %}
+                <table class="permissions-table">
+                    <thead>
+                        <tr>
+                            <th>Module/Resource</th>
+                            <th>View</th>
+                            <th>Add</th>
+                            <th>Change</th>
+                            <th>Delete</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for resource_type, permissions in grouped_permissions.items %}
+                        <tr>
+                            <td class="module-name">{{ resource_type|humanize }}</td>
+                            <td>
+                                {% for permission in permissions %}
+                                    {% if permission.permission_type == "view" %}
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" 
+                                               name="permissions" value="{{ permission.id }}" 
+                                               id="perm_{{ permission.id }}"
+                                               {% if permission.checked %}checked{% endif %}>
+                                    </div>
+                                    {% endif %}
+                                {% endfor %}
+                            </td>
+                            <td>
+                                {% for permission in permissions %}
+                                    {% if permission.permission_type == "add" %}
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" 
+                                               name="permissions" value="{{ permission.id }}" 
+                                               id="perm_{{ permission.id }}"
+                                               {% if permission.checked %}checked{% endif %}>
+                                    </div>
+                                    {% endif %}
+                                {% endfor %}
+                            </td>
+                            <td>
+                                {% for permission in permissions %}
+                                    {% if permission.permission_type == "change" %}
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" 
+                                               name="permissions" value="{{ permission.id }}" 
+                                               id="perm_{{ permission.id }}"
+                                               {% if permission.checked %}checked{% endif %}>
+                                    </div>
+                                    {% endif %}
+                                {% endfor %}
+                            </td>
+                            <td>
+                                {% for permission in permissions %}
+                                    {% if permission.permission_type == "delete" %}
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" 
+                                               name="permissions" value="{{ permission.id }}" 
+                                               id="perm_{{ permission.id }}"
+                                               {% if permission.checked %}checked{% endif %}>
+                                    </div>
+                                    {% endif %}
+                                {% endfor %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+                
+                <div class="mt-3">
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-save me-2"></i>Save Permissions
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
