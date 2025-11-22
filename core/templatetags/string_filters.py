@@ -18,3 +18,12 @@ def humanize(value):
         return str(value).replace('_', ' ').title()
     return value
 
+
+@register.filter(name='abs_filter')
+def abs_filter(value):
+    """Return absolute value of a number"""
+    try:
+        return abs(float(value))
+    except (ValueError, TypeError):
+        return value
+

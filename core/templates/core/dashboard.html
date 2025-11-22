@@ -86,7 +86,17 @@
     <div class="dashboard-header">
         <div class="dashboard-title">Welcome, {{ user.get_full_name|default:user.username }}</div>
         <div>
-            <span class="badge bg-primary fs-6">{{ current_term|default:'No Active Term' }}</span>
+            {% if current_term %}
+                {% if current_term.name %}
+                    <span class="badge bg-primary fs-6">{{ current_term.name }}{% if current_term.academic_year %} ({{ current_term.academic_year }}){% endif %}</span>
+                {% elif current_term.academic_year %}
+                    <span class="badge bg-primary fs-6">{{ current_term.academic_year }}</span>
+                {% else %}
+                    <span class="badge bg-secondary fs-6">Active Term</span>
+                {% endif %}
+            {% else %}
+                <span class="badge bg-secondary fs-6">No Active Term</span>
+            {% endif %}
         </div>
     </div>
     <div class="dashboard-cards">
@@ -121,7 +131,13 @@
                 <h4><i class="fas fa-user-plus me-2"></i>Recent Students</h4>
                 <ul>
                     {% for student in recent_students %}
-                        <li>{{ student.first_name }} {{ student.last_name }} <span class="text-muted">({{ student.student_id }})</span></li>
+                        <li>
+                            <a href="{% url 'core:student_detail' student.student_id %}" class="text-decoration-none">
+                                {{ student.full_name|default:student.student_id }}
+                            </a>
+                            <span class="text-muted">({{ student.student_id }})</span>
+                            {% if student.grade %}<span class="badge bg-info ms-2">{{ student.grade }}</span>{% endif %}
+                        </li>
                     {% empty %}
                         <li class="text-muted">No recent students.</li>
                     {% endfor %}

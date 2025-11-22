@@ -1,0 +1,284 @@
+{% extends 'base.html' %}
+{% load date_format %}
+
+{% block title %}Student Fees | School Management System{% endblock %}
+
+{% block extra_css %}
+<style>
+    .student-row {
+        cursor: pointer;
+        transition: background-color 0.2s;
+    }
+    .student-row:hover {
+        background-color: #f8f9fa;
+    }
+    .fee-details {
+        display: none;
+    }
+    .fee-details.show {
+        display: table-row;
+    }
+    .expand-icon {
+        transition: transform 0.3s;
+    }
+    .expand-icon.expanded {
+        transform: rotate(90deg);
+    }
+    .student-summary {
+        font-weight: 600;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="card">
+        <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+            <h4 class="mb-0"><i class="fas fa-money-bill-wave me-2"></i>Student Fees & Payment Tracking</h4>
+            <div class="d-flex gap-2">
+                <a href="{% url 'core:generate_student_fees' %}" class="btn btn-success btn-sm">
+                    <i class="fas fa-calculator me-1"></i>Generate Fees
+                </a>
+                <a href="{% url 'payments:payment_list' %}" class="btn btn-info btn-sm">
+                    <i class="fas fa-list me-1"></i>View Payments
+                </a>
+            </div>
+        </div>
+        <div class="card-body">
+            {% if messages %}
+                {% for message in messages %}
+                    <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                        {{ message }}
+                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                    </div>
+                {% endfor %}
+            {% endif %}
+            
+            <!-- Search and Filter Form -->
+            <form method="get" class="mb-4">
+                <div class="row g-2">
+                    <div class="col-md-3">
+                        <input type="text" name="search" class="form-control" placeholder="Search by student ID or name..." value="{{ search_query }}">
+                    </div>
+                    <div class="col-md-2">
+                        <select name="term" class="form-select">
+                            <option value="">All Terms</option>
+                            {% for term in terms %}
+                                <option value="{{ term.id }}" {% if term_filter == term.id|stringformat:"s" %}selected{% endif %}>
+                                    {{ term.academic_year }} - Term {{ term.term_number }}
+                                </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-2">
+                        <select name="grade" class="form-select">
+                            <option value="">All Grades</option>
+                            {% for grade in grades %}
+                                <option value="{{ grade.id }}" {% if grade_filter == grade.id|stringformat:"s" %}selected{% endif %}>
+                                    {{ grade.name }}
+                                </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-2">
+                        <select name="status" class="form-select">
+                            <option value="">All Status</option>
+                            <option value="paid" {% if status_filter == 'paid' %}selected{% endif %}>Paid</option>
+                            <option value="unpaid" {% if status_filter == 'unpaid' %}selected{% endif %}>Unpaid</option>
+                            <option value="overdue" {% if status_filter == 'overdue' %}selected{% endif %}>Overdue</option>
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <button type="submit" class="btn btn-primary w-100">
+                            <i class="fas fa-filter me-1"></i>Filter
+                        </button>
+                    </div>
+                </div>
+            </form>
+            
+            <!-- Student Fees Table -->
+            {% if page_obj %}
+                <div class="table-responsive">
+                    <table class="table table-bordered table-striped table-hover">
+                        <thead class="table-dark">
+                            <tr>
+                                <th style="width: 40px;"></th>
+                                <th>Student</th>
+                                <th>Grade</th>
+                                <th class="text-end">Total Charged</th>
+                                <th class="text-end">Total Paid</th>
+                                <th class="text-end">Balance</th>
+                                <th>Fee Count</th>
+                                <th>Status</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for item in page_obj %}
+                            <tr class="student-row {% if item.has_overdue %}table-danger{% elif item.is_paid %}table-success{% endif %}" 
+                                onclick="toggleDetails('student-{{ item.student.id }}')">
+                                <td>
+                                    <i class="fas fa-chevron-right expand-icon" id="icon-{{ item.student.id }}"></i>
+                                </td>
+                                <td class="student-summary">
+                                    <a href="{% url 'core:student_detail' item.student.student_id %}" class="text-decoration-none" onclick="event.stopPropagation();">
+                                        <strong>{{ item.student.full_name }}</strong><br>
+                                        <small class="text-muted">{{ item.student.student_id }}</small>
+                                    </a>
+                                </td>
+                                <td>{{ item.student.grade.name }}</td>
+                                <td class="text-end">KES {{ item.total_charged|floatformat:2 }}</td>
+                                <td class="text-end">KES {{ item.total_paid|floatformat:2 }}</td>
+                                <td class="text-end">
+                                    <strong class="{% if item.total_balance > 0 %}text-danger{% else %}text-success{% endif %}">
+                                        KES {{ item.total_balance|floatformat:2 }}
+                                    </strong>
+                                </td>
+                                <td class="text-center">
+                                    <span class="badge bg-secondary">{{ item.fee_count }} fee{{ item.fee_count|pluralize }}</span>
+                                </td>
+                                <td>
+                                    {% if item.is_paid %}
+                                        <span class="badge bg-success">All Paid</span>
+                                    {% elif item.has_overdue %}
+                                        <span class="badge bg-danger">Has Overdue</span>
+                                    {% else %}
+                                        <span class="badge bg-warning">Pending</span>
+                                    {% endif %}
+                                </td>
+                                <td onclick="event.stopPropagation();">
+                                    <div class="btn-group btn-group-sm" role="group">
+                                        <a href="{% url 'core:student_fee_statement' item.student.student_id %}" class="btn btn-outline-info" title="View Fee Statement">
+                                            <i class="fas fa-file-invoice"></i>
+                                        </a>
+                                        <a href="{% url 'core:student_detail' item.student.student_id %}" class="btn btn-outline-secondary" title="View Student Details">
+                                            <i class="fas fa-eye"></i>
+                                        </a>
+                                    </div>
+                                </td>
+                            </tr>
+                            <!-- Fee Details Row -->
+                            <tr class="fee-details" id="student-{{ item.student.id }}">
+                                <td colspan="9" class="bg-light">
+                                    <div class="p-3">
+                                        <h6 class="mb-3"><i class="fas fa-list me-2"></i>Fee Breakdown for {{ item.student.full_name }}</h6>
+                                        <div class="table-responsive">
+                                            <table class="table table-sm table-bordered">
+                                                <thead class="table-secondary">
+                                                    <tr>
+                                                        <th>Term</th>
+                                                        <th>Fee Category</th>
+                                                        <th class="text-end">Amount Charged</th>
+                                                        <th class="text-end">Amount Paid</th>
+                                                        <th class="text-end">Balance</th>
+                                                        <th>Due Date</th>
+                                                        <th>Status</th>
+                                                        <th>Actions</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    {% for fee in item.fees %}
+                                                    <tr class="{% if fee.is_overdue %}table-danger{% elif fee.is_paid %}table-success{% endif %}">
+                                                        <td>{{ fee.term.academic_year }} - Term {{ fee.term.term_number }}</td>
+                                                        <td>{{ fee.fee_category.name }}</td>
+                                                        <td class="text-end">KES {{ fee.amount_charged|floatformat:2 }}</td>
+                                                        <td class="text-end">KES {{ fee.amount_paid|floatformat:2 }}</td>
+                                                        <td class="text-end">
+                                                            <strong class="{% if fee.balance > 0 %}text-danger{% else %}text-success{% endif %}">
+                                                                KES {{ fee.balance|floatformat:2 }}
+                                                            </strong>
+                                                        </td>
+                                                        <td>{{ fee.due_date|indian_date }}</td>
+                                                        <td>
+                                                            {% if fee.is_paid %}
+                                                                <span class="badge bg-success">Paid</span>
+                                                            {% elif fee.is_overdue %}
+                                                                <span class="badge bg-danger">Overdue</span>
+                                                            {% else %}
+                                                                <span class="badge bg-warning">Pending</span>
+                                                            {% endif %}
+                                                        </td>
+                                                        <td>
+                                                            <div class="btn-group btn-group-sm" role="group">
+                                                                {% if not fee.is_paid %}
+                                                                    <a href="{% url 'payments:record_cash_payment' fee.id %}" class="btn btn-outline-success" title="Record Cash Payment">
+                                                                        <i class="fas fa-money-bill"></i>
+                                                                    </a>
+                                                                    <a href="{% url 'payments:record_bank_payment' fee.id %}" class="btn btn-outline-primary" title="Record Bank Payment">
+                                                                        <i class="fas fa-university"></i>
+                                                                    </a>
+                                                                    <a href="{% url 'payments:initiate_mpesa_payment' fee.id %}" class="btn btn-outline-info" title="M-Pesa Payment">
+                                                                        <i class="fas fa-mobile-alt"></i>
+                                                                    </a>
+                                                                {% endif %}
+                                                            </div>
+                                                        </td>
+                                                    </tr>
+                                                    {% endfor %}
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                
+                <!-- Pagination -->
+                {% if page_obj.has_other_pages %}
+                    <nav aria-label="Page navigation">
+                        <ul class="pagination justify-content-center">
+                            {% if page_obj.has_previous %}
+                                <li class="page-item">
+                                    <a class="page-link" href="?page=1{% if search_query %}&search={{ search_query }}{% endif %}{% if term_filter %}&term={{ term_filter }}{% endif %}{% if grade_filter %}&grade={{ grade_filter }}{% endif %}{% if status_filter %}&status={{ status_filter }}{% endif %}">First</a>
+                                </li>
+                                <li class="page-item">
+                                    <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if search_query %}&search={{ search_query }}{% endif %}{% if term_filter %}&term={{ term_filter }}{% endif %}{% if grade_filter %}&grade={{ grade_filter }}{% endif %}{% if status_filter %}&status={{ status_filter }}{% endif %}">Previous</a>
+                                </li>
+                            {% endif %}
+                            
+                            <li class="page-item active">
+                                <span class="page-link">Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span>
+                            </li>
+                            
+                            {% if page_obj.has_next %}
+                                <li class="page-item">
+                                    <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if search_query %}&search={{ search_query }}{% endif %}{% if term_filter %}&term={{ term_filter }}{% endif %}{% if grade_filter %}&grade={{ grade_filter }}{% endif %}{% if status_filter %}&status={{ status_filter }}{% endif %}">Next</a>
+                                </li>
+                                <li class="page-item">
+                                    <a class="page-link" href="?page={{ page_obj.paginator.num_pages }}{% if search_query %}&search={{ search_query }}{% endif %}{% if term_filter %}&term={{ term_filter }}{% endif %}{% if grade_filter %}&grade={{ grade_filter }}{% endif %}{% if status_filter %}&status={{ status_filter }}{% endif %}">Last</a>
+                                </li>
+                            {% endif %}
+                        </ul>
+                    </nav>
+                {% endif %}
+            {% else %}
+                <div class="text-center py-5">
+                    <i class="fas fa-money-bill-wave fa-3x text-muted mb-3"></i>
+                    <p class="text-muted">No student fees found. Generate fees first.</p>
+                    <a href="{% url 'core:generate_student_fees' %}" class="btn btn-primary">
+                        <i class="fas fa-calculator me-2"></i>Generate Fees
+                    </a>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<script>
+function toggleDetails(studentId) {
+    const detailsRow = document.getElementById(studentId);
+    const icon = document.getElementById('icon-' + studentId.split('-')[1]);
+    
+    if (detailsRow.classList.contains('show')) {
+        detailsRow.classList.remove('show');
+        icon.classList.remove('expanded');
+    } else {
+        detailsRow.classList.add('show');
+        icon.classList.add('expanded');
+    }
+}
+</script>
+{% endblock %}

@@ -1,0 +1,223 @@
+{% load string_filters %}
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>Fee Statement - {{ student.full_name }}</title>
+    <style>
+        @page {
+            margin: 1.5cm;
+            size: A4;
+        }
+        body {
+            font-family: Arial, sans-serif;
+            font-size: 10pt;
+            line-height: 1.4;
+        }
+        .header {
+            border: 2px solid #007bff;
+            padding: 15px;
+            margin-bottom: 15px;
+            background-color: #f8f9fc;
+        }
+        .header-row {
+            display: table;
+            width: 100%;
+        }
+        .header-cell {
+            display: table-cell;
+            vertical-align: top;
+            padding: 5px;
+        }
+        .school-logo {
+            max-height: 50px;
+            max-width: 120px;
+        }
+        h1 {
+            font-size: 14pt;
+            margin: 0 0 10px 0;
+            color: #007bff;
+        }
+        h2 {
+            font-size: 12pt;
+            margin: 5px 0;
+        }
+        .summary-boxes {
+            display: table;
+            width: 100%;
+            margin-top: 10px;
+        }
+        .summary-box {
+            display: table-cell;
+            width: 33.33%;
+            padding: 8px;
+            text-align: center;
+            border: 1px solid #dee2e6;
+            background: #fff;
+        }
+        .summary-label {
+            font-size: 8pt;
+            color: #6c757d;
+            font-weight: bold;
+            text-transform: uppercase;
+        }
+        .summary-value {
+            font-size: 14pt;
+            font-weight: bold;
+            margin: 5px 0;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 10px 0;
+            font-size: 9pt;
+        }
+        th, td {
+            border: 1px solid #dee2e6;
+            padding: 6px;
+            text-align: left;
+        }
+        th {
+            background-color: #f8f9fa;
+            font-weight: bold;
+        }
+        .text-end {
+            text-align: right;
+        }
+        .text-danger {
+            color: #dc3545;
+        }
+        .text-success {
+            color: #28a745;
+        }
+        .footer {
+            margin-top: 20px;
+            padding: 10px;
+            border-top: 1px solid #dee2e6;
+            font-size: 8pt;
+            color: #6c757d;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="header-row">
+            <div class="header-cell" style="width: 20%;">
+                {% if school.logo %}
+                    <img src="{{ school.logo.url }}" alt="School Logo" class="school-logo">
+                {% endif %}
+                <h2>Fee Statement</h2>
+            </div>
+            <div class="header-cell" style="width: 50%;">
+                <h1>{{ student.full_name }}</h1>
+                <p><strong>Student ID:</strong> {{ student.student_id }}</p>
+                <p><strong>Grade:</strong> {{ student.grade.name }}</p>
+                {% if student.parent_name %}<p><strong>Parent:</strong> {{ student.parent_name }}</p>{% endif %}
+                {% if student.parent_email %}<p><strong>Email:</strong> {{ student.parent_email }}</p>{% endif %}
+                {% if student.parent_phone %}<p><strong>Phone:</strong> {{ student.parent_phone }}</p>{% endif %}
+                <p><strong>Period:</strong> {% if start_date %}{{ start_date }} to {{ end_date }}{% else %}All Time{% endif %}</p>
+            </div>
+            <div class="header-cell" style="width: 30%;">
+                <div class="summary-boxes">
+                    <div class="summary-box">
+                        <div class="summary-label">Total Charged</div>
+                        <div class="summary-value text-danger">KES {{ total_charged|floatformat:2 }}</div>
+                    </div>
+                    <div class="summary-box">
+                        <div class="summary-label">Total Paid</div>
+                        <div class="summary-value text-success">KES {{ total_paid|floatformat:2 }}</div>
+                    </div>
+                    <div class="summary-box">
+                        <div class="summary-label">Balance</div>
+                        <div class="summary-value {% if total_balance > 0 %}text-danger{% else %}text-success{% endif %}">KES {{ total_balance|floatformat:2 }}</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <h2>Fee Charges</h2>
+    {% if student_fees %}
+    <table>
+        <thead>
+            <tr>
+                <th>Term</th>
+                <th>Fee Category</th>
+                <th class="text-end">Amount Charged</th>
+                <th class="text-end">Amount Paid</th>
+                <th class="text-end">Balance</th>
+                <th>Due Date</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for fee in student_fees %}
+            <tr>
+                <td>{{ fee.term.academic_year }} - Term {{ fee.term.term_number }}</td>
+                <td>{{ fee.fee_category.name }}</td>
+                <td class="text-end">KES {{ fee.amount_charged|floatformat:2 }}</td>
+                <td class="text-end">KES {{ fee.amount_paid|floatformat:2 }}</td>
+                <td class="text-end {% if fee.balance > 0 %}text-danger{% else %}text-success{% endif %}">KES {{ fee.balance|floatformat:2 }}</td>
+                <td>{{ fee.due_date|date:"d-m-Y" }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+        <tfoot>
+            <tr style="background-color: #e9ecef; font-weight: bold;">
+                <td colspan="2" class="text-end">TOTAL:</td>
+                <td class="text-end">KES {{ total_charged|floatformat:2 }}</td>
+                <td class="text-end">KES {{ total_paid|floatformat:2 }}</td>
+                <td class="text-end {% if total_balance > 0 %}text-danger{% else %}text-success{% endif %}">KES {{ total_balance|floatformat:2 }}</td>
+                <td></td>
+            </tr>
+        </tfoot>
+    </table>
+    {% else %}
+    <p>No fees found for the selected period.</p>
+    {% endif %}
+
+    {% if payments %}
+    <h2>Payment History</h2>
+    <table>
+        <thead>
+            <tr>
+                <th>Date</th>
+                <th>Fee Category</th>
+                <th>Term</th>
+                <th>Reference</th>
+                <th class="text-end">Amount</th>
+                <th>Method</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for payment in payments %}
+            <tr>
+                <td>{{ payment.payment_date|date:"d-m-Y" }}</td>
+                <td>{{ payment.student_fee.fee_category.name }}</td>
+                <td>{{ payment.student_fee.term.academic_year }} - Term {{ payment.student_fee.term.term_number }}</td>
+                <td>{{ payment.reference_number|default:"—" }}</td>
+                <td class="text-end">KES {{ payment.amount|floatformat:2 }}</td>
+                <td>{{ payment.get_payment_method_display }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% endif %}
+
+    <div class="footer">
+        <p><strong>Note:</strong> 
+        {% if total_balance > 0 %}
+        Outstanding balance: KES {{ total_balance|floatformat:2 }}.
+        {% elif total_balance < 0 %}
+            Credit balance: KES {{ total_balance|abs_filter|floatformat:2 }}.
+        {% else %}
+        Account fully paid.
+        {% endif %}
+        Statement generated on {{ statement_date|date:"d-m-Y" }}.</p>
+        <p><strong>{{ school.name }}</strong><br>
+        {% if school.address %}{{ school.address }}<br>{% endif %}
+        {% if school.phone %}Phone: {{ school.phone }}<br>{% endif %}
+        {% if school.email %}Email: {{ school.email }}{% endif %}</p>
+    </div>
+</body>
+</html>
+

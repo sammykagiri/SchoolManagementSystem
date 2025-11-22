@@ -1,10 +1,12 @@
 from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
-from django.http import JsonResponse
+from django.http import JsonResponse, HttpResponse
 from django.core.paginator import Paginator
 from django.db.models import Q, Sum
 from django.utils import timezone
+from django.template.loader import render_to_string
+from django.conf import settings
 from .models import (
     School, Grade, Term, FeeCategory, TransportRoute, Student, FeeStructure, StudentFee, SchoolClass
 )
@@ -468,6 +470,43 @@ def fee_structure_list(request):
 
 @login_required
 @role_required('super_admin', 'school_admin', 'accountant')
+def fee_category_list(request):
+    """List and create fee categories"""
+    school = request.user.profile.school
+    
+    if request.method == 'POST':
+        name = request.POST.get('name')
+        category_type = request.POST.get('category_type')
+        description = request.POST.get('description', '')
+        is_optional = request.POST.get('is_optional') == 'on'
+        
+        if not name or not category_type:
+            messages.error(request, 'Please fill in all required fields.')
+        else:
+            try:
+                FeeCategory.objects.create(
+                    school=school,
+                    name=name,
+                    category_type=category_type,
+                    description=description,
+                    is_optional=is_optional
+                )
+                messages.success(request, 'Fee category created successfully.')
+                return redirect('core:fee_category_list')
+            except Exception as e:
+                messages.error(request, f'Error creating fee category: {str(e)}')
+    
+    fee_categories = FeeCategory.objects.filter(school=school).order_by('category_type', 'name')
+    
+    context = {
+        'fee_categories': fee_categories,
+        'category_types': FeeCategory.CATEGORY_CHOICES,
+    }
+    return render(request, 'core/fee_category_list.html', context)
+
+
+@login_required
+@role_required('super_admin', 'school_admin', 'accountant')
 def generate_student_fees(request):
     """Generate student fees for a term"""
     if request.method == 'POST':
@@ -526,6 +565,453 @@ def generate_student_fees(request):
     
     context = {'terms': terms, 'grades': grades}
     return render(request, 'core/generate_student_fees.html', context)
+
+
+@login_required
+@role_required('super_admin', 'school_admin', 'accountant')
+def student_fee_list(request):
+    """List all student fees with payment tracking - grouped by student"""
+    school = request.user.profile.school
+    
+    student_fees = StudentFee.objects.filter(school=school).select_related(
+        'student', 'term', 'fee_category', 'student__grade'
+    )
+    
+    # Search functionality
+    search_query = request.GET.get('search', '')
+    if search_query:
+        student_fees = student_fees.filter(
+            Q(student__student_id__icontains=search_query) |
+            Q(student__first_name__icontains=search_query) |
+            Q(student__last_name__icontains=search_query)
+        )
+    
+    # Filter by term
+    term_filter = request.GET.get('term', '')
+    if term_filter:
+        student_fees = student_fees.filter(term_id=term_filter)
+    
+    # Filter by grade
+    grade_filter = request.GET.get('grade', '')
+    if grade_filter:
+        student_fees = student_fees.filter(student__grade_id=grade_filter)
+    
+    # Filter by payment status
+    status_filter = request.GET.get('status', '')
+    if status_filter == 'paid':
+        student_fees = student_fees.filter(is_paid=True)
+    elif status_filter == 'unpaid':
+        student_fees = student_fees.filter(is_paid=False)
+    elif status_filter == 'overdue':
+        from django.utils import timezone
+        student_fees = student_fees.filter(
+            is_paid=False,
+            due_date__lt=timezone.now().date()
+        )
+    
+    # Group fees by student and calculate totals
+    from django.db.models import Sum, Count, Max
+    from django.utils import timezone
+    
+    students_with_fees = Student.objects.filter(
+        school=school,
+        student_fees__in=student_fees
+    ).distinct().select_related('grade').prefetch_related('student_fees')
+    
+    # Apply same filters to students query
+    if search_query:
+        students_with_fees = students_with_fees.filter(
+            Q(student_id__icontains=search_query) |
+            Q(first_name__icontains=search_query) |
+            Q(last_name__icontains=search_query)
+        )
+    if grade_filter:
+        students_with_fees = students_with_fees.filter(grade_id=grade_filter)
+    
+    # Calculate totals for each student
+    student_totals = []
+    for student in students_with_fees:
+        student_fee_list = student_fees.filter(student=student)
+        
+        # Apply term filter if specified
+        if term_filter:
+            student_fee_list = student_fee_list.filter(term_id=term_filter)
+        
+        # Apply status filter
+        if status_filter == 'paid':
+            student_fee_list = student_fee_list.filter(is_paid=True)
+        elif status_filter == 'unpaid':
+            student_fee_list = student_fee_list.filter(is_paid=False)
+        elif status_filter == 'overdue':
+            student_fee_list = student_fee_list.filter(
+                is_paid=False,
+                due_date__lt=timezone.now().date()
+            )
+        
+        if student_fee_list.exists():
+            totals = student_fee_list.aggregate(
+                total_charged=Sum('amount_charged'),
+                total_paid=Sum('amount_paid'),
+                fee_count=Count('id'),
+                has_overdue=Max('due_date')
+            )
+            
+            total_balance = totals['total_charged'] - totals['total_paid']
+            has_overdue = False
+            if totals['has_overdue']:
+                has_overdue = any(
+                    not fee.is_paid and fee.due_date < timezone.now().date()
+                    for fee in student_fee_list
+                )
+            
+            all_paid = all(fee.is_paid for fee in student_fee_list)
+            
+            student_totals.append({
+                'student': student,
+                'fees': student_fee_list.order_by('-term__academic_year', '-term__term_number', 'fee_category__name'),
+                'total_charged': totals['total_charged'] or 0,
+                'total_paid': totals['total_paid'] or 0,
+                'total_balance': total_balance,
+                'fee_count': totals['fee_count'],
+                'is_paid': all_paid,
+                'has_overdue': has_overdue,
+            })
+    
+    # Sort by student name
+    student_totals.sort(key=lambda x: (x['student'].first_name, x['student'].last_name))
+    
+    # Pagination
+    paginator = Paginator(student_totals, 20)
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+    
+    # Get filter options
+    terms = Term.objects.filter(school=school).order_by('-academic_year', '-term_number')
+    grades = Grade.objects.filter(school=school)
+    
+    context = {
+        'page_obj': page_obj,
+        'terms': terms,
+        'grades': grades,
+        'search_query': search_query,
+        'term_filter': term_filter,
+        'grade_filter': grade_filter,
+        'status_filter': status_filter,
+    }
+    return render(request, 'core/student_fee_list.html', context)
+
+
+@login_required
+@role_required('super_admin', 'school_admin', 'accountant')
+def student_fee_statement(request, student_id):
+    """View fee statement for a student"""
+    school = request.user.profile.school
+    student = get_object_or_404(Student, school=school, student_id=student_id)
+    
+    # Get date filters
+    start_date = request.GET.get('start_date')
+    end_date = request.GET.get('end_date')
+    term_filter = request.GET.get('term')
+    
+    # Get student fees
+    student_fees = StudentFee.objects.filter(
+        school=school,
+        student=student
+    ).select_related('term', 'fee_category').order_by('-term__academic_year', '-term__term_number', 'fee_category__name')
+    
+    # Apply filters
+    if term_filter:
+        student_fees = student_fees.filter(term_id=term_filter)
+    if start_date:
+        student_fees = student_fees.filter(created_at__date__gte=start_date)
+    if end_date:
+        student_fees = student_fees.filter(created_at__date__lte=end_date)
+    
+    # Calculate totals
+    totals = student_fees.aggregate(
+        total_charged=Sum('amount_charged'),
+        total_paid=Sum('amount_paid')
+    )
+    total_charged = totals['total_charged'] or 0
+    total_paid = totals['total_paid'] or 0
+    total_balance = total_charged - total_paid
+    
+    # Get payments for this student
+    from payments.models import Payment
+    payments = Payment.objects.filter(
+        school=school,
+        student=student
+    ).select_related('student_fee__fee_category', 'student_fee__term').order_by('-payment_date')
+    
+    # Apply date filters to payments
+    if start_date:
+        payments = payments.filter(payment_date__date__gte=start_date)
+    if end_date:
+        payments = payments.filter(payment_date__date__lte=end_date)
+    
+    # Get all terms for filter dropdown
+    terms = Term.objects.filter(school=school).order_by('-academic_year', '-term_number')
+    
+    context = {
+        'student': student,
+        'school': school,
+        'student_fees': student_fees,
+        'payments': payments,
+        'total_charged': total_charged,
+        'total_paid': total_paid,
+        'total_balance': total_balance,
+        'terms': terms,
+        'start_date': start_date,
+        'end_date': end_date,
+        'term_filter': term_filter,
+        'statement_date': timezone.now().date(),
+    }
+    return render(request, 'core/student_fee_statement.html', context)
+
+
+@login_required
+@role_required('super_admin', 'school_admin', 'accountant')
+def student_fee_statement_pdf(request, student_id):
+    """Download fee statement as PDF"""
+    try:
+        from weasyprint import HTML
+        from django.template.loader import render_to_string
+        from django.http import HttpResponse
+        import os
+    except ImportError:
+        messages.error(request, 'PDF generation library not installed. Please install weasyprint.')
+        return redirect('core:student_fee_statement', student_id=student_id)
+    
+    school = request.user.profile.school
+    student = get_object_or_404(Student, school=school, student_id=student_id)
+    
+    # Get date filters
+    start_date = request.GET.get('start_date')
+    end_date = request.GET.get('end_date')
+    term_filter = request.GET.get('term')
+    
+    # Get student fees
+    student_fees = StudentFee.objects.filter(
+        school=school,
+        student=student
+    ).select_related('term', 'fee_category').order_by('-term__academic_year', '-term__term_number', 'fee_category__name')
+    
+    # Apply filters
+    if term_filter:
+        student_fees = student_fees.filter(term_id=term_filter)
+    if start_date:
+        student_fees = student_fees.filter(created_at__date__gte=start_date)
+    if end_date:
+        student_fees = student_fees.filter(created_at__date__lte=end_date)
+    
+    # Calculate totals
+    totals = student_fees.aggregate(
+        total_charged=Sum('amount_charged'),
+        total_paid=Sum('amount_paid')
+    )
+    total_charged = totals['total_charged'] or 0
+    total_paid = totals['total_paid'] or 0
+    total_balance = total_charged - total_paid
+    
+    # Get payments
+    from payments.models import Payment
+    payments = Payment.objects.filter(
+        school=school,
+        student=student
+    ).select_related('student_fee__fee_category', 'student_fee__term').order_by('-payment_date')
+    
+    if start_date:
+        payments = payments.filter(payment_date__date__gte=start_date)
+    if end_date:
+        payments = payments.filter(payment_date__date__lte=end_date)
+    
+    context = {
+        'student': student,
+        'school': school,
+        'student_fees': student_fees,
+        'payments': payments,
+        'total_charged': total_charged,
+        'total_paid': total_paid,
+        'total_balance': total_balance,
+        'total_balance_abs': abs(total_balance),
+        'start_date': start_date,
+        'end_date': end_date,
+        'statement_date': timezone.now().date(),
+    }
+    
+    # Render HTML
+    html_string = render_to_string('core/student_fee_statement_pdf.html', context)
+    
+    # Generate PDF
+    html = HTML(string=html_string, base_url=request.build_absolute_uri())
+    pdf = html.write_pdf()
+    
+    # Create response
+    response = HttpResponse(pdf, content_type='application/pdf')
+    filename = f"fee_statement_{student.student_id}_{timezone.now().strftime('%Y%m%d')}.pdf"
+    response['Content-Disposition'] = f'attachment; filename="{filename}"'
+    return response
+
+
+@login_required
+@role_required('super_admin', 'school_admin', 'accountant')
+def student_fee_statement_email(request, student_id):
+    """Email fee statement to parent"""
+    school = request.user.profile.school
+    student = get_object_or_404(Student, school=school, student_id=student_id)
+    
+    if not student.parent_email:
+        messages.error(request, 'Student has no parent email address.')
+        return redirect('core:student_fee_statement', student_id=student_id)
+    
+    # Get date filters
+    start_date = request.GET.get('start_date')
+    end_date = request.GET.get('end_date')
+    term_filter = request.GET.get('term')
+    
+    # Get student fees
+    student_fees = StudentFee.objects.filter(
+        school=school,
+        student=student
+    ).select_related('term', 'fee_category').order_by('-term__academic_year', '-term__term_number', 'fee_category__name')
+    
+    # Apply filters
+    if term_filter:
+        student_fees = student_fees.filter(term_id=term_filter)
+    if start_date:
+        student_fees = student_fees.filter(created_at__date__gte=start_date)
+    if end_date:
+        student_fees = student_fees.filter(created_at__date__lte=end_date)
+    
+    # Calculate totals
+    totals = student_fees.aggregate(
+        total_charged=Sum('amount_charged'),
+        total_paid=Sum('amount_paid')
+    )
+    total_charged = totals['total_charged'] or 0
+    total_paid = totals['total_paid'] or 0
+    total_balance = total_charged - total_paid
+    
+    # Get payments
+    from payments.models import Payment
+    payments = Payment.objects.filter(
+        school=school,
+        student=student
+    ).select_related('student_fee__fee_category', 'student_fee__term').order_by('-payment_date')
+    
+    if start_date:
+        payments = payments.filter(payment_date__date__gte=start_date)
+    if end_date:
+        payments = payments.filter(payment_date__date__lte=end_date)
+    
+    try:
+        from communications.services import CommunicationService
+        
+        # Generate PDF
+        try:
+            from weasyprint import HTML
+            from django.template.loader import render_to_string
+            import io
+            
+            context = {
+                'student': student,
+                'school': school,
+                'student_fees': student_fees,
+                'payments': payments,
+                'total_charged': total_charged,
+                'total_paid': total_paid,
+                'total_balance': total_balance,
+                'total_balance_abs': abs(total_balance),
+                'start_date': start_date,
+                'end_date': end_date,
+                'statement_date': timezone.now().date(),
+            }
+            
+            html_string = render_to_string('core/student_fee_statement_pdf.html', context)
+            html = HTML(string=html_string, base_url=request.build_absolute_uri())
+            pdf_buffer = io.BytesIO()
+            html.write_pdf(pdf_buffer)
+            pdf_buffer.seek(0)
+            
+            # Create email content
+            subject = f"Fee Statement - {student.full_name} - {school.name}"
+            content = f"""
+Dear {student.parent_name or 'Parent/Guardian'},
+
+Please find attached the fee statement for {student.full_name} ({student.student_id}).
+
+Summary:
+- Total Charged: KES {total_charged:,.2f}
+- Total Paid: KES {total_paid:,.2f}
+- Balance: KES {total_balance:,.2f}
+
+Please review the attached statement for detailed information.
+
+Best regards,
+{school.name} Administration
+            """
+            
+            # Send email with PDF attachment
+            from django.core.mail import EmailMessage
+            email = EmailMessage(
+                subject=subject,
+                body=content,
+                from_email=settings.EMAIL_HOST_USER,
+                to=[student.parent_email]
+            )
+            email.attach(
+                f"fee_statement_{student.student_id}_{timezone.now().strftime('%Y%m%d')}.pdf",
+                pdf_buffer.read(),
+                'application/pdf'
+            )
+            email.send()
+            
+            # Log the email
+            communication_service = CommunicationService()
+            communication_service.email_service.send_email(
+                recipient_email=student.parent_email,
+                subject=subject,
+                content=content,
+                student=student,
+                sent_by=request.user
+            )
+            
+            messages.success(request, f'Fee statement sent successfully to {student.parent_email}.')
+            
+        except ImportError:
+            # Fallback: send email without PDF if weasyprint not available
+            subject = f"Fee Statement - {student.full_name} - {school.name}"
+            content = f"""
+Dear {student.parent_name or 'Parent/Guardian'},
+
+Fee Statement for {student.full_name} ({student.student_id})
+
+Summary:
+- Total Charged: KES {total_charged:,.2f}
+- Total Paid: KES {total_paid:,.2f}
+- Balance: KES {total_balance:,.2f}
+
+Please log in to the school portal to view the detailed statement.
+
+Best regards,
+{school.name} Administration
+            """
+            
+            communication_service = CommunicationService()
+            communication_service.email_service.send_email(
+                recipient_email=student.parent_email,
+                subject=subject,
+                content=content,
+                student=student,
+                sent_by=request.user
+            )
+            
+            messages.success(request, f'Fee statement sent successfully to {student.parent_email}.')
+            
+    except Exception as e:
+        messages.error(request, f'Error sending email: {str(e)}')
+    
+    return redirect('core:student_fee_statement', student_id=student_id)
 
 
 @login_required

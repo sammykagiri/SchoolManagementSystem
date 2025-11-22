@@ -44,7 +44,14 @@ urlpatterns = [
     
     # Fee Structures
     path('fee-structures/', views.fee_structure_list, name='fee_structure_list'),
+    path('fee-categories/', views.fee_category_list, name='fee_category_list'),
     path('generate-fees/', views.generate_student_fees, name='generate_student_fees'),
+    path('student-fees/', views.student_fee_list, name='student_fee_list'),
+    
+    # Fee Statements
+    path('students/<str:student_id>/fee-statement/', views.student_fee_statement, name='student_fee_statement'),
+    path('students/<str:student_id>/fee-statement/pdf/', views.student_fee_statement_pdf, name='student_fee_statement_pdf'),
+    path('students/<str:student_id>/fee-statement/email/', views.student_fee_statement_email, name='student_fee_statement_email'),
     
     # API endpoints
     path('api/dashboard/', views.api_dashboard, name='api_dashboard'),

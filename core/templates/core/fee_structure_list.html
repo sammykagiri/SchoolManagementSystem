@@ -12,6 +12,9 @@
                 <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
                     <h4 class="mb-0">Fee Structures</h4>
                     <div class="d-flex gap-2">
+                        <a href="{% url 'core:fee_category_list' %}" class="btn btn-info btn-sm">
+                            <i class="fas fa-tags me-1"></i>Manage Categories
+                        </a>
                         <a href="{% url 'core:generate_student_fees' %}" class="btn btn-success btn-sm">
                             <i class="fas fa-calculator me-1"></i>Generate Fees
                         </a>
@@ -132,13 +135,21 @@
                             </select>
                         </div>
                         <div class="mb-3">
-                            <label for="id_fee_category" class="form-label">Fee Category</label>
+                            <label for="id_fee_category" class="form-label">Fee Category <span class="text-danger">*</span></label>
                             <select name="fee_category" id="id_fee_category" class="form-select" required>
                                 <option value="">Select Fee Category</option>
                                 {% for category in fee_categories %}
-                                    <option value="{{ category.id }}">{{ category.name }}</option>
+                                    <option value="{{ category.id }}">{{ category.name }} ({{ category.get_category_type_display }})</option>
+                                {% empty %}
+                                    <option value="" disabled>No fee categories available. <a href="{% url 'core:fee_category_list' %}">Create one first</a></option>
                                 {% endfor %}
                             </select>
+                            {% if not fee_categories %}
+                                <small class="text-danger">
+                                    <i class="fas fa-exclamation-triangle me-1"></i>
+                                    No fee categories found. <a href="{% url 'core:fee_category_list' %}">Create a fee category first</a>.
+                                </small>
+                            {% endif %}
                         </div>
                         <div class="mb-3">
                             <label for="id_amount" class="form-label">Amount (KES)</label>
