@@ -27,7 +27,7 @@
                         <strong>Amount Due:</strong> KES {{ student_fee.balance|floatformat:2 }}
                     </div>
                     
-                    <form method="post" novalidate>
+                    <form method="post" novalidate id="payment-form">
                         {% csrf_token %}
                         <div class="mb-3">
                             <label for="id_amount" class="form-label">Amount Paid (KES)</label>
@@ -53,11 +53,24 @@
                             <a href="{% url 'core:student_detail' student.student_id %}" class="btn btn-secondary">
                                 <i class="fas fa-arrow-left me-2"></i>Cancel
                             </a>
-                            <button type="submit" class="btn btn-success">
+                            <button type="submit" class="btn btn-success" id="submit-btn">
                                 <i class="fas fa-money-bill-wave me-2"></i>Record Payment
                             </button>
                         </div>
                     </form>
+                    
+                    <script>
+                    // Prevent double submission
+                    document.getElementById('payment-form').addEventListener('submit', function(e) {
+                        const submitBtn = document.getElementById('submit-btn');
+                        if (submitBtn.disabled) {
+                            e.preventDefault();
+                            return false;
+                        }
+                        submitBtn.disabled = true;
+                        submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Processing...';
+                    });
+                    </script>
                 </div>
             </div>
         </div>

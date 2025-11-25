@@ -50,7 +50,7 @@ class DashboardService:
                 {
                     'id': s.id,
                     'student_id': s.student_id,
-                    'full_name': s.full_name or f"{s.first_name} {s.last_name}".strip() or s.student_id,
+                    'full_name': s.full_name or f"{s.first_name.title()} {s.last_name.title()}".strip() or s.student_id,
                     'grade': s.grade.name if s.grade else None,
                 }
                 for s in recent_students

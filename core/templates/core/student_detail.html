@@ -2,7 +2,7 @@
 {% load static %}
 {% load currency date_format %}
 
-{% block title %}Student Detail - {{ student.first_name }} {{ student.last_name }}{% endblock %}
+{% block title %}Student Detail - {{ student.full_name }}{% endblock %}
 
 {% block content %}
 <div class="container-fluid">
@@ -10,7 +10,7 @@
         <div class="col-12">
             <div class="card">
                 <div class="card-header d-flex justify-content-between align-items-center">
-                    <h3 class="card-title">{{ student.first_name }} {{ student.last_name }}</h3>
+                    <h3 class="card-title">{{ student.full_name }}</h3>
                     <div>
                         <a href="{% url 'core:student_update' student.student_id %}" class="btn btn-warning">
                             <i class="fas fa-edit"></i> Edit
@@ -50,11 +50,11 @@
                                 </tr>
                                 <tr>
                                     <th>First Name:</th>
-                                    <td>{{ student.first_name }}</td>
+                                    <td>{{ student.first_name|title }}</td>
                                 </tr>
                                 <tr>
                                     <th>Last Name:</th>
-                                    <td>{{ student.last_name }}</td>
+                                    <td>{{ student.last_name|title }}</td>
                                 </tr>
                                 <tr>
                                     <th>Date of Birth:</th>

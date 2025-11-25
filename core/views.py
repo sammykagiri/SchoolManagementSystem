@@ -797,6 +797,7 @@ def generate_student_fees(request):
             students = Student.objects.filter(grade=grade, school=school, is_active=True).prefetch_related('activities')
             
             created_count = 0
+            updated_count = 0
             for student in students:
                 for fee_structure in fee_structures:
                     # Check if student should pay this fee category
@@ -826,6 +827,19 @@ def generate_student_fees(request):
                     
                     if created:
                         created_count += 1
+                    else:
+                        # Update existing fee if amount has changed and fee hasn't been fully paid
+                        # Only update if the new amount is different and there's still a balance
+                        if student_fee.amount_charged != amount and student_fee.balance > 0:
+                            student_fee.amount_charged = amount
+                            student_fee.due_date = term.end_date
+                            student_fee.save()
+                            updated_count += 1
+                        elif student_fee.amount_charged != amount:
+                            # Even if paid, update due_date if it changed
+                            if student_fee.due_date != term.end_date:
+                                student_fee.due_date = term.end_date
+                                student_fee.save()
                 
                 # Generate fees for individual activities
                 if student.pays_activities:
@@ -869,8 +883,31 @@ def generate_student_fees(request):
                         
                         if created:
                             created_count += 1
+                        else:
+                            # Update existing activity fee if amount has changed and fee hasn't been fully paid
+                            if student_fee.amount_charged != activity.charge and student_fee.balance > 0:
+                                student_fee.amount_charged = activity.charge
+                                student_fee.due_date = term.end_date
+                                student_fee.save()
+                                updated_count += 1
+                            elif student_fee.amount_charged != activity.charge:
+                                # Even if paid, update due_date if it changed
+                                if student_fee.due_date != term.end_date:
+                                    student_fee.due_date = term.end_date
+                                    student_fee.save()
             
-            messages.success(request, f'Generated {created_count} fee records for {grade.name} in {term.name}.')
+            # Build success message with created and updated counts
+            message_parts = []
+            if created_count > 0:
+                message_parts.append(f'Created {created_count} new fee record{"s" if created_count != 1 else ""}')
+            if updated_count > 0:
+                message_parts.append(f'Updated {updated_count} existing fee record{"s" if updated_count != 1 else ""}')
+            
+            if message_parts:
+                messages.success(request, f'{", ".join(message_parts)} for {grade.name} in {term.academic_year} - Term {term.term_number}.')
+            else:
+                messages.info(request, f'No changes needed for {grade.name} in {term.academic_year} - Term {term.term_number}.')
+            
             return redirect('core:fee_structure_list')
     
     terms = Term.objects.filter(school=school).order_by('-academic_year', '-term_number')

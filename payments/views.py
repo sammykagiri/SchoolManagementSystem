@@ -6,6 +6,7 @@ from django.views.decorators.csrf import csrf_exempt
 from django.core.paginator import Paginator
 from django.db.models import Q, Sum
 from django.utils import timezone
+from decimal import Decimal
 from .models import Payment, MpesaPayment, PaymentReceipt, PaymentReminder
 from .mpesa_service import MpesaService
 from communications.services import CommunicationService
@@ -72,6 +73,114 @@ def payment_detail(request, payment_id):
 
 
 @login_required
+def payment_edit(request, payment_id):
+    """Edit payment"""
+    school = request.user.profile.school
+    payment = get_object_or_404(Payment, school=school, payment_id=payment_id)
+    
+    # Don't allow editing completed payments that have receipts
+    if payment.status == 'completed' and hasattr(payment, 'receipt'):
+        messages.error(request, 'Cannot edit a payment that has a receipt. Please delete the receipt first.')
+        return redirect('payments:payment_detail', payment_id=payment.payment_id)
+    
+    if request.method == 'POST':
+        old_amount = payment.amount
+        new_amount = request.POST.get('amount')
+        reference_number = request.POST.get('reference_number', '')
+        transaction_id = request.POST.get('transaction_id', '')
+        notes = request.POST.get('notes', '')
+        status = request.POST.get('status', payment.status)
+        
+        try:
+            new_amount = Decimal(str(new_amount))
+            if new_amount <= 0:
+                messages.error(request, 'Amount must be greater than 0.')
+                return redirect('payments:payment_edit', payment_id=payment.payment_id)
+            
+            # Update payment
+            payment.amount = new_amount
+            payment.reference_number = reference_number
+            payment.transaction_id = transaction_id
+            payment.notes = notes
+            payment.status = status
+            payment.save()
+            
+            # Update student fee amount_paid if amount changed
+            if old_amount != new_amount:
+                student_fee = payment.student_fee
+                # Remove old amount and add new amount
+                student_fee.amount_paid = student_fee.amount_paid - old_amount + new_amount
+                # Ensure amount_paid doesn't go negative
+                if student_fee.amount_paid < 0:
+                    student_fee.amount_paid = Decimal('0')
+                # Update is_paid status
+                if student_fee.amount_paid >= student_fee.amount_charged:
+                    student_fee.is_paid = True
+                else:
+                    student_fee.is_paid = False
+                student_fee.save()
+            
+            messages.success(request, 'Payment updated successfully.')
+            return redirect('payments:payment_detail', payment_id=payment.payment_id)
+            
+        except ValueError:
+            messages.error(request, 'Invalid amount.')
+        except Exception as e:
+            messages.error(request, f'Error updating payment: {str(e)}')
+    
+    context = {
+        'payment': payment,
+        'status_choices': Payment.PAYMENT_STATUS_CHOICES,
+    }
+    
+    return render(request, 'payments/payment_edit.html', context)
+
+
+@login_required
+def payment_delete(request, payment_id):
+    """Delete payment"""
+    school = request.user.profile.school
+    payment = get_object_or_404(Payment, school=school, payment_id=payment_id)
+    
+    if request.method == 'POST':
+        try:
+            student_fee = payment.student_fee
+            payment_amount = payment.amount
+            
+            # Reverse the payment from student fee
+            student_fee.amount_paid -= payment_amount
+            if student_fee.amount_paid < 0:
+                student_fee.amount_paid = Decimal('0')
+            
+            # Update is_paid status
+            if student_fee.amount_paid >= student_fee.amount_charged:
+                student_fee.is_paid = True
+            else:
+                student_fee.is_paid = False
+            student_fee.save()
+            
+            # Delete associated receipt if exists
+            if hasattr(payment, 'receipt'):
+                payment.receipt.delete()
+            
+            # Delete the payment
+            payment.delete()
+            
+            messages.success(request, 'Payment deleted successfully.')
+            return redirect('payments:payment_list')
+            
+        except Exception as e:
+            messages.error(request, f'Error deleting payment: {str(e)}')
+            return redirect('payments:payment_detail', payment_id=payment.payment_id)
+    
+    context = {
+        'payment': payment,
+    }
+    
+    return render(request, 'payments/payment_confirm_delete.html', context)
+
+
+@login_required
 def initiate_mpesa_payment(request, student_fee_id):
     """Initiate M-Pesa payment"""
     school = request.user.profile.school
@@ -86,7 +195,7 @@ def initiate_mpesa_payment(request, student_fee_id):
             return redirect('core:student_detail', student_id=student_fee.student.student_id)
         
         try:
-            amount = float(amount)
+            amount = Decimal(str(amount))
             if amount <= 0:
                 messages.error(request, 'Amount must be greater than 0.')
                 return redirect('core:student_detail', student_id=student_fee.student.student_id)
@@ -98,7 +207,7 @@ def initiate_mpesa_payment(request, student_fee_id):
             mpesa_service = MpesaService()
             result = mpesa_service.initiate_stk_push(
                 phone_number=phone_number,
-                amount=amount,
+                amount=float(amount),  # Convert to float for M-Pesa API
                 reference=reference,
                 student_fee_id=student_fee_id
             )
@@ -138,10 +247,25 @@ def record_cash_payment(request, student_fee_id):
             return redirect('core:student_detail', student_id=student_fee.student.student_id)
         
         try:
-            amount = float(amount)
+            amount = Decimal(str(amount))
             if amount <= 0:
                 messages.error(request, 'Amount must be greater than 0.')
                 return redirect('core:student_detail', student_id=student_fee.student.student_id)
+            
+            # Prevent duplicate payments - check if a payment with same amount was created in last 5 seconds
+            from datetime import timedelta
+            recent_payment = Payment.objects.filter(
+                school=school,
+                student_fee=student_fee,
+                amount=amount,
+                payment_method='cash',
+                status='completed',
+                created_at__gte=timezone.now() - timedelta(seconds=5)
+            ).first()
+            
+            if recent_payment:
+                messages.warning(request, 'A similar payment was just recorded. Redirecting to payment details.')
+                return redirect('payments:payment_detail', payment_id=recent_payment.payment_id)
             
             # Create payment record
             payment = Payment.objects.create(
@@ -199,10 +323,25 @@ def record_bank_payment(request, student_fee_id):
             return redirect('core:student_detail', student_id=student_fee.student.student_id)
         
         try:
-            amount = float(amount)
+            amount = Decimal(str(amount))
             if amount <= 0:
                 messages.error(request, 'Amount must be greater than 0.')
                 return redirect('core:student_detail', student_id=student_fee.student.student_id)
+            
+            # Prevent duplicate payments - check if a payment with same amount was created in last 5 seconds
+            from datetime import timedelta
+            recent_payment = Payment.objects.filter(
+                school=school,
+                student_fee=student_fee,
+                amount=amount,
+                payment_method='bank_transfer',
+                status='completed',
+                created_at__gte=timezone.now() - timedelta(seconds=5)
+            ).first()
+            
+            if recent_payment:
+                messages.warning(request, 'A similar payment was just recorded. Redirecting to payment details.')
+                return redirect('payments:payment_detail', payment_id=recent_payment.payment_id)
             
             # Create payment record
             payment = Payment.objects.create(
@@ -370,9 +509,15 @@ def generate_receipt(request, payment_id):
 
 
 @login_required
-def view_receipt(request, receipt_number):
+def view_receipt(request):
     """View payment receipt"""
     school = request.user.profile.school
+    receipt_number = request.GET.get('receipt_number')
+    
+    if not receipt_number:
+        from django.http import Http404
+        raise Http404("Receipt number is required")
+    
     receipt = get_object_or_404(PaymentReceipt, school=school, receipt_number=receipt_number)
     
     context = {

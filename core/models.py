@@ -249,11 +249,21 @@ class Student(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
     def __str__(self):
-        return f"{self.student_id} - {self.first_name} {self.last_name}"
+        return f"{self.student_id} - {self.first_name.title()} {self.last_name.title()}"
 
     @property
     def full_name(self):
-        return f"{self.first_name} {self.last_name}"
+        return f"{self.first_name.title()} {self.last_name.title()}"
+    
+    @property
+    def first_name_display(self):
+        """Returns first name with first letter capitalized"""
+        return self.first_name.title() if self.first_name else ""
+    
+    @property
+    def last_name_display(self):
+        """Returns last name with first letter capitalized"""
+        return self.last_name.title() if self.last_name else ""
 
 
 class ActivityException(models.Model):
