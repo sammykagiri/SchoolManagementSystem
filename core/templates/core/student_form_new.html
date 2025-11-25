@@ -202,11 +202,10 @@
                                 {% endif %}
                             </div>
                             
-                            <!-- Transport Route -->
-                            <div class="col-md-4">
+                            <!-- Transport Route (shown only when uses_transport is checked) -->
+                            <div class="col-md-4" id="transport_route_field" style="display: none;">
                                 <label for="{{ form.transport_route.id_for_label }}" class="form-label">
-                                    {{ form.transport_route.label }}
-                                    {% if form.transport_route.field.required %}<span class="text-danger">*</span>{% endif %}
+                                    {{ form.transport_route.label }} <span class="text-danger">*</span>
                                 </label>
                                 {{ form.transport_route }}
                                 {% if form.transport_route.help_text %}
@@ -249,7 +248,7 @@
                             <!-- Checkboxes -->
                             <div class="col-12">
                                 <div class="row">
-                                    <div class="col-md-4">
+                                    <div class="col-md-6">
                                         <div class="form-check">
                                             {{ form.uses_transport }}
                                             <label class="form-check-label" for="{{ form.uses_transport.id_for_label }}">
@@ -257,15 +256,7 @@
                                             </label>
                                         </div>
                                     </div>
-                                    <div class="col-md-4">
-                                        <div class="form-check">
-                                            {{ form.pays_meals }}
-                                            <label class="form-check-label" for="{{ form.pays_meals.id_for_label }}">
-                                                {{ form.pays_meals.label }}
-                                            </label>
-                                        </div>
-                                    </div>
-                                    <div class="col-md-4">
+                                    <div class="col-md-6">
                                         <div class="form-check">
                                             {{ form.pays_activities }}
                                             <label class="form-check-label" for="{{ form.pays_activities.id_for_label }}">
@@ -274,6 +265,27 @@
                                         </div>
                                     </div>
                                 </div>
+                            </div>
+                            
+                            <!-- Activities Selection (shown only when pays_activities is checked) -->
+                            <div class="col-12" id="activities_field" style="display: none;">
+                                <label for="{{ form.activities.id_for_label }}" class="form-label">
+                                    Select Activities <span class="text-danger">*</span>
+                                </label>
+                                <div class="border rounded p-3" style="max-height: 200px; overflow-y: auto;">
+                                    {{ form.activities }}
+                                </div>
+                                {% if form.activities.help_text %}
+                                    <div class="form-text">{{ form.activities.help_text }}</div>
+                                {% endif %}
+                                {% if form.activities.errors %}
+                                    <div class="text-danger small">
+                                        {% for error in form.activities.errors %}
+                                            <div>{{ error }}</div>
+                                        {% endfor %}
+                                    </div>
+                                {% endif %}
+                                <small class="form-text text-muted">Mandatory activities are automatically selected and cannot be deselected unless there's an exception.</small>
                             </div>
 
                             <!-- Linked Parents -->
@@ -313,4 +325,86 @@
         </div>
     </div>
 </div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const usesTransportCheckbox = document.getElementById('{{ form.uses_transport.id_for_label }}');
+    const transportRouteField = document.getElementById('transport_route_field');
+    const transportRouteSelect = document.getElementById('{{ form.transport_route.id_for_label }}');
+    
+    function toggleTransportRoute() {
+        if (usesTransportCheckbox.checked) {
+            transportRouteField.style.display = 'block';
+            transportRouteSelect.setAttribute('required', 'required');
+        } else {
+            transportRouteField.style.display = 'none';
+            transportRouteSelect.removeAttribute('required');
+            transportRouteSelect.value = '';
+        }
+    }
+    
+    // Initial state
+    toggleTransportRoute();
+    
+    // Listen for changes
+    usesTransportCheckbox.addEventListener('change', toggleTransportRoute);
+    
+    // Form validation
+    const form = document.querySelector('form');
+    form.addEventListener('submit', function(e) {
+        if (usesTransportCheckbox.checked && !transportRouteSelect.value) {
+            e.preventDefault();
+            alert('Please select a transport route when transport is required.');
+            transportRouteSelect.focus();
+            return false;
+        }
+    });
+    
+    // Activities field toggle
+    const paysActivitiesCheckbox = document.getElementById('{{ form.pays_activities.id_for_label }}');
+    const activitiesField = document.getElementById('activities_field');
+    const activitiesCheckboxes = document.querySelectorAll('#activities_field input[type="checkbox"]');
+    
+    function toggleActivities() {
+        if (paysActivitiesCheckbox.checked) {
+            activitiesField.style.display = 'block';
+            // Make mandatory activities required, ensure they're checked, and disable them
+            activitiesCheckboxes.forEach(function(checkbox) {
+                const label = checkbox.nextElementSibling;
+                if (label && label.textContent.includes('(Mandatory)')) {
+                    checkbox.setAttribute('required', 'required');
+                    checkbox.checked = true; // Ensure mandatory activities are always checked
+                    checkbox.disabled = true; // Disable mandatory activities
+                }
+            });
+        } else {
+            activitiesField.style.display = 'none';
+            activitiesCheckboxes.forEach(function(checkbox) {
+                checkbox.removeAttribute('required');
+                // Re-enable all checkboxes when activities field is hidden
+                checkbox.disabled = false;
+            });
+        }
+    }
+    
+    // Initial state - always call toggleActivities to set up the initial state
+    // This ensures mandatory activities are checked and disabled if pays_activities is checked
+    toggleActivities();
+    
+    // Listen for changes
+    paysActivitiesCheckbox.addEventListener('change', toggleActivities);
+    
+    // Additional form validation for activities
+    form.addEventListener('submit', function(e) {
+        if (paysActivitiesCheckbox.checked) {
+            const checkedActivities = Array.from(activitiesCheckboxes).filter(cb => cb.checked && !cb.disabled);
+            if (checkedActivities.length === 0) {
+                e.preventDefault();
+                alert('Please select at least one activity when activities payment is enabled.');
+                return false;
+            }
+        }
+    });
+});
+</script>
 {% endblock %}

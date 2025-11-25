@@ -1,0 +1,68 @@
+{% extends 'base.html' %}
+
+{% block title %}Delete Activity | School Management System{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="row justify-content-center">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header bg-danger text-white">
+                    <h4 class="mb-0">
+                        <i class="fas fa-exclamation-triangle me-2"></i>Delete Activity
+                    </h4>
+                </div>
+                <div class="card-body">
+                    {% if messages %}
+                        {% for message in messages %}
+                            <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                                {{ message }}
+                                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                            </div>
+                        {% endfor %}
+                    {% endif %}
+                    
+                    {% if students_with_activity > 0 %}
+                        <div class="alert alert-warning">
+                            <i class="fas fa-exclamation-triangle me-2"></i>
+                            <strong>Warning:</strong> This activity is currently assigned to <strong>{{ students_with_activity }}</strong> student(s). 
+                            You cannot delete this activity until all students are unassigned from it.
+                        </div>
+                    {% else %}
+                        <div class="alert alert-warning">
+                            <i class="fas fa-exclamation-triangle me-2"></i>
+                            <strong>Are you sure you want to delete this activity?</strong>
+                        </div>
+                    {% endif %}
+                    
+                    <div class="mb-3">
+                        <strong>Activity Name:</strong> {{ activity.name }}<br>
+                        <strong>Charge:</strong> KES {{ activity.charge|floatformat:2 }}<br>
+                        <strong>Type:</strong> {% if activity.is_mandatory %}<span class="badge bg-danger">Mandatory</span>{% else %}<span class="badge bg-info">Optional</span>{% endif %}<br>
+                        {% if activity.description %}
+                            <strong>Description:</strong> {{ activity.description }}
+                        {% endif %}
+                    </div>
+                    
+                    <form method="post">
+                        {% csrf_token %}
+                        <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                            <a href="{% url 'core:activity_list' %}" class="btn btn-secondary">
+                                <i class="fas fa-times me-2"></i>Cancel
+                            </a>
+                            {% if students_with_activity == 0 %}
+                                <button type="submit" class="btn btn-danger">
+                                    <i class="fas fa-trash me-2"></i>Delete Activity
+                                </button>
+                            {% endif %}
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+
+

@@ -8,7 +8,8 @@ from django.utils import timezone
 from django.template.loader import render_to_string
 from django.conf import settings
 from .models import (
-    School, Grade, Term, FeeCategory, TransportRoute, Student, FeeStructure, StudentFee, SchoolClass
+    School, Grade, Term, FeeCategory, TransportRoute, Student, FeeStructure, StudentFee, SchoolClass,
+    Activity, ActivityException
 )
 from rest_framework import viewsets, permissions
 from .serializers import (
@@ -43,6 +44,12 @@ def dashboard(request):
     school = request.user.profile.school
     dashboard_data = DashboardService.get_dashboard_data(school, request.user)
     
+    # Calculate all-time fee totals (not just current term)
+    from django.db.models import Sum
+    all_fees = StudentFee.objects.filter(school=school)
+    total_fees_charged = all_fees.aggregate(total=Sum('amount_charged'))['total'] or 0
+    total_fees_paid = all_fees.aggregate(total=Sum('amount_paid'))['total'] or 0
+    
     # Get overdue payments for template
     overdue_payments = StudentFee.objects.filter(
         school=school,
@@ -50,8 +57,18 @@ def dashboard(request):
         due_date__lt=timezone.now().date()
     ).select_related('student', 'fee_category', 'term')[:10]
     
+    # Get overdue count
+    overdue_fees = StudentFee.objects.filter(
+        school=school,
+        is_paid=False,
+        due_date__lt=timezone.now().date()
+    ).count()
+    
     context = {
         **dashboard_data,
+        'total_fees_charged': float(total_fees_charged),
+        'total_fees_paid': float(total_fees_paid),
+        'overdue_fees': overdue_fees,
         'overdue_payments': overdue_payments,
     }
     return render(request, 'core/dashboard.html', context)
@@ -422,7 +439,11 @@ def term_delete(request, term_id):
 @role_required('super_admin', 'school_admin', 'accountant')
 def fee_structure_list(request):
     """List fee structures"""
-    fee_structures = FeeStructure.objects.filter(is_active=True).select_related(
+    school = request.user.profile.school
+    fee_structures = FeeStructure.objects.filter(
+        school=school,
+        is_active=True
+    ).select_related(
         'grade', 'term', 'fee_category'
     ).order_by('grade__name', 'term__academic_year', 'term__term_number')
     
@@ -443,6 +464,7 @@ def fee_structure_list(request):
         
         try:
             FeeStructure.objects.create(
+                school=school,
                 grade_id=grade_id,
                 term_id=term_id,
                 fee_category_id=fee_category_id,
@@ -453,9 +475,9 @@ def fee_structure_list(request):
         except Exception as e:
             messages.error(request, f'Error creating fee structure: {str(e)}')
     
-    grades = Grade.objects.all()
-    terms = Term.objects.all().order_by('-academic_year', '-term_number')
-    fee_categories = FeeCategory.objects.all()
+    grades = Grade.objects.filter(school=school)
+    terms = Term.objects.filter(school=school).order_by('-academic_year', '-term_number')
+    fee_categories = FeeCategory.objects.filter(school=school)
     
     context = {
         'fee_structures': fee_structures,
@@ -466,6 +488,251 @@ def fee_structure_list(request):
         'term_filter': term_filter,
     }
     return render(request, 'core/fee_structure_list.html', context)
+
+
+@login_required
+@role_required('super_admin', 'school_admin', 'accountant')
+def fee_structure_edit(request, fee_structure_id):
+    """Edit a fee structure"""
+    school = request.user.profile.school
+    fee_structure = get_object_or_404(FeeStructure, id=fee_structure_id, school=school, is_active=True)
+    
+    if request.method == 'POST':
+        grade_id = request.POST.get('grade')
+        term_id = request.POST.get('term')
+        fee_category_id = request.POST.get('fee_category')
+        amount = request.POST.get('amount')
+        
+        if not all([grade_id, term_id, fee_category_id, amount]):
+            messages.error(request, 'Please fill in all fields.')
+        else:
+            try:
+                fee_structure.grade_id = grade_id
+                fee_structure.term_id = term_id
+                fee_structure.fee_category_id = fee_category_id
+                fee_structure.amount = amount
+                fee_structure.save()
+                messages.success(request, 'Fee structure updated successfully.')
+                return redirect('core:fee_structure_list')
+            except Exception as e:
+                messages.error(request, f'Error updating fee structure: {str(e)}')
+    
+    context = {
+        'fee_structure': fee_structure,
+        'grades': Grade.objects.filter(school=school),
+        'terms': Term.objects.filter(school=school).order_by('-academic_year', '-term_number'),
+        'fee_categories': FeeCategory.objects.filter(school=school),
+    }
+    return render(request, 'core/fee_structure_form.html', context)
+
+
+@login_required
+@role_required('super_admin', 'school_admin', 'accountant')
+def fee_structure_delete(request, fee_structure_id):
+    """Delete (soft delete) a fee structure"""
+    school = request.user.profile.school
+    fee_structure = get_object_or_404(FeeStructure, id=fee_structure_id, school=school, is_active=True)
+    
+    if request.method == 'POST':
+        fee_structure.is_active = False
+        fee_structure.save()
+        messages.success(request, 'Fee structure deleted successfully.')
+        return redirect('core:fee_structure_list')
+    
+    context = {
+        'fee_structure': fee_structure,
+    }
+    return render(request, 'core/fee_structure_confirm_delete.html', context)
+
+
+@login_required
+@role_required('super_admin', 'school_admin', 'accountant')
+def transport_route_list(request):
+    """List and create transport routes"""
+    school = request.user.profile.school
+    
+    if request.method == 'POST':
+        name = request.POST.get('name')
+        description = request.POST.get('description', '')
+        base_fare = request.POST.get('base_fare')
+        is_active = request.POST.get('is_active') == 'on'
+        
+        if not name or not base_fare:
+            messages.error(request, 'Please fill in all required fields.')
+        else:
+            try:
+                TransportRoute.objects.create(
+                    school=school,
+                    name=name,
+                    description=description,
+                    base_fare=base_fare,
+                    is_active=is_active
+                )
+                messages.success(request, 'Transport route created successfully.')
+                return redirect('core:transport_route_list')
+            except Exception as e:
+                messages.error(request, f'Error creating transport route: {str(e)}')
+    
+    transport_routes = TransportRoute.objects.filter(school=school).order_by('name')
+    context = {
+        'transport_routes': transport_routes,
+    }
+    return render(request, 'core/transport_route_list.html', context)
+
+
+@login_required
+@role_required('super_admin', 'school_admin', 'accountant')
+def transport_route_edit(request, route_id):
+    """Edit a transport route"""
+    school = request.user.profile.school
+    route = get_object_or_404(TransportRoute, id=route_id, school=school)
+    
+    if request.method == 'POST':
+        name = request.POST.get('name')
+        description = request.POST.get('description', '')
+        base_fare = request.POST.get('base_fare')
+        is_active = request.POST.get('is_active') == 'on'
+        
+        if not name or not base_fare:
+            messages.error(request, 'Please fill in all required fields.')
+        else:
+            try:
+                route.name = name
+                route.description = description
+                route.base_fare = base_fare
+                route.is_active = is_active
+                route.save()
+                messages.success(request, 'Transport route updated successfully.')
+                return redirect('core:transport_route_list')
+            except Exception as e:
+                messages.error(request, f'Error updating transport route: {str(e)}')
+    
+    context = {
+        'route': route,
+    }
+    return render(request, 'core/transport_route_form.html', context)
+
+
+@login_required
+@role_required('super_admin', 'school_admin', 'accountant')
+def transport_route_delete(request, route_id):
+    """Delete a transport route"""
+    school = request.user.profile.school
+    route = get_object_or_404(TransportRoute, id=route_id, school=school)
+    
+    # Check if route is used by any students
+    students_using_route = Student.objects.filter(transport_route=route, school=school).count()
+    
+    if request.method == 'POST':
+        if students_using_route > 0:
+            messages.error(request, f'Cannot delete route. {students_using_route} student(s) are using this route.')
+            return redirect('core:transport_route_list')
+        route.delete()
+        messages.success(request, 'Transport route deleted successfully.')
+        return redirect('core:transport_route_list')
+    
+    context = {
+        'route': route,
+        'students_using_route': students_using_route,
+    }
+    return render(request, 'core/transport_route_confirm_delete.html', context)
+
+
+@login_required
+@role_required('super_admin', 'school_admin', 'accountant')
+def activity_list(request):
+    """List and create activities"""
+    school = request.user.profile.school
+    
+    if request.method == 'POST':
+        name = request.POST.get('name')
+        description = request.POST.get('description', '')
+        charge = request.POST.get('charge')
+        is_mandatory = request.POST.get('is_mandatory') == 'on'
+        is_active = request.POST.get('is_active') == 'on'
+        
+        if not name or not charge:
+            messages.error(request, 'Please fill in all required fields.')
+        else:
+            try:
+                Activity.objects.create(
+                    school=school,
+                    name=name,
+                    description=description,
+                    charge=charge,
+                    is_mandatory=is_mandatory,
+                    is_active=is_active
+                )
+                messages.success(request, 'Activity created successfully.')
+                return redirect('core:activity_list')
+            except Exception as e:
+                messages.error(request, f'Error creating activity: {str(e)}')
+    
+    activities = Activity.objects.filter(school=school).order_by('is_mandatory', 'name')
+    context = {
+        'activities': activities,
+    }
+    return render(request, 'core/activity_list.html', context)
+
+
+@login_required
+@role_required('super_admin', 'school_admin', 'accountant')
+def activity_edit(request, activity_id):
+    """Edit an activity"""
+    school = request.user.profile.school
+    activity = get_object_or_404(Activity, id=activity_id, school=school)
+    
+    if request.method == 'POST':
+        name = request.POST.get('name')
+        description = request.POST.get('description', '')
+        charge = request.POST.get('charge')
+        is_mandatory = request.POST.get('is_mandatory') == 'on'
+        is_active = request.POST.get('is_active') == 'on'
+        
+        if not name or not charge:
+            messages.error(request, 'Please fill in all required fields.')
+        else:
+            try:
+                activity.name = name
+                activity.description = description
+                activity.charge = charge
+                activity.is_mandatory = is_mandatory
+                activity.is_active = is_active
+                activity.save()
+                messages.success(request, 'Activity updated successfully.')
+                return redirect('core:activity_list')
+            except Exception as e:
+                messages.error(request, f'Error updating activity: {str(e)}')
+    
+    context = {
+        'activity': activity,
+    }
+    return render(request, 'core/activity_form.html', context)
+
+
+@login_required
+@role_required('super_admin', 'school_admin', 'accountant')
+def activity_delete(request, activity_id):
+    """Delete an activity"""
+    school = request.user.profile.school
+    activity = get_object_or_404(Activity, id=activity_id, school=school)
+    
+    # Check if activity is assigned to any students
+    students_with_activity = Student.objects.filter(activities=activity, school=school).count()
+    
+    if request.method == 'POST':
+        if students_with_activity > 0:
+            messages.error(request, f'Cannot delete activity. {students_with_activity} student(s) are assigned to this activity.')
+            return redirect('core:activity_list')
+        activity.delete()
+        messages.success(request, 'Activity deleted successfully.')
+        return redirect('core:activity_list')
+    
+    context = {
+        'activity': activity,
+        'students_with_activity': students_with_activity,
+    }
+    return render(request, 'core/activity_confirm_delete.html', context)
 
 
 @login_required
@@ -509,13 +776,15 @@ def fee_category_list(request):
 @role_required('super_admin', 'school_admin', 'accountant')
 def generate_student_fees(request):
     """Generate student fees for a term"""
+    school = request.user.profile.school
+    
     if request.method == 'POST':
         term_id = request.POST.get('term_id')
         grade_id = request.POST.get('grade_id')
         
         if term_id and grade_id:
-            term = get_object_or_404(Term, id=term_id)
-            grade = get_object_or_404(Grade, id=grade_id)
+            term = get_object_or_404(Term, id=term_id, school=school)
+            grade = get_object_or_404(Grade, id=grade_id, school=school)
             
             # Get fee structure for this grade and term
             fee_structures = FeeStructure.objects.filter(
@@ -525,7 +794,7 @@ def generate_student_fees(request):
             )
             
             # Get students in this grade
-            students = Student.objects.filter(grade=grade, is_active=True)
+            students = Student.objects.filter(grade=grade, school=school, is_active=True).prefetch_related('activities')
             
             created_count = 0
             for student in students:
@@ -545,6 +814,7 @@ def generate_student_fees(request):
                     
                     # Create or update student fee
                     student_fee, created = StudentFee.objects.get_or_create(
+                        school=school,
                         student=student,
                         term=term,
                         fee_category=fee_structure.fee_category,
@@ -556,12 +826,55 @@ def generate_student_fees(request):
                     
                     if created:
                         created_count += 1
+                
+                # Generate fees for individual activities
+                if student.pays_activities:
+                    # Get all activities for this student (including mandatory ones)
+                    student_activities = student.activities.filter(is_active=True)
+                    mandatory_activities = Activity.objects.filter(
+                        school=school,
+                        is_mandatory=True,
+                        is_active=True
+                    )
+                    
+                    # Add mandatory activities that student doesn't have exceptions for
+                    for activity in mandatory_activities:
+                        if not ActivityException.objects.filter(
+                            school=school,
+                            student=student,
+                            activity=activity
+                        ).exists():
+                            student_activities = student_activities | Activity.objects.filter(id=activity.id)
+                    
+                    # Create fee for each activity
+                    for activity in student_activities.distinct():
+                        # Get or create fee category for this specific activity
+                        activity_category, _ = FeeCategory.objects.get_or_create(
+                            school=school,
+                            name=f"{activity.name} Activity",
+                            category_type='activities',
+                            defaults={'description': f'Fee for {activity.name} activity'}
+                        )
+                        
+                        student_fee, created = StudentFee.objects.get_or_create(
+                            school=school,
+                            student=student,
+                            term=term,
+                            fee_category=activity_category,
+                            defaults={
+                                'amount_charged': activity.charge,
+                                'due_date': term.end_date,
+                            }
+                        )
+                        
+                        if created:
+                            created_count += 1
             
             messages.success(request, f'Generated {created_count} fee records for {grade.name} in {term.name}.')
             return redirect('core:fee_structure_list')
     
-    terms = Term.objects.all().order_by('-academic_year', '-term_number')
-    grades = Grade.objects.all()
+    terms = Term.objects.filter(school=school).order_by('-academic_year', '-term_number')
+    grades = Grade.objects.filter(school=school)
     
     context = {'terms': terms, 'grades': grades}
     return render(request, 'core/generate_student_fees.html', context)

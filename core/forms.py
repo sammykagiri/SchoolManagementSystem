@@ -2,7 +2,7 @@ from django import forms
 from django.contrib.auth.forms import UserCreationForm
 from django.contrib.auth.models import User
 from django.core.exceptions import ValidationError
-from .models import Student, Grade, TransportRoute, Role, UserProfile, School
+from .models import Student, Grade, TransportRoute, Activity, ActivityException, Role, UserProfile, School
 
 
 class StudentForm(forms.ModelForm):
@@ -14,7 +14,7 @@ class StudentForm(forms.ModelForm):
             'first_name', 'last_name', 'gender', 'date_of_birth', 
             'grade', 'admission_date', 'parent_name', 'parent_phone', 
             'parent_email', 'address', 'transport_route', 'uses_transport', 
-            'pays_meals', 'pays_activities', 'photo', 'parents'
+            'pays_activities', 'activities', 'photo', 'parents'
         ]
         widgets = {
             'date_of_birth': forms.DateInput(attrs={'type': 'date'}),
@@ -22,8 +22,8 @@ class StudentForm(forms.ModelForm):
             'parent_email': forms.EmailInput(),
             'address': forms.Textarea(attrs={'rows': 3}),
             'uses_transport': forms.CheckboxInput(),
-            'pays_meals': forms.CheckboxInput(),
             'pays_activities': forms.CheckboxInput(),
+            'activities': forms.CheckboxSelectMultiple(),
             'photo': forms.FileInput(attrs={'accept': 'image/*', 'class': 'form-control'}),
             'parents': forms.CheckboxSelectMultiple(),
         }
@@ -36,9 +36,51 @@ class StudentForm(forms.ModelForm):
             # Filter grades by school
             self.fields['grade'].queryset = Grade.objects.filter(school=school)
             self.fields['transport_route'].queryset = TransportRoute.objects.filter(school=school, is_active=True)
+            # Filter activities by school and customize labels
+            activities_qs = Activity.objects.filter(school=school, is_active=True)
+            self.fields['activities'].queryset = activities_qs
+            # Customize widget to show mandatory status
+            self.fields['activities'].widget.choices = [
+                (activity.id, f"{activity.name} (Mandatory)" if activity.is_mandatory else activity.name)
+                for activity in activities_qs
+            ]
             # Filter parents by school
             from .models import Parent
             self.fields['parents'].queryset = Parent.objects.filter(school=school, is_active=True)
+            
+            # Auto-check pays_activities and pre-select mandatory activities for new students
+            if not self.instance.pk:  # Only for new students
+                mandatory_activities = Activity.objects.filter(
+                    school=school, 
+                    is_active=True, 
+                    is_mandatory=True
+                )
+                if mandatory_activities.exists():
+                    self.fields['pays_activities'].initial = True
+                    # Pre-select mandatory activities
+                    self.fields['activities'].initial = list(mandatory_activities.values_list('id', flat=True))
+            else:
+                # For existing students, ensure mandatory activities (without exceptions) are included
+                if self.instance and self.instance.pk:
+                    mandatory_activities = Activity.objects.filter(
+                        school=school,
+                        is_active=True,
+                        is_mandatory=True
+                    )
+                    # Get current student activities
+                    current_activities = list(self.instance.activities.filter(is_active=True).values_list('id', flat=True))
+                    # Add mandatory activities that don't have exceptions
+                    for activity in mandatory_activities:
+                        if not ActivityException.objects.filter(
+                            school=school,
+                            student=self.instance,
+                            activity=activity
+                        ).exists():
+                            if activity.id not in current_activities:
+                                current_activities.append(activity.id)
+                    # Set initial value to include mandatory activities
+                    if current_activities:
+                        self.fields['activities'].initial = current_activities
         
         # Make required fields more obvious
         self.fields['first_name'].required = True
@@ -53,7 +95,8 @@ class StudentForm(forms.ModelForm):
         # Add help text
         self.fields['parent_email'].help_text = 'Optional - for sending receipts and notifications'
         self.fields['address'].help_text = 'Optional - student home address'
-        self.fields['transport_route'].help_text = 'Optional - if student uses school transport'
+        self.fields['transport_route'].help_text = 'Required if student uses transport'
+        self.fields['activities'].help_text = 'Select activities for this student. Mandatory activities are automatically included.'
         self.fields['photo'].help_text = 'Optional - Upload student photo (JPG, PNG, max 5MB)'
         self.fields['parents'].help_text = 'Select parent accounts linked to this student (optional)'
         
@@ -112,6 +155,19 @@ class StudentForm(forms.ModelForm):
                 raise ValidationError('Admission date cannot be before date of birth.')
         
         return admission_date
+    
+    def clean(self):
+        """Cross-field validation"""
+        cleaned_data = super().clean()
+        uses_transport = cleaned_data.get('uses_transport')
+        transport_route = cleaned_data.get('transport_route')
+        
+        if uses_transport and not transport_route:
+            raise ValidationError({
+                'transport_route': 'Transport route is required when student uses transport.'
+            })
+        
+        return cleaned_data
 
 
 class UserForm(UserCreationForm):

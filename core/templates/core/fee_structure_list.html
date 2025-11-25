@@ -82,12 +82,12 @@
                                         <td class="text-end">KES {{ fee_structure.amount|floatformat:2 }}</td>
                                         <td>
                                             <div class="btn-group btn-group-sm" role="group">
-                                                <button type="button" class="btn btn-outline-primary" title="Edit" disabled>
+                                                <a href="{% url 'core:fee_structure_edit' fee_structure.id %}" class="btn btn-outline-primary" title="Edit Fee Structure">
                                                     <i class="fas fa-edit"></i>
-                                                </button>
-                                                <button type="button" class="btn btn-outline-danger" title="Delete" disabled>
+                                                </a>
+                                                <a href="{% url 'core:fee_structure_delete' fee_structure.id %}" class="btn btn-outline-danger" title="Delete Fee Structure">
                                                     <i class="fas fa-trash"></i>
-                                                </button>
+                                                </a>
                                             </div>
                                         </td>
                                     </tr>

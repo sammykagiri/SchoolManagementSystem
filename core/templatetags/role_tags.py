@@ -135,3 +135,6 @@ def user_roles(user):
         roles = [user.profile.role]
     return roles
 
+
+
+

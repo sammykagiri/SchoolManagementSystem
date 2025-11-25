@@ -36,12 +36,18 @@
                 
                 <!-- Fees Management (MVP Module 3: Fees Management) -->
                 <li class="nav-item dropdown">
-                    <a class="nav-link dropdown-toggle {% if 'payments' in request.resolver_match.namespace or request.resolver_match.url_name == 'fee_structure_list' or request.resolver_match.url_name == 'generate_student_fees' or request.resolver_match.url_name == 'student_fee_list' %}active{% endif %}" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                    <a class="nav-link dropdown-toggle {% if 'payments' in request.resolver_match.namespace or request.resolver_match.url_name == 'fee_structure_list' or request.resolver_match.url_name == 'transport_route_list' or request.resolver_match.url_name == 'transport_route_edit' or request.resolver_match.url_name == 'activity_list' or request.resolver_match.url_name == 'activity_edit' or request.resolver_match.url_name == 'generate_student_fees' or request.resolver_match.url_name == 'student_fee_list' %}active{% endif %}" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
                         <i class="fas fa-money-bill-wave me-2"></i>Fees
                     </a>
                     <ul class="dropdown-menu">
                         <li><a class="dropdown-item" href="{% url 'core:fee_structure_list' %}">
                             <i class="fas fa-list-alt me-2"></i>Fee Structures
+                        </a></li>
+                        <li><a class="dropdown-item" href="{% url 'core:transport_route_list' %}">
+                            <i class="fas fa-route me-2"></i>Transport Routes
+                        </a></li>
+                        <li><a class="dropdown-item" href="{% url 'core:activity_list' %}">
+                            <i class="fas fa-running me-2"></i>Activities
                         </a></li>
                         <li><a class="dropdown-item" href="{% url 'core:generate_student_fees' %}">
                             <i class="fas fa-cogs me-2"></i>Generate Fees

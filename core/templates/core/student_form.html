@@ -75,10 +75,10 @@
                                 <label for="id_address" class="form-label">Address</label>
                                 <input type="text" name="address" id="id_address" class="form-control" value="{% if student %}{{ student.address }}{% elif post.address %}{{ post.address }}{% else %}{% endif %}">
                             </div>
-                            <div class="col-md-4">
-                                <label for="id_transport_route" class="form-label">Transport Route</label>
+                            <div class="col-md-4" id="transport_route_field" style="display: none;">
+                                <label for="id_transport_route" class="form-label">Transport Route <span class="text-danger">*</span></label>
                                 <select name="transport_route" id="id_transport_route" class="form-select">
-                                    <option value="">None</option>
+                                    <option value="">Select Route</option>
 {% for route in transport_routes %}
                                         <option value="{{ route.id }}" {% if student and student.transport_route and student.transport_route.id == route.id or post.transport_route == route.id|stringformat:'s' %}selected{% endif %}>{{ route.name }}</option>
 {% endfor %}
@@ -113,4 +113,40 @@
         </div>
     </div>
 </div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const usesTransportCheckbox = document.getElementById('id_uses_transport');
+    const transportRouteField = document.getElementById('transport_route_field');
+    const transportRouteSelect = document.getElementById('id_transport_route');
+    
+    function toggleTransportRoute() {
+        if (usesTransportCheckbox.checked) {
+            transportRouteField.style.display = 'block';
+            transportRouteSelect.setAttribute('required', 'required');
+        } else {
+            transportRouteField.style.display = 'none';
+            transportRouteSelect.removeAttribute('required');
+            transportRouteSelect.value = '';
+        }
+    }
+    
+    // Initial state
+    toggleTransportRoute();
+    
+    // Listen for changes
+    usesTransportCheckbox.addEventListener('change', toggleTransportRoute);
+    
+    // Form validation
+    const form = document.querySelector('form');
+    form.addEventListener('submit', function(e) {
+        if (usesTransportCheckbox.checked && !transportRouteSelect.value) {
+            e.preventDefault();
+            alert('Please select a transport route when transport is required.');
+            transportRouteSelect.focus();
+            return false;
+        }
+    });
+});
+</script>
 {% endblock %}

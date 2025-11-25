@@ -1,0 +1,124 @@
+{% extends 'base.html' %}
+{% load date_format %}
+
+{% block title %}Transport Routes | School Management System{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="row">
+        <!-- Transport Routes List (Left Side) -->
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+                    <h4 class="mb-0">
+                        <i class="fas fa-route me-2"></i>Transport Routes
+                    </h4>
+                    <a href="{% url 'core:fee_structure_list' %}" class="btn btn-outline-light btn-sm">
+                        <i class="fas fa-arrow-left me-1"></i>Back to Fees
+                    </a>
+                </div>
+                <div class="card-body">
+                    {% if messages %}
+                        {% for message in messages %}
+                            <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                                {{ message }}
+                                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                            </div>
+                        {% endfor %}
+                    {% endif %}
+                    
+                    {% if transport_routes %}
+                        <div class="table-responsive">
+                            <table class="table table-bordered table-striped">
+                                <thead>
+                                    <tr>
+                                        <th>Route Name</th>
+                                        <th>Base Fare (KES)</th>
+                                        <th>Status</th>
+                                        <th>Description</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for route in transport_routes %}
+                                    <tr>
+                                        <td><strong>{{ route.name }}</strong></td>
+                                        <td><strong class="text-success">KES {{ route.base_fare|floatformat:2 }}</strong></td>
+                                        <td>
+                                            {% if route.is_active %}
+                                                <span class="badge bg-success">Active</span>
+                                            {% else %}
+                                                <span class="badge bg-secondary">Inactive</span>
+                                            {% endif %}
+                                        </td>
+                                        <td>{{ route.description|default:"—"|truncatewords:10 }}</td>
+                                        <td>
+                                            <div class="btn-group btn-group-sm" role="group">
+                                                <a href="{% url 'core:transport_route_edit' route.id %}" class="btn btn-outline-primary" title="Edit">
+                                                    <i class="fas fa-edit"></i>
+                                                </a>
+                                                <a href="{% url 'core:transport_route_delete' route.id %}" class="btn btn-outline-danger" title="Delete">
+                                                    <i class="fas fa-trash"></i>
+                                                </a>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    {% else %}
+                        <div class="text-center py-4">
+                            <i class="fas fa-route fa-3x text-muted mb-3"></i>
+                            <p class="text-muted">No transport routes found. Add your first route using the form on the right.</p>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Add New Transport Route Card (Right Side) -->
+        <div class="col-md-4 mb-4">
+            <div class="card h-100">
+                <div class="card-header bg-secondary text-white">
+                    <h5 class="mb-0">
+                        <i class="fas fa-plus-circle me-2"></i>Add New Route
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <form method="post" novalidate>
+                        {% csrf_token %}
+                        <div class="mb-3">
+                            <label for="id_name" class="form-label">Route Name <span class="text-danger">*</span></label>
+                            <input type="text" name="name" id="id_name" class="form-control" required placeholder="e.g., Route A, Downtown Route">
+                        </div>
+                        <div class="mb-3">
+                            <label for="id_base_fare" class="form-label">Base Fare (KES) <span class="text-danger">*</span></label>
+                            <input type="number" name="base_fare" id="id_base_fare" class="form-control" required step="0.01" min="0" placeholder="0.00">
+                            <small class="form-text text-muted">The charge for this route per term</small>
+                        </div>
+                        <div class="mb-3">
+                            <label for="id_description" class="form-label">Description</label>
+                            <textarea name="description" id="id_description" class="form-control" rows="3" placeholder="Optional description (e.g., areas covered, pickup points)"></textarea>
+                        </div>
+                        <div class="mb-3">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" name="is_active" id="id_is_active" checked>
+                                <label class="form-check-label" for="id_is_active">
+                                    Active (Route is available for selection)
+                                </label>
+                            </div>
+                        </div>
+                        <button type="submit" class="btn btn-primary w-100">
+                            <i class="fas fa-plus-circle me-2"></i>Add Route
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+
+

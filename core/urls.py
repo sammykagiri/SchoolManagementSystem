@@ -44,9 +44,21 @@ urlpatterns = [
     
     # Fee Structures
     path('fee-structures/', views.fee_structure_list, name='fee_structure_list'),
+    path('fee-structures/<int:fee_structure_id>/edit/', views.fee_structure_edit, name='fee_structure_edit'),
+    path('fee-structures/<int:fee_structure_id>/delete/', views.fee_structure_delete, name='fee_structure_delete'),
     path('fee-categories/', views.fee_category_list, name='fee_category_list'),
     path('generate-fees/', views.generate_student_fees, name='generate_student_fees'),
     path('student-fees/', views.student_fee_list, name='student_fee_list'),
+    
+    # Transport Routes
+    path('transport-routes/', views.transport_route_list, name='transport_route_list'),
+    path('transport-routes/<int:route_id>/edit/', views.transport_route_edit, name='transport_route_edit'),
+    path('transport-routes/<int:route_id>/delete/', views.transport_route_delete, name='transport_route_delete'),
+    
+    # Activities
+    path('activities/', views.activity_list, name='activity_list'),
+    path('activities/<int:activity_id>/edit/', views.activity_edit, name='activity_edit'),
+    path('activities/<int:activity_id>/delete/', views.activity_delete, name='activity_delete'),
     
     # Fee Statements
     path('students/<str:student_id>/fee-statement/', views.student_fee_statement, name='student_fee_statement'),

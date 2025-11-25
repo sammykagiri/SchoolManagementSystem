@@ -112,6 +112,34 @@ class TransportRoute(models.Model):
         unique_together = ['school', 'name']
 
 
+class Activity(models.Model):
+    school = models.ForeignKey(School, on_delete=models.CASCADE, related_name='activities')
+    name = models.CharField(max_length=100)
+    description = models.TextField(blank=True)
+    charge = models.DecimalField(
+        max_digits=10, 
+        decimal_places=2,
+        validators=[MinValueValidator(0)],
+        help_text='Charge per term for this activity'
+    )
+    is_mandatory = models.BooleanField(
+        default=False,
+        help_text='If checked, all students will be automatically assigned this activity unless they have an exception'
+    )
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        mandatory_text = " (Mandatory)" if self.is_mandatory else ""
+        return f"{self.name} - KES {self.charge}{mandatory_text}"
+
+    class Meta:
+        verbose_name_plural = "Activities"
+        ordering = ['is_mandatory', 'name']
+        unique_together = ['school', 'name']
+
+
 class Parent(models.Model):
     """Parent/guardian profile linked to a user account."""
     user = models.OneToOneField(
@@ -188,6 +216,14 @@ class Student(models.Model):
     pays_meals = models.BooleanField(default=True)
     pays_activities = models.BooleanField(default=True)
     
+    # Activities (ManyToMany - student can have multiple activities)
+    activities = models.ManyToManyField(
+        'Activity',
+        related_name='students',
+        blank=True,
+        help_text='Activities assigned to this student'
+    )
+    
     # Photo
     photo = models.ImageField(upload_to='student_photos/', blank=True, null=True, help_text='Student photo')
 
@@ -218,7 +254,28 @@ class Student(models.Model):
     @property
     def full_name(self):
         return f"{self.first_name} {self.last_name}"
+
+
+class ActivityException(models.Model):
+    """Model to track exceptions for mandatory activities"""
+    school = models.ForeignKey(School, on_delete=models.CASCADE, related_name='activity_exceptions')
+    student = models.ForeignKey(Student, on_delete=models.CASCADE, related_name='activity_exceptions')
+    activity = models.ForeignKey(Activity, on_delete=models.CASCADE, related_name='exceptions')
+    reason = models.TextField(help_text='Reason for exemption from this mandatory activity')
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True)
     
+    def __str__(self):
+        return f"{self.student.full_name} - {self.activity.name} (Exception)"
+    
+    class Meta:
+        unique_together = ['school', 'student', 'activity']
+        ordering = ['student', 'activity']
+
+
+class StudentMethods:
+    """Helper methods for Student model"""
     def get_school_classes(self):
         """Get all school classes for this student's grade"""
         return self.grade.school_classes.filter(is_active=True)
