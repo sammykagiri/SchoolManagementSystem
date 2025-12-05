@@ -1,6 +1,5 @@
 {% extends 'base.html' %}
 {% load static %}
-{% load string_filters %}
 
 {% block title %}Role Permissions | School Management System{% endblock %}
 
@@ -72,7 +71,7 @@
                     <tbody>
                         {% for resource_type, permissions in grouped_permissions.items %}
                         <tr>
-                            <td class="module-name">{{ resource_type|humanize }}</td>
+                            <td class="module-name">{{ resource_type|title|replace:"_| " }}</td>
                             <td>
                                 {% for permission in permissions %}
                                     {% if permission.permission_type == "view" %}

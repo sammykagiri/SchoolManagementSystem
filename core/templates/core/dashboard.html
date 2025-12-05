@@ -1,5 +1,5 @@
 {% extends 'base.html' %}
-{% load currency date_format humanize %}
+{% load currency date_format %}
 {% block title %}Dashboard | School Management System{% endblock %}
 {% block extra_css %}
 <style>
@@ -86,17 +86,7 @@
     <div class="dashboard-header">
         <div class="dashboard-title">Welcome, {{ user.get_full_name|default:user.username }}</div>
         <div>
-            {% if current_term %}
-                {% if current_term.name %}
-                    <span class="badge bg-primary fs-6">{{ current_term.name }}{% if current_term.academic_year %} ({{ current_term.academic_year }}){% endif %}</span>
-                {% elif current_term.academic_year %}
-                    <span class="badge bg-primary fs-6">{{ current_term.academic_year }}</span>
-                {% else %}
-                    <span class="badge bg-secondary fs-6">Active Term</span>
-                {% endif %}
-            {% else %}
-                <span class="badge bg-secondary fs-6">No Active Term</span>
-            {% endif %}
+            <span class="badge bg-primary fs-6">{{ current_term|default:'No Active Term' }}</span>
         </div>
     </div>
     <div class="dashboard-cards">
@@ -114,11 +104,11 @@
         </div>
         <div class="dashboard-card">
             <h3>Fees Charged</h3>
-            <p><i class="fas fa-money-bill text-warning me-2"></i>KES {{ total_fees_charged|floatformat:2|intcomma }}</p>
+            <p><i class="fas fa-money-bill text-warning me-2"></i>KES {{ total_fees_charged|floatformat:2 }}</p>
         </div>
         <div class="dashboard-card">
             <h3>Fees Paid</h3>
-            <p><i class="fas fa-credit-card text-success me-2"></i>KES {{ total_fees_paid|floatformat:2|intcomma }}</p>
+            <p><i class="fas fa-credit-card text-success me-2"></i>KES {{ total_fees_paid|floatformat:2 }}</p>
         </div>
         <div class="dashboard-card">
             <h3>Overdue Fees</h3>
@@ -131,13 +121,7 @@
                 <h4><i class="fas fa-user-plus me-2"></i>Recent Students</h4>
                 <ul>
                     {% for student in recent_students %}
-                        <li>
-                            <a href="{% url 'core:student_detail' student.student_id %}" class="text-decoration-none">
-                                {{ student.full_name|default:student.student_id }}
-                            </a>
-                            <span class="text-muted">({{ student.student_id }})</span>
-                            {% if student.grade %}<span class="badge bg-info ms-2">{{ student.grade }}</span>{% endif %}
-                        </li>
+                        <li>{{ student.first_name }} {{ student.last_name }} <span class="text-muted">({{ student.student_id }})</span></li>
                     {% empty %}
                         <li class="text-muted">No recent students.</li>
                     {% endfor %}
@@ -149,7 +133,7 @@
                 <h4><i class="fas fa-exclamation-triangle me-2"></i>Overdue Payments</h4>
                 <ul>
                     {% for fee in overdue_payments %}
-                        <li>{{ fee.student }} - {{ fee.fee_category }}: <span class="text-danger">KES {{ fee.amount_charged|floatformat:2|intcomma }}</span> <span class="text-muted">(Due: {{ fee.due_date|indian_date }})</span></li>
+                        <li>{{ fee.student }} - {{ fee.fee_category }}: <span class="text-danger">KES {{ fee.amount_charged|floatformat:2 }}</span> <span class="text-muted">(Due: {{ fee.due_date|indian_date }})</span></li>
                     {% empty %}
                         <li class="text-muted">No overdue payments.</li>
                     {% endfor %}

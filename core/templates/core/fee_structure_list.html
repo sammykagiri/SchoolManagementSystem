@@ -12,9 +12,6 @@
                 <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
                     <h4 class="mb-0">Fee Structures</h4>
                     <div class="d-flex gap-2">
-                        <a href="{% url 'core:fee_category_list' %}" class="btn btn-info btn-sm">
-                            <i class="fas fa-tags me-1"></i>Manage Categories
-                        </a>
                         <a href="{% url 'core:generate_student_fees' %}" class="btn btn-success btn-sm">
                             <i class="fas fa-calculator me-1"></i>Generate Fees
                         </a>
@@ -82,12 +79,12 @@
                                         <td class="text-end">KES {{ fee_structure.amount|floatformat:2 }}</td>
                                         <td>
                                             <div class="btn-group btn-group-sm" role="group">
-                                                <a href="{% url 'core:fee_structure_edit' fee_structure.id %}" class="btn btn-outline-primary" title="Edit Fee Structure">
+                                                <button type="button" class="btn btn-outline-primary" title="Edit" disabled>
                                                     <i class="fas fa-edit"></i>
-                                                </a>
-                                                <a href="{% url 'core:fee_structure_delete' fee_structure.id %}" class="btn btn-outline-danger" title="Delete Fee Structure">
+                                                </button>
+                                                <button type="button" class="btn btn-outline-danger" title="Delete" disabled>
                                                     <i class="fas fa-trash"></i>
-                                                </a>
+                                                </button>
                                             </div>
                                         </td>
                                     </tr>
@@ -135,21 +132,13 @@
                             </select>
                         </div>
                         <div class="mb-3">
-                            <label for="id_fee_category" class="form-label">Fee Category <span class="text-danger">*</span></label>
+                            <label for="id_fee_category" class="form-label">Fee Category</label>
                             <select name="fee_category" id="id_fee_category" class="form-select" required>
                                 <option value="">Select Fee Category</option>
                                 {% for category in fee_categories %}
-                                    <option value="{{ category.id }}">{{ category.name }} ({{ category.get_category_type_display }})</option>
-                                {% empty %}
-                                    <option value="" disabled>No fee categories available. <a href="{% url 'core:fee_category_list' %}">Create one first</a></option>
+                                    <option value="{{ category.id }}">{{ category.name }}</option>
                                 {% endfor %}
                             </select>
-                            {% if not fee_categories %}
-                                <small class="text-danger">
-                                    <i class="fas fa-exclamation-triangle me-1"></i>
-                                    No fee categories found. <a href="{% url 'core:fee_category_list' %}">Create a fee category first</a>.
-                                </small>
-                            {% endif %}
                         </div>
                         <div class="mb-3">
                             <label for="id_amount" class="form-label">Amount (KES)</label>

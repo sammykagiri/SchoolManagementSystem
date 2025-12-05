@@ -169,6 +169,7 @@
                 <div class="form-section">
                     <h5 class="form-section-title"><i class="fas fa-id-badge me-2"></i>Role & Permissions</h5>
                     
+                    {% if is_superadmin %}
                     <div class="row">
                         <div class="col-md-6 mb-3">
                             <label for="{{ profile_form.school.id_for_label }}" class="form-label">School</label>
@@ -183,6 +184,10 @@
                             {% endif %}
                         </div>
                     </div>
+                    {% else %}
+                    {# Hidden field for school admins - value is set automatically #}
+                    {{ profile_form.school }}
+                    {% endif %}
                     
                     <div class="row">
                         <div class="col-md-6 mb-3">

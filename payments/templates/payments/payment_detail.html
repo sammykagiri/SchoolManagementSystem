@@ -16,14 +16,6 @@
                                 <i class="fas fa-receipt me-1"></i>Generate Receipt
                             </a>
                         {% endif %}
-                        {% if not payment.receipt or payment.status != 'completed' %}
-                            <a href="{% url 'payments:payment_edit' payment.payment_id %}" class="btn btn-warning btn-sm">
-                                <i class="fas fa-edit me-1"></i>Edit
-                            </a>
-                        {% endif %}
-                        <a href="{% url 'payments:payment_delete' payment.payment_id %}" class="btn btn-danger btn-sm">
-                            <i class="fas fa-trash me-1"></i>Delete
-                        </a>
                         <a href="{% url 'payments:payment_list' %}" class="btn btn-secondary btn-sm">
                             <i class="fas fa-arrow-left me-1"></i>Back to List
                         </a>
@@ -160,15 +152,9 @@
                             </button>
                         {% endif %}
                         {% if payment.status == 'completed' %}
-                            {% if payment.receipt %}
-                                <a href="{% url 'payments:view_receipt' %}?receipt_number={{ payment.receipt.receipt_number|urlencode }}" class="btn btn-outline-success">
-                                    <i class="fas fa-receipt me-2"></i>View Receipt
-                                </a>
-                            {% else %}
-                                <a href="{% url 'payments:generate_receipt' payment.payment_id %}" class="btn btn-outline-success">
-                                    <i class="fas fa-receipt me-2"></i>Generate Receipt
-                                </a>
-                            {% endif %}
+                            <a href="{% url 'payments:view_receipt' payment.receipt.receipt_number %}" class="btn btn-outline-success">
+                                <i class="fas fa-receipt me-2"></i>View Receipt
+                            </a>
                         {% endif %}
                     </div>
                 </div>

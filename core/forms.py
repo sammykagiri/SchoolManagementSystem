@@ -2,7 +2,7 @@ from django import forms
 from django.contrib.auth.forms import UserCreationForm
 from django.contrib.auth.models import User
 from django.core.exceptions import ValidationError
-from .models import Student, Grade, TransportRoute, Activity, ActivityException, Role, UserProfile, School
+from .models import Student, Grade, TransportRoute, Role, UserProfile, School
 
 
 class StudentForm(forms.ModelForm):
@@ -14,7 +14,7 @@ class StudentForm(forms.ModelForm):
             'first_name', 'last_name', 'gender', 'date_of_birth', 
             'grade', 'admission_date', 'parent_name', 'parent_phone', 
             'parent_email', 'address', 'transport_route', 'uses_transport', 
-            'pays_activities', 'activities', 'photo', 'parents'
+            'pays_meals', 'pays_activities', 'photo', 'parents'
         ]
         widgets = {
             'date_of_birth': forms.DateInput(attrs={'type': 'date'}),
@@ -22,8 +22,8 @@ class StudentForm(forms.ModelForm):
             'parent_email': forms.EmailInput(),
             'address': forms.Textarea(attrs={'rows': 3}),
             'uses_transport': forms.CheckboxInput(),
+            'pays_meals': forms.CheckboxInput(),
             'pays_activities': forms.CheckboxInput(),
-            'activities': forms.CheckboxSelectMultiple(),
             'photo': forms.FileInput(attrs={'accept': 'image/*', 'class': 'form-control'}),
             'parents': forms.CheckboxSelectMultiple(),
         }
@@ -36,51 +36,9 @@ class StudentForm(forms.ModelForm):
             # Filter grades by school
             self.fields['grade'].queryset = Grade.objects.filter(school=school)
             self.fields['transport_route'].queryset = TransportRoute.objects.filter(school=school, is_active=True)
-            # Filter activities by school and customize labels
-            activities_qs = Activity.objects.filter(school=school, is_active=True)
-            self.fields['activities'].queryset = activities_qs
-            # Customize widget to show mandatory status
-            self.fields['activities'].widget.choices = [
-                (activity.id, f"{activity.name} (Mandatory)" if activity.is_mandatory else activity.name)
-                for activity in activities_qs
-            ]
             # Filter parents by school
             from .models import Parent
             self.fields['parents'].queryset = Parent.objects.filter(school=school, is_active=True)
-            
-            # Auto-check pays_activities and pre-select mandatory activities for new students
-            if not self.instance.pk:  # Only for new students
-                mandatory_activities = Activity.objects.filter(
-                    school=school, 
-                    is_active=True, 
-                    is_mandatory=True
-                )
-                if mandatory_activities.exists():
-                    self.fields['pays_activities'].initial = True
-                    # Pre-select mandatory activities
-                    self.fields['activities'].initial = list(mandatory_activities.values_list('id', flat=True))
-            else:
-                # For existing students, ensure mandatory activities (without exceptions) are included
-                if self.instance and self.instance.pk:
-                    mandatory_activities = Activity.objects.filter(
-                        school=school,
-                        is_active=True,
-                        is_mandatory=True
-                    )
-                    # Get current student activities
-                    current_activities = list(self.instance.activities.filter(is_active=True).values_list('id', flat=True))
-                    # Add mandatory activities that don't have exceptions
-                    for activity in mandatory_activities:
-                        if not ActivityException.objects.filter(
-                            school=school,
-                            student=self.instance,
-                            activity=activity
-                        ).exists():
-                            if activity.id not in current_activities:
-                                current_activities.append(activity.id)
-                    # Set initial value to include mandatory activities
-                    if current_activities:
-                        self.fields['activities'].initial = current_activities
         
         # Make required fields more obvious
         self.fields['first_name'].required = True
@@ -95,8 +53,7 @@ class StudentForm(forms.ModelForm):
         # Add help text
         self.fields['parent_email'].help_text = 'Optional - for sending receipts and notifications'
         self.fields['address'].help_text = 'Optional - student home address'
-        self.fields['transport_route'].help_text = 'Required if student uses transport'
-        self.fields['activities'].help_text = 'Select activities for this student. Mandatory activities are automatically included.'
+        self.fields['transport_route'].help_text = 'Optional - if student uses school transport'
         self.fields['photo'].help_text = 'Optional - Upload student photo (JPG, PNG, max 5MB)'
         self.fields['parents'].help_text = 'Select parent accounts linked to this student (optional)'
         
@@ -155,19 +112,6 @@ class StudentForm(forms.ModelForm):
                 raise ValidationError('Admission date cannot be before date of birth.')
         
         return admission_date
-    
-    def clean(self):
-        """Cross-field validation"""
-        cleaned_data = super().clean()
-        uses_transport = cleaned_data.get('uses_transport')
-        transport_route = cleaned_data.get('transport_route')
-        
-        if uses_transport and not transport_route:
-            raise ValidationError({
-                'transport_route': 'Transport route is required when student uses transport.'
-            })
-        
-        return cleaned_data
 
 
 class UserForm(UserCreationForm):
@@ -212,14 +156,89 @@ class UserProfileForm(forms.ModelForm):
         }
     
     def __init__(self, *args, **kwargs):
+        # Extract current_user from kwargs if provided
+        self.current_user = kwargs.pop('current_user', None)
         super().__init__(*args, **kwargs)
         # Filter active roles only
-        self.fields['roles'].queryset = Role.objects.filter(is_active=True)
+        roles_queryset = Role.objects.filter(is_active=True)
+        
+        # Check if current user is a superadmin
+        is_superadmin = False
+        if self.current_user:
+            is_superadmin = (
+                self.current_user.is_superuser or 
+                (hasattr(self.current_user, 'profile') and self.current_user.profile.is_super_admin)
+            )
+            if not is_superadmin:
+                # Exclude super_admin role for non-superadmins
+                roles_queryset = roles_queryset.exclude(name='super_admin')
+                
+                # Hide school field for school admins - they can only assign users to their own school
+                if hasattr(self.current_user, 'profile') and self.current_user.profile.school:
+                    admin_school = self.current_user.profile.school
+                    # Always use HiddenInput for school admins
+                    self.fields['school'].widget = forms.HiddenInput()
+                    # Set the value to the admin's school
+                    if self.instance and self.instance.pk:
+                        # For existing users, the value should already be set from the instance
+                        # But ensure it's the admin's school (view-level checks prevent mismatches)
+                        if self.instance.school != admin_school:
+                            # Force to admin's school (this shouldn't happen due to view checks)
+                            self.fields['school'].initial = admin_school
+                    else:
+                        # For new users, set to admin's school
+                        self.fields['school'].initial = admin_school
+                        self.fields['school'].required = False  # Hidden fields don't need to be required
+                else:
+                    # School admin without a school - hide the field
+                    self.fields['school'].widget = forms.HiddenInput()
+        
+        self.fields['roles'].queryset = roles_queryset
         self.fields['roles'].help_text = 'Select one or more roles for this user'
-        self.fields['school'].help_text = 'Assign user to a school'
+        if is_superadmin:
+            self.fields['school'].help_text = 'Assign user to a school'
+    
+    def clean_school(self):
+        """Validate school assignment - only superadmins can change it"""
+        school = self.cleaned_data.get('school')
+        
+        if self.current_user:
+            is_superadmin = (
+                self.current_user.is_superuser or 
+                (hasattr(self.current_user, 'profile') and self.current_user.profile.is_super_admin)
+            )
+            
+            if not is_superadmin:
+                # School admins can only assign users to their own school
+                if hasattr(self.current_user, 'profile') and self.current_user.profile.school:
+                    admin_school = self.current_user.profile.school
+                    # If editing existing user, check if school is being changed
+                    if self.instance and self.instance.pk:
+                        original_school = self.instance.school
+                        if school != original_school and school != admin_school:
+                            raise ValidationError("You do not have permission to change the school assignment. Only superadmins can reassign users to different schools.")
+                    # For new users or if school matches admin's school, allow it
+                    if school != admin_school:
+                        raise ValidationError("You can only assign users to your own school. Only superadmins can reassign users to different schools.")
+                else:
+                    raise ValidationError("You must be assigned to a school before you can assign users.")
+        
+        return school
     
     def clean_roles(self):
         roles = self.cleaned_data.get('roles')
         if not roles or roles.count() == 0:
             raise ValidationError("Please assign at least one role to this user.")
+        
+        # Prevent school admins from assigning super_admin role
+        if self.current_user:
+            is_superadmin = (
+                self.current_user.is_superuser or 
+                (hasattr(self.current_user, 'profile') and self.current_user.profile.is_super_admin)
+            )
+            if not is_superadmin:
+                super_admin_role = roles.filter(name='super_admin')
+                if super_admin_role.exists():
+                    raise ValidationError("You do not have permission to assign the super_admin role.")
+        
         return roles

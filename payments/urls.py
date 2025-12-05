@@ -7,8 +7,6 @@ urlpatterns = [
     # Payments
     path('', views.payment_list, name='payment_list'),
     path('<uuid:payment_id>/', views.payment_detail, name='payment_detail'),
-    path('<uuid:payment_id>/edit/', views.payment_edit, name='payment_edit'),
-    path('<uuid:payment_id>/delete/', views.payment_delete, name='payment_delete'),
     
     # M-Pesa payments
     path('mpesa/initiate/<int:student_fee_id>/', views.initiate_mpesa_payment, name='initiate_mpesa_payment'),
@@ -22,7 +20,7 @@ urlpatterns = [
     # Receipts
     path('receipts/', views.payment_receipt_list, name='receipt_list'),
     path('receipts/generate/<uuid:payment_id>/', views.generate_receipt, name='generate_receipt'),
-    path('receipts/view/', views.view_receipt, name='view_receipt'),
+    path('receipts/<str:receipt_number>/', views.view_receipt, name='view_receipt'),
     
     # Reminders
     path('reminders/', views.payment_reminder_list, name='reminder_list'),
