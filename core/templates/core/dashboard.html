@@ -86,7 +86,15 @@
     <div class="dashboard-header">
         <div class="dashboard-title">Welcome, {{ user.get_full_name|default:user.username }}</div>
         <div>
-            <span class="badge bg-primary fs-6">{{ current_term|default:'No Active Term' }}</span>
+            {% if current_term %}
+                {% if current_term.name and current_term.name != current_term.academic_year %}
+                    <span class="badge bg-primary fs-6">{{ current_term.name }} ({{ current_term.academic_year }})</span>
+                {% else %}
+                    <span class="badge bg-primary fs-6">{{ current_term.academic_year }}</span>
+                {% endif %}
+            {% else %}
+                <span class="badge bg-secondary fs-6">No Active Term</span>
+            {% endif %}
         </div>
     </div>
     <div class="dashboard-cards">

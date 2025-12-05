@@ -41,7 +41,9 @@ class DashboardService:
             'total_students': total_students,
             'total_terms': Term.objects.filter(school=school).count(),
             'total_grades': Grade.objects.filter(school=school).count(),
-            'current_term': {
+            'current_term': current_term,  # Return the actual Term object for template use
+            'current_term_display': f"{current_term.name} ({current_term.academic_year})" if current_term else None,
+            'current_term_dict': {
                 'id': current_term.id if current_term else None,
                 'name': current_term.name if current_term else None,
                 'academic_year': current_term.academic_year if current_term else None,
