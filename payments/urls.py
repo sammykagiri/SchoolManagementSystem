@@ -20,7 +20,11 @@ urlpatterns = [
     # Receipts
     path('receipts/', views.payment_receipt_list, name='receipt_list'),
     path('receipts/generate/<uuid:payment_id>/', views.generate_receipt, name='generate_receipt'),
-    path('receipts/<str:receipt_number>/', views.view_receipt, name='view_receipt'),
+    # Receipt numbers include slashes (e.g., RCPT/2025/0003), so use <path:...> to allow '/'
+    path('receipts/<path:receipt_number>/', views.view_receipt, name='view_receipt'),
+    
+    # Fee summary
+    path('fees/summary/', views.fee_summary, name='fee_summary'),
     
     # Reminders
     path('reminders/', views.payment_reminder_list, name='reminder_list'),

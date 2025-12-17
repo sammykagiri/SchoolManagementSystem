@@ -4,12 +4,12 @@ from django.contrib import messages
 from django.http import JsonResponse, HttpResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.core.paginator import Paginator
-from django.db.models import Q, Sum
+from django.db.models import Q, Sum, F
 from django.utils import timezone
 from .models import Payment, MpesaPayment, PaymentReceipt, PaymentReminder
 from .mpesa_service import MpesaService
 from communications.services import CommunicationService
-from core.models import Student, StudentFee
+from core.models import Student, StudentFee, Term
 import json
 import uuid
 
@@ -380,6 +380,60 @@ def view_receipt(request, receipt_number):
     }
     
     return render(request, 'payments/view_receipt.html', context)
+
+
+@login_required
+def fee_summary(request):
+    """List students with total fees, amount paid, and balance per academic year/term"""
+    school = request.user.profile.school
+    
+    # Filters
+    year_filter = request.GET.get('year', '')
+    term_filter = request.GET.get('term', '')
+    
+    fees = StudentFee.objects.filter(school=school).select_related('student', 'term', 'student__grade')
+    
+    if year_filter:
+        fees = fees.filter(term__academic_year=year_filter)
+    if term_filter:
+        fees = fees.filter(term_id=term_filter)
+    
+    # Aggregate per student
+    student_fees = fees.values(
+        'student__id',
+        'student__student_id',
+        'student__first_name',
+        'student__last_name',
+        'student__grade__name',
+    ).annotate(
+        total_charged=Sum('amount_charged'),
+        total_paid=Sum('amount_paid'),
+        balance=Sum(F('amount_charged') - F('amount_paid')),
+    ).order_by('student__first_name', 'student__last_name')
+    
+    # Totals
+    totals = fees.aggregate(
+        total_charged=Sum('amount_charged') or 0,
+        total_paid=Sum('amount_paid') or 0,
+    )
+    totals['balance'] = (totals['total_charged'] or 0) - (totals['total_paid'] or 0)
+    
+    # Filter options
+    academic_years = Term.objects.filter(school=school).values_list('academic_year', flat=True).distinct().order_by('-academic_year')
+    terms = Term.objects.filter(school=school).order_by('-academic_year', 'term_number')
+    if year_filter:
+        terms = terms.filter(academic_year=year_filter)
+    
+    context = {
+        'student_fees': student_fees,
+        'totals': totals,
+        'year_filter': year_filter,
+        'term_filter': term_filter,
+        'academic_years': academic_years,
+        'terms': terms,
+    }
+    
+    return render(request, 'payments/fee_summary.html', context)
 
 
 @login_required

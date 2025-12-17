@@ -69,11 +69,11 @@
                         </tr>
                     </thead>
                     <tbody>
-                        {% for resource_type, permissions in grouped_permissions.items %}
+                        {% for resource_type, data in grouped_permissions.items %}
                         <tr>
-                            <td class="module-name">{{ resource_type|title|replace:"_| " }}</td>
+                            <td class="module-name">{{ data.display_name }}</td>
                             <td>
-                                {% for permission in permissions %}
+                                {% for permission in data.items %}
                                     {% if permission.permission_type == "view" %}
                                     <div class="form-check">
                                         <input class="form-check-input" type="checkbox" 
@@ -85,7 +85,7 @@
                                 {% endfor %}
                             </td>
                             <td>
-                                {% for permission in permissions %}
+                                {% for permission in data.items %}
                                     {% if permission.permission_type == "add" %}
                                     <div class="form-check">
                                         <input class="form-check-input" type="checkbox" 
@@ -97,7 +97,7 @@
                                 {% endfor %}
                             </td>
                             <td>
-                                {% for permission in permissions %}
+                                {% for permission in data.items %}
                                     {% if permission.permission_type == "change" %}
                                     <div class="form-check">
                                         <input class="form-check-input" type="checkbox" 
@@ -109,7 +109,7 @@
                                 {% endfor %}
                             </td>
                             <td>
-                                {% for permission in permissions %}
+                                {% for permission in data.items %}
                                     {% if permission.permission_type == "delete" %}
                                     <div class="form-check">
                                         <input class="form-check-input" type="checkbox" 

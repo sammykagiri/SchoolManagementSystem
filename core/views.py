@@ -1166,10 +1166,13 @@ def role_permissions(request, role_id):
     # Group permissions by resource type
     for perm in all_permissions:
         if perm.resource_type not in grouped_permissions:
-            grouped_permissions[perm.resource_type] = []
+            grouped_permissions[perm.resource_type] = {
+                'display_name': perm.resource_type.replace('_', ' ').title(),
+                'items': []
+            }
         
         # Add permission with checked status
-        grouped_permissions[perm.resource_type].append({
+        grouped_permissions[perm.resource_type]['items'].append({
             'id': perm.id,
             'permission_type': perm.permission_type,
             'resource_type': perm.resource_type,
