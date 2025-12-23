@@ -4,7 +4,7 @@ from django.contrib import messages
 from django.http import JsonResponse, HttpResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.core.paginator import Paginator
-from django.db.models import Q, Sum, F
+from django.db.models import Q, Sum, F, Case, When, Value, DecimalField
 from django.utils import timezone
 from .models import Payment, MpesaPayment, PaymentReceipt, PaymentReminder
 from .mpesa_service import MpesaService
@@ -390,8 +390,13 @@ def fee_summary(request):
     # Filters
     year_filter = request.GET.get('year', '')
     term_filter = request.GET.get('term', '')
+    show_inactive = request.GET.get('show_inactive', 'false').lower() == 'true'
     
     fees = StudentFee.objects.filter(school=school).select_related('student', 'term', 'student__grade')
+    
+    # Filter by active status (default: show active only)
+    if not show_inactive:
+        fees = fees.filter(student__is_active=True)
     
     if year_filter:
         fees = fees.filter(term__academic_year=year_filter)
@@ -405,16 +410,45 @@ def fee_summary(request):
         'student__first_name',
         'student__last_name',
         'student__grade__name',
+        'student__is_active',
     ).annotate(
         total_charged=Sum('amount_charged'),
         total_paid=Sum('amount_paid'),
-        balance=Sum(F('amount_charged') - F('amount_paid')),
-    ).order_by('student__first_name', 'student__last_name')
+        balance=Sum(F('amount_charged') - F('amount_paid'), output_field=DecimalField()),
+        unpaid=Sum(
+            Case(
+                When(amount_charged__gt=F('amount_paid'), then=F('amount_charged') - F('amount_paid')),
+                default=Value(0, output_field=DecimalField())
+            ),
+            output_field=DecimalField()
+        ),
+        credit=Sum(
+            Case(
+                When(amount_paid__gt=F('amount_charged'), then=F('amount_paid') - F('amount_charged')),
+                default=Value(0, output_field=DecimalField())
+            ),
+            output_field=DecimalField()
+        ),
+    ).order_by('-student__is_active', 'student__first_name', 'student__last_name')
     
     # Totals
     totals = fees.aggregate(
-        total_charged=Sum('amount_charged') or 0,
-        total_paid=Sum('amount_paid') or 0,
+        total_charged=Sum('amount_charged', output_field=DecimalField()) or 0,
+        total_paid=Sum('amount_paid', output_field=DecimalField()) or 0,
+        total_unpaid=Sum(
+            Case(
+                When(amount_charged__gt=F('amount_paid'), then=F('amount_charged') - F('amount_paid')),
+                default=Value(0, output_field=DecimalField())
+            ),
+            output_field=DecimalField()
+        ) or 0,
+        total_credit=Sum(
+            Case(
+                When(amount_paid__gt=F('amount_charged'), then=F('amount_paid') - F('amount_charged')),
+                default=Value(0, output_field=DecimalField())
+            ),
+            output_field=DecimalField()
+        ) or 0,
     )
     totals['balance'] = (totals['total_charged'] or 0) - (totals['total_paid'] or 0)
     
@@ -431,6 +465,7 @@ def fee_summary(request):
         'term_filter': term_filter,
         'academic_years': academic_years,
         'terms': terms,
+        'show_inactive': show_inactive,
     }
     
     return render(request, 'payments/fee_summary.html', context)

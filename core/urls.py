@@ -52,7 +52,7 @@ urlpatterns = [
     path('api/transport-routes/', views.get_transport_routes, name='get_transport_routes'),
 
     # Authentication
-    path('login/', auth_views.LoginView.as_view(template_name='auth/login.html'), name='login'),
+    path('login/', views.CustomLoginView.as_view(), name='login'),
     path('logout/', auth_views.LogoutView.as_view(template_name='auth/logout.html'), name='logout'),
     path('password_reset/', auth_views.PasswordResetView.as_view(template_name='auth/password_reset_form.html'), name='password_reset'),
     path('password_reset/done/', auth_views.PasswordResetDoneView.as_view(template_name='auth/password_reset_done.html'), name='password_reset_done'),

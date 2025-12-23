@@ -16,3 +16,6 @@ def replace(value, args):
     old, new = args.split('|', 1)
     return str(value).replace(old, new)
 
+
+
+

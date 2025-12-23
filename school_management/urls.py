@@ -19,6 +19,7 @@ from django.urls import path, include
 from django.conf import settings
 from django.conf.urls.static import static
 from django.contrib.auth import views as auth_views
+from core import views as core_views
 
 urlpatterns = [
     path('admin/', admin.site.urls),
@@ -29,7 +30,7 @@ urlpatterns = [
     path('timetable/', include('timetable.urls')),
     path('exams/', include('exams.urls')),
     path('homework/', include('homework.urls')),
-    path('accounts/login/', auth_views.LoginView.as_view(template_name='auth/login.html'), name='login'),
+    path('accounts/login/', core_views.CustomLoginView.as_view(), name='login'),
     path('accounts/logout/', auth_views.LogoutView.as_view(template_name='auth/logout.html'), name='logout'),
     path('accounts/password_reset/', auth_views.PasswordResetView.as_view(template_name='auth/password_reset_form.html'), name='password_reset'),
     path('accounts/password_reset/done/', auth_views.PasswordResetDoneView.as_view(template_name='auth/password_reset_done.html'), name='password_reset_done'),

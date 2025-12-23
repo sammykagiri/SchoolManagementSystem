@@ -17,8 +17,8 @@
 
     <div class="card shadow-sm mb-4">
         <div class="card-body">
-            <form method="get" class="row g-3">
-                <div class="col-md-4">
+            <form method="get" action="{% url 'payments:fee_summary' %}" id="feeSummaryFilterForm" class="row g-3">
+                <div class="col-md-3">
                     <label for="year" class="form-label">Academic Year</label>
                     <select name="year" id="year" class="form-select" onchange="this.form.submit()">
                         <option value="">All years</option>
@@ -27,7 +27,7 @@
                         {% endfor %}
                     </select>
                 </div>
-                <div class="col-md-4">
+                <div class="col-md-3">
                     <label for="term" class="form-label">Term</label>
                     <select name="term" id="term" class="form-select" onchange="this.form.submit()">
                         <option value="">All terms</option>
@@ -38,9 +38,22 @@
                         {% endfor %}
                     </select>
                 </div>
-                <div class="col-md-4 d-flex align-items-end">
+                <div class="col-md-3 d-flex align-items-end">
+                    <div class="form-check form-switch w-100">
+                        <input class="form-check-input" type="checkbox" id="showInactive" {% if show_inactive %}checked{% endif %}>
+                        <label class="form-check-label" for="showInactive">Show Inactive Students</label>
+                    </div>
+                </div>
+                <div class="col-md-3 d-flex align-items-end">
                     <a href="{% url 'payments:fee_summary' %}" class="btn btn-outline-secondary w-100">Reset Filters</a>
                 </div>
+                <input type="hidden" name="show_inactive" id="showInactiveHidden" value="{% if show_inactive %}true{% else %}false{% endif %}">
+                {% if year_filter %}
+                    <input type="hidden" name="year" value="{{ year_filter }}">
+                {% endif %}
+                {% if term_filter %}
+                    <input type="hidden" name="term" value="{{ term_filter }}">
+                {% endif %}
             </form>
         </div>
     </div>
@@ -54,7 +67,9 @@
                     <div class="fw-bold">
                         Charged: {{ totals.total_charged|floatformat:2 }} |
                         Paid: {{ totals.total_paid|floatformat:2 }} |
-                        Balance: {{ totals.balance|floatformat:2 }}
+                        Unpaid: {{ totals.total_unpaid|floatformat:2 }} |
+                        Credit: {{ totals.total_credit|floatformat:2 }} |
+                        Net Balance: {{ totals.balance|floatformat:2 }}
                     </div>
                 </div>
             </div>
@@ -69,22 +84,31 @@
                             <th>Grade</th>
                             <th class="text-end">Total Charged</th>
                             <th class="text-end">Total Paid</th>
+                            <th class="text-end">Unpaid</th>
+                            <th class="text-end">Credit</th>
                             <th class="text-end">Balance</th>
                         </tr>
                     </thead>
                     <tbody>
                         {% for item in student_fees %}
-                        <tr>
-                            <td>{{ item.student__student_id }}</td>
+                        <tr class="{% if not item.student__is_active %}table-secondary opacity-75{% endif %}">
+                            <td>
+                                {{ item.student__student_id }}
+                                {% if not item.student__is_active %}
+                                    <span class="badge bg-secondary ms-1">Inactive</span>
+                                {% endif %}
+                            </td>
                             <td>{{ item.student__first_name }} {{ item.student__last_name }}</td>
                             <td>{{ item.student__grade__name|default:'—' }}</td>
                             <td class="text-end">{{ item.total_charged|floatformat:2 }}</td>
                             <td class="text-end">{{ item.total_paid|floatformat:2 }}</td>
+                            <td class="text-end">{{ item.unpaid|floatformat:2 }}</td>
+                            <td class="text-end text-success">{{ item.credit|floatformat:2 }}</td>
                             <td class="text-end">{{ item.balance|floatformat:2 }}</td>
                         </tr>
                         {% empty %}
                         <tr>
-                            <td colspan="6" class="text-center py-4 text-muted">
+                            <td colspan="8" class="text-center py-4 text-muted">
                                 No fee records found for the selected filters.
                             </td>
                         </tr>
@@ -95,5 +119,55 @@
         </div>
     </div>
 </div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const showInactiveCheckbox = document.getElementById('showInactive');
+    const showInactiveHidden = document.getElementById('showInactiveHidden');
+    const filterForm = document.getElementById('feeSummaryFilterForm');
+    
+    // Handle show inactive checkbox toggle
+    if (showInactiveCheckbox && showInactiveHidden && filterForm) {
+        showInactiveCheckbox.addEventListener('change', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            
+            // Update hidden input value
+            showInactiveHidden.value = this.checked ? 'true' : 'false';
+            
+            // Get current URL parameters
+            const currentParams = new URLSearchParams(window.location.search);
+            
+            // Update or remove show_inactive parameter
+            if (this.checked) {
+                currentParams.set('show_inactive', 'true');
+            } else {
+                currentParams.delete('show_inactive');
+            }
+            
+            // Preserve other filters
+            const yearSelect = document.getElementById('year');
+            const termSelect = document.getElementById('term');
+            
+            if (yearSelect && yearSelect.value) {
+                currentParams.set('year', yearSelect.value);
+            } else {
+                currentParams.delete('year');
+            }
+            
+            if (termSelect && termSelect.value) {
+                currentParams.set('term', termSelect.value);
+            } else {
+                currentParams.delete('term');
+            }
+            
+            // Build the correct URL - use the form's action or construct from current location
+            const baseUrl = filterForm.action || window.location.pathname;
+            const newUrl = baseUrl + (currentParams.toString() ? '?' + currentParams.toString() : '');
+            window.location.href = newUrl;
+        });
+    }
+});
+</script>
 {% endblock %}
 

@@ -27,6 +27,18 @@ from rest_framework import permissions
 from .services import DashboardService, StudentService
 from .decorators import role_required
 from django.core.exceptions import PermissionDenied
+from django.contrib.auth.views import LoginView
+
+
+class CustomLoginView(LoginView):
+    """Custom login view that redirects authenticated users"""
+    template_name = 'auth/login.html'
+    
+    def dispatch(self, request, *args, **kwargs):
+        # If user is already authenticated, redirect to dashboard
+        if request.user.is_authenticated:
+            return redirect('core:dashboard')
+        return super().dispatch(request, *args, **kwargs)
 
 
 def is_superadmin_user(user):
@@ -84,9 +96,13 @@ def student_list(request):
     """List all students"""
     school = request.user.profile.school
     students = Student.objects.filter(
-        school=school,
-        is_active=True
+        school=school
     ).select_related('grade', 'transport_route').prefetch_related('parents__user')
+    
+    # Filter by active status (default: show active only)
+    show_inactive = request.GET.get('show_inactive', 'false').lower() == 'true'
+    if not show_inactive:
+        students = students.filter(is_active=True)
     
     # Search functionality
     search_query = request.GET.get('search', '')
@@ -103,6 +119,9 @@ def student_list(request):
     grade_filter = request.GET.get('grade', '')
     if grade_filter:
         students = students.filter(grade_id=grade_filter)
+    
+    # Order by active status first, then by name
+    students = students.order_by('-is_active', 'first_name', 'last_name')
     
     # Pagination
     paginator = Paginator(students, 20)
@@ -125,6 +144,7 @@ def student_list(request):
         'grades': grades,
         'search_query': search_query,
         'grade_filter': grade_filter,
+        'show_inactive': show_inactive,
     }
     
     return render(request, 'core/student_list.html', context)
@@ -434,7 +454,10 @@ def term_delete(request, term_id):
 @role_required('super_admin', 'school_admin', 'accountant')
 def fee_structure_list(request):
     """List fee structures"""
-    fee_structures = FeeStructure.objects.filter(is_active=True).select_related(
+    school = request.user.profile.school
+    fee_structures = FeeStructure.objects.filter(
+        is_active=True, school=school
+    ).select_related(
         'grade', 'term', 'fee_category'
     ).order_by('grade__name', 'term__academic_year', 'term__term_number')
     
@@ -455,6 +478,7 @@ def fee_structure_list(request):
         
         try:
             FeeStructure.objects.create(
+                school=school,
                 grade_id=grade_id,
                 term_id=term_id,
                 fee_category_id=fee_category_id,
@@ -465,9 +489,9 @@ def fee_structure_list(request):
         except Exception as e:
             messages.error(request, f'Error creating fee structure: {str(e)}')
     
-    grades = Grade.objects.all()
-    terms = Term.objects.all().order_by('-academic_year', '-term_number')
-    fee_categories = FeeCategory.objects.all()
+    grades = Grade.objects.filter(school=school)
+    terms = Term.objects.filter(school=school).order_by('-academic_year', '-term_number')
+    fee_categories = FeeCategory.objects.filter(school=school)
     
     context = {
         'fee_structures': fee_structures,
@@ -520,6 +544,7 @@ def generate_student_fees(request):
                     
                     # Create or update student fee
                     student_fee, created = StudentFee.objects.get_or_create(
+                        school=student.school,
                         student=student,
                         term=term,
                         fee_category=fee_structure.fee_category,
