@@ -265,6 +265,129 @@ def attendance_list(request):
 
 
 @login_required
+def attendance_edit(request, attendance_id):
+    """Edit an attendance record"""
+    school = request.user.profile.school
+    attendance = get_object_or_404(Attendance, id=attendance_id, school=school)
+    
+    if request.method == 'POST':
+        date_str = request.POST.get('date', '')
+        status = request.POST.get('status', 'present')
+        remarks = request.POST.get('remarks', '')
+        class_id = request.POST.get('class_id', '')
+        
+        # Parse date string to date object
+        try:
+            attendance_date = datetime.strptime(date_str, '%Y-%m-%d').date()
+        except (ValueError, TypeError):
+            attendance_date = attendance.date
+            messages.warning(request, 'Invalid date format. Using original date.')
+        
+        # Validate that the attendance date falls within a term's date range
+        matching_term = Term.objects.filter(
+            school=school,
+            start_date__lte=attendance_date,
+            end_date__gte=attendance_date
+        ).first()
+        
+        if not matching_term:
+            messages.error(
+                request, 
+                f'Cannot update attendance for {attendance_date.strftime("%B %d, %Y")}. '
+                f'This date does not fall within any term\'s date range. '
+                f'Please select a date that is within an active term period or update your term dates.'
+            )
+            # Redirect back to edit form with the invalid date
+            redirect_url = f"{reverse('attendance:attendance_edit', args=[attendance_id])}?date={date_str}"
+            return redirect(redirect_url)
+        
+        # Check if changing the date would create a duplicate
+        # (same student, same date, but different attendance record)
+        if attendance_date != attendance.date:
+            existing_attendance = Attendance.objects.filter(
+                school=school,
+                student_id=attendance.student_id,
+                date=attendance_date
+            ).exclude(id=attendance_id).first()
+            
+            if existing_attendance:
+                messages.error(
+                    request,
+                    f'Cannot update: An attendance record already exists for {attendance.student.full_name} on {attendance_date.strftime("%B %d, %Y")}. '
+                    f'Please edit or delete the existing record first, or choose a different date.'
+                )
+                redirect_url = f"{reverse('attendance:attendance_edit', args=[attendance_id])}?date={date_str}"
+                return redirect(redirect_url)
+        
+        # Update attendance
+        attendance.date = attendance_date
+        attendance.status = status
+        attendance.remarks = remarks
+        attendance.school_class_id = class_id if class_id else None
+        attendance.marked_by = request.user
+        attendance.save()
+        
+        messages.success(request, 'Attendance updated successfully!')
+        return redirect('attendance:attendance_list')
+    
+    # GET request - show edit form
+    classes = SchoolClass.objects.filter(school=school, is_active=True).order_by('name')
+    terms = Term.objects.filter(school=school).order_by('-academic_year', '-term_number')
+    
+    # Check if a date was provided in query params (for validation feedback)
+    date_str = request.GET.get('date', '')
+    date_to_check = attendance.date
+    
+    if date_str:
+        try:
+            date_to_check = datetime.strptime(date_str, '%Y-%m-%d').date()
+        except (ValueError, TypeError):
+            pass
+    
+    # Check if date is valid
+    matching_term = Term.objects.filter(
+        school=school,
+        start_date__lte=date_to_check,
+        end_date__gte=date_to_check
+    ).first()
+    
+    date_valid = matching_term is not None
+    
+    # Ensure date_str is in YYYY-MM-DD format for the template
+    date_str_for_template = date_to_check.strftime('%Y-%m-%d')
+    
+    context = {
+        'attendance': attendance,
+        'classes': classes,
+        'terms': terms,
+        'matching_term': matching_term,
+        'date_valid': date_valid,
+        'attendance_date': date_to_check,
+        'date': date_str_for_template,  # Add date string for template
+    }
+    return render(request, 'attendance/attendance_edit.html', context)
+
+
+@login_required
+def attendance_delete(request, attendance_id):
+    """Delete an attendance record"""
+    school = request.user.profile.school
+    attendance = get_object_or_404(Attendance, id=attendance_id, school=school)
+    
+    if request.method == 'POST':
+        student_name = attendance.student.full_name
+        attendance_date = attendance.date
+        attendance.delete()
+        messages.success(request, f'Attendance for {student_name} on {attendance_date} has been deleted.')
+        return redirect('attendance:attendance_list')
+    
+    context = {
+        'attendance': attendance,
+    }
+    return render(request, 'attendance/attendance_confirm_delete.html', context)
+
+
+@login_required
 def mark_attendance(request):
     """Mark attendance for students"""
     school = request.user.profile.school

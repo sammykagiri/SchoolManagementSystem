@@ -1,0 +1,115 @@
+{% extends 'base.html' %}
+{% block title %}Edit Attendance | School Management System{% endblock %}
+{% block content %}
+<div class="container py-4">
+    <h2 class="mb-4">Edit Attendance</h2>
+    
+    <form method="post" class="mt-4" id="attendanceEditForm">
+        {% csrf_token %}
+        
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">Edit Attendance for {{ attendance.student.full_name }}</h5>
+            </div>
+            <div class="card-body">
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <label class="form-label">Date</label>
+                        <input type="date" name="date" id="dateInput" class="form-control {% if not date_valid %}is-invalid{% endif %}" value="{% if attendance_date %}{{ attendance_date|date:'Y-m-d' }}{% else %}{{ attendance.date|date:'Y-m-d' }}{% endif %}" required>
+                        {% if not date_valid %}
+                        <div class="invalid-feedback">
+                            This date is not within any term's date range.
+                        </div>
+                        {% else %}
+                        <small class="form-text text-muted">Date must be within a term's date range</small>
+                        {% endif %}
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">Class</label>
+                        <select name="class_id" id="classSelect" class="form-select">
+                            <option value="">No Class</option>
+                            {% for class in classes %}
+                                <option value="{{ class.id }}" {% if attendance.school_class and attendance.school_class.id == class.id %}selected{% endif %}>{{ class.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">Status</label>
+                        <select name="status" class="form-select" required>
+                            <option value="present" {% if attendance.status == 'present' %}selected{% endif %}>Present</option>
+                            <option value="absent" {% if attendance.status == 'absent' %}selected{% endif %}>Absent</option>
+                            <option value="late" {% if attendance.status == 'late' %}selected{% endif %}>Late</option>
+                            <option value="excused" {% if attendance.status == 'excused' %}selected{% endif %}>Excused</option>
+                        </select>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">Remarks</label>
+                        <input type="text" name="remarks" class="form-control" value="{{ attendance.remarks|default:'' }}" placeholder="Optional remarks">
+                    </div>
+                </div>
+                
+                {% if not date_valid %}
+                <div class="alert alert-warning mt-3 mb-0">
+                    <i class="fas fa-exclamation-triangle me-2"></i>
+                    <strong>Invalid Date:</strong> The selected date (<strong>{% if attendance_date %}{{ attendance_date|date:"F d, Y" }}{% else %}{{ attendance.date|date:"F d, Y" }}{% endif %}</strong>) does not fall within any term's date range.
+                    {% if terms %}
+                    <p class="mb-0 mt-2">
+                        <strong>Available terms:</strong>
+                        <ul class="mb-0">
+                            {% for term in terms %}
+                            <li>{{ term.get_display_name }} - {{ term.academic_year }}: {{ term.start_date|date:"M d, Y" }} to {{ term.end_date|date:"M d, Y" }}</li>
+                            {% endfor %}
+                        </ul>
+                    </p>
+                    <p class="mb-0 mt-2">
+                        <a href="{% url 'core:term_list' %}" class="btn btn-sm btn-primary">Manage Terms</a>
+                    </p>
+                    {% else %}
+                    <p class="mb-0 mt-2">No terms have been created yet. Please create a term first.</p>
+                    {% endif %}
+                </div>
+                {% elif matching_term %}
+                <div class="alert alert-info mt-3 mb-0">
+                    <i class="fas fa-info-circle me-2"></i>
+                    <strong>Term:</strong> {{ matching_term.get_display_name }} - {{ matching_term.academic_year }}
+                    ({{ matching_term.start_date|date:"M d, Y" }} to {{ matching_term.end_date|date:"M d, Y" }})
+                </div>
+                {% endif %}
+            </div>
+            <div class="card-footer">
+                <button type="submit" class="btn btn-primary" {% if not date_valid %}disabled{% endif %}><i class="fas fa-save me-2"></i>Update Attendance</button>
+                <a href="{% url 'attendance:attendance_list' %}" class="btn btn-secondary">Cancel</a>
+            </div>
+        </div>
+    </form>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const dateInput = document.getElementById('dateInput');
+    const attendanceEditForm = document.getElementById('attendanceEditForm');
+    const submitButton = attendanceEditForm ? attendanceEditForm.querySelector('button[type="submit"]') : null;
+    
+    // Auto-validate date on change by reloading the page with the new date
+    if (dateInput) {
+        dateInput.addEventListener('change', function() {
+            // Build URL with current attendance ID and new date
+            const currentUrl = window.location.pathname;
+            const newUrl = currentUrl + '?date=' + dateInput.value;
+            window.location.href = newUrl;
+        });
+    }
+    
+    // Prevent form submission if date is invalid (client-side check)
+    {% if not date_valid %}
+    if (attendanceEditForm && submitButton) {
+        attendanceEditForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            alert('Cannot update attendance: The selected date is not within any term\'s date range. Please select a valid date.');
+            return false;
+        });
+    }
+    {% endif %}
+});
+</script>
+{% endblock %}
