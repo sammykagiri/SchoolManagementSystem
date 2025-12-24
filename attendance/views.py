@@ -4,10 +4,11 @@ from rest_framework.response import Response
 from django.db.models import Q, Count, Sum
 from django.utils import timezone
 from django.shortcuts import render, redirect, get_object_or_404
+from django.urls import reverse
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.core.paginator import Paginator
-from datetime import date, timedelta
+from datetime import date, timedelta, datetime
 from .models import Attendance, AttendanceSummary
 from .serializers import AttendanceSerializer, AttendanceSummarySerializer
 from core.models import Student, Term, SchoolClass
@@ -269,7 +270,10 @@ def mark_attendance(request):
     school = request.user.profile.school
     
     if request.method == 'POST':
-        date_str = request.POST.get('date', str(timezone.now().date()))
+        date_str = request.POST.get('date', '')
+        if not date_str:
+            date_str = str(timezone.now().date())
+        
         class_id = request.POST.get('class_id')
         students_data = request.POST.getlist('students')
         statuses = request.POST.getlist('status')
@@ -278,6 +282,34 @@ def mark_attendance(request):
         if not students_data:
             messages.error(request, 'No students selected.')
             return redirect('attendance:mark_attendance')
+        
+        # Parse date string to date object
+        try:
+            attendance_date = datetime.strptime(date_str, '%Y-%m-%d').date()
+        except (ValueError, TypeError) as e:
+            # If date parsing fails, use current date and show warning
+            attendance_date = timezone.now().date()
+            messages.warning(request, f'Invalid date format. Using today\'s date: {attendance_date}')
+        
+        # Validate that the attendance date falls within a term's date range
+        matching_term = Term.objects.filter(
+            school=school,
+            start_date__lte=attendance_date,
+            end_date__gte=attendance_date
+        ).first()
+        
+        if not matching_term:
+            messages.error(
+                request, 
+                f'Cannot mark attendance for {attendance_date.strftime("%B %d, %Y")}. '
+                f'This date does not fall within any term\'s date range. '
+                f'Please select a date that is within an active term period or update your term dates.'
+            )
+            # Redirect back to mark attendance with the same date and class
+            redirect_url = f"{reverse('attendance:mark_attendance')}?date={date_str}"
+            if class_id:
+                redirect_url += f"&class_id={class_id}"
+            return redirect(redirect_url)
         
         created_count = 0
         updated_count = 0
@@ -289,7 +321,7 @@ def mark_attendance(request):
             attendance, created = Attendance.objects.update_or_create(
                 school=school,
                 student_id=student_id,
-                date=date_str,
+                date=attendance_date,
                 defaults={
                     'status': status_val,
                     'remarks': remarks,
@@ -304,11 +336,50 @@ def mark_attendance(request):
                 updated_count += 1
         
         messages.success(request, f'Attendance marked for {len(students_data)} students ({created_count} new, {updated_count} updated)')
+        # Redirect to attendance list page
         return redirect('attendance:attendance_list')
     
     # GET request - show form
     class_id = request.GET.get('class_id', '')
-    date_str = request.GET.get('date', str(timezone.now().date()))
+    date_str = request.GET.get('date', '')
+    
+    # If no date provided, use today's date
+    if not date_str:
+        date_str = str(timezone.now().date())
+    
+    # Parse date string to date object
+    attendance_date = None
+    try:
+        # Try parsing as YYYY-MM-DD format first (HTML date input format)
+        attendance_date = datetime.strptime(date_str, '%Y-%m-%d').date()
+    except (ValueError, TypeError):
+        try:
+            # Try parsing as DD/MM/YYYY format
+            attendance_date = datetime.strptime(date_str, '%d/%m/%Y').date()
+        except (ValueError, TypeError):
+            try:
+                # Try parsing as MM/DD/YYYY format
+                attendance_date = datetime.strptime(date_str, '%m/%d/%Y').date()
+            except (ValueError, TypeError):
+                # If all parsing fails, use current date
+                attendance_date = timezone.now().date()
+                date_str = str(attendance_date)
+    
+    # Ensure date_str is in YYYY-MM-DD format for the template
+    date_str = attendance_date.strftime('%Y-%m-%d')
+    
+    # Check if the selected date falls within any term's date range
+    # Note: We check all terms, not just active ones, to allow attendance for any term period
+    matching_term = Term.objects.filter(
+        school=school,
+        start_date__lte=attendance_date,
+        end_date__gte=attendance_date
+    ).first()
+    
+    date_valid = matching_term is not None
+    
+    # Get all terms for reference
+    terms = Term.objects.filter(school=school).order_by('-academic_year', '-term_number')
     
     students = Student.objects.filter(school=school, is_active=True)
     if class_id:
@@ -318,8 +389,8 @@ def mark_attendance(request):
     
     # Get existing attendance for the date
     existing_attendance = {}
-    if date_str:
-        for att in Attendance.objects.filter(school=school, date=date_str).select_related('student'):
+    if attendance_date and date_valid:
+        for att in Attendance.objects.filter(school=school, date=attendance_date).select_related('student'):
             existing_attendance[att.student_id] = {
                 'status': att.status,
                 'remarks': att.remarks or '',
@@ -327,28 +398,66 @@ def mark_attendance(request):
     
     # Prepare students with their existing attendance status
     students_with_attendance = []
-    for student in students.order_by('first_name', 'last_name'):
-        existing = existing_attendance.get(student.id, {})
-        student_data = {
-            'student': student,
-            'existing_status': existing.get('status', 'present'),
-            'existing_remarks': existing.get('remarks', ''),
-        }
-        students_with_attendance.append(student_data)
+    if date_valid:
+        for student in students.order_by('first_name', 'last_name'):
+            existing = existing_attendance.get(student.id, {})
+            student_data = {
+                'student': student,
+                'existing_status': existing.get('status', 'present'),
+                'existing_remarks': existing.get('remarks', ''),
+            }
+            students_with_attendance.append(student_data)
     
     context = {
         'students_with_attendance': students_with_attendance,
         'classes': classes,
         'class_id': class_id,
         'date': date_str,
+        'attendance_date': attendance_date,  # Pass the date object for template formatting
+        'date_valid': date_valid,
+        'matching_term': matching_term,
+        'terms': terms,
     }
     return render(request, 'attendance/mark_attendance.html', context)
 
 
 @login_required
 def attendance_summary(request):
-    """View attendance summaries"""
+    """View attendance summaries - auto-generates summaries if missing"""
     school = request.user.profile.school
+    from .services import AttendanceService
+    from .models import Attendance
+    
+    # Auto-generate summaries for student-term combinations that have attendance
+    # Get all attendance records and find their corresponding terms
+    attendance_records = Attendance.objects.filter(school=school).select_related('student')
+    
+    # Track attendance records that don't match any term
+    unmatched_attendance = []
+    
+    # Process each attendance record to ensure summaries are created/updated
+    processed_combinations = set()
+    for attendance in attendance_records:
+        # Find which term this attendance belongs to
+        term = Term.objects.filter(
+            school=school,
+            start_date__lte=attendance.date,
+            end_date__gte=attendance.date
+        ).first()
+        
+        if term:
+            key = (attendance.student_id, term.id)
+            if key not in processed_combinations:
+                try:
+                    student = Student.objects.get(id=attendance.student_id, school=school, is_active=True)
+                    AttendanceService.update_attendance_summary(student, term)
+                    processed_combinations.add(key)
+                except Student.DoesNotExist:
+                    continue
+        else:
+            # Track attendance that doesn't match any term
+            unmatched_attendance.append(attendance.date)
+    
     summaries = AttendanceSummary.objects.filter(school=school).select_related(
         'student', 'term'
     ).order_by('-term', 'student')
@@ -367,14 +476,24 @@ def attendance_summary(request):
     page_number = request.GET.get('page')
     page_obj = paginator.get_page(page_number)
     
+    # Get terms and students for filters
     terms = Term.objects.filter(school=school).order_by('-academic_year', '-term_number')
-    students = Student.objects.filter(school=school, is_active=True).order_by('first_name')
+    students_list = Student.objects.filter(school=school, is_active=True).order_by('first_name')
+    
+    # Get unique unmatched dates for display
+    unmatched_dates = sorted(set(unmatched_attendance)) if unmatched_attendance else []
+    
+    # Check if all summaries have 0 days (meaning no attendance matches term dates)
+    all_zero = all(summary.total_days == 0 for summary in page_obj) if page_obj else False
     
     context = {
         'page_obj': page_obj,
         'terms': terms,
-        'students': students,
+        'students': students_list,
         'term_id': term_id,
         'student_id': student_id,
+        'unmatched_dates': unmatched_dates,
+        'has_attendance': attendance_records.exists(),
+        'all_zero': all_zero,
     }
     return render(request, 'attendance/attendance_summary.html', context)

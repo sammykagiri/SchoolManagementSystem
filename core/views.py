@@ -442,8 +442,14 @@ def term_add(request):
             for error in errors:
                 messages.error(request, error)
             return render(request, 'core/term_form.html', {'term': None, 'post': request.POST, 'TERM_CHOICES': TERM_CHOICES})
+        
+        # Generate term name from term_number
+        term_name_map = {'1': 'First Term', '2': 'Second Term', '3': 'Third Term'}
+        term_name = term_name_map.get(term_number, f'Term {term_number}')
+        
         Term.objects.create(
             school=school,
+            name=term_name,
             term_number=term_number,
             academic_year=academic_year,
             start_date=start_date,
@@ -497,6 +503,12 @@ def term_edit(request, term_id):
             for error in errors:
                 messages.error(request, error)
             return render(request, 'core/term_form.html', {'term': term, 'post': request.POST, 'TERM_CHOICES': TERM_CHOICES})
+        
+        # Generate term name from term_number
+        term_name_map = {'1': 'First Term', '2': 'Second Term', '3': 'Third Term'}
+        term_name = term_name_map.get(term_number, f'Term {term_number}')
+        
+        term.name = term_name
         term.term_number = term_number
         term.academic_year = academic_year
         term.start_date = start_date

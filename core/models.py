@@ -57,8 +57,15 @@ class Term(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
+    def get_display_name(self):
+        """Get the display name for the term, generating it from term_number if name is empty"""
+        if self.name:
+            return self.name
+        term_name_map = {'1': 'First Term', '2': 'Second Term', '3': 'Third Term'}
+        return term_name_map.get(self.term_number, f'Term {self.term_number}')
+    
     def __str__(self):
-        return f"{self.name} - {self.academic_year}"
+        return f"{self.get_display_name()} - {self.academic_year}"
 
     class Meta:
         unique_together = ['school', 'term_number', 'academic_year']

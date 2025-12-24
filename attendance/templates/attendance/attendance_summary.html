@@ -9,7 +9,7 @@
             <select name="term_id" class="form-select">
                 <option value="">All Terms</option>
                 {% for term in terms %}
-                    <option value="{{ term.id }}" {% if term_id|default:'' == term.id|stringformat:'s' %}selected{% endif %}>{{ term.name }} - {{ term.academic_year }}</option>
+                    <option value="{{ term.id }}" {% if term_id|default:'' == term.id|stringformat:'s' %}selected{% endif %}>{{ term.get_display_name }} - {{ term.academic_year }}</option>
                 {% endfor %}
             </select>
         </div>
@@ -45,10 +45,45 @@
                     </tr>
                 </thead>
                 <tbody>
+                    {% if all_zero and has_attendance %}
+                    <tr>
+                        <td colspan="8" class="text-center py-4">
+                            {% if unmatched_dates %}
+                            <div class="alert alert-warning mb-0">
+                                <i class="fas fa-exclamation-triangle me-2"></i>
+                                <strong>No attendance summaries with data found.</strong>
+                                <p class="mb-2 mt-2">Attendance records exist for the following dates, but they don't match any term's date range:</p>
+                                <ul class="list-unstyled mb-0">
+                                    {% for date in unmatched_dates %}
+                                    <li>• <strong>{{ date|date:"F d, Y" }}</strong></li>
+                                    {% endfor %}
+                                </ul>
+                                {% if terms %}
+                                <p class="mb-0 mt-3">
+                                    <strong>Your current term:</strong> {{ terms.0.get_display_name }} - {{ terms.0.academic_year }}<br>
+                                    <small class="text-muted">Term dates: {{ terms.0.start_date|date:"M d, Y" }} to {{ terms.0.end_date|date:"M d, Y" }}</small>
+                                </p>
+                                {% endif %}
+                                <p class="mb-0 mt-2 small">
+                                    <strong>Solution:</strong> Please update your term's end date to include these attendance dates, or create a new term that covers them.
+                                    <a href="{% url 'core:term_list' %}" class="btn btn-sm btn-primary mt-2">Manage Terms</a>
+                                </p>
+                            </div>
+                            {% else %}
+                            <div class="alert alert-info mb-0">
+                                <i class="fas fa-info-circle me-2"></i>
+                                <strong>No attendance summaries with data found.</strong>
+                                <p class="mb-0 mt-2 small">This usually means term dates (start_date and end_date) don't include the attendance dates. Please check and update your term dates in the Terms management page.</p>
+                            </div>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% else %}
                     {% for summary in page_obj %}
+                    {% if summary.total_days > 0 %}
                     <tr>
                         <td>{{ summary.student.full_name }}</td>
-                        <td>{{ summary.term.name }} - {{ summary.term.academic_year }}</td>
+                        <td>{{ summary.term.get_display_name }} - {{ summary.term.academic_year }}</td>
                         <td>{{ summary.total_days }}</td>
                         <td>{{ summary.days_present }}</td>
                         <td>{{ summary.days_absent }}</td>
@@ -56,15 +91,30 @@
                         <td>{{ summary.days_excused }}</td>
                         <td>
                             <span class="badge {% if summary.attendance_percentage >= 80 %}bg-success{% elif summary.attendance_percentage >= 60 %}bg-warning{% else %}bg-danger{% endif %}">
-                                {{ summary.attendance_percentage }}%
+                                {{ summary.attendance_percentage|floatformat:1 }}%
                             </span>
                         </td>
                     </tr>
+                    {% endif %}
                     {% empty %}
                     <tr>
-                        <td colspan="8" class="text-center">No attendance summaries found.</td>
+                        <td colspan="8" class="text-center py-4">
+                            {% if has_attendance %}
+                            <div class="alert alert-info mb-0">
+                                <i class="fas fa-info-circle me-2"></i>
+                                <strong>No attendance summaries found.</strong>
+                                <p class="mb-0 mt-2 small">Please ensure your term dates include the dates when attendance was marked.</p>
+                            </div>
+                            {% else %}
+                            <div class="text-muted">
+                                <i class="fas fa-info-circle me-2"></i>
+                                No attendance records found. Please mark attendance first.
+                            </div>
+                            {% endif %}
+                        </td>
                     </tr>
                     {% endfor %}
+                    {% endif %}
                 </tbody>
             </table>
         </div>

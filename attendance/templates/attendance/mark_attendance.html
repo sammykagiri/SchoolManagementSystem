@@ -4,30 +4,102 @@
 <div class="container py-4">
     <h2 class="mb-4">Mark Attendance</h2>
     
-    <form method="get" class="mb-3 row g-2">
-        <div class="col-md-3">
+    <form method="get" class="mb-3 row g-2" id="filterForm">
+        <div class="col-md-4">
             <label class="form-label">Date</label>
-            <input type="date" name="date" class="form-control" value="{{ date }}" required>
+            <input type="date" name="date" id="dateInput" class="form-control {% if not date_valid %}is-invalid{% endif %}" value="{{ date }}" required>
+            {% if not date_valid %}
+            <div class="invalid-feedback">
+                This date is not within any term's date range.
+            </div>
+            {% endif %}
         </div>
-        <div class="col-md-3">
+        <div class="col-md-4">
             <label class="form-label">Class</label>
-            <select name="class_id" class="form-select" onchange="this.form.submit()">
+            <select name="class_id" id="classSelect" class="form-select">
                 <option value="">All Classes</option>
                 {% for class in classes %}
                     <option value="{{ class.id }}" {% if class_id|default:'' == class.id|stringformat:'s' %}selected{% endif %}>{{ class.name }}</option>
                 {% endfor %}
             </select>
         </div>
-        <div class="col-md-2">
-            <label class="form-label">&nbsp;</label>
-            <button type="submit" class="btn btn-outline-primary w-100">Load Students</button>
-        </div>
     </form>
     
-    {% if students_with_attendance %}
-    <form method="post" class="mt-4">
+    {% if not date_valid %}
+    <div class="alert alert-warning">
+        <i class="fas fa-exclamation-triangle me-2"></i>
+        <strong>Invalid Date:</strong> The selected date (<strong>{% if attendance_date %}{{ attendance_date|date:"F d, Y" }}{% else %}{{ date }}{% endif %}</strong> - Raw: <code>{{ date }}</code>) does not fall within any term's date range.
+        {% if terms %}
+        <p class="mb-0 mt-2">
+            <strong>Available terms:</strong>
+            <ul class="mb-0">
+                {% for term in terms %}
+                <li>{{ term.get_display_name }} - {{ term.academic_year }}: {{ term.start_date|date:"M d, Y" }} to {{ term.end_date|date:"M d, Y" }}</li>
+                {% endfor %}
+            </ul>
+        </p>
+        <p class="mb-0 mt-2">
+            <a href="{% url 'core:term_list' %}" class="btn btn-sm btn-primary">Manage Terms</a>
+        </p>
+        {% else %}
+        <p class="mb-0 mt-2">No terms have been created yet. Please create a term first.</p>
+        {% endif %}
+    </div>
+    {% elif matching_term %}
+    <div class="alert alert-info">
+        <i class="fas fa-info-circle me-2"></i>
+        <strong>Term:</strong> {{ matching_term.get_display_name }} - {{ matching_term.academic_year }}
+        ({{ matching_term.start_date|date:"M d, Y" }} to {{ matching_term.end_date|date:"M d, Y" }})
+    </div>
+    {% endif %}
+    
+    <script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const classSelect = document.getElementById('classSelect');
+        const filterForm = document.getElementById('filterForm');
+        const dateInput = document.getElementById('dateInput');
+        const hiddenDate = document.getElementById('hiddenDate');
+        const attendanceForm = document.getElementById('attendanceForm');
+        
+        // Auto-submit form when date changes
+        if (dateInput && filterForm) {
+            dateInput.addEventListener('change', function() {
+                filterForm.submit();
+            });
+        }
+        
+        // Auto-submit form when class changes
+        if (classSelect && filterForm) {
+            classSelect.addEventListener('change', function() {
+                filterForm.submit();
+            });
+        }
+        
+        // Sync date input with hidden field before form submission
+        if (attendanceForm && dateInput && hiddenDate) {
+            attendanceForm.addEventListener('submit', function(e) {
+                // Update hidden date field with current date input value
+                hiddenDate.value = dateInput.value;
+            });
+        }
+        
+        // Prevent form submission if date is invalid
+        {% if not date_valid %}
+        if (attendanceForm) {
+            attendanceForm.addEventListener('submit', function(e) {
+                e.preventDefault();
+                alert('Cannot save attendance: The selected date is not within any term\'s date range. Please select a valid date.');
+                return false;
+            });
+        }
+        {% endif %}
+    });
+    </script>
+    
+    {% if students_with_attendance and date_valid %}
+    <form method="post" class="mt-4" id="attendanceForm">
         {% csrf_token %}
-        <input type="hidden" name="date" value="{{ date }}">
+        <input type="hidden" name="date" id="hiddenDate" value="{{ date }}">
         <input type="hidden" name="class_id" value="{{ class_id }}">
         
         <div class="card">
@@ -68,7 +140,7 @@
                 </table>
             </div>
             <div class="card-footer">
-                <button type="submit" class="btn btn-primary"><i class="fas fa-save me-2"></i>Save Attendance</button>
+                <button type="submit" class="btn btn-primary" {% if not date_valid %}disabled{% endif %}><i class="fas fa-save me-2"></i>Save Attendance</button>
                 <a href="{% url 'attendance:attendance_list' %}" class="btn btn-secondary">Cancel</a>
             </div>
         </div>
