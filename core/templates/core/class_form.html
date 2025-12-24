@@ -1,0 +1,69 @@
+{% extends 'base.html' %}
+{% block title %}{% if school_class %}Edit Class{% else %}Add Class{% endif %} | School Management System{% endblock %}
+{% block content %}
+<div class="container py-4">
+    <div class="row justify-content-center">
+        <div class="col-md-7">
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <h4 class="mb-0">{% if school_class %}Edit Class{% else %}Add Class{% endif %}</h4>
+                </div>
+                <div class="card-body">
+                    {% if messages %}
+                        {% for message in messages %}
+                            <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                                {{ message }}
+                                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                            </div>
+                        {% endfor %}
+                    {% endif %}
+                    <form method="post" novalidate>
+                        {% csrf_token %}
+                        <div class="mb-3">
+                            <label for="id_name" class="form-label">Class Name</label>
+                            <input type="text" name="name" id="id_name" class="form-control" 
+                                   value="{% if post.name %}{{ post.name }}{% elif school_class %}{{ school_class.name }}{% endif %}" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="id_grade" class="form-label">Grade</label>
+                            <select name="grade" id="id_grade" class="form-select" required>
+                                <option value="">Select Grade</option>
+                                {% for grade in grades %}
+                                    <option value="{{ grade.id }}" 
+                                            {% if post.grade|default:'' == grade.id|stringformat:'s' %}selected
+                                            {% elif school_class and school_class.grade.id == grade.id %}selected{% endif %}>
+                                        {{ grade.name }}
+                                    </option>
+                                {% endfor %}
+                            </select>
+                            {% if not grades %}
+                            <small class="form-text text-danger">No grades found. Please create a grade first.</small>
+                            {% endif %}
+                        </div>
+                        <div class="mb-3">
+                            <label for="id_class_teacher" class="form-label">Class Teacher</label>
+                            <input type="text" name="class_teacher" id="id_class_teacher" class="form-control" 
+                                   value="{% if post.class_teacher %}{{ post.class_teacher }}{% elif school_class %}{{ school_class.class_teacher|default:'' }}{% endif %}" 
+                                   placeholder="Optional">
+                        </div>
+                        <div class="mb-3">
+                            <label for="id_description" class="form-label">Description</label>
+                            <textarea name="description" id="id_description" class="form-control" rows="3" 
+                                      placeholder="Optional description">{% if post.description %}{{ post.description }}{% elif school_class %}{{ school_class.description|default:'' }}{% endif %}</textarea>
+                        </div>
+                        <div class="d-flex justify-content-between">
+                            <a href="{% url 'core:class_list' %}" class="btn btn-outline-secondary">Cancel</a>
+                            <div>
+                                {% if school_class %}
+                                    <a href="{% url 'core:class_delete' school_class.id %}" class="btn btn-danger me-2" onclick="return confirm('Are you sure you want to delete this class?');">Delete</a>
+                                {% endif %}
+                                <button type="submit" class="btn btn-primary">{% if school_class %}Update{% else %}Add{% endif %} Class</button>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

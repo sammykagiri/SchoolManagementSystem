@@ -956,8 +956,40 @@ def api_school_update(request, pk):
 @role_required('super_admin', 'school_admin', 'teacher')
 def class_list(request):
     school = request.user.profile.school
+    grades = Grade.objects.filter(school=school)
+    
+    if request.method == 'POST':
+        name = request.POST.get('name', '').strip()
+        grade_id = request.POST.get('grade')
+        class_teacher = request.POST.get('class_teacher', '').strip()
+        description = request.POST.get('description', '').strip()
+        is_active = request.POST.get('is_active') == 'on'
+        
+        errors = []
+        if not name:
+            errors.append('Class name is required.')
+        if not grade_id or not grade_id.isdigit():
+            errors.append('Grade is required.')
+        if SchoolClass.objects.filter(school=school, grade_id=grade_id, name=name).exists():
+            errors.append('A class with this name already exists in the selected grade.')
+        
+        if errors:
+            for error in errors:
+                messages.error(request, error)
+        else:
+            SchoolClass.objects.create(
+                school=school,
+                grade_id=grade_id,
+                name=name,
+                class_teacher=class_teacher if class_teacher else None,
+                description=description if description else None,
+                is_active=is_active
+            )
+            messages.success(request, 'Class added successfully!')
+            return redirect('core:class_list')
+    
     classes = SchoolClass.objects.filter(school=school).select_related('grade')
-    return render(request, 'core/class_list.html', {'classes': classes})
+    return render(request, 'core/class_list.html', {'classes': classes, 'grades': grades})
 
 @login_required
 @role_required('super_admin', 'school_admin', 'teacher')

@@ -116,6 +116,34 @@
                                 {% endif %}
                             </div>
                             
+                            <!-- School Class -->
+                            <div class="col-md-4">
+                                <label for="{{ form.school_class.id_for_label }}" class="form-label">
+                                    {{ form.school_class.label }}
+                                    {% if form.school_class.field.required %}<span class="text-danger">*</span>{% endif %}
+                                </label>
+                                <select name="{{ form.school_class.name }}" id="{{ form.school_class.id_for_label }}" class="form-select">
+                                    <option value="">---------</option>
+                                    {% for choice in form.school_class.field.queryset %}
+                                        <option value="{{ choice.id }}" 
+                                                data-grade-id="{{ choice.grade.id }}"
+                                                {% if form.school_class.value == choice.id %}selected{% endif %}>
+                                            {{ choice.name }} ({{ choice.grade.name }})
+                                        </option>
+                                    {% endfor %}
+                                </select>
+                                {% if form.school_class.help_text %}
+                                    <div class="form-text">{{ form.school_class.help_text }}</div>
+                                {% endif %}
+                                {% if form.school_class.errors %}
+                                    <div class="text-danger small">
+                                        {% for error in form.school_class.errors %}
+                                            <div>{{ error }}</div>
+                                        {% endfor %}
+                                    </div>
+                                {% endif %}
+                            </div>
+                            
                             <!-- Admission Date -->
                             <div class="col-md-4">
                                 <label for="{{ form.admission_date.id_for_label }}" class="form-label">
@@ -313,4 +341,75 @@
         </div>
     </div>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const gradeSelect = document.getElementById('{{ form.grade.id_for_label }}');
+    const classSelect = document.getElementById('{{ form.school_class.id_for_label }}');
+    
+    if (gradeSelect && classSelect) {
+        // Store all class options with their grade data
+        const allClassOptions = [];
+        const selectedClassValue = classSelect.value; // Store the currently selected value
+        
+        Array.from(classSelect.options).forEach(function(option) {
+            if (option.value) {
+                allClassOptions.push({
+                    value: option.value,
+                    text: option.text,
+                    gradeId: option.getAttribute('data-grade-id') || null
+                });
+            }
+        });
+        
+        // Function to filter classes by grade
+        function filterClassesByGrade(gradeId) {
+            // Clear current options except the first one
+            classSelect.innerHTML = '<option value="">---------</option>';
+            
+            if (gradeId) {
+                // Filter and add classes for the selected grade
+                allClassOptions.forEach(function(classOption) {
+                    if (classOption.gradeId === gradeId) {
+                        const option = document.createElement('option');
+                        option.value = classOption.value;
+                        option.textContent = classOption.text;
+                        option.setAttribute('data-grade-id', classOption.gradeId);
+                        // Restore selected value if it matches
+                        if (classOption.value === selectedClassValue) {
+                            option.selected = true;
+                        }
+                        classSelect.appendChild(option);
+                    }
+                });
+            } else {
+                // No grade selected, show all classes
+                allClassOptions.forEach(function(classOption) {
+                    const option = document.createElement('option');
+                    option.value = classOption.value;
+                    option.textContent = classOption.text;
+                    option.setAttribute('data-grade-id', classOption.gradeId);
+                    // Restore selected value if it matches
+                    if (classOption.value === selectedClassValue) {
+                        option.selected = true;
+                    }
+                    classSelect.appendChild(option);
+                });
+            }
+        }
+        
+        // Add event listener for grade change
+        gradeSelect.addEventListener('change', function() {
+            filterClassesByGrade(this.value);
+        });
+        
+        // Filter on page load if grade is already selected
+        if (gradeSelect.value) {
+            filterClassesByGrade(gradeSelect.value);
+        }
+    }
+});
+</script>
 {% endblock %}

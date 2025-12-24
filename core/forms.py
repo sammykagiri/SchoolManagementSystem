@@ -2,7 +2,7 @@ from django import forms
 from django.contrib.auth.forms import UserCreationForm
 from django.contrib.auth.models import User
 from django.core.exceptions import ValidationError
-from .models import Student, Grade, TransportRoute, Role, UserProfile, School
+from .models import Student, Grade, TransportRoute, Role, UserProfile, School, SchoolClass
 
 
 class StudentForm(forms.ModelForm):
@@ -12,7 +12,7 @@ class StudentForm(forms.ModelForm):
         model = Student
         fields = [
             'first_name', 'last_name', 'gender', 'date_of_birth', 
-            'grade', 'admission_date', 'parent_name', 'parent_phone', 
+            'grade', 'school_class', 'admission_date', 'parent_name', 'parent_phone', 
             'parent_email', 'address', 'transport_route', 'uses_transport', 
             'pays_meals', 'pays_activities', 'photo', 'parents'
         ]
@@ -26,6 +26,7 @@ class StudentForm(forms.ModelForm):
             'pays_activities': forms.CheckboxInput(),
             'photo': forms.FileInput(attrs={'accept': 'image/*', 'class': 'form-control'}),
             'parents': forms.CheckboxSelectMultiple(),
+            'school_class': forms.Select(attrs={'class': 'form-select'}),
         }
     
     def __init__(self, *args, **kwargs):
@@ -35,10 +36,20 @@ class StudentForm(forms.ModelForm):
         if school:
             # Filter grades by school
             self.fields['grade'].queryset = Grade.objects.filter(school=school)
+            # Filter school classes by school and active status
+            self.fields['school_class'].queryset = SchoolClass.objects.filter(school=school, is_active=True)
             self.fields['transport_route'].queryset = TransportRoute.objects.filter(school=school, is_active=True)
             # Filter parents by school
             from .models import Parent
             self.fields['parents'].queryset = Parent.objects.filter(school=school, is_active=True)
+        
+        # Filter school_class based on selected grade
+        if self.instance and self.instance.pk and self.instance.grade:
+            self.fields['school_class'].queryset = SchoolClass.objects.filter(
+                school=school if school else self.instance.school,
+                grade=self.instance.grade,
+                is_active=True
+            )
         
         # Make required fields more obvious
         self.fields['first_name'].required = True
@@ -53,6 +64,7 @@ class StudentForm(forms.ModelForm):
         # Add help text
         self.fields['parent_email'].help_text = 'Optional - for sending receipts and notifications'
         self.fields['address'].help_text = 'Optional - student home address'
+        self.fields['school_class'].help_text = 'Optional - assign student to a specific class'
         self.fields['transport_route'].help_text = 'Optional - if student uses school transport'
         self.fields['photo'].help_text = 'Optional - Upload student photo (JPG, PNG, max 5MB)'
         self.fields['parents'].help_text = 'Select parent accounts linked to this student (optional)'

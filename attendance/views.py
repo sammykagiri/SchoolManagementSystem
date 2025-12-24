@@ -217,8 +217,8 @@ def attendance_list(request):
     """List attendance records"""
     school = request.user.profile.school
     attendances = Attendance.objects.filter(school=school).select_related(
-        'student', 'school_class', 'marked_by'
-    ).order_by('-date', 'student')
+        'student', 'student__grade', 'school_class', 'marked_by'
+    ).prefetch_related('student__grade__school_classes').order_by('-date', 'student')
     
     # Filter by date
     date_from = request.GET.get('date_from', '')
@@ -508,7 +508,9 @@ def mark_attendance(request):
     if class_id:
         students = students.filter(grade__school_classes__id=class_id).distinct()
     
-    classes = SchoolClass.objects.filter(school=school, is_active=True).order_by('name')
+    # Get all classes for the dropdown (both active and inactive)
+    # This ensures classes are available even if temporarily marked inactive
+    classes = SchoolClass.objects.filter(school=school).order_by('name')
     
     # Get existing attendance for the date
     existing_attendance = {}

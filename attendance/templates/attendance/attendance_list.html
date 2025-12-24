@@ -64,7 +64,17 @@
                     <tr>
                         <td>{{ attendance.date }}</td>
                         <td>{{ attendance.student.full_name }}</td>
-                        <td>{{ attendance.school_class.name|default:"-" }}</td>
+                        <td>
+                            {% if attendance.school_class %}
+                                {{ attendance.school_class.name }}
+                            {% elif attendance.student.school_class %}
+                                {{ attendance.student.school_class.name }}
+                            {% elif attendance.student.get_current_class %}
+                                {{ attendance.student.get_current_class.name }} <small class="text-muted">(inferred)</small>
+                            {% else %}
+                                -
+                            {% endif %}
+                        </td>
                         <td>
                             <span class="badge {% if attendance.status == 'present' %}bg-success{% elif attendance.status == 'absent' %}bg-danger{% elif attendance.status == 'late' %}bg-warning{% else %}bg-info{% endif %}">
                                 {{ attendance.get_status_display }}

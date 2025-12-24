@@ -4,25 +4,22 @@
 <div class="container py-4">
     <h2 class="mb-4">Attendance Summary</h2>
     
-    <form method="get" class="mb-3 row g-2">
-        <div class="col-md-4">
-            <select name="term_id" class="form-select">
+    <form method="get" class="mb-3 row g-2" id="filterForm">
+        <div class="col-md-5">
+            <select name="term_id" id="term_id" class="form-select">
                 <option value="">All Terms</option>
                 {% for term in terms %}
                     <option value="{{ term.id }}" {% if term_id|default:'' == term.id|stringformat:'s' %}selected{% endif %}>{{ term.get_display_name }} - {{ term.academic_year }}</option>
                 {% endfor %}
             </select>
         </div>
-        <div class="col-md-4">
-            <select name="student_id" class="form-select">
+        <div class="col-md-5">
+            <select name="student_id" id="student_id" class="form-select">
                 <option value="">All Students</option>
                 {% for student in students %}
                     <option value="{{ student.id }}" {% if student_id|default:'' == student.id|stringformat:'s' %}selected{% endif %}>{{ student.full_name }}</option>
                 {% endfor %}
             </select>
-        </div>
-        <div class="col-md-2">
-            <button type="submit" class="btn btn-outline-primary w-100">Filter</button>
         </div>
         <div class="col-md-2">
             <a href="{% url 'attendance:attendance_summary' %}" class="btn btn-outline-secondary w-100">Clear</a>
@@ -134,5 +131,28 @@
     </nav>
     {% endif %}
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const termSelect = document.getElementById('term_id');
+    const studentSelect = document.getElementById('student_id');
+    const filterForm = document.getElementById('filterForm');
+    
+    // Auto-submit form when term or student selection changes
+    if (termSelect) {
+        termSelect.addEventListener('change', function() {
+            filterForm.submit();
+        });
+    }
+    
+    if (studentSelect) {
+        studentSelect.addEventListener('change', function() {
+            filterForm.submit();
+        });
+    }
+});
+</script>
 {% endblock %}
 

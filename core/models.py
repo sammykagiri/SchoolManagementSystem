@@ -172,6 +172,14 @@ class Student(models.Model):
     gender = models.CharField(max_length=1, choices=GENDER_CHOICES)
     date_of_birth = models.DateField()
     grade = models.ForeignKey(Grade, on_delete=models.CASCADE, related_name='students')
+    school_class = models.ForeignKey(
+        'SchoolClass',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='students',
+        help_text='Assigned class (optional)'
+    )
     admission_date = models.DateField()
     is_active = models.BooleanField(default=True)
     

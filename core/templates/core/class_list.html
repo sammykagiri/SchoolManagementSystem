@@ -29,8 +29,8 @@
                                     <tr>
                                         <th>Class Name</th>
                                         <th>Grade</th>
-                                        <th>Academic Year</th>
                                         <th>Class Teacher</th>
+                                        <th>Description</th>
                                         <th>Status</th>
                                         <th>Actions</th>
                                     </tr>
@@ -40,8 +40,8 @@
                                     <tr>
                                         <td>{{ class.name }}</td>
                                         <td>{{ class.grade.name }}</td>
-                                        <td>{{ class.academic_year }}</td>
-                                        <td>{{ class.class_teacher.get_full_name|default:"Not Assigned" }}</td>
+                                        <td>{{ class.class_teacher|default:"Not Assigned" }}</td>
+                                        <td>{{ class.description|default:"-"|truncatewords:10 }}</td>
                                         <td>
                                             <span class="badge {% if class.is_active %}bg-success{% else %}bg-secondary{% endif %}">
                                                 {{ class.is_active|yesno:"Active,Inactive" }}
@@ -94,11 +94,19 @@
                                     <option value="{{ grade.id }}">{{ grade.name }}</option>
                                 {% endfor %}
                             </select>
+                            {% if not grades %}
+                            <small class="form-text text-danger">No grades found. Please create a grade first.</small>
+                            {% endif %}
                         </div>
                         <div class="mb-3">
-                            <label for="id_academic_year" class="form-label">Academic Year</label>
-                            <input type="text" name="academic_year" id="id_academic_year" 
-                                   class="form-control" placeholder="e.g., 2023-2024" required>
+                            <label for="id_class_teacher" class="form-label">Class Teacher</label>
+                            <input type="text" name="class_teacher" id="id_class_teacher" class="form-control" 
+                                   placeholder="Optional">
+                        </div>
+                        <div class="mb-3">
+                            <label for="id_description" class="form-label">Description</label>
+                            <textarea name="description" id="id_description" class="form-control" rows="2" 
+                                      placeholder="Optional description"></textarea>
                         </div>
                         <div class="mb-3">
                             <div class="form-check form-switch">
