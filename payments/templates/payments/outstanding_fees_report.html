@@ -1,0 +1,406 @@
+{% extends 'base.html' %}
+{% load currency date_format %}
+
+{% block title %}Outstanding Fees Report | School Management System{% endblock %}
+
+{% block extra_css %}
+<style>
+    @media print {
+        @page {
+            size: A4;
+            margin: 2cm 1.5cm;
+        }
+        .no-print {
+            display: none !important;
+        }
+        body {
+            font-size: 11pt;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            color: #000;
+            background: #fff !important;
+        }
+        .container-fluid {
+            padding: 0 !important;
+        }
+        .card {
+            border: 1px solid #ddd !important;
+            box-shadow: none !important;
+            margin-bottom: 15px;
+            page-break-inside: avoid;
+        }
+        .card-header {
+            background: #f8f9fa !important;
+            color: #000 !important;
+            border-bottom: 2px solid #ddd !important;
+            padding: 10px 15px !important;
+        }
+        .table {
+            font-size: 8pt;
+            border-collapse: collapse;
+        }
+        .table th {
+            background: #f8f9fa !important;
+            color: #000 !important;
+            font-weight: 600;
+            border: 1px solid #ddd !important;
+            padding: 6px !important;
+        }
+        .table td {
+            border: 1px solid #ddd !important;
+            padding: 4px 6px !important;
+        }
+        .stat-card {
+            border: 1px solid #ddd !important;
+            page-break-inside: avoid;
+        }
+        .report-header {
+            border-bottom: 2px solid #000 !important;
+            padding-bottom: 15px;
+            margin-bottom: 20px;
+        }
+    }
+    
+    .report-container {
+        max-width: 1200px;
+        margin: 0 auto;
+        background: #fff;
+        padding: 30px;
+    }
+    
+    .report-header {
+        border-bottom: 4px solid #e74c3c;
+        padding-bottom: 25px;
+        margin-bottom: 35px;
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+    }
+    
+    .report-header-left {
+        flex: 1;
+    }
+    
+    .report-header-right {
+        text-align: right;
+        flex-shrink: 0;
+    }
+    
+    .school-logo {
+        max-height: 80px;
+        margin-bottom: 15px;
+    }
+    
+    .report-title {
+        font-size: 2.5rem;
+        font-weight: 700;
+        color: #2c3e50;
+        margin: 0 0 5px 0;
+        letter-spacing: -0.5px;
+    }
+    
+    .report-subtitle {
+        font-size: 1.1rem;
+        color: #7f8c8d;
+        margin: 0;
+        font-weight: 400;
+    }
+    
+    .report-meta {
+        font-size: 0.9rem;
+        color: #555;
+        line-height: 1.8;
+    }
+    
+    .stat-card {
+        border-left: 5px solid #e74c3c;
+        padding: 20px;
+        margin-bottom: 20px;
+        background: linear-gradient(to right, #f8f9fa 0%, #ffffff 100%);
+        border-radius: 4px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    
+    .stat-card.danger {
+        border-left-color: #e74c3c;
+    }
+    
+    .stat-card.warning {
+        border-left-color: #f39c12;
+    }
+    
+    .stat-card h6 {
+        font-size: 0.85rem;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        color: #7f8c8d;
+        margin-bottom: 10px;
+        font-weight: 600;
+    }
+    
+    .stat-card h3, .stat-card h4 {
+        margin: 0;
+        color: #2c3e50;
+        font-weight: 700;
+    }
+    
+    .card {
+        border: none;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        margin-bottom: 25px;
+        border-radius: 8px;
+        overflow: hidden;
+    }
+    
+    .card-header {
+        background: linear-gradient(135deg, #eb3349 0%, #f45c43 100%);
+        color: #fff;
+        padding: 15px 20px;
+        font-weight: 600;
+        border: none;
+    }
+    
+    .card-header.bg-danger {
+        background: linear-gradient(135deg, #eb3349 0%, #f45c43 100%) !important;
+    }
+    
+    .card-header.bg-warning {
+        background: linear-gradient(135deg, #f39c12 0%, #e67e22 100%) !important;
+    }
+    
+    .table {
+        margin-bottom: 0;
+    }
+    
+    .table thead th {
+        background: #f8f9fa;
+        font-weight: 600;
+        text-transform: uppercase;
+        font-size: 0.75rem;
+        letter-spacing: 0.5px;
+        color: #2c3e50;
+        border-bottom: 2px solid #dee2e6;
+    }
+    
+    .table tbody tr:hover {
+        background-color: #f8f9fa;
+    }
+    
+    .report-footer {
+        margin-top: 40px;
+        padding-top: 20px;
+        border-top: 2px solid #ecf0f1;
+        text-align: center;
+        color: #7f8c8d;
+        font-size: 0.85rem;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="report-container">
+    <div class="no-print mb-4">
+        <div class="d-flex justify-content-between align-items-center">
+            <h2><i class="fas fa-exclamation-triangle me-2"></i>Outstanding Fees Report</h2>
+            <div>
+                <button onclick="window.print()" class="btn btn-primary">
+                    <i class="fas fa-print me-2"></i>Print Report
+                </button>
+                <a href="{% url 'payments:financial_reports' %}" class="btn btn-secondary">
+                    <i class="fas fa-arrow-left me-2"></i>Back to Reports
+                </a>
+            </div>
+        </div>
+        
+        <div class="card mt-3">
+            <div class="card-body">
+                <form method="get" class="row g-3">
+                    <div class="col-md-3">
+                        <label class="form-label">Grade</label>
+                        <select name="grade" class="form-select">
+                            <option value="">All Grades</option>
+                            {% for grade in grades %}
+                            <option value="{{ grade.id }}" {% if grade_filter == grade.id|stringformat:'s' %}selected{% endif %}>{{ grade.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">Term</label>
+                        <select name="term" class="form-select">
+                            <option value="">All Terms</option>
+                            {% for term in terms %}
+                            <option value="{{ term.id }}" {% if term_filter == term.id|stringformat:'s' %}selected{% endif %}>
+                                {{ term.name }} ({{ term.academic_year }})
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-3 d-flex align-items-end">
+                        <div class="form-check form-switch w-100">
+                            <input class="form-check-input" type="checkbox" name="overdue_only" id="overdueOnly" value="true" {% if overdue_only %}checked{% endif %}>
+                            <label class="form-check-label" for="overdueOnly">Overdue Only</label>
+                        </div>
+                    </div>
+                    <div class="col-md-3 d-flex align-items-end">
+                        <button type="submit" class="btn btn-primary w-100">Generate Report</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Report Header -->
+    <div class="report-header">
+        <div class="report-header-left">
+            {% if school.logo %}
+            <img src="{{ school.logo.url }}" alt="{{ school.name }}" class="school-logo">
+            {% endif %}
+            <h1 class="report-title">{{ school.name }}</h1>
+            <p class="report-subtitle">Outstanding Fees Report</p>
+            {% if school.address %}
+            <p class="report-meta mb-0" style="margin-top: 10px;">
+                <i class="fas fa-map-marker-alt"></i> {{ school.address }}
+                {% if school.phone %} | <i class="fas fa-phone"></i> {{ school.phone }}{% endif %}
+            </p>
+            {% endif %}
+        </div>
+        <div class="report-header-right">
+            <div class="report-meta">
+                <p class="mb-1"><strong>Report Date:</strong><br>{{ report_date|indian_date }}</p>
+                {% if selected_grade %}
+                <p class="mb-1"><strong>Grade:</strong><br>{{ selected_grade.name }}</p>
+                {% endif %}
+                {% if selected_term %}
+                <p class="mb-1"><strong>Term:</strong><br>{{ selected_term.name }}<br>({{ selected_term.academic_year }})</p>
+                {% endif %}
+                {% if overdue_only %}
+                <p class="mb-1"><strong>Filter:</strong><br>Overdue Only</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Summary Statistics -->
+    <div class="row mb-4">
+        <div class="col-md-4">
+            <div class="stat-card danger">
+                <h6 class="text-muted mb-2">Total Outstanding</h6>
+                <h3 class="mb-0">{{ total_outstanding|kes_currency }}</h3>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="stat-card danger">
+                <h6 class="text-muted mb-2">Overdue Count</h6>
+                <h3 class="mb-0">{{ overdue_count }}</h3>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="stat-card danger">
+                <h6 class="text-muted mb-2">Overdue Amount</h6>
+                <h3 class="mb-0">{{ overdue_amount|kes_currency }}</h3>
+            </div>
+        </div>
+    </div>
+
+    <!-- Breakdown by Grade -->
+    <div class="card mb-4">
+        <div class="card-header bg-danger text-white">
+            <h5 class="mb-0"><i class="fas fa-graduation-cap me-2"></i>Outstanding Fees by Grade</h5>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-striped table-bordered">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Grade</th>
+                            <th class="text-end">Number of Students</th>
+                            <th class="text-end">Number of Records</th>
+                            <th class="text-end">Total Outstanding</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in grade_breakdown %}
+                        <tr>
+                            <td><strong>{{ item.student__grade__name|default:"Unknown" }}</strong></td>
+                            <td class="text-end">{{ item.student_count }}</td>
+                            <td class="text-end">{{ item.count }}</td>
+                            <td class="text-end"><strong class="text-danger">{{ item.total_outstanding|floatformat:2 }}</strong></td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="4" class="text-center text-muted">No outstanding fees</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Detailed Outstanding Fees -->
+    <div class="card mb-4">
+        <div class="card-header bg-warning text-dark">
+            <h5 class="mb-0"><i class="fas fa-list me-2"></i>Detailed Outstanding Fees</h5>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-striped table-bordered table-sm">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Student ID</th>
+                            <th>Student Name</th>
+                            <th>Grade</th>
+                            <th>Term</th>
+                            <th>Fee Category</th>
+                            <th class="text-end">Amount Charged</th>
+                            <th class="text-end">Amount Paid</th>
+                            <th class="text-end">Outstanding</th>
+                            <th>Due Date</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for fee in outstanding_fees %}
+                        <tr class="{% if fee.is_overdue %}table-danger{% endif %}">
+                            <td>{{ fee.student.student_id }}</td>
+                            <td>{{ fee.student.full_name }}</td>
+                            <td>{{ fee.student.grade.name|default:"—" }}</td>
+                            <td>
+                                <strong>{{ fee.term.name }}</strong><br>
+                                <small class="text-muted">{{ fee.term.academic_year }}</small>
+                            </td>
+                            <td>{{ fee.fee_category.name }}</td>
+                            <td class="text-end">{{ fee.amount_charged|floatformat:2 }}</td>
+                            <td class="text-end">{{ fee.amount_paid|floatformat:2 }}</td>
+                            <td class="text-end"><strong class="text-danger">{{ fee.balance|floatformat:2 }}</strong></td>
+                            <td>
+                                {{ fee.due_date|indian_date }}
+                                {% if fee.is_overdue %}
+                                    <br><small class="text-danger"><i class="fas fa-exclamation-triangle"></i> Overdue</small>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if fee.is_overdue %}
+                                    <span class="badge bg-danger">Overdue</span>
+                                {% else %}
+                                    <span class="badge bg-warning">Pending</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="10" class="text-center text-muted py-4">No outstanding fees found</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Report Footer -->
+    <div class="report-footer">
+        <p class="mb-1"><strong>{{ school.name }}</strong></p>
+        <p class="mb-0">Generated on {{ report_date|indian_date }} | Financial Reports</p>
+    </div>
+</div>
+{% endblock %}

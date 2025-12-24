@@ -25,6 +25,14 @@ urlpatterns = [
     
     # Fee summary
     path('fees/summary/', views.fee_summary, name='fee_summary'),
+    path('fees/report/', views.fee_report, name='fee_report'),
+    
+    # Financial Reports
+    path('reports/', views.financial_reports, name='financial_reports'),
+    path('reports/collection/', views.payment_collection_report, name='payment_collection_report'),
+    path('reports/outstanding/', views.outstanding_fees_report, name='outstanding_fees_report'),
+    path('reports/summary/', views.collection_summary_report, name='collection_summary_report'),
+    path('reports/methods/', views.payment_method_analysis, name='payment_method_analysis'),
     
     # Reminders
     path('reminders/', views.payment_reminder_list, name='reminder_list'),

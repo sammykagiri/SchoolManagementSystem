@@ -1,0 +1,614 @@
+{% extends 'base.html' %}
+{% load currency date_format %}
+
+{% block title %}Fee Management Report | School Management System{% endblock %}
+
+{% block extra_css %}
+<style>
+    /* Print Styles */
+    @media print {
+        @page {
+            size: A4;
+            margin: 2cm 1.5cm;
+        }
+        .no-print {
+            display: none !important;
+        }
+        .page-break {
+            page-break-before: always;
+        }
+        body {
+            font-size: 11pt;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            color: #000;
+            background: #fff !important;
+        }
+        .container-fluid {
+            padding: 0 !important;
+        }
+        .card {
+            border: 1px solid #ddd !important;
+            box-shadow: none !important;
+            margin-bottom: 15px;
+            page-break-inside: avoid;
+        }
+        .card-header {
+            background: #f8f9fa !important;
+            color: #000 !important;
+            border-bottom: 2px solid #ddd !important;
+            padding: 10px 15px !important;
+        }
+        .table {
+            font-size: 9pt;
+            border-collapse: collapse;
+        }
+        .table th {
+            background: #f8f9fa !important;
+            color: #000 !important;
+            font-weight: 600;
+            border: 1px solid #ddd !important;
+            padding: 8px !important;
+        }
+        .table td {
+            border: 1px solid #ddd !important;
+            padding: 6px 8px !important;
+        }
+        .badge {
+            border: 1px solid #000;
+            padding: 3px 6px;
+        }
+        .stat-card {
+            border: 1px solid #ddd !important;
+            page-break-inside: avoid;
+        }
+        .report-header {
+            border-bottom: 2px solid #000 !important;
+            padding-bottom: 15px;
+            margin-bottom: 20px;
+        }
+    }
+    
+    /* Screen Styles */
+    .report-container {
+        max-width: 1200px;
+        margin: 0 auto;
+        background: #fff;
+        padding: 30px;
+    }
+    
+    .report-header {
+        border-bottom: 4px solid #2c3e50;
+        padding-bottom: 25px;
+        margin-bottom: 35px;
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+    }
+    
+    .report-header-left {
+        flex: 1;
+    }
+    
+    .report-header-right {
+        text-align: right;
+        flex-shrink: 0;
+    }
+    
+    .school-logo {
+        max-height: 80px;
+        margin-bottom: 15px;
+    }
+    
+    .report-title {
+        font-size: 2.5rem;
+        font-weight: 700;
+        color: #2c3e50;
+        margin: 0 0 5px 0;
+        letter-spacing: -0.5px;
+    }
+    
+    .report-subtitle {
+        font-size: 1.1rem;
+        color: #7f8c8d;
+        margin: 0;
+        font-weight: 400;
+    }
+    
+    .report-meta {
+        font-size: 0.9rem;
+        color: #555;
+        line-height: 1.8;
+    }
+    
+    .stat-card {
+        border-left: 5px solid #3498db;
+        padding: 20px;
+        margin-bottom: 20px;
+        background: linear-gradient(to right, #f8f9fa 0%, #ffffff 100%);
+        border-radius: 4px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        transition: transform 0.2s;
+    }
+    
+    .stat-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+    }
+    
+    .stat-card.success {
+        border-left-color: #27ae60;
+    }
+    
+    .stat-card.danger {
+        border-left-color: #e74c3c;
+    }
+    
+    .stat-card.warning {
+        border-left-color: #f39c12;
+    }
+    
+    .stat-card.info {
+        border-left-color: #3498db;
+    }
+    
+    .stat-card h6 {
+        font-size: 0.85rem;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        color: #7f8c8d;
+        margin-bottom: 10px;
+        font-weight: 600;
+    }
+    
+    .stat-card h3, .stat-card h4 {
+        margin: 0;
+        color: #2c3e50;
+        font-weight: 700;
+    }
+    
+    .card {
+        border: none;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        margin-bottom: 25px;
+        border-radius: 8px;
+        overflow: hidden;
+    }
+    
+    .card-header {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: #fff;
+        padding: 15px 20px;
+        font-weight: 600;
+        border: none;
+    }
+    
+    .card-header.bg-primary {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
+    }
+    
+    .card-header.bg-success {
+        background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%) !important;
+    }
+    
+    .card-header.bg-danger {
+        background: linear-gradient(135deg, #eb3349 0%, #f45c43 100%) !important;
+    }
+    
+    .card-header.bg-info {
+        background: linear-gradient(135deg, #3498db 0%, #2980b9 100%) !important;
+    }
+    
+    .card-header.bg-warning {
+        background: linear-gradient(135deg, #f39c12 0%, #e67e22 100%) !important;
+    }
+    
+    .card-header.bg-secondary {
+        background: linear-gradient(135deg, #95a5a6 0%, #7f8c8d 100%) !important;
+    }
+    
+    .table {
+        margin-bottom: 0;
+    }
+    
+    .table thead th {
+        background: #f8f9fa;
+        font-weight: 600;
+        text-transform: uppercase;
+        font-size: 0.75rem;
+        letter-spacing: 0.5px;
+        color: #2c3e50;
+        border-bottom: 2px solid #dee2e6;
+    }
+    
+    .table tbody tr:hover {
+        background-color: #f8f9fa;
+    }
+    
+    .report-footer {
+        margin-top: 40px;
+        padding-top: 20px;
+        border-top: 2px solid #ecf0f1;
+        text-align: center;
+        color: #7f8c8d;
+        font-size: 0.85rem;
+    }
+    
+    .chart-container {
+        position: relative;
+        height: 350px;
+        margin: 20px 0;
+    }
+    
+    .chart-container canvas {
+        max-height: 350px !important;
+    }
+    
+    @media print {
+        .chart-container {
+            height: 250px !important;
+        }
+        .chart-container canvas {
+            max-height: 250px !important;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="report-container">
+    <!-- Print Button -->
+    <div class="no-print mb-4">
+        <div class="d-flex justify-content-between align-items-center">
+            <h2><i class="fas fa-file-alt me-2"></i>Fee Management Report</h2>
+            <div>
+                <button onclick="window.print()" class="btn btn-primary">
+                    <i class="fas fa-print me-2"></i>Print Report
+                </button>
+                <a href="{% url 'payments:fee_summary' %}" class="btn btn-secondary">
+                    <i class="fas fa-arrow-left me-2"></i>Back to Summary
+                </a>
+            </div>
+        </div>
+        
+        <!-- Filters -->
+        <div class="card mt-3">
+            <div class="card-body">
+                <form method="get" class="row g-3">
+                    <div class="col-md-3">
+                        <label class="form-label">Academic Year</label>
+                        <select name="year" class="form-select">
+                            <option value="">All years</option>
+                            {% for year in academic_years %}
+                            <option value="{{ year }}" {% if year_filter == year %}selected{% endif %}>{{ year }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">Term</label>
+                        <select name="term" class="form-select">
+                            <option value="">All terms</option>
+                            {% for term in terms %}
+                            <option value="{{ term.id }}" {% if term_filter == term.id|stringformat:'s' %}selected{% endif %}>
+                                {{ term.name }} ({{ term.academic_year }})
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">Grade</label>
+                        <select name="grade" class="form-select">
+                            <option value="">All Grades</option>
+                            {% for grade in grades %}
+                            <option value="{{ grade.id }}" {% if grade_filter == grade.id|stringformat:'s' %}selected{% endif %}>{{ grade.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-3 d-flex align-items-end">
+                        <div class="form-check form-switch w-100">
+                            <input class="form-check-input" type="checkbox" name="show_inactive" id="showInactive" value="true" {% if show_inactive %}checked{% endif %}>
+                            <label class="form-check-label" for="showInactive">Show Inactive</label>
+                        </div>
+                    </div>
+                    <div class="col-md-12">
+                        <button type="submit" class="btn btn-primary">Generate Report</button>
+                        <a href="{% url 'payments:fee_report' %}" class="btn btn-outline-secondary">Reset</a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Report Header -->
+    <div class="report-header">
+        <div class="report-header-left">
+            {% if school.logo %}
+            <img src="{{ school.logo.url }}" alt="{{ school.name }}" class="school-logo">
+            {% endif %}
+            <h1 class="report-title">{{ school.name }}</h1>
+            <p class="report-subtitle">Fee Management Report</p>
+            {% if school.address %}
+            <p class="report-meta mb-0" style="margin-top: 10px;">
+                <i class="fas fa-map-marker-alt"></i> {{ school.address }}
+                {% if school.phone %} | <i class="fas fa-phone"></i> {{ school.phone }}{% endif %}
+            </p>
+            {% endif %}
+        </div>
+        <div class="report-header-right">
+            <div class="report-meta">
+                <p class="mb-1"><strong>Report Date:</strong><br>{{ report_date|indian_date }}</p>
+                {% if selected_term %}
+                <p class="mb-1"><strong>Term:</strong><br>{{ selected_term.name }} ({{ selected_term.academic_year }})</p>
+                {% endif %}
+                {% if selected_grade %}
+                <p class="mb-1"><strong>Grade:</strong><br>{{ selected_grade.name }}</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Summary Statistics -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="stat-card info">
+                <h6 class="text-muted mb-2">Total Students</h6>
+                <h3 class="mb-0">{{ total_students }}</h3>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="stat-card">
+                <h6 class="text-muted mb-2">Total Charged</h6>
+                <h3 class="mb-0">{{ total_fees_charged|kes_currency }}</h3>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="stat-card success">
+                <h6 class="text-muted mb-2">Total Paid</h6>
+                <h3 class="mb-0">{{ total_fees_paid|kes_currency }}</h3>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="stat-card {% if total_balance > 0 %}warning{% else %}success{% endif %}">
+                <h6 class="text-muted mb-2">Outstanding Balance</h6>
+                <h3 class="mb-0">{{ total_balance|kes_currency }}</h3>
+            </div>
+        </div>
+    </div>
+
+    <!-- Payment Status Breakdown -->
+    <div class="row mb-4">
+        <div class="col-md-4">
+            <div class="stat-card success">
+                <h6 class="text-muted mb-2">Paid Fees</h6>
+                <h4 class="mb-1">{{ paid_count }} records</h4>
+                <p class="mb-0">{{ paid_amount|kes_currency }}</p>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="stat-card warning">
+                <h6 class="text-muted mb-2">Pending Fees</h6>
+                <h4 class="mb-1">{{ pending_count }} records</h4>
+                <p class="mb-0">{{ pending_amount|kes_currency }}</p>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="stat-card danger">
+                <h6 class="text-muted mb-2">Overdue Fees</h6>
+                <h4 class="mb-1">{{ overdue_count }} records</h4>
+                <p class="mb-0">{{ overdue_amount|kes_currency }}</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Fee Breakdown by Category -->
+    <div class="card mb-4">
+        <div class="card-header bg-primary text-white">
+            <h5 class="mb-0"><i class="fas fa-list me-2"></i>Fee Breakdown by Category</h5>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-striped table-bordered">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Fee Category</th>
+                            <th class="text-end">Number of Records</th>
+                            <th class="text-end">Total Charged</th>
+                            <th class="text-end">Total Paid</th>
+                            <th class="text-end">Balance</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in category_breakdown %}
+                        <tr>
+                            <td><strong>{{ item.fee_category__name|default:"Unknown" }}</strong></td>
+                            <td class="text-end">{{ item.count }}</td>
+                            <td class="text-end">{{ item.total_charged|floatformat:2 }}</td>
+                            <td class="text-end">{{ item.total_paid|floatformat:2 }}</td>
+                            <td class="text-end"><strong>{{ item.balance|floatformat:2 }}</strong></td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="5" class="text-center text-muted">No data available</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Fee Breakdown by Term -->
+    <div class="card mb-4">
+        <div class="card-header bg-success text-white">
+            <h5 class="mb-0"><i class="fas fa-calendar-alt me-2"></i>Fee Breakdown by Term</h5>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-striped table-bordered">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Term</th>
+                            <th>Academic Year</th>
+                            <th class="text-end">Number of Records</th>
+                            <th class="text-end">Total Charged</th>
+                            <th class="text-end">Total Paid</th>
+                            <th class="text-end">Balance</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in term_breakdown %}
+                        <tr>
+                            <td><strong>{{ item.term__name }}</strong></td>
+                            <td>{{ item.term__academic_year }}</td>
+                            <td class="text-end">{{ item.count }}</td>
+                            <td class="text-end">{{ item.total_charged|floatformat:2 }}</td>
+                            <td class="text-end">{{ item.total_paid|floatformat:2 }}</td>
+                            <td class="text-end"><strong>{{ item.balance|floatformat:2 }}</strong></td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="6" class="text-center text-muted">No data available</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Fee Breakdown by Grade -->
+    <div class="card mb-4">
+        <div class="card-header bg-info text-white">
+            <h5 class="mb-0"><i class="fas fa-graduation-cap me-2"></i>Fee Breakdown by Grade</h5>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-striped table-bordered">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Grade</th>
+                            <th class="text-end">Number of Students</th>
+                            <th class="text-end">Number of Fee Records</th>
+                            <th class="text-end">Total Charged</th>
+                            <th class="text-end">Total Paid</th>
+                            <th class="text-end">Balance</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in grade_breakdown %}
+                        <tr>
+                            <td><strong>{{ item.student__grade__name|default:"Unknown" }}</strong></td>
+                            <td class="text-end">{{ item.student_count }}</td>
+                            <td class="text-end">{{ item.fee_count }}</td>
+                            <td class="text-end">{{ item.total_charged|floatformat:2 }}</td>
+                            <td class="text-end">{{ item.total_paid|floatformat:2 }}</td>
+                            <td class="text-end"><strong>{{ item.balance|floatformat:2 }}</strong></td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="6" class="text-center text-muted">No data available</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Top Students by Balance -->
+    <div class="card mb-4">
+        <div class="card-header bg-warning text-dark">
+            <h5 class="mb-0"><i class="fas fa-exclamation-triangle me-2"></i>Top 10 Students with Outstanding Balances</h5>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-striped table-bordered">
+                    <thead class="table-light">
+                        <tr>
+                            <th>#</th>
+                            <th>Student ID</th>
+                            <th>Name</th>
+                            <th>Grade</th>
+                            <th class="text-end">Outstanding Balance</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for student in top_balances %}
+                        <tr>
+                            <td>{{ forloop.counter }}</td>
+                            <td><strong>{{ student.student__student_id }}</strong></td>
+                            <td>{{ student.student__first_name }} {{ student.student__last_name }}</td>
+                            <td>{{ student.student__grade__name|default:"—" }}</td>
+                            <td class="text-end"><strong class="text-danger">{{ student.total_balance|floatformat:2 }}</strong></td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="5" class="text-center text-muted">No outstanding balances</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Recent Payments -->
+    <div class="card mb-4">
+        <div class="card-header bg-secondary text-white">
+            <h5 class="mb-0"><i class="fas fa-history me-2"></i>Recent Payments (Last 30 Days)</h5>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-striped table-bordered">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Date</th>
+                            <th>Student</th>
+                            <th>Student ID</th>
+                            <th class="text-end">Amount</th>
+                            <th>Payment Method</th>
+                            <th>Reference</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for payment in recent_payments %}
+                        <tr>
+                            <td>{{ payment.payment_date|indian_date }}</td>
+                            <td>{{ payment.student.full_name }}</td>
+                            <td>{{ payment.student.student_id }}</td>
+                            <td class="text-end">{{ payment.amount|floatformat:2 }}</td>
+                            <td>{{ payment.get_payment_method_display }}</td>
+                            <td>{{ payment.reference_number|default:"—" }}</td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="6" class="text-center text-muted">No recent payments</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Report Footer -->
+    <div class="report-footer">
+        <p class="mb-1"><strong>{{ school.name }}</strong></p>
+        <p class="mb-0">Generated on {{ report_date|indian_date }} | Fee Management System</p>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const showInactiveCheckbox = document.getElementById('showInactive');
+    const filterForm = document.querySelector('form[method="get"]');
+    
+    // Handle show inactive checkbox toggle
+    if (showInactiveCheckbox && filterForm) {
+        showInactiveCheckbox.addEventListener('change', function(e) {
+            // Auto-submit form when checkbox is toggled
+            filterForm.submit();
+        });
+    }
+});
+</script>
+{% endblock %}

@@ -1,0 +1,450 @@
+{% extends 'base.html' %}
+{% load currency date_format %}
+
+{% block title %}Collection Summary Report | School Management System{% endblock %}
+
+{% block extra_css %}
+<style>
+    @media print {
+        @page {
+            size: A4;
+            margin: 2cm 1.5cm;
+        }
+        .no-print {
+            display: none !important;
+        }
+        body {
+            font-size: 11pt;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            color: #000;
+            background: #fff !important;
+        }
+        .container-fluid {
+            padding: 0 !important;
+        }
+        .card {
+            border: 1px solid #ddd !important;
+            box-shadow: none !important;
+            margin-bottom: 15px;
+            page-break-inside: avoid;
+        }
+        .card-header {
+            background: #f8f9fa !important;
+            color: #000 !important;
+            border-bottom: 2px solid #ddd !important;
+            padding: 10px 15px !important;
+        }
+        .table {
+            font-size: 9pt;
+            border-collapse: collapse;
+        }
+        .table th {
+            background: #f8f9fa !important;
+            color: #000 !important;
+            font-weight: 600;
+            border: 1px solid #ddd !important;
+            padding: 8px !important;
+        }
+        .table td {
+            border: 1px solid #ddd !important;
+            padding: 6px 8px !important;
+        }
+        .chart-container {
+            display: none !important;
+        }
+        .stat-card {
+            border: 1px solid #ddd !important;
+            page-break-inside: avoid;
+        }
+        .report-header {
+            border-bottom: 2px solid #000 !important;
+            padding-bottom: 15px;
+            margin-bottom: 20px;
+        }
+    }
+    
+    .report-container {
+        max-width: 1200px;
+        margin: 0 auto;
+        background: #fff;
+        padding: 30px;
+    }
+    
+    .report-header {
+        border-bottom: 4px solid #27ae60;
+        padding-bottom: 25px;
+        margin-bottom: 35px;
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+    }
+    
+    .report-header-left {
+        flex: 1;
+    }
+    
+    .report-header-right {
+        text-align: right;
+        flex-shrink: 0;
+    }
+    
+    .school-logo {
+        max-height: 80px;
+        margin-bottom: 15px;
+    }
+    
+    .report-title {
+        font-size: 2.5rem;
+        font-weight: 700;
+        color: #2c3e50;
+        margin: 0 0 5px 0;
+        letter-spacing: -0.5px;
+    }
+    
+    .report-subtitle {
+        font-size: 1.1rem;
+        color: #7f8c8d;
+        margin: 0;
+        font-weight: 400;
+    }
+    
+    .report-meta {
+        font-size: 0.9rem;
+        color: #555;
+        line-height: 1.8;
+    }
+    
+    .stat-card {
+        border-left: 5px solid #27ae60;
+        padding: 20px;
+        margin-bottom: 20px;
+        background: linear-gradient(to right, #f8f9fa 0%, #ffffff 100%);
+        border-radius: 4px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    
+    .stat-card.success {
+        border-left-color: #27ae60;
+    }
+    
+    .stat-card.info {
+        border-left-color: #3498db;
+    }
+    
+    .stat-card.warning {
+        border-left-color: #f39c12;
+    }
+    
+    .stat-card.danger {
+        border-left-color: #e74c3c;
+    }
+    
+    .stat-card h6 {
+        font-size: 0.85rem;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        color: #7f8c8d;
+        margin-bottom: 10px;
+        font-weight: 600;
+    }
+    
+    .stat-card h3, .stat-card h4 {
+        margin: 0;
+        color: #2c3e50;
+        font-weight: 700;
+    }
+    
+    .collection-rate {
+        font-size: 2rem;
+        font-weight: bold;
+    }
+    
+    .collection-rate.high {
+        color: #27ae60;
+    }
+    
+    .collection-rate.medium {
+        color: #f39c12;
+    }
+    
+    .collection-rate.low {
+        color: #e74c3c;
+    }
+    
+    .card {
+        border: none;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        margin-bottom: 25px;
+        border-radius: 8px;
+        overflow: hidden;
+    }
+    
+    .card-header {
+        background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+        color: #fff;
+        padding: 15px 20px;
+        font-weight: 600;
+        border: none;
+    }
+    
+    .card-header.bg-success {
+        background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%) !important;
+    }
+    
+    .card-header.bg-primary {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
+    }
+    
+    .table {
+        margin-bottom: 0;
+    }
+    
+    .table thead th {
+        background: #f8f9fa;
+        font-weight: 600;
+        text-transform: uppercase;
+        font-size: 0.75rem;
+        letter-spacing: 0.5px;
+        color: #2c3e50;
+        border-bottom: 2px solid #dee2e6;
+    }
+    
+    .table tbody tr:hover {
+        background-color: #f8f9fa;
+    }
+    
+    .report-footer {
+        margin-top: 40px;
+        padding-top: 20px;
+        border-top: 2px solid #ecf0f1;
+        text-align: center;
+        color: #7f8c8d;
+        font-size: 0.85rem;
+    }
+    
+    .chart-container {
+        position: relative;
+        height: 350px;
+        margin: 20px 0;
+    }
+    
+    .chart-container canvas {
+        max-height: 350px !important;
+    }
+</style>
+<!-- Chart.js -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+{% endblock %}
+
+{% block content %}
+<div class="report-container">
+    <div class="no-print mb-4">
+        <div class="d-flex justify-content-between align-items-center">
+            <h2><i class="fas fa-chart-bar me-2"></i>Collection Summary Report</h2>
+            <div>
+                <button onclick="window.print()" class="btn btn-primary">
+                    <i class="fas fa-print me-2"></i>Print Report
+                </button>
+                <a href="{% url 'payments:financial_reports' %}" class="btn btn-secondary">
+                    <i class="fas fa-arrow-left me-2"></i>Back to Reports
+                </a>
+            </div>
+        </div>
+        
+        <div class="card mt-3">
+            <div class="card-body">
+                <form method="get" class="row g-3">
+                    <div class="col-md-4">
+                        <label class="form-label">Academic Year</label>
+                        <select name="year" class="form-select">
+                            <option value="">All years</option>
+                            {% for year in academic_years %}
+                            <option value="{{ year }}" {% if year_filter == year %}selected{% endif %}>{{ year }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label">Term</label>
+                        <select name="term" class="form-select">
+                            <option value="">All terms</option>
+                            {% for term in terms %}
+                            <option value="{{ term.id }}" {% if term_filter == term.id|stringformat:'s' %}selected{% endif %}>
+                                {{ term.name }} ({{ term.academic_year }})
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-4 d-flex align-items-end">
+                        <button type="submit" class="btn btn-primary w-100">Generate Report</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Report Header -->
+    <div class="report-header">
+        <div class="report-header-left">
+            {% if school.logo %}
+            <img src="{{ school.logo.url }}" alt="{{ school.name }}" class="school-logo">
+            {% endif %}
+            <h1 class="report-title">{{ school.name }}</h1>
+            <p class="report-subtitle">Collection Summary Report</p>
+            {% if school.address %}
+            <p class="report-meta mb-0" style="margin-top: 10px;">
+                <i class="fas fa-map-marker-alt"></i> {{ school.address }}
+                {% if school.phone %} | <i class="fas fa-phone"></i> {{ school.phone }}{% endif %}
+            </p>
+            {% endif %}
+        </div>
+        <div class="report-header-right">
+            <div class="report-meta">
+                <p class="mb-1"><strong>Report Date:</strong><br>{{ report_date|indian_date }}</p>
+                {% if year_filter %}
+                <p class="mb-1"><strong>Academic Year:</strong><br>{{ year_filter }}</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Overall Statistics -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="stat-card">
+                <h6 class="text-muted mb-2">Total Charged</h6>
+                <h3 class="mb-0">{{ total_charged|kes_currency }}</h3>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="stat-card success">
+                <h6 class="text-muted mb-2">Total Collected</h6>
+                <h3 class="mb-0">{{ total_paid|kes_currency }}</h3>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="stat-card info">
+                <h6 class="text-muted mb-2">Outstanding</h6>
+                <h3 class="mb-0">{{ total_charged|add:total_paid|add:"-"|floatformat:2 }}</h3>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="stat-card {% if overall_collection_rate >= 80 %}success{% elif overall_collection_rate >= 60 %}warning{% else %}danger{% endif %}">
+                <h6 class="text-muted mb-2">Collection Rate</h6>
+                <h3 class="mb-0 collection-rate {% if overall_collection_rate >= 80 %}high{% elif overall_collection_rate >= 60 %}medium{% else %}low{% endif %}">
+                    {{ overall_collection_rate|floatformat:1 }}%
+                </h3>
+            </div>
+        </div>
+    </div>
+
+    <!-- Monthly Collection Chart -->
+    <div class="card mb-4 chart-container">
+        <div class="card-header bg-primary text-white">
+            <h5 class="mb-0"><i class="fas fa-chart-line me-2"></i>Monthly Collection Trends (Last 12 Months)</h5>
+        </div>
+        <div class="card-body" style="padding: 20px;">
+            <canvas id="monthlyChart"></canvas>
+        </div>
+    </div>
+
+    <!-- Collection by Term -->
+    <div class="card mb-4">
+        <div class="card-header bg-success text-white">
+            <h5 class="mb-0"><i class="fas fa-calendar-alt me-2"></i>Collection by Term</h5>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-striped table-bordered">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Term</th>
+                            <th>Academic Year</th>
+                            <th class="text-end">Total Charged</th>
+                            <th class="text-end">Total Collected</th>
+                            <th class="text-end">Outstanding</th>
+                            <th class="text-end">Collection Rate</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in term_data %}
+                        <tr>
+                            <td><strong>{{ item.term }}</strong></td>
+                            <td>{{ item.academic_year }}</td>
+                            <td class="text-end">{{ item.total_charged|floatformat:2 }}</td>
+                            <td class="text-end">{{ item.total_paid|floatformat:2 }}</td>
+                            <td class="text-end">
+                                <strong>{{ item.outstanding|floatformat:2 }}</strong>
+                            </td>
+                            <td class="text-end">
+                                <span class="badge {% if item.collection_rate >= 80 %}bg-success{% elif item.collection_rate >= 60 %}bg-warning{% else %}bg-danger{% endif %}">
+                                    {{ item.collection_rate|floatformat:1 }}%
+                                </span>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="6" class="text-center text-muted">No data available</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Report Footer -->
+    <div class="report-footer">
+        <p class="mb-1"><strong>{{ school.name }}</strong></p>
+        <p class="mb-0">Generated on {{ report_date|indian_date }} | Financial Reports</p>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const monthlyCtx = document.getElementById('monthlyChart');
+    if (monthlyCtx) {
+        const monthlyData = JSON.parse('{{ monthly_data|escapejs }}');
+        const monthlyChart = new Chart(monthlyCtx, {
+            type: 'bar',
+            data: {
+                labels: monthlyData.map(item => item.month),
+                datasets: [{
+                    label: 'Amount Collected',
+                    data: monthlyData.map(item => item.total_collected),
+                    backgroundColor: 'rgba(40, 167, 69, 0.8)',
+                    borderColor: 'rgba(40, 167, 69, 1)',
+                    borderWidth: 2
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                aspectRatio: 2.5,
+                plugins: {
+                    legend: {
+                        display: false
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                return 'KES ' + context.parsed.y.toLocaleString('en-KE', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: {
+                            callback: function(value) {
+                                return 'KES ' + value.toLocaleString('en-KE');
+                            }
+                        }
+                    }
+                }
+            }
+        });
+    }
+});
+</script>
+{% endblock %}

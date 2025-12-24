@@ -4,7 +4,7 @@ from django.contrib import messages
 from django.http import JsonResponse, HttpResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.core.paginator import Paginator
-from django.db.models import Q, Sum, F, Case, When, Value, DecimalField
+from django.db.models import Q, Sum, F, Case, When, Value, DecimalField, Count, Avg
 from django.utils import timezone
 from .models import Payment, MpesaPayment, PaymentReceipt, PaymentReminder
 from .mpesa_service import MpesaService
@@ -502,6 +502,545 @@ def fee_summary(request):
     }
     
     return render(request, 'payments/fee_summary.html', context)
+
+
+@login_required
+def fee_report(request):
+    """Comprehensive fee management report - printable"""
+    school = request.user.profile.school
+    
+    # Filters
+    year_filter = request.GET.get('year', '')
+    term_filter = request.GET.get('term', '')
+    grade_filter = request.GET.get('grade', '')
+    show_inactive = request.GET.get('show_inactive', 'false').lower() == 'true'
+    
+    fees = StudentFee.objects.filter(school=school).select_related('student', 'term', 'student__grade', 'fee_category')
+    
+    # Filter by active status
+    if not show_inactive:
+        fees = fees.filter(student__is_active=True)
+    
+    # Filter by grade
+    if grade_filter:
+        fees = fees.filter(student__grade_id=grade_filter)
+    
+    # Filter by year and term
+    if year_filter:
+        fees = fees.filter(term__academic_year=year_filter)
+    if term_filter:
+        fees = fees.filter(term_id=term_filter)
+    
+    # Overall statistics
+    total_students = fees.values('student').distinct().count()
+    total_fees_charged = fees.aggregate(total=Sum('amount_charged', output_field=DecimalField()))['total'] or 0
+    total_fees_paid = fees.aggregate(total=Sum('amount_paid', output_field=DecimalField()))['total'] or 0
+    total_balance = total_fees_charged - total_fees_paid
+    
+    # Overdue statistics
+    overdue_fees = fees.filter(
+        is_paid=False,
+        due_date__lt=timezone.now().date()
+    )
+    overdue_count = overdue_fees.count()
+    overdue_amount = overdue_fees.aggregate(total=Sum('amount_charged', output_field=DecimalField()))['total'] or 0
+    
+    # Payment statistics
+    paid_fees = fees.filter(is_paid=True)
+    paid_count = paid_fees.count()
+    paid_amount = paid_fees.aggregate(total=Sum('amount_paid', output_field=DecimalField()))['total'] or 0
+    
+    # Pending statistics
+    pending_fees = fees.filter(is_paid=False, due_date__gte=timezone.now().date())
+    pending_count = pending_fees.count()
+    pending_amount = pending_fees.aggregate(total=Sum('amount_charged', output_field=DecimalField()))['total'] or 0
+    
+    # Fee breakdown by category
+    from core.models import FeeCategory
+    category_breakdown = []
+    for item in fees.values('fee_category__name').annotate(
+        total_charged=Sum('amount_charged', output_field=DecimalField()),
+        total_paid=Sum('amount_paid', output_field=DecimalField()),
+        count=Count('id')
+    ).order_by('-total_charged'):
+        item['balance'] = float(item['total_charged'] or 0) - float(item['total_paid'] or 0)
+        category_breakdown.append(item)
+    
+    # Fee breakdown by term
+    term_breakdown = []
+    for item in fees.values('term__name', 'term__academic_year').annotate(
+        total_charged=Sum('amount_charged', output_field=DecimalField()),
+        total_paid=Sum('amount_paid', output_field=DecimalField()),
+        count=Count('id')
+    ).order_by('-term__academic_year', '-term__term_number'):
+        item['balance'] = float(item['total_charged'] or 0) - float(item['total_paid'] or 0)
+        term_breakdown.append(item)
+    
+    # Fee breakdown by grade
+    grade_breakdown = []
+    for item in fees.values('student__grade__name').annotate(
+        total_charged=Sum('amount_charged', output_field=DecimalField()),
+        total_paid=Sum('amount_paid', output_field=DecimalField()),
+        student_count=Count('student', distinct=True),
+        fee_count=Count('id')
+    ).order_by('student__grade__name'):
+        item['balance'] = float(item['total_charged'] or 0) - float(item['total_paid'] or 0)
+        grade_breakdown.append(item)
+    
+    # Top students by balance
+    top_balances = fees.values(
+        'student__id',
+        'student__student_id',
+        'student__first_name',
+        'student__last_name',
+        'student__grade__name'
+    ).annotate(
+        total_balance=Sum(F('amount_charged') - F('amount_paid'), output_field=DecimalField())
+    ).filter(total_balance__gt=0).order_by('-total_balance')[:10]
+    
+    # Recent payments (last 30 days)
+    from datetime import timedelta
+    thirty_days_ago = timezone.now().date() - timedelta(days=30)
+    from .models import Payment
+    recent_payments = Payment.objects.filter(
+        school=school,
+        payment_date__date__gte=thirty_days_ago,
+        status='completed'
+    ).select_related('student').order_by('-payment_date')[:10]
+    
+    # Filter options
+    from core.models import Grade, Term
+    academic_years = Term.objects.filter(school=school).values_list('academic_year', flat=True).distinct().order_by('-academic_year')
+    terms = Term.objects.filter(school=school).order_by('-academic_year', 'term_number')
+    if year_filter:
+        terms = terms.filter(academic_year=year_filter)
+    grades = Grade.objects.filter(school=school).order_by('name')
+    
+    # Get selected filters for display
+    selected_term = None
+    if term_filter:
+        selected_term = Term.objects.filter(id=term_filter).first()
+    selected_grade = None
+    if grade_filter:
+        selected_grade = Grade.objects.filter(id=grade_filter).first()
+    
+    context = {
+        'school': school,
+        'total_students': total_students,
+        'total_fees_charged': float(total_fees_charged),
+        'total_fees_paid': float(total_fees_paid),
+        'total_balance': float(total_balance),
+        'overdue_count': overdue_count,
+        'overdue_amount': float(overdue_amount),
+        'paid_count': paid_count,
+        'paid_amount': float(paid_amount),
+        'pending_count': pending_count,
+        'pending_amount': float(pending_amount),
+        'category_breakdown': category_breakdown,
+        'term_breakdown': term_breakdown,
+        'grade_breakdown': grade_breakdown,
+        'top_balances': top_balances,
+        'recent_payments': recent_payments,
+        'year_filter': year_filter,
+        'term_filter': term_filter,
+        'grade_filter': grade_filter,
+        'selected_term': selected_term,
+        'selected_grade': selected_grade,
+        'academic_years': academic_years,
+        'terms': terms,
+        'grades': grades,
+        'show_inactive': show_inactive,
+        'report_date': timezone.now().date(),
+    }
+    
+    return render(request, 'payments/fee_report.html', context)
+
+
+@login_required
+def financial_reports(request):
+    """Financial reports dashboard"""
+    school = request.user.profile.school
+    return render(request, 'payments/financial_reports.html', {'school': school})
+
+
+@login_required
+def payment_collection_report(request):
+    """Payment collection report - daily/weekly/monthly"""
+    school = request.user.profile.school
+    
+    # Filters
+    period = request.GET.get('period', 'monthly')  # daily, weekly, monthly
+    date_from = request.GET.get('date_from', '')
+    date_to = request.GET.get('date_to', '')
+    
+    payments = Payment.objects.filter(
+        school=school,
+        status='completed'
+    ).select_related('student', 'student_fee__fee_category', 'student_fee__term')
+    
+    # Date filtering
+    if date_from:
+        payments = payments.filter(payment_date__date__gte=date_from)
+    if date_to:
+        payments = payments.filter(payment_date__date__lte=date_to)
+    
+    # Group by period
+    from django.db.models.functions import TruncDate, TruncWeek, TruncMonth
+    collection_data = []
+    
+    if period == 'daily':
+        grouped = payments.annotate(
+            period=TruncDate('payment_date')
+        ).values('period').annotate(
+            total_amount=Sum('amount', output_field=DecimalField()),
+            count=Count('id')
+        ).order_by('-period')
+        
+        for item in grouped:
+            collection_data.append({
+                'period': item['period'].strftime('%d %b %Y') if item['period'] else 'Unknown',
+                'total_amount': float(item['total_amount'] or 0),
+                'count': item['count'],
+            })
+    elif period == 'weekly':
+        grouped = payments.annotate(
+            period=TruncWeek('payment_date')
+        ).values('period').annotate(
+            total_amount=Sum('amount', output_field=DecimalField()),
+            count=Count('id')
+        ).order_by('-period')
+        
+        for item in grouped:
+            collection_data.append({
+                'period': f"Week of {item['period'].strftime('%d %b %Y')}" if item['period'] else 'Unknown',
+                'total_amount': float(item['total_amount'] or 0),
+                'count': item['count'],
+            })
+    else:  # monthly
+        grouped = payments.annotate(
+            period=TruncMonth('payment_date')
+        ).values('period').annotate(
+            total_amount=Sum('amount', output_field=DecimalField()),
+            count=Count('id')
+        ).order_by('-period')
+        
+        for item in grouped:
+            collection_data.append({
+                'period': item['period'].strftime('%B %Y') if item['period'] else 'Unknown',
+                'total_amount': float(item['total_amount'] or 0),
+                'count': item['count'],
+            })
+    
+    # Overall statistics
+    total_collected = payments.aggregate(total=Sum('amount', output_field=DecimalField()))['total'] or 0
+    total_count = payments.count()
+    avg_payment = total_collected / total_count if total_count > 0 else 0
+    
+    context = {
+        'school': school,
+        'period': period,
+        'date_from': date_from,
+        'date_to': date_to,
+        'collection_data': collection_data,
+        'total_collected': float(total_collected),
+        'total_count': total_count,
+        'avg_payment': float(avg_payment),
+        'report_date': timezone.now().date(),
+    }
+    
+    return render(request, 'payments/payment_collection_report.html', context)
+
+
+@login_required
+def outstanding_fees_report(request):
+    """Detailed outstanding fees report"""
+    school = request.user.profile.school
+    
+    # Filters
+    grade_filter = request.GET.get('grade', '')
+    term_filter = request.GET.get('term', '')
+    overdue_only = request.GET.get('overdue_only', 'false').lower() == 'true'
+    
+    fees = StudentFee.objects.filter(
+        school=school,
+        student__is_active=True
+    ).select_related('student', 'term', 'fee_category', 'student__grade')
+    
+    # Filter by grade
+    if grade_filter:
+        fees = fees.filter(student__grade_id=grade_filter)
+    
+    # Filter by term
+    if term_filter:
+        fees = fees.filter(term_id=term_filter)
+    
+    # Get outstanding fees (balance > 0)
+    # Use 'calculated_balance' to avoid conflict with the 'balance' property
+    outstanding_fees = fees.annotate(
+        calculated_balance=F('amount_charged') - F('amount_paid')
+    ).filter(calculated_balance__gt=0)
+    
+    # Filter overdue only
+    if overdue_only:
+        outstanding_fees = outstanding_fees.filter(
+            due_date__lt=timezone.now().date(),
+            is_paid=False
+        )
+    
+    outstanding_fees = outstanding_fees.order_by('-calculated_balance', 'due_date')
+    
+    # Statistics
+    total_outstanding = outstanding_fees.aggregate(
+        total=Sum('calculated_balance', output_field=DecimalField())
+    )['total'] or 0
+    
+    overdue_count = outstanding_fees.filter(
+        due_date__lt=timezone.now().date()
+    ).count()
+    
+    overdue_amount = outstanding_fees.filter(
+        due_date__lt=timezone.now().date()
+    ).aggregate(
+        total=Sum('calculated_balance', output_field=DecimalField())
+    )['total'] or 0
+    
+    # Group by grade
+    from core.models import Grade
+    grade_breakdown = outstanding_fees.values('student__grade__name').annotate(
+        total_outstanding=Sum('calculated_balance', output_field=DecimalField()),
+        count=Count('id'),
+        student_count=Count('student', distinct=True)
+    ).order_by('student__grade__name')
+    
+    # Filter options
+    grades = Grade.objects.filter(school=school).order_by('name')
+    terms = Term.objects.filter(school=school).order_by('-academic_year', 'term_number')
+    
+    selected_grade = None
+    if grade_filter:
+        selected_grade = Grade.objects.filter(id=grade_filter).first()
+    selected_term = None
+    if term_filter:
+        selected_term = Term.objects.filter(id=term_filter).first()
+    
+    context = {
+        'school': school,
+        'outstanding_fees': outstanding_fees,
+        'total_outstanding': float(total_outstanding),
+        'overdue_count': overdue_count,
+        'overdue_amount': float(overdue_amount),
+        'grade_breakdown': grade_breakdown,
+        'grade_filter': grade_filter,
+        'term_filter': term_filter,
+        'selected_grade': selected_grade,
+        'selected_term': selected_term,
+        'grades': grades,
+        'terms': terms,
+        'overdue_only': overdue_only,
+        'report_date': timezone.now().date(),
+    }
+    
+    return render(request, 'payments/outstanding_fees_report.html', context)
+
+
+@login_required
+def collection_summary_report(request):
+    """Fee collection summary with trends"""
+    school = request.user.profile.school
+    
+    # Filters
+    year_filter = request.GET.get('year', '')
+    term_filter = request.GET.get('term', '')
+    
+    fees = StudentFee.objects.filter(school=school).select_related('term', 'student__grade')
+    payments = Payment.objects.filter(school=school, status='completed').select_related('student')
+    
+    # Filter by year
+    if year_filter:
+        fees = fees.filter(term__academic_year=year_filter)
+        payments = payments.filter(payment_date__year=year_filter)
+    
+    # Filter by term
+    if term_filter:
+        fees = fees.filter(term_id=term_filter)
+        term = Term.objects.filter(id=term_filter).first()
+        if term:
+            payments = payments.filter(
+                payment_date__date__gte=term.start_date,
+                payment_date__date__lte=term.end_date
+            )
+    
+    # Monthly collection trends (last 12 months)
+    from datetime import timedelta
+    from django.db.models.functions import TruncMonth
+    end_date = timezone.now().date()
+    start_date = end_date - timedelta(days=365)
+    
+    monthly_collections = payments.filter(
+        payment_date__date__gte=start_date,
+        payment_date__date__lte=end_date
+    ).annotate(
+        month=TruncMonth('payment_date')
+    ).values('month').annotate(
+        total_collected=Sum('amount', output_field=DecimalField()),
+        count=Count('id')
+    ).order_by('month')
+    
+    monthly_data = []
+    for item in monthly_collections:
+        monthly_data.append({
+            'month': item['month'].strftime('%b %Y') if item['month'] else 'Unknown',
+            'total_collected': float(item['total_collected'] or 0),
+            'count': item['count'],
+        })
+    
+    # Collection by term
+    term_collections = fees.values('term__name', 'term__academic_year').annotate(
+        total_charged=Sum('amount_charged', output_field=DecimalField()),
+        total_paid=Sum('amount_paid', output_field=DecimalField()),
+    ).order_by('-term__academic_year', '-term__term_number')
+    
+    term_data = []
+    for item in term_collections:
+        total_charged = float(item['total_charged'] or 0)
+        total_paid = float(item['total_paid'] or 0)
+        outstanding = total_charged - total_paid
+        collection_rate = (total_paid / total_charged * 100) if total_charged > 0 else 0
+        term_data.append({
+            'term': item['term__name'],
+            'academic_year': item['term__academic_year'],
+            'total_charged': total_charged,
+            'total_paid': total_paid,
+            'outstanding': outstanding,
+            'collection_rate': collection_rate,
+        })
+    
+    # Overall statistics
+    total_charged = fees.aggregate(total=Sum('amount_charged', output_field=DecimalField()))['total'] or 0
+    total_paid = fees.aggregate(total=Sum('amount_paid', output_field=DecimalField()))['total'] or 0
+    total_outstanding = float(total_charged) - float(total_paid)
+    overall_collection_rate = (total_paid / total_charged * 100) if total_charged > 0 else 0
+    
+    # Filter options
+    academic_years = Term.objects.filter(school=school).values_list('academic_year', flat=True).distinct().order_by('-academic_year')
+    terms = Term.objects.filter(school=school).order_by('-academic_year', 'term_number')
+    if year_filter:
+        terms = terms.filter(academic_year=year_filter)
+    
+    context = {
+        'school': school,
+        'year_filter': year_filter,
+        'term_filter': term_filter,
+        'monthly_data': json.dumps(monthly_data),
+        'term_data': term_data,
+        'total_charged': float(total_charged),
+        'total_paid': float(total_paid),
+        'total_outstanding': total_outstanding,
+        'overall_collection_rate': overall_collection_rate,
+        'academic_years': academic_years,
+        'terms': terms,
+        'report_date': timezone.now().date(),
+    }
+    
+    return render(request, 'payments/collection_summary_report.html', context)
+
+
+@login_required
+def payment_method_analysis(request):
+    """Payment method analysis report"""
+    school = request.user.profile.school
+    
+    # Filters
+    date_from = request.GET.get('date_from', '')
+    date_to = request.GET.get('date_to', '')
+    year_filter = request.GET.get('year', '')
+    
+    payments = Payment.objects.filter(
+        school=school,
+        status='completed'
+    ).select_related('student')
+    
+    # Date filtering
+    if date_from:
+        payments = payments.filter(payment_date__date__gte=date_from)
+    if date_to:
+        payments = payments.filter(payment_date__date__lte=date_to)
+    if year_filter:
+        payments = payments.filter(payment_date__year=year_filter)
+    
+    # Breakdown by payment method
+    method_breakdown = payments.values('payment_method').annotate(
+        total_amount=Sum('amount', output_field=DecimalField()),
+        count=Count('id'),
+        avg_amount=Avg('amount')
+    ).order_by('-total_amount')
+    
+    method_data = []
+    total_all = payments.aggregate(total=Sum('amount', output_field=DecimalField()))['total'] or 0
+    
+    for item in method_breakdown:
+        total = float(item['total_amount'] or 0)
+        percentage = (total / float(total_all) * 100) if total_all > 0 else 0
+        method_data.append({
+            'method': dict(Payment.PAYMENT_METHOD_CHOICES).get(item['payment_method'], item['payment_method']),
+            'total_amount': total,
+            'count': item['count'],
+            'avg_amount': float(item['avg_amount'] or 0),
+            'percentage': percentage,
+        })
+    
+    # Monthly trend by method (last 6 months)
+    from datetime import timedelta
+    from django.db.models.functions import TruncMonth
+    end_date = timezone.now().date()
+    start_date = end_date - timedelta(days=180)
+    
+    monthly_by_method = payments.filter(
+        payment_date__date__gte=start_date,
+        payment_date__date__lte=end_date
+    ).annotate(
+        month=TruncMonth('payment_date')
+    ).values('month', 'payment_method').annotate(
+        total_amount=Sum('amount', output_field=DecimalField())
+    ).order_by('month', 'payment_method')
+    
+    # Organize monthly data by method
+    monthly_method_data = {}
+    for item in monthly_by_method:
+        method = dict(Payment.PAYMENT_METHOD_CHOICES).get(item['payment_method'], item['payment_method'])
+        month = item['month'].strftime('%b %Y') if item['month'] else 'Unknown'
+        
+        if method not in monthly_method_data:
+            monthly_method_data[method] = []
+        monthly_method_data[method].append({
+            'month': month,
+            'amount': float(item['total_amount'] or 0),
+        })
+    
+    # Overall statistics
+    total_payments = payments.count()
+    total_amount = float(total_all)
+    avg_payment = total_amount / total_payments if total_payments > 0 else 0
+    
+    # Filter options
+    academic_years = Term.objects.filter(school=school).values_list('academic_year', flat=True).distinct().order_by('-academic_year')
+    
+    context = {
+        'school': school,
+        'method_data': method_data,
+        'monthly_method_data': json.dumps(monthly_method_data),
+        'method_data_json': json.dumps(method_data),
+        'total_payments': total_payments,
+        'total_amount': total_amount,
+        'avg_payment': avg_payment,
+        'date_from': date_from,
+        'date_to': date_to,
+        'year_filter': year_filter,
+        'academic_years': academic_years,
+        'report_date': timezone.now().date(),
+    }
+    
+    return render(request, 'payments/payment_method_analysis.html', context)
 
 
 @login_required

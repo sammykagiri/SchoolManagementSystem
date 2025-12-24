@@ -1,0 +1,125 @@
+{% extends 'base.html' %}
+{% load currency %}
+
+{% block title %}Financial Reports | School Management System{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h1 class="mb-1"><i class="fas fa-chart-line me-2"></i>Financial Reports</h1>
+            <p class="text-muted mb-0">Comprehensive financial analysis and reporting</p>
+        </div>
+        <a href="{% url 'payments:payment_list' %}" class="btn btn-outline-secondary">
+            <i class="fas fa-arrow-left me-2"></i>Back to Payments
+        </a>
+    </div>
+
+    <div class="row g-4">
+        <!-- Payment Collection Report -->
+        <div class="col-md-6 col-lg-4">
+            <div class="card h-100 shadow-sm">
+                <div class="card-body">
+                    <div class="d-flex align-items-center mb-3">
+                        <div class="bg-primary text-white rounded-circle d-flex align-items-center justify-content-center" style="width: 60px; height: 60px;">
+                            <i class="fas fa-money-bill-wave fa-2x"></i>
+                        </div>
+                        <div class="ms-3">
+                            <h5 class="mb-0">Payment Collection</h5>
+                            <small class="text-muted">Daily/Weekly/Monthly</small>
+                        </div>
+                    </div>
+                    <p class="text-muted">View payment collections by period with detailed breakdowns and trends.</p>
+                    <a href="{% url 'payments:payment_collection_report' %}" class="btn btn-primary w-100">
+                        <i class="fas fa-file-alt me-2"></i>View Report
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <!-- Outstanding Fees Report -->
+        <div class="col-md-6 col-lg-4">
+            <div class="card h-100 shadow-sm">
+                <div class="card-body">
+                    <div class="d-flex align-items-center mb-3">
+                        <div class="bg-danger text-white rounded-circle d-flex align-items-center justify-content-center" style="width: 60px; height: 60px;">
+                            <i class="fas fa-exclamation-triangle fa-2x"></i>
+                        </div>
+                        <div class="ms-3">
+                            <h5 class="mb-0">Outstanding Fees</h5>
+                            <small class="text-muted">Unpaid & Overdue</small>
+                        </div>
+                    </div>
+                    <p class="text-muted">Detailed list of all outstanding fees with student information and due dates.</p>
+                    <a href="{% url 'payments:outstanding_fees_report' %}" class="btn btn-danger w-100">
+                        <i class="fas fa-file-alt me-2"></i>View Report
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <!-- Collection Summary Report -->
+        <div class="col-md-6 col-lg-4">
+            <div class="card h-100 shadow-sm">
+                <div class="card-body">
+                    <div class="d-flex align-items-center mb-3">
+                        <div class="bg-success text-white rounded-circle d-flex align-items-center justify-content-center" style="width: 60px; height: 60px;">
+                            <i class="fas fa-chart-bar fa-2x"></i>
+                        </div>
+                        <div class="ms-3">
+                            <h5 class="mb-0">Collection Summary</h5>
+                            <small class="text-muted">Trends & Analysis</small>
+                        </div>
+                    </div>
+                    <p class="text-muted">Collection trends, rates, and performance analysis over time.</p>
+                    <a href="{% url 'payments:collection_summary_report' %}" class="btn btn-success w-100">
+                        <i class="fas fa-file-alt me-2"></i>View Report
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <!-- Payment Method Analysis -->
+        <div class="col-md-6 col-lg-4">
+            <div class="card h-100 shadow-sm">
+                <div class="card-body">
+                    <div class="d-flex align-items-center mb-3">
+                        <div class="bg-info text-white rounded-circle d-flex align-items-center justify-content-center" style="width: 60px; height: 60px;">
+                            <i class="fas fa-credit-card fa-2x"></i>
+                        </div>
+                        <div class="ms-3">
+                            <h5 class="mb-0">Payment Methods</h5>
+                            <small class="text-muted">Method Analysis</small>
+                        </div>
+                    </div>
+                    <p class="text-muted">Breakdown of payments by method with trends and statistics.</p>
+                    <a href="{% url 'payments:payment_method_analysis' %}" class="btn btn-info w-100">
+                        <i class="fas fa-file-alt me-2"></i>View Report
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <!-- Fee Management Report -->
+        <div class="col-md-6 col-lg-4">
+            <div class="card h-100 shadow-sm">
+                <div class="card-body">
+                    <div class="d-flex align-items-center mb-3">
+                        <div class="bg-warning text-white rounded-circle d-flex align-items-center justify-content-center" style="width: 60px; height: 60px;">
+                            <i class="fas fa-file-invoice-dollar fa-2x"></i>
+                        </div>
+                        <div class="ms-3">
+                            <h5 class="mb-0">Fee Management</h5>
+                            <small class="text-muted">Comprehensive Report</small>
+                        </div>
+                    </div>
+                    <p class="text-muted">Complete fee management overview with all statistics and breakdowns.</p>
+                    <a href="{% url 'payments:fee_report' %}" class="btn btn-warning w-100">
+                        <i class="fas fa-file-alt me-2"></i>View Report
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

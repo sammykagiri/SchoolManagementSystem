@@ -1,0 +1,493 @@
+{% extends 'base.html' %}
+{% load currency date_format %}
+
+{% block title %}Payment Method Analysis | School Management System{% endblock %}
+
+{% block extra_css %}
+<style>
+    @media print {
+        @page {
+            size: A4;
+            margin: 2cm 1.5cm;
+        }
+        .no-print {
+            display: none !important;
+        }
+        body {
+            font-size: 11pt;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            color: #000;
+            background: #fff !important;
+        }
+        .container-fluid {
+            padding: 0 !important;
+        }
+        .card {
+            border: 1px solid #ddd !important;
+            box-shadow: none !important;
+            margin-bottom: 15px;
+            page-break-inside: avoid;
+        }
+        .card-header {
+            background: #f8f9fa !important;
+            color: #000 !important;
+            border-bottom: 2px solid #ddd !important;
+            padding: 10px 15px !important;
+        }
+        .table {
+            font-size: 9pt;
+            border-collapse: collapse;
+        }
+        .table th {
+            background: #f8f9fa !important;
+            color: #000 !important;
+            font-weight: 600;
+            border: 1px solid #ddd !important;
+            padding: 8px !important;
+        }
+        .table td {
+            border: 1px solid #ddd !important;
+            padding: 6px 8px !important;
+        }
+        .chart-container {
+            display: none !important;
+        }
+        .stat-card {
+            border: 1px solid #ddd !important;
+            page-break-inside: avoid;
+        }
+        .report-header {
+            border-bottom: 2px solid #000 !important;
+            padding-bottom: 15px;
+            margin-bottom: 20px;
+        }
+    }
+    
+    .report-container {
+        max-width: 1200px;
+        margin: 0 auto;
+        background: #fff;
+        padding: 30px;
+    }
+    
+    .report-header {
+        border-bottom: 4px solid #3498db;
+        padding-bottom: 25px;
+        margin-bottom: 35px;
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+    }
+    
+    .report-header-left {
+        flex: 1;
+    }
+    
+    .report-header-right {
+        text-align: right;
+        flex-shrink: 0;
+    }
+    
+    .school-logo {
+        max-height: 80px;
+        margin-bottom: 15px;
+    }
+    
+    .report-title {
+        font-size: 2.5rem;
+        font-weight: 700;
+        color: #2c3e50;
+        margin: 0 0 5px 0;
+        letter-spacing: -0.5px;
+    }
+    
+    .report-subtitle {
+        font-size: 1.1rem;
+        color: #7f8c8d;
+        margin: 0;
+        font-weight: 400;
+    }
+    
+    .report-meta {
+        font-size: 0.9rem;
+        color: #555;
+        line-height: 1.8;
+    }
+    
+    .stat-card {
+        border-left: 5px solid #3498db;
+        padding: 20px;
+        margin-bottom: 20px;
+        background: linear-gradient(to right, #f8f9fa 0%, #ffffff 100%);
+        border-radius: 4px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    
+    .stat-card.info {
+        border-left-color: #3498db;
+    }
+    
+    .stat-card h6 {
+        font-size: 0.85rem;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        color: #7f8c8d;
+        margin-bottom: 10px;
+        font-weight: 600;
+    }
+    
+    .stat-card h3, .stat-card h4 {
+        margin: 0;
+        color: #2c3e50;
+        font-weight: 700;
+    }
+    
+    .card {
+        border: none;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        margin-bottom: 25px;
+        border-radius: 8px;
+        overflow: hidden;
+    }
+    
+    .card-header {
+        background: linear-gradient(135deg, #3498db 0%, #2980b9 100%);
+        color: #fff;
+        padding: 15px 20px;
+        font-weight: 600;
+        border: none;
+    }
+    
+    .card-header.bg-info {
+        background: linear-gradient(135deg, #3498db 0%, #2980b9 100%) !important;
+    }
+    
+    .table {
+        margin-bottom: 0;
+    }
+    
+    .table thead th {
+        background: #f8f9fa;
+        font-weight: 600;
+        text-transform: uppercase;
+        font-size: 0.75rem;
+        letter-spacing: 0.5px;
+        color: #2c3e50;
+        border-bottom: 2px solid #dee2e6;
+    }
+    
+    .table tbody tr:hover {
+        background-color: #f8f9fa;
+    }
+    
+    .report-footer {
+        margin-top: 40px;
+        padding-top: 20px;
+        border-top: 2px solid #ecf0f1;
+        text-align: center;
+        color: #7f8c8d;
+        font-size: 0.85rem;
+    }
+    
+    .chart-container {
+        position: relative;
+        height: 350px;
+        margin: 20px 0;
+    }
+    
+    .chart-container canvas {
+        max-height: 350px !important;
+    }
+</style>
+<!-- Chart.js -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+{% endblock %}
+
+{% block content %}
+<div class="report-container">
+    <div class="no-print mb-4">
+        <div class="d-flex justify-content-between align-items-center">
+            <h2><i class="fas fa-credit-card me-2"></i>Payment Method Analysis</h2>
+            <div>
+                <button onclick="window.print()" class="btn btn-primary">
+                    <i class="fas fa-print me-2"></i>Print Report
+                </button>
+                <a href="{% url 'payments:financial_reports' %}" class="btn btn-secondary">
+                    <i class="fas fa-arrow-left me-2"></i>Back to Reports
+                </a>
+            </div>
+        </div>
+        
+        <div class="card mt-3">
+            <div class="card-body">
+                <form method="get" class="row g-3">
+                    <div class="col-md-3">
+                        <label class="form-label">Academic Year</label>
+                        <select name="year" class="form-select">
+                            <option value="">All years</option>
+                            {% for year in academic_years %}
+                            <option value="{{ year }}" {% if year_filter == year %}selected{% endif %}>{{ year }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">Date From</label>
+                        <input type="date" name="date_from" class="form-control" value="{{ date_from }}">
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">Date To</label>
+                        <input type="date" name="date_to" class="form-control" value="{{ date_to }}">
+                    </div>
+                    <div class="col-md-3 d-flex align-items-end">
+                        <button type="submit" class="btn btn-primary w-100">Generate Report</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Report Header -->
+    <div class="report-header">
+        <div class="report-header-left">
+            {% if school.logo %}
+            <img src="{{ school.logo.url }}" alt="{{ school.name }}" class="school-logo">
+            {% endif %}
+            <h1 class="report-title">{{ school.name }}</h1>
+            <p class="report-subtitle">Payment Method Analysis</p>
+            {% if school.address %}
+            <p class="report-meta mb-0" style="margin-top: 10px;">
+                <i class="fas fa-map-marker-alt"></i> {{ school.address }}
+                {% if school.phone %} | <i class="fas fa-phone"></i> {{ school.phone }}{% endif %}
+            </p>
+            {% endif %}
+        </div>
+        <div class="report-header-right">
+            <div class="report-meta">
+                <p class="mb-1"><strong>Report Date:</strong><br>{{ report_date|indian_date }}</p>
+                {% if year_filter %}
+                <p class="mb-1"><strong>Academic Year:</strong><br>{{ year_filter }}</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Summary Statistics -->
+    <div class="row mb-4">
+        <div class="col-md-4">
+            <div class="stat-card info">
+                <h6 class="text-muted mb-2">Total Payments</h6>
+                <h3 class="mb-0">{{ total_payments }}</h3>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="stat-card info">
+                <h6 class="text-muted mb-2">Total Amount</h6>
+                <h3 class="mb-0">{{ total_amount|kes_currency }}</h3>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="stat-card info">
+                <h6 class="text-muted mb-2">Average Payment</h6>
+                <h3 class="mb-0">{{ avg_payment|kes_currency }}</h3>
+            </div>
+        </div>
+    </div>
+
+    <!-- Payment Method Breakdown -->
+    <div class="card mb-4">
+        <div class="card-header bg-info text-white">
+            <h5 class="mb-0"><i class="fas fa-list me-2"></i>Payment Method Breakdown</h5>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-striped table-bordered">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Payment Method</th>
+                            <th class="text-end">Number of Payments</th>
+                            <th class="text-end">Total Amount</th>
+                            <th class="text-end">Average Payment</th>
+                            <th class="text-end">Percentage</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in method_data %}
+                        <tr>
+                            <td><strong>{{ item.method }}</strong></td>
+                            <td class="text-end">{{ item.count }}</td>
+                            <td class="text-end">{{ item.total_amount|kes_currency }}</td>
+                            <td class="text-end">{{ item.avg_amount|kes_currency }}</td>
+                            <td class="text-end">
+                                <div class="d-flex align-items-center justify-content-end">
+                                    <div class="progress me-2" style="width: 100px; height: 20px;">
+                                        <div class="progress-bar" role="progressbar" style="width: {{ item.percentage }}%" aria-valuenow="{{ item.percentage }}" aria-valuemin="0" aria-valuemax="100"></div>
+                                    </div>
+                                    <strong>{{ item.percentage|floatformat:1 }}%</strong>
+                                </div>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="5" class="text-center text-muted">No payment data available</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                    <tfoot class="table-light">
+                        <tr>
+                            <th>Total</th>
+                            <th class="text-end">{{ total_payments }}</th>
+                            <th class="text-end">{{ total_amount|kes_currency }}</th>
+                            <th class="text-end">{{ avg_payment|kes_currency }}</th>
+                            <th class="text-end">100%</th>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Method Distribution Chart -->
+    <div class="card mb-4 chart-container">
+        <div class="card-header bg-info text-white">
+            <h5 class="mb-0"><i class="fas fa-chart-pie me-2"></i>Payment Method Distribution</h5>
+        </div>
+        <div class="card-body" style="padding: 20px;">
+            <canvas id="methodChart"></canvas>
+        </div>
+    </div>
+
+    <!-- Monthly Trends by Method -->
+    <div class="card mb-4 chart-container">
+        <div class="card-header bg-info text-white">
+            <h5 class="mb-0"><i class="fas fa-chart-line me-2"></i>Monthly Trends by Payment Method (Last 6 Months)</h5>
+        </div>
+        <div class="card-body" style="padding: 20px;">
+            <canvas id="trendsChart"></canvas>
+        </div>
+    </div>
+
+    <!-- Report Footer -->
+    <div class="report-footer">
+        <p class="mb-1"><strong>{{ school.name }}</strong></p>
+        <p class="mb-0">Generated on {{ report_date|indian_date }} | Financial Reports</p>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const methodData = JSON.parse('{{ method_data_json|escapejs }}');
+    const monthlyMethodData = JSON.parse('{{ monthly_method_data|escapejs }}');
+    
+    // Payment Method Distribution Chart
+    const methodCtx = document.getElementById('methodChart');
+    if (methodCtx && methodData.length > 0) {
+        const methodChart = new Chart(methodCtx, {
+            type: 'doughnut',
+            data: {
+                labels: methodData.map(item => item.method),
+                datasets: [{
+                    label: 'Amount',
+                    data: methodData.map(item => item.total_amount),
+                    backgroundColor: [
+                        'rgba(54, 162, 235, 0.8)',
+                        'rgba(255, 99, 132, 0.8)',
+                        'rgba(255, 206, 86, 0.8)',
+                        'rgba(75, 192, 192, 0.8)',
+                    ],
+                    borderWidth: 2
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                aspectRatio: 1.5,
+                plugins: {
+                    legend: {
+                        position: 'bottom',
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                const label = context.label || '';
+                                const value = context.parsed || 0;
+                                const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                                const percentage = ((value / total) * 100).toFixed(1);
+                                return label + ': KES ' + value.toLocaleString('en-KE', {minimumFractionDigits: 2, maximumFractionDigits: 2}) + ' (' + percentage + '%)';
+                            }
+                        }
+                    }
+                }
+            }
+        });
+    }
+    
+    // Monthly Trends Chart
+    const trendsCtx = document.getElementById('trendsChart');
+    if (trendsCtx && monthlyMethodData) {
+        const methods = Object.keys(monthlyMethodData);
+        const allMonths = new Set();
+        methods.forEach(method => {
+            monthlyMethodData[method].forEach(item => allMonths.add(item.month));
+        });
+        const sortedMonths = Array.from(allMonths).sort();
+        
+        const datasets = methods.map((method, index) => {
+            const colors = [
+                'rgba(54, 162, 235, 0.8)',
+                'rgba(255, 99, 132, 0.8)',
+                'rgba(255, 206, 86, 0.8)',
+                'rgba(75, 192, 192, 0.8)',
+            ];
+            const data = sortedMonths.map(month => {
+                const methodData = monthlyMethodData[method].find(item => item.month === month);
+                return methodData ? methodData.amount : 0;
+            });
+            
+            return {
+                label: method,
+                data: data,
+                backgroundColor: colors[index % colors.length],
+                borderColor: colors[index % colors.length].replace('0.8', '1'),
+                borderWidth: 2,
+                fill: false
+            };
+        });
+        
+        const trendsChart = new Chart(trendsCtx, {
+            type: 'line',
+            data: {
+                labels: sortedMonths,
+                datasets: datasets
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                aspectRatio: 2.5,
+                plugins: {
+                    legend: {
+                        position: 'top',
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                return context.dataset.label + ': KES ' + context.parsed.y.toLocaleString('en-KE', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: {
+                            callback: function(value) {
+                                return 'KES ' + value.toLocaleString('en-KE');
+                            }
+                        }
+                    }
+                }
+            }
+        });
+    }
+});
+</script>
+{% endblock %}

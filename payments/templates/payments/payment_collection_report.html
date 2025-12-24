@@ -1,0 +1,337 @@
+{% extends 'base.html' %}
+{% load currency date_format %}
+
+{% block title %}Payment Collection Report | School Management System{% endblock %}
+
+{% block extra_css %}
+<style>
+    @media print {
+        @page {
+            size: A4;
+            margin: 2cm 1.5cm;
+        }
+        .no-print {
+            display: none !important;
+        }
+        body {
+            font-size: 11pt;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            color: #000;
+            background: #fff !important;
+        }
+        .container-fluid {
+            padding: 0 !important;
+        }
+        .card {
+            border: 1px solid #ddd !important;
+            box-shadow: none !important;
+            margin-bottom: 15px;
+            page-break-inside: avoid;
+        }
+        .card-header {
+            background: #f8f9fa !important;
+            color: #000 !important;
+            border-bottom: 2px solid #ddd !important;
+            padding: 10px 15px !important;
+        }
+        .table {
+            font-size: 9pt;
+            border-collapse: collapse;
+        }
+        .table th {
+            background: #f8f9fa !important;
+            color: #000 !important;
+            font-weight: 600;
+            border: 1px solid #ddd !important;
+            padding: 8px !important;
+        }
+        .table td {
+            border: 1px solid #ddd !important;
+            padding: 6px 8px !important;
+        }
+        .stat-card {
+            border: 1px solid #ddd !important;
+            page-break-inside: avoid;
+        }
+        .report-header {
+            border-bottom: 2px solid #000 !important;
+            padding-bottom: 15px;
+            margin-bottom: 20px;
+        }
+    }
+    
+    .report-container {
+        max-width: 1200px;
+        margin: 0 auto;
+        background: #fff;
+        padding: 30px;
+    }
+    
+    .report-header {
+        border-bottom: 4px solid #2c3e50;
+        padding-bottom: 25px;
+        margin-bottom: 35px;
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+    }
+    
+    .report-header-left {
+        flex: 1;
+    }
+    
+    .report-header-right {
+        text-align: right;
+        flex-shrink: 0;
+    }
+    
+    .school-logo {
+        max-height: 80px;
+        margin-bottom: 15px;
+    }
+    
+    .report-title {
+        font-size: 2.5rem;
+        font-weight: 700;
+        color: #2c3e50;
+        margin: 0 0 5px 0;
+        letter-spacing: -0.5px;
+    }
+    
+    .report-subtitle {
+        font-size: 1.1rem;
+        color: #7f8c8d;
+        margin: 0;
+        font-weight: 400;
+    }
+    
+    .report-meta {
+        font-size: 0.9rem;
+        color: #555;
+        line-height: 1.8;
+    }
+    
+    .stat-card {
+        border-left: 5px solid #3498db;
+        padding: 20px;
+        margin-bottom: 20px;
+        background: linear-gradient(to right, #f8f9fa 0%, #ffffff 100%);
+        border-radius: 4px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    
+    .stat-card.success {
+        border-left-color: #27ae60;
+    }
+    
+    .stat-card h6 {
+        font-size: 0.85rem;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        color: #7f8c8d;
+        margin-bottom: 10px;
+        font-weight: 600;
+    }
+    
+    .stat-card h3, .stat-card h4 {
+        margin: 0;
+        color: #2c3e50;
+        font-weight: 700;
+    }
+    
+    .card {
+        border: none;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        margin-bottom: 25px;
+        border-radius: 8px;
+        overflow: hidden;
+    }
+    
+    .card-header {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: #fff;
+        padding: 15px 20px;
+        font-weight: 600;
+        border: none;
+    }
+    
+    .card-header.bg-primary {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
+    }
+    
+    .table {
+        margin-bottom: 0;
+    }
+    
+    .table thead th {
+        background: #f8f9fa;
+        font-weight: 600;
+        text-transform: uppercase;
+        font-size: 0.75rem;
+        letter-spacing: 0.5px;
+        color: #2c3e50;
+        border-bottom: 2px solid #dee2e6;
+    }
+    
+    .table tbody tr:hover {
+        background-color: #f8f9fa;
+    }
+    
+    .report-footer {
+        margin-top: 40px;
+        padding-top: 20px;
+        border-top: 2px solid #ecf0f1;
+        text-align: center;
+        color: #7f8c8d;
+        font-size: 0.85rem;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="report-container">
+    <div class="no-print mb-4">
+        <div class="d-flex justify-content-between align-items-center">
+            <h2><i class="fas fa-money-bill-wave me-2"></i>Payment Collection Report</h2>
+            <div>
+                <button onclick="window.print()" class="btn btn-primary">
+                    <i class="fas fa-print me-2"></i>Print Report
+                </button>
+                <a href="{% url 'payments:financial_reports' %}" class="btn btn-secondary">
+                    <i class="fas fa-arrow-left me-2"></i>Back to Reports
+                </a>
+            </div>
+        </div>
+        
+        <div class="card mt-3">
+            <div class="card-body">
+                <form method="get" class="row g-3">
+                    <div class="col-md-3">
+                        <label class="form-label">Period</label>
+                        <select name="period" class="form-select">
+                            <option value="daily" {% if period == 'daily' %}selected{% endif %}>Daily</option>
+                            <option value="weekly" {% if period == 'weekly' %}selected{% endif %}>Weekly</option>
+                            <option value="monthly" {% if period == 'monthly' %}selected{% endif %}>Monthly</option>
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">Date From</label>
+                        <input type="date" name="date_from" class="form-control" value="{{ date_from }}">
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">Date To</label>
+                        <input type="date" name="date_to" class="form-control" value="{{ date_to }}">
+                    </div>
+                    <div class="col-md-3 d-flex align-items-end">
+                        <button type="submit" class="btn btn-primary w-100">Generate Report</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Report Header -->
+    <div class="report-header">
+        <div class="report-header-left">
+            {% if school.logo %}
+            <img src="{{ school.logo.url }}" alt="{{ school.name }}" class="school-logo">
+            {% endif %}
+            <h1 class="report-title">{{ school.name }}</h1>
+            <p class="report-subtitle">Payment Collection Report</p>
+            {% if school.address %}
+            <p class="report-meta mb-0" style="margin-top: 10px;">
+                <i class="fas fa-map-marker-alt"></i> {{ school.address }}
+                {% if school.phone %} | <i class="fas fa-phone"></i> {{ school.phone }}{% endif %}
+            </p>
+            {% endif %}
+        </div>
+        <div class="report-header-right">
+            <div class="report-meta">
+                <p class="mb-1"><strong>Report Date:</strong><br>{{ report_date|indian_date }}</p>
+                <p class="mb-1"><strong>Period:</strong><br>{{ period|title }}</p>
+                {% if date_from and date_to %}
+                <p class="mb-1"><strong>Date Range:</strong><br>{{ date_from|indian_date }}<br>to {{ date_to|indian_date }}</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Summary Statistics -->
+    <div class="row mb-4">
+        <div class="col-md-4">
+            <div class="stat-card">
+                <h6 class="text-muted mb-2">Total Collected</h6>
+                <h3 class="mb-0">{{ total_collected|kes_currency }}</h3>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="stat-card success">
+                <h6 class="text-muted mb-2">Total Payments</h6>
+                <h3 class="mb-0">{{ total_count }}</h3>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="stat-card">
+                <h6 class="text-muted mb-2">Average Payment</h6>
+                <h3 class="mb-0">{{ avg_payment|kes_currency }}</h3>
+            </div>
+        </div>
+    </div>
+
+    <!-- Collection Data Table -->
+    <div class="card mb-4">
+        <div class="card-header bg-primary text-white">
+            <h5 class="mb-0"><i class="fas fa-table me-2"></i>Collection by {{ period|title }}</h5>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-striped table-bordered">
+                    <thead class="table-light">
+                        <tr>
+                            <th>{{ period|title }}</th>
+                            <th class="text-end">Number of Payments</th>
+                            <th class="text-end">Total Amount Collected</th>
+                            <th class="text-end">Average Payment</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in collection_data %}
+                        <tr>
+                            <td><strong>{{ item.period }}</strong></td>
+                            <td class="text-end">{{ item.count }}</td>
+                            <td class="text-end">{{ item.total_amount|kes_currency }}</td>
+                            <td class="text-end">
+                                {% if item.count > 0 %}
+                                    {% widthratio item.total_amount item.count 1 as avg %}
+                                    KES {{ avg|floatformat:2 }}
+                                {% else %}
+                                    KES 0.00
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="4" class="text-center text-muted">No collection data available</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                    <tfoot class="table-light">
+                        <tr>
+                            <th>Total</th>
+                            <th class="text-end">{{ total_count }}</th>
+                            <th class="text-end">{{ total_collected|kes_currency }}</th>
+                            <th class="text-end">{{ avg_payment|kes_currency }}</th>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Report Footer -->
+    <div class="report-footer">
+        <p class="mb-1"><strong>{{ school.name }}</strong></p>
+        <p class="mb-0">Generated on {{ report_date|indian_date }} | Financial Reports</p>
+    </div>
+</div>
+{% endblock %}

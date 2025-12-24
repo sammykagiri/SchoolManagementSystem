@@ -157,6 +157,18 @@
                     </ul>
                 </li>
                 
+                <!-- Reports -->
+                <li class="nav-item dropdown">
+                    <a class="nav-link dropdown-toggle {% if request.resolver_match.url_name == 'financial_reports' or request.resolver_match.url_name == 'payment_collection_report' or request.resolver_match.url_name == 'outstanding_fees_report' or request.resolver_match.url_name == 'collection_summary_report' or request.resolver_match.url_name == 'payment_method_analysis' %}active{% endif %}" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                        <i class="fas fa-chart-line me-2"></i>Reports
+                    </a>
+                    <ul class="dropdown-menu">
+                        <li><a class="dropdown-item" href="{% url 'payments:financial_reports' %}">
+                            <i class="fas fa-file-invoice-dollar me-2"></i>Financial Reports
+                        </a></li>
+                    </ul>
+                </li>
+                
                 <!-- Settings/Configuration -->
                 <li class="nav-item dropdown">
                     <a class="nav-link dropdown-toggle {% if request.resolver_match.url_name == 'term_list' or request.resolver_match.url_name == 'grade_list' or request.resolver_match.url_name == 'class_list' or request.resolver_match.url_name == 'user_list' or request.resolver_match.url_name == 'role_list' %}active{% endif %}" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
