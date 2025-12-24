@@ -1,5 +1,5 @@
 {% extends 'base.html' %}
-{% load currency date_format %}
+{% load currency date_format string_utils %}
 
 {% block title %}Fee Summary | School Management System{% endblock %}
 
@@ -88,6 +88,11 @@
                 <table class="table table-striped mb-0">
                     <thead class="table-light">
                         <tr>
+                            <th style="width: 40px;">
+                                <button class="btn btn-sm btn-link p-0 text-dark" type="button" id="expandAllBtn" title="Expand/Collapse All">
+                                    <i class="fas fa-plus" id="expandAllIcon"></i>
+                                </button>
+                            </th>
                             <th>Student ID</th>
                             <th>Name</th>
                             <th>Grade</th>
@@ -100,7 +105,14 @@
                     </thead>
                     <tbody>
                         {% for item in student_fees %}
-                        <tr class="{% if not item.student__is_active %}table-secondary opacity-75{% endif %}">
+                        <tr class="{% if not item.student__is_active %}table-secondary opacity-75{% endif %}" data-student-id="{{ item.student__id }}">
+                            <td>
+                                {% if detailed_fees|get_item:item.student__id %}
+                                    <button class="btn btn-sm btn-link p-0" type="button" data-bs-toggle="collapse" data-bs-target="#details-{{ item.student__id }}" aria-expanded="false" aria-controls="details-{{ item.student__id }}">
+                                        <i class="fas fa-plus text-primary" id="icon-{{ item.student__id }}"></i>
+                                    </button>
+                                {% endif %}
+                            </td>
                             <td>
                                 {{ item.student__student_id }}
                                 {% if not item.student__is_active %}
@@ -115,9 +127,68 @@
                             <td class="text-end text-success">{{ item.credit|floatformat:2 }}</td>
                             <td class="text-end">{{ item.balance|floatformat:2 }}</td>
                         </tr>
+                        {% if detailed_fees|get_item:item.student__id %}
+                        <tr class="collapse" id="details-{{ item.student__id }}">
+                            <td colspan="9" class="p-0">
+                                <div class="p-3 bg-light">
+                                    <h6 class="mb-3"><i class="fas fa-list me-2"></i>Detailed Fees for {{ item.student__first_name }} {{ item.student__last_name }}</h6>
+                                    <div class="table-responsive">
+                                        <table class="table table-sm table-bordered mb-0">
+                                            <thead class="table-secondary">
+                                                <tr>
+                                                    <th>Term</th>
+                                                    <th>Fee Category</th>
+                                                    <th class="text-end">Amount Charged</th>
+                                                    <th class="text-end">Amount Paid</th>
+                                                    <th class="text-end">Balance</th>
+                                                    <th>Due Date</th>
+                                                    <th>Status</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                {% for fee in detailed_fees|get_item:item.student__id %}
+                                                <tr class="{% if fee.is_overdue and not fee.is_paid %}table-danger{% elif fee.is_paid %}table-success{% elif fee.balance > 0 %}table-warning{% endif %}" style="{% if fee.is_overdue and not fee.is_paid %}background-color: #f8d7da !important;{% elif fee.balance > 0 and not fee.is_paid %}background-color: #fff3cd !important;{% endif %}">
+                                                    <td>
+                                                        <strong>{{ fee.term.name }}</strong><br>
+                                                        <small class="text-muted">{{ fee.term.academic_year }}</small>
+                                                    </td>
+                                                    <td>{{ fee.fee_category.name }}</td>
+                                                    <td class="text-end">KES {{ fee.amount_charged|floatformat:2 }}</td>
+                                                    <td class="text-end">KES {{ fee.amount_paid|floatformat:2 }}</td>
+                                                    <td class="text-end">
+                                                        <strong class="{% if fee.balance > 0 %}text-danger fw-bold{% elif fee.balance < 0 %}text-success{% else %}text-muted{% endif %}" style="{% if fee.balance > 0 %}color: #dc3545 !important;{% endif %}">
+                                                            KES {{ fee.balance|floatformat:2 }}
+                                                        </strong>
+                                                    </td>
+                                                    <td>
+                                                        {{ fee.due_date|indian_date }}
+                                                        {% if fee.is_overdue and not fee.is_paid %}
+                                                            <br><small class="text-danger fw-bold"><i class="fas fa-exclamation-triangle"></i> Overdue</small>
+                                                        {% endif %}
+                                                    </td>
+                                                    <td>
+                                                        {% if fee.is_paid %}
+                                                            <span class="badge bg-success">Paid</span>
+                                                        {% elif fee.is_overdue %}
+                                                            <span class="badge bg-danger">Overdue</span>
+                                                        {% elif fee.balance > 0 %}
+                                                            <span class="badge" style="background-color: #fd7e14; color: white;">Pending</span>
+                                                        {% else %}
+                                                            <span class="badge bg-secondary">N/A</span>
+                                                        {% endif %}
+                                                    </td>
+                                                </tr>
+                                                {% endfor %}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endif %}
                         {% empty %}
                         <tr>
-                            <td colspan="8" class="text-center py-4 text-muted">
+                            <td colspan="9" class="text-center py-4 text-muted">
                                 No fee records found for the selected filters.
                             </td>
                         </tr>
@@ -187,6 +258,103 @@ document.addEventListener('DOMContentLoaded', function() {
         const valueLength = searchInput.value.length;
         searchInput.focus();
         searchInput.setSelectionRange(valueLength, valueLength);
+    }
+    
+    // Handle collapse toggle icons (+/-)
+    document.querySelectorAll('[data-bs-toggle="collapse"]').forEach(function(button) {
+        button.addEventListener('click', function() {
+            const targetId = this.getAttribute('data-bs-target');
+            const icon = this.querySelector('i');
+            const collapseElement = document.querySelector(targetId);
+            
+            if (collapseElement) {
+                collapseElement.addEventListener('show.bs.collapse', function() {
+                    if (icon) {
+                        icon.classList.remove('fa-plus');
+                        icon.classList.add('fa-minus');
+                    }
+                    updateExpandAllIcon();
+                });
+                
+                collapseElement.addEventListener('hide.bs.collapse', function() {
+                    if (icon) {
+                        icon.classList.remove('fa-minus');
+                        icon.classList.add('fa-plus');
+                    }
+                    updateExpandAllIcon();
+                });
+            }
+        });
+    });
+    
+    // Function to update expand all icon based on current state
+    function updateExpandAllIcon() {
+        const expandAllIcon = document.getElementById('expandAllIcon');
+        const allCollapses = document.querySelectorAll('.collapse');
+        let allExpanded = true;
+        let allCollapsed = true;
+        
+        allCollapses.forEach(function(collapse) {
+            if (collapse.classList.contains('show')) {
+                allCollapsed = false;
+            } else {
+                allExpanded = false;
+            }
+        });
+        
+        if (expandAllIcon) {
+            if (allExpanded && !allCollapsed) {
+                expandAllIcon.classList.remove('fa-plus');
+                expandAllIcon.classList.add('fa-minus');
+            } else {
+                expandAllIcon.classList.remove('fa-minus');
+                expandAllIcon.classList.add('fa-plus');
+            }
+        }
+    }
+    
+    // Handle expand/collapse all button
+    const expandAllBtn = document.getElementById('expandAllBtn');
+    if (expandAllBtn) {
+        expandAllBtn.addEventListener('click', function() {
+            const allCollapses = document.querySelectorAll('.collapse');
+            const expandAllIcon = document.getElementById('expandAllIcon');
+            let shouldExpand = true;
+            
+            // Check if all are already expanded
+            allCollapses.forEach(function(collapse) {
+                if (collapse.classList.contains('show')) {
+                    shouldExpand = false;
+                }
+            });
+            
+            // Toggle all collapses
+            allCollapses.forEach(function(collapse) {
+                const bsCollapse = new bootstrap.Collapse(collapse, {
+                    toggle: true
+                });
+            });
+            
+            // Update individual icons
+            setTimeout(function() {
+                document.querySelectorAll('[data-bs-toggle="collapse"]').forEach(function(button) {
+                    const targetId = button.getAttribute('data-bs-target');
+                    const collapseElement = document.querySelector(targetId);
+                    const icon = button.querySelector('i');
+                    
+                    if (collapseElement && icon) {
+                        if (collapseElement.classList.contains('show')) {
+                            icon.classList.remove('fa-plus');
+                            icon.classList.add('fa-minus');
+                        } else {
+                            icon.classList.remove('fa-minus');
+                            icon.classList.add('fa-plus');
+                        }
+                    }
+                });
+                updateExpandAllIcon();
+            }, 350); // Wait for animation to complete
+        });
     }
 });
 </script>

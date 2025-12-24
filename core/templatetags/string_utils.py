@@ -17,6 +17,14 @@ def replace(value, args):
     return str(value).replace(old, new)
 
 
+@register.filter
+def get_item(dictionary, key):
+    """Get item from dictionary by key"""
+    if dictionary is None:
+        return None
+    return dictionary.get(key)
+
+
 
 
 

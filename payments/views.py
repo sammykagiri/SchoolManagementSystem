@@ -447,6 +447,15 @@ def fee_summary(request):
         ),
     ).order_by('-student__is_active', 'student__first_name', 'student__last_name')
     
+    # Get detailed fees for each student
+    student_ids = [item['student__id'] for item in student_fees]
+    detailed_fees = {}
+    for student_id in student_ids:
+        student_detail_fees = fees.filter(student_id=student_id).select_related(
+            'fee_category', 'term'
+        ).order_by('-term__academic_year', '-term__term_number', 'fee_category__name')
+        detailed_fees[student_id] = list(student_detail_fees)
+    
     # Totals
     totals = fees.aggregate(
         total_charged=Sum('amount_charged', output_field=DecimalField()) or 0,
@@ -480,6 +489,7 @@ def fee_summary(request):
     
     context = {
         'student_fees': student_fees,
+        'detailed_fees': detailed_fees,
         'totals': totals,
         'year_filter': year_filter,
         'term_filter': term_filter,
