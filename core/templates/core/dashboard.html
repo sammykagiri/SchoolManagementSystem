@@ -73,12 +73,30 @@
     .dashboard-list li:last-child {
         border-bottom: none;
     }
+    .chart-container {
+        background: #fff;
+        border-radius: 10px;
+        box-shadow: 0 1px 4px rgba(0,0,0,0.05);
+        padding: 1.5rem;
+        margin-bottom: 1.5rem;
+    }
+    .chart-container h4 {
+        font-size: 1.2rem;
+        color: #4e73df;
+        margin-bottom: 1rem;
+        font-weight: 600;
+    }
     @media (max-width: 900px) {
         .dashboard-cards {
             flex-direction: column;
         }
     }
 </style>
+{% endblock %}
+
+{% block extra_js %}
+<!-- Chart.js -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 {% endblock %}
 
 {% block content %}
@@ -112,11 +130,15 @@
         </div>
         <div class="dashboard-card">
             <h3>Fees Charged</h3>
-            <p><i class="fas fa-money-bill text-warning me-2"></i>KES {{ total_fees_charged|floatformat:2 }}</p>
+            <p><i class="fas fa-money-bill text-warning me-2"></i>{{ total_fees_charged|kes_currency }}</p>
         </div>
         <div class="dashboard-card">
             <h3>Fees Paid</h3>
-            <p><i class="fas fa-credit-card text-success me-2"></i>KES {{ total_fees_paid|floatformat:2 }}</p>
+            <p><i class="fas fa-credit-card text-success me-2"></i>{{ total_fees_paid|kes_currency }}</p>
+        </div>
+        <div class="dashboard-card">
+            <h3>Pending Fees</h3>
+            <p><i class="fas fa-clock text-info me-2"></i>{{ total_fees_pending|kes_currency }}</p>
         </div>
         <div class="dashboard-card">
             <h3>Overdue Fees</h3>
@@ -129,7 +151,7 @@
                 <h4><i class="fas fa-user-plus me-2"></i>Recent Students</h4>
                 <ul>
                     {% for student in recent_students %}
-                        <li>{{ student.first_name }} {{ student.last_name }} <span class="text-muted">({{ student.student_id }})</span></li>
+                        <li>{{ student.full_name }} <span class="text-muted">({{ student.student_id }})</span></li>
                     {% empty %}
                         <li class="text-muted">No recent students.</li>
                     {% endfor %}
@@ -149,5 +171,128 @@
             </div>
         </div>
     </div>
+    
+    <!-- Charts Section -->
+    <div class="row">
+        <div class="col-md-8 dashboard-section">
+            <div class="chart-container">
+                <h4><i class="fas fa-chart-line me-2"></i>Fee Trends (Last 6 Months)</h4>
+                <canvas id="feeTrendsChart"></canvas>
+            </div>
+        </div>
+        <div class="col-md-4 dashboard-section">
+            <div class="chart-container">
+                <h4><i class="fas fa-chart-pie me-2"></i>Fees by Category</h4>
+                <canvas id="feeCategoryChart"></canvas>
+            </div>
+        </div>
+    </div>
 </div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Parse JSON data
+    const chartLabels = JSON.parse('{{ chart_labels|escapejs }}');
+    const chartCharged = JSON.parse('{{ chart_charged|escapejs }}');
+    const chartPaid = JSON.parse('{{ chart_paid|escapejs }}');
+    const feeByCategory = JSON.parse('{{ fee_by_category|escapejs }}');
+    
+    // Fee Trends Chart
+    const trendsCtx = document.getElementById('feeTrendsChart');
+    if (trendsCtx) {
+        const trendsChart = new Chart(trendsCtx, {
+            type: 'line',
+            data: {
+                labels: chartLabels,
+                datasets: [{
+                    label: 'Fees Charged',
+                    data: chartCharged,
+                    borderColor: 'rgb(255, 99, 132)',
+                    backgroundColor: 'rgba(255, 99, 132, 0.1)',
+                    tension: 0.1,
+                    fill: true
+                }, {
+                    label: 'Fees Paid',
+                    data: chartPaid,
+                    borderColor: 'rgb(54, 162, 235)',
+                    backgroundColor: 'rgba(54, 162, 235, 0.1)',
+                    tension: 0.1,
+                    fill: true
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: true,
+                plugins: {
+                    legend: {
+                        position: 'top',
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                return context.dataset.label + ': KES ' + context.parsed.y.toLocaleString('en-KE', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: {
+                            callback: function(value) {
+                                return 'KES ' + value.toLocaleString('en-KE');
+                            }
+                        }
+                    }
+                }
+            }
+        });
+    }
+    
+    // Fee Category Chart
+    const categoryCtx = document.getElementById('feeCategoryChart');
+    if (categoryCtx && feeByCategory.length > 0) {
+        const categoryChart = new Chart(categoryCtx, {
+            type: 'doughnut',
+            data: {
+                labels: feeByCategory.map(item => item.category),
+                datasets: [{
+                    label: 'Fees Charged',
+                    data: feeByCategory.map(item => item.charged),
+                    backgroundColor: [
+                        'rgba(255, 99, 132, 0.8)',
+                        'rgba(54, 162, 235, 0.8)',
+                        'rgba(255, 206, 86, 0.8)',
+                        'rgba(75, 192, 192, 0.8)',
+                        'rgba(153, 102, 255, 0.8)',
+                        'rgba(255, 159, 64, 0.8)',
+                    ],
+                    borderWidth: 2
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: true,
+                plugins: {
+                    legend: {
+                        position: 'bottom',
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                const label = context.label || '';
+                                const value = context.parsed || 0;
+                                return label + ': KES ' + value.toLocaleString('en-KE', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+                            }
+                        }
+                    }
+                }
+            }
+        });
+    } else if (categoryCtx) {
+        // Show message if no data
+        categoryCtx.getContext('2d').fillText('No data available', 10, 10);
+    }
+});
+</script>
 {% endblock %}

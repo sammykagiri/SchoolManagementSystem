@@ -391,12 +391,28 @@ def fee_summary(request):
     year_filter = request.GET.get('year', '')
     term_filter = request.GET.get('term', '')
     show_inactive = request.GET.get('show_inactive', 'false').lower() == 'true'
+    search_query = request.GET.get('search', '')
+    grade_filter = request.GET.get('grade', '')
     
     fees = StudentFee.objects.filter(school=school).select_related('student', 'term', 'student__grade')
     
     # Filter by active status (default: show active only)
     if not show_inactive:
         fees = fees.filter(student__is_active=True)
+    
+    # Search functionality
+    if search_query:
+        fees = fees.filter(
+            Q(student__student_id__icontains=search_query) |
+            Q(student__first_name__icontains=search_query) |
+            Q(student__last_name__icontains=search_query) |
+            Q(student__parent_name__icontains=search_query) |
+            Q(student__parent_phone__icontains=search_query)
+        )
+    
+    # Filter by grade
+    if grade_filter:
+        fees = fees.filter(student__grade_id=grade_filter)
     
     if year_filter:
         fees = fees.filter(term__academic_year=year_filter)
@@ -458,6 +474,10 @@ def fee_summary(request):
     if year_filter:
         terms = terms.filter(academic_year=year_filter)
     
+    # Get grades for filter dropdown
+    from core.models import Grade
+    grades = Grade.objects.filter(school=school).order_by('name')
+    
     context = {
         'student_fees': student_fees,
         'totals': totals,
@@ -466,6 +486,9 @@ def fee_summary(request):
         'academic_years': academic_years,
         'terms': terms,
         'show_inactive': show_inactive,
+        'search_query': search_query,
+        'grade_filter': grade_filter,
+        'grades': grades,
     }
     
     return render(request, 'payments/fee_summary.html', context)

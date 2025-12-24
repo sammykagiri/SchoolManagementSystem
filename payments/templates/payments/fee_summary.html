@@ -19,17 +19,30 @@
         <div class="card-body">
             <form method="get" action="{% url 'payments:fee_summary' %}" id="feeSummaryFilterForm" class="row g-3">
                 <div class="col-md-3">
+                    <label for="searchInput" class="form-label">Search</label>
+                    <input type="text" name="search" id="searchInput" class="form-control" placeholder="Search by name, ID, parent..." value="{{ search_query }}">
+                </div>
+                <div class="col-md-2">
+                    <label for="gradeSelect" class="form-label">Grade</label>
+                    <select name="grade" id="gradeSelect" class="form-select">
+                        <option value="">All Grades</option>
+                        {% for grade in grades %}
+                            <option value="{{ grade.id }}" {% if grade_filter|default:'' == grade.id|stringformat:'s' %}selected{% endif %}>{{ grade.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-2">
                     <label for="year" class="form-label">Academic Year</label>
-                    <select name="year" id="year" class="form-select" onchange="this.form.submit()">
+                    <select name="year" id="year" class="form-select">
                         <option value="">All years</option>
                         {% for year in academic_years %}
                         <option value="{{ year }}" {% if year_filter == year %}selected{% endif %}>{{ year }}</option>
                         {% endfor %}
                     </select>
                 </div>
-                <div class="col-md-3">
+                <div class="col-md-2">
                     <label for="term" class="form-label">Term</label>
-                    <select name="term" id="term" class="form-select" onchange="this.form.submit()">
+                    <select name="term" id="term" class="form-select">
                         <option value="">All terms</option>
                         {% for term in terms %}
                         <option value="{{ term.id }}" {% if term_filter == term.id|stringformat:'s' %}selected{% endif %}>
@@ -38,22 +51,18 @@
                         {% endfor %}
                     </select>
                 </div>
-                <div class="col-md-3 d-flex align-items-end">
+                <div class="col-md-2 d-flex align-items-end">
                     <div class="form-check form-switch w-100">
                         <input class="form-check-input" type="checkbox" id="showInactive" {% if show_inactive %}checked{% endif %}>
-                        <label class="form-check-label" for="showInactive">Show Inactive Students</label>
+                        <label class="form-check-label" for="showInactive">Show Inactive</label>
                     </div>
                 </div>
-                <div class="col-md-3 d-flex align-items-end">
-                    <a href="{% url 'payments:fee_summary' %}" class="btn btn-outline-secondary w-100">Reset Filters</a>
+                <div class="col-md-1 d-flex align-items-end">
+                    <a href="{% url 'payments:fee_summary' %}{% if show_inactive %}?show_inactive=true{% endif %}" class="btn btn-outline-secondary w-100">
+                        <i class="fas fa-times"></i> Clear
+                    </a>
                 </div>
                 <input type="hidden" name="show_inactive" id="showInactiveHidden" value="{% if show_inactive %}true{% else %}false{% endif %}">
-                {% if year_filter %}
-                    <input type="hidden" name="year" value="{{ year_filter }}">
-                {% endif %}
-                {% if term_filter %}
-                    <input type="hidden" name="term" value="{{ term_filter }}">
-                {% endif %}
             </form>
         </div>
     </div>
@@ -122,50 +131,62 @@
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
+    const searchInput = document.getElementById('searchInput');
+    const gradeSelect = document.getElementById('gradeSelect');
     const showInactiveCheckbox = document.getElementById('showInactive');
     const showInactiveHidden = document.getElementById('showInactiveHidden');
     const filterForm = document.getElementById('feeSummaryFilterForm');
+    
+    const submitForm = () => {
+        if (typeof filterForm.requestSubmit === 'function') {
+            filterForm.requestSubmit();
+        } else {
+            filterForm.submit();
+        }
+    };
     
     // Handle show inactive checkbox toggle
     if (showInactiveCheckbox && showInactiveHidden && filterForm) {
         showInactiveCheckbox.addEventListener('change', function(e) {
             e.preventDefault();
             e.stopPropagation();
-            
-            // Update hidden input value
             showInactiveHidden.value = this.checked ? 'true' : 'false';
-            
-            // Get current URL parameters
-            const currentParams = new URLSearchParams(window.location.search);
-            
-            // Update or remove show_inactive parameter
-            if (this.checked) {
-                currentParams.set('show_inactive', 'true');
-            } else {
-                currentParams.delete('show_inactive');
-            }
-            
-            // Preserve other filters
-            const yearSelect = document.getElementById('year');
-            const termSelect = document.getElementById('term');
-            
-            if (yearSelect && yearSelect.value) {
-                currentParams.set('year', yearSelect.value);
-            } else {
-                currentParams.delete('year');
-            }
-            
-            if (termSelect && termSelect.value) {
-                currentParams.set('term', termSelect.value);
-            } else {
-                currentParams.delete('term');
-            }
-            
-            // Build the correct URL - use the form's action or construct from current location
-            const baseUrl = filterForm.action || window.location.pathname;
-            const newUrl = baseUrl + (currentParams.toString() ? '?' + currentParams.toString() : '');
-            window.location.href = newUrl;
+            submitForm();
         });
+    }
+    
+    // Debounced auto-submit while typing
+    let typingTimer;
+    const DEBOUNCE_DELAY = 400; // ms
+    
+    if (searchInput) {
+        searchInput.addEventListener('input', function() {
+            clearTimeout(typingTimer);
+            typingTimer = setTimeout(submitForm, DEBOUNCE_DELAY);
+        });
+        
+        // Immediate submit on Enter key
+        searchInput.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                clearTimeout(typingTimer);
+                submitForm();
+            }
+        });
+    }
+    
+    // Auto-submit on grade selection change
+    if (gradeSelect) {
+        gradeSelect.addEventListener('change', function() {
+            submitForm();
+        });
+    }
+    
+    // Keep focus in search box after reloads
+    if (searchInput) {
+        const valueLength = searchInput.value.length;
+        searchInput.focus();
+        searchInput.setSelectionRange(valueLength, valueLength);
     }
 });
 </script>

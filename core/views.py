@@ -67,6 +67,13 @@ def dashboard(request):
     school = request.user.profile.school
     dashboard_data = DashboardService.get_dashboard_data(school, request.user)
     
+    # Extract fee statistics for template
+    fee_stats = dashboard_data.get('fee_statistics', {})
+    total_fees_charged = fee_stats.get('total_charged', 0)
+    total_fees_paid = fee_stats.get('total_paid', 0)
+    total_fees_pending = total_fees_charged - total_fees_paid
+    overdue_fees = fee_stats.get('overdue_count', 0)
+    
     # Get overdue payments for template
     overdue_payments = StudentFee.objects.filter(
         school=school,
@@ -74,9 +81,73 @@ def dashboard(request):
         due_date__lt=timezone.now().date()
     ).select_related('student', 'fee_category', 'term')[:10]
     
+    # Get chart data - monthly fee trends for last 6 months
+    from datetime import datetime, timedelta
+    from django.db.models import Sum
+    from django.db.models.functions import TruncMonth
+    
+    chart_labels = []
+    chart_paid = []
+    chart_charged = []
+    
+    # Get last 6 months of data
+    end_date = timezone.now().date()
+    start_date = end_date - timedelta(days=180)
+    
+    monthly_fees = StudentFee.objects.filter(
+        school=school,
+        created_at__date__gte=start_date,
+        created_at__date__lte=end_date
+    ).annotate(
+        month=TruncMonth('created_at')
+    ).values('month').annotate(
+        total_charged=Sum('amount_charged'),
+        total_paid=Sum('amount_paid')
+    ).order_by('month')
+    
+    for item in monthly_fees:
+        month_name = item['month'].strftime('%b %Y')
+        chart_labels.append(month_name)
+        chart_charged.append(float(item['total_charged'] or 0))
+        chart_paid.append(float(item['total_paid'] or 0))
+    
+    # If no data, add placeholder
+    if not chart_labels:
+        chart_labels = ['No Data']
+        chart_charged = [0]
+        chart_paid = [0]
+    
+    # Get fee breakdown by category for current term
+    current_term = dashboard_data.get('current_term')
+    fee_by_category = []
+    if current_term:
+        from .models import FeeCategory
+        category_breakdown = StudentFee.objects.filter(
+            school=school,
+            term=current_term
+        ).values('fee_category__name').annotate(
+            total_charged=Sum('amount_charged'),
+            total_paid=Sum('amount_paid')
+        ).order_by('-total_charged')
+        
+        for item in category_breakdown:
+            fee_by_category.append({
+                'category': item['fee_category__name'] or 'Unknown',
+                'charged': float(item['total_charged'] or 0),
+                'paid': float(item['total_paid'] or 0),
+            })
+    
     context = {
         **dashboard_data,
+        'total_fees_charged': total_fees_charged,
+        'total_fees_paid': total_fees_paid,
+        'total_fees_pending': total_fees_pending,
+        'overdue_fees': overdue_fees,
         'overdue_payments': overdue_payments,
+        'chart_labels': json.dumps(chart_labels),
+        'chart_charged': json.dumps(chart_charged),
+        'chart_paid': json.dumps(chart_paid),
+        'fee_by_category': json.dumps(fee_by_category),
     }
     return render(request, 'core/dashboard.html', context)
 
