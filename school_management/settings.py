@@ -154,9 +154,9 @@ MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 # Authentication settings
-LOGIN_URL = '/accounts/login/'
-LOGIN_REDIRECT_URL = '/'  # Redirect to dashboard after login
-LOGOUT_REDIRECT_URL = '/accounts/login/'  # Redirect to login after logout
+LOGIN_URL = 'login'
+LOGIN_REDIRECT_URL = 'core:dashboard'  # Redirect to dashboard after login
+LOGOUT_REDIRECT_URL = 'login'  # Redirect to login after logout
 
 # REST Framework settings
 REST_FRAMEWORK = {
