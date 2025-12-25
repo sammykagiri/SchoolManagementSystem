@@ -169,7 +169,7 @@ def student_list(request):
     school = request.user.profile.school
     students = Student.objects.filter(
         school=school
-    ).select_related('grade', 'transport_route').prefetch_related('parents__user')
+    ).select_related('grade', 'transport_route', 'school_class').prefetch_related('parents__user')
     
     # Filter by active status (default: show active only)
     show_inactive = request.GET.get('show_inactive', 'false').lower() == 'true'
@@ -227,7 +227,7 @@ def student_list(request):
 def student_detail(request, student_id):
     """Student detail view"""
     student = get_object_or_404(
-        Student.objects.select_related('grade', 'transport_route', 'school_class').prefetch_related('parents__user'),
+        Student.objects.select_related('grade', 'transport_route', 'school_class', 'school_class__class_teacher').prefetch_related('parents__user'),
         student_id=student_id
     )
     student_fees = StudentFee.objects.filter(student=student).select_related(

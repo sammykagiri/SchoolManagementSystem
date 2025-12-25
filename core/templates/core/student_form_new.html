@@ -127,11 +127,19 @@
                                     {% for choice in form.school_class.field.queryset %}
                                         <option value="{{ choice.id }}" 
                                                 data-grade-id="{{ choice.grade.id }}"
+                                                data-teacher-name="{% if choice.class_teacher %}{{ choice.class_teacher.full_name }}{% endif %}"
+                                                data-teacher-id="{% if choice.class_teacher %}{{ choice.class_teacher.id }}{% endif %}"
                                                 {% if form.school_class.value == choice.id %}selected{% endif %}>
                                             {{ choice.name }} ({{ choice.grade.name }})
                                         </option>
                                     {% endfor %}
                                 </select>
+                                <div id="class_teacher_display" class="mt-2" style="display: none;">
+                                    <small class="text-muted">
+                                        <i class="fas fa-user-tie me-1"></i>
+                                        <strong>Class Teacher:</strong> <span id="class_teacher_name"></span>
+                                    </small>
+                                </div>
                                 {% if form.school_class.help_text %}
                                     <div class="form-text">{{ form.school_class.help_text }}</div>
                                 {% endif %}
@@ -359,10 +367,26 @@ document.addEventListener('DOMContentLoaded', function() {
                 allClassOptions.push({
                     value: option.value,
                     text: option.text,
-                    gradeId: option.getAttribute('data-grade-id') || null
+                    gradeId: option.getAttribute('data-grade-id') || null,
+                    teacherName: option.getAttribute('data-teacher-name') || null,
+                    teacherId: option.getAttribute('data-teacher-id') || null
                 });
             }
         });
+        
+        // Get teacher display element
+        const teacherDisplay = document.getElementById('class_teacher_display');
+        const teacherNameSpan = document.getElementById('class_teacher_name');
+        
+        // Function to display teacher for selected class
+        function displayClassTeacher(classOption) {
+            if (classOption && classOption.teacherName) {
+                teacherNameSpan.textContent = classOption.teacherName;
+                teacherDisplay.style.display = 'block';
+            } else {
+                teacherDisplay.style.display = 'none';
+            }
+        }
         
         // Function to filter classes by grade
         function filterClassesByGrade(gradeId) {
@@ -377,9 +401,15 @@ document.addEventListener('DOMContentLoaded', function() {
                         option.value = classOption.value;
                         option.textContent = classOption.text;
                         option.setAttribute('data-grade-id', classOption.gradeId);
+                        if (classOption.teacherName) {
+                            option.setAttribute('data-teacher-name', classOption.teacherName);
+                            option.setAttribute('data-teacher-id', classOption.teacherId || '');
+                        }
                         // Restore selected value if it matches
                         if (classOption.value === selectedClassValue) {
                             option.selected = true;
+                            // Display teacher for initially selected class
+                            displayClassTeacher(classOption);
                         }
                         classSelect.appendChild(option);
                     }
@@ -391,9 +421,15 @@ document.addEventListener('DOMContentLoaded', function() {
                     option.value = classOption.value;
                     option.textContent = classOption.text;
                     option.setAttribute('data-grade-id', classOption.gradeId);
+                    if (classOption.teacherName) {
+                        option.setAttribute('data-teacher-name', classOption.teacherName);
+                        option.setAttribute('data-teacher-id', classOption.teacherId || '');
+                    }
                     // Restore selected value if it matches
                     if (classOption.value === selectedClassValue) {
                         option.selected = true;
+                        // Display teacher for initially selected class
+                        displayClassTeacher(classOption);
                     }
                     classSelect.appendChild(option);
                 });
@@ -403,11 +439,45 @@ document.addEventListener('DOMContentLoaded', function() {
         // Add event listener for grade change
         gradeSelect.addEventListener('change', function() {
             filterClassesByGrade(this.value);
+            // Clear teacher display when grade changes
+            teacherDisplay.style.display = 'none';
+        });
+        
+        // Add event listener for class change
+        classSelect.addEventListener('change', function() {
+            const selectedOption = this.options[this.selectedIndex];
+            if (selectedOption && selectedOption.value) {
+                // Get teacher info from the selected option's data attributes
+                const teacherName = selectedOption.getAttribute('data-teacher-name');
+                if (teacherName) {
+                    teacherNameSpan.textContent = teacherName;
+                    teacherDisplay.style.display = 'block';
+                } else {
+                    // Try to find in allClassOptions as fallback
+                    const selectedClassData = allClassOptions.find(function(opt) {
+                        return opt.value === selectedOption.value;
+                    });
+                    displayClassTeacher(selectedClassData);
+                }
+            } else {
+                teacherDisplay.style.display = 'none';
+            }
         });
         
         // Filter on page load if grade is already selected
         if (gradeSelect.value) {
             filterClassesByGrade(gradeSelect.value);
+        }
+        
+        // Display teacher for initially selected class on page load
+        if (classSelect.value) {
+            const initialSelectedOption = classSelect.options[classSelect.selectedIndex];
+            if (initialSelectedOption && initialSelectedOption.value) {
+                const initialClassData = allClassOptions.find(function(opt) {
+                    return opt.value === initialSelectedOption.value;
+                });
+                displayClassTeacher(initialClassData);
+            }
         }
     }
 });

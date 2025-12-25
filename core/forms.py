@@ -36,8 +36,8 @@ class StudentForm(forms.ModelForm):
         if school:
             # Filter grades by school
             self.fields['grade'].queryset = Grade.objects.filter(school=school)
-            # Filter school classes by school and active status
-            self.fields['school_class'].queryset = SchoolClass.objects.filter(school=school, is_active=True)
+            # Filter school classes by school and active status, include class_teacher
+            self.fields['school_class'].queryset = SchoolClass.objects.filter(school=school, is_active=True).select_related('class_teacher')
             self.fields['transport_route'].queryset = TransportRoute.objects.filter(school=school, is_active=True)
             # Filter parents by school
             from .models import Parent
@@ -50,13 +50,13 @@ class StudentForm(forms.ModelForm):
                 school=school if school else self.instance.school,
                 grade=self.instance.grade,
                 is_active=True
-            )
+            ).select_related('class_teacher')
             # Ensure the currently assigned class is included even if it doesn't match the grade filter
             if self.instance.school_class:
                 queryset = queryset | SchoolClass.objects.filter(
                     id=self.instance.school_class.id,
                     school=school if school else self.instance.school
-                )
+                ).select_related('class_teacher')
             self.fields['school_class'].queryset = queryset.distinct()
         
         # Make required fields more obvious

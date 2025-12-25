@@ -142,6 +142,9 @@
                                     <td>
                                         {% if student.school_class %}
                                             {{ student.school_class.name }}
+                                            {% if student.school_class.class_teacher %}
+                                                <br><small class="text-muted">Class Teacher: {{ student.school_class.class_teacher.full_name }}</small>
+                                            {% endif %}
                                         {% elif student.get_current_class %}
                                             {{ student.get_current_class.name }} <small class="text-muted">(inferred)</small>
                                         {% else %}

@@ -27,10 +27,18 @@
                 </li>
                 
                 <!-- Students (MVP Module 2: Student Registration and Profile) -->
-                <li class="nav-item">
-                    <a class="nav-link {% if request.resolver_match.url_name == 'student_list' or request.resolver_match.url_name == 'student_detail' or request.resolver_match.url_name == 'student_create' %}active{% endif %}" href="{% url 'core:student_list' %}">
+                <li class="nav-item dropdown">
+                    <a class="nav-link dropdown-toggle {% if request.resolver_match.url_name == 'student_list' or request.resolver_match.url_name == 'student_detail' or request.resolver_match.url_name == 'student_create' or request.resolver_match.url_name == 'student_update' %}active{% endif %}" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
                         <i class="fas fa-users me-2"></i>Students
                     </a>
+                    <ul class="dropdown-menu">
+                        <li><a class="dropdown-item" href="{% url 'core:student_list' %}">
+                            <i class="fas fa-list me-2"></i>Student List
+                        </a></li>
+                        <li><a class="dropdown-item" href="{% url 'core:student_create' %}">
+                            <i class="fas fa-plus me-2"></i>Add Student
+                        </a></li>
+                    </ul>
                 </li>
                 
                 <!-- Teachers -->
