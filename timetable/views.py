@@ -173,9 +173,18 @@ def subject_add(request):
         if not name:
             errors.append('Subject name is required.')
         
-        # Check for duplicate subject name in the same school
-        if name and Subject.objects.filter(school=school, name=name).exists():
+        # Check for duplicate subject name and code in the same school
+        # First check if the exact combination exists (same subject with both name and code)
+        exact_match = name and code and Subject.objects.filter(school=school, name=name, code=code).exists()
+        name_exists = name and Subject.objects.filter(school=school, name=name).exists()
+        code_exists = code and Subject.objects.filter(school=school, code=code).exists()
+        
+        if exact_match:
+            errors.append('A subject with this name and code already exists.')
+        elif name_exists:
             errors.append('A subject with this name already exists.')
+        elif code_exists:
+            errors.append('A subject with this code already exists.')
         
         if errors:
             for error in errors:
@@ -218,9 +227,18 @@ def subject_edit(request, subject_id):
         if not name:
             errors.append('Subject name is required.')
         
-        # Check for duplicate subject name in the same school (excluding current subject)
-        if name and Subject.objects.filter(school=school, name=name).exclude(id=subject.id).exists():
+        # Check for duplicate subject name and code in the same school (excluding current subject)
+        # First check if the exact combination exists (same subject with both name and code)
+        exact_match = name and code and Subject.objects.filter(school=school, name=name, code=code).exclude(id=subject.id).exists()
+        name_exists = name and Subject.objects.filter(school=school, name=name).exclude(id=subject.id).exists()
+        code_exists = code and Subject.objects.filter(school=school, code=code).exclude(id=subject.id).exists()
+        
+        if exact_match:
+            errors.append('A subject with this name and code already exists.')
+        elif name_exists:
             errors.append('A subject with this name already exists.')
+        elif code_exists:
+            errors.append('A subject with this code already exists.')
         
         if errors:
             for error in errors:

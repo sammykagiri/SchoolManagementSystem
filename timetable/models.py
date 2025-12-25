@@ -18,7 +18,16 @@ class Subject(models.Model):
         return f"{self.name} ({self.code})" if self.code else self.name
 
     class Meta:
-        unique_together = ['school', 'name']
+        unique_together = [
+            ('school', 'name'),
+        ]
+        constraints = [
+            models.UniqueConstraint(
+                fields=['school', 'code'],
+                condition=~models.Q(code=''),
+                name='unique_school_code_when_provided'
+            ),
+        ]
         ordering = ['name']
 
 
