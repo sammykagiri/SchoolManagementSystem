@@ -1,0 +1,102 @@
+{% extends 'base.html' %}
+{% block title %}Time Slots | School Management System{% endblock %}
+{% block content %}
+<div class="container py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2 class="mb-0">Time Slots</h2>
+        <div class="btn-group" role="group">
+            <a href="{% url 'timetable:timeslot_generate' %}" class="btn btn-outline-primary">
+                <i class="fas fa-magic me-2"></i>Generate Generic Time Slots
+            </a>
+            <a href="{% url 'timetable:timeslot_add' %}" class="btn btn-primary">
+                <i class="fas fa-plus me-2"></i>Add Time Slot
+            </a>
+        </div>
+    </div>
+    
+    <form method="get" class="mb-3 row g-2">
+        <div class="col-md-4">
+            <select name="day" class="form-select" onchange="this.form.submit()">
+                <option value="">All Days</option>
+                <option value="monday" {% if day_filter == 'monday' %}selected{% endif %}>Monday</option>
+                <option value="tuesday" {% if day_filter == 'tuesday' %}selected{% endif %}>Tuesday</option>
+                <option value="wednesday" {% if day_filter == 'wednesday' %}selected{% endif %}>Wednesday</option>
+                <option value="thursday" {% if day_filter == 'thursday' %}selected{% endif %}>Thursday</option>
+                <option value="friday" {% if day_filter == 'friday' %}selected{% endif %}>Friday</option>
+                <option value="saturday" {% if day_filter == 'saturday' %}selected{% endif %}>Saturday</option>
+            </select>
+        </div>
+        <div class="col-md-4">
+            <div class="form-check form-switch mt-2">
+                <input type="hidden" name="show_breaks" value="false">
+                <input class="form-check-input" type="checkbox" id="show_breaks" name="show_breaks" 
+                       value="true" {% if show_breaks %}checked{% endif %} onchange="this.form.submit()">
+                <label class="form-check-label" for="show_breaks">Show Breaks</label>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <a href="{% url 'timetable:timetable_list' %}" class="btn btn-outline-secondary w-100">
+                <i class="fas fa-arrow-left me-2"></i>Back to Timetable
+            </a>
+        </div>
+    </form>
+    
+    {% if time_slots_by_day %}
+        {% for day_name, slots in time_slots_by_day.items %}
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="mb-0">{{ day_name }}</h5>
+            </div>
+            <div class="card-body p-0">
+                <table class="table table-bordered mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Period/Break</th>
+                            <th>Start Time</th>
+                            <th>End Time</th>
+                            <th>Type</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for slot in slots %}
+                        <tr>
+                            <td>
+                                {% if slot.is_break %}
+                                    {{ slot.break_name|default:"Break" }}
+                                {% else %}
+                                    Period {{ slot.period_number }}
+                                {% endif %}
+                            </td>
+                            <td>{{ slot.start_time }}</td>
+                            <td>{{ slot.end_time }}</td>
+                            <td>
+                                <span class="badge {% if slot.is_break %}bg-warning{% else %}bg-primary{% endif %}">
+                                    {% if slot.is_break %}Break{% else %}Period{% endif %}
+                                </span>
+                            </td>
+                            <td>
+                                <div class="btn-group btn-group-sm" role="group">
+                                    <a href="{% url 'timetable:timeslot_edit' slot.id %}" class="btn btn-outline-primary" title="Edit">
+                                        <i class="fas fa-edit"></i>
+                                    </a>
+                                    <a href="{% url 'timetable:timeslot_delete' slot.id %}" class="btn btn-outline-danger" title="Delete">
+                                        <i class="fas fa-trash"></i>
+                                    </a>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        {% endfor %}
+    {% else %}
+        <div class="alert alert-info">
+            <i class="fas fa-info-circle me-2"></i>No time slots found. 
+            <a href="{% url 'timetable:timeslot_add' %}" class="alert-link">Create your first time slot</a>.
+        </div>
+    {% endif %}
+</div>
+{% endblock %}

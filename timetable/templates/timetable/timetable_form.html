@@ -1,0 +1,127 @@
+{% extends 'base.html' %}
+{% block title %}{% if timetable %}Edit Timetable{% else %}Add Timetable{% endif %} | School Management System{% endblock %}
+{% block content %}
+<div class="container py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2 class="mb-0">{% if timetable %}Edit Timetable{% else %}Add Timetable{% endif %}</h2>
+        <a href="{% url 'timetable:timetable_list' %}" class="btn btn-outline-secondary">
+            <i class="fas fa-arrow-left me-2"></i>Back to List
+        </a>
+    </div>
+    
+    <div class="row">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-body">
+                    <form method="post">
+                        {% csrf_token %}
+                        
+                        <div class="mb-3">
+                            <label for="school_class" class="form-label">
+                                Class <span class="text-danger">*</span>
+                            </label>
+                            <select name="school_class" id="school_class" class="form-select" required>
+                                <option value="">Select Class</option>
+                                {% for class in classes %}
+                                    <option value="{{ class.id }}" 
+                                            {% if timetable and timetable.school_class.id == class.id %}selected
+                                            {% elif post.school_class == class.id|stringformat:'s' %}selected{% endif %}>
+                                        {{ class.name }} ({{ class.grade.name }})
+                                    </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="subject" class="form-label">
+                                Subject <span class="text-danger">*</span>
+                            </label>
+                            <select name="subject" id="subject" class="form-select" required>
+                                <option value="">Select Subject</option>
+                                {% for subject in subjects %}
+                                    <option value="{{ subject.id }}" 
+                                            {% if timetable and timetable.subject.id == subject.id %}selected
+                                            {% elif post.subject == subject.id|stringformat:'s' %}selected{% endif %}>
+                                        {{ subject.name }}{% if subject.code %} ({{ subject.code }}){% endif %}
+                                    </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="teacher" class="form-label">Teacher</label>
+                            <select name="teacher" id="teacher" class="form-select">
+                                <option value="">Select Teacher (Optional)</option>
+                                {% for teacher in teachers %}
+                                    <option value="{{ teacher.id }}" 
+                                            {% if timetable and timetable.teacher and timetable.teacher.id == teacher.id %}selected
+                                            {% elif post.teacher == teacher.id|stringformat:'s' %}selected{% endif %}>
+                                        {{ teacher.full_name }} ({{ teacher.employee_id }})
+                                    </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="time_slot" class="form-label">
+                                Time Slot <span class="text-danger">*</span>
+                            </label>
+                            <select name="time_slot" id="time_slot" class="form-select" required>
+                                <option value="">Select Time Slot</option>
+                                {% for time_slot in time_slots %}
+                                    <option value="{{ time_slot.id }}" 
+                                            {% if timetable and timetable.time_slot.id == time_slot.id %}selected
+                                            {% elif post.time_slot == time_slot.id|stringformat:'s' %}selected{% endif %}>
+                                        {{ time_slot.get_day_display }} - Period {{ time_slot.period_number }} 
+                                        ({{ time_slot.start_time }} - {{ time_slot.end_time }})
+                                    </option>
+                                {% empty %}
+                                    <option value="" disabled>No time slots available. Please create time slots first.</option>
+                                {% endfor %}
+                            </select>
+                            {% if not time_slots %}
+                                <div class="alert alert-warning mt-2" role="alert">
+                                    <i class="fas fa-exclamation-triangle me-2"></i>
+                                    <strong>No time slots found!</strong> You need to create time slots before adding timetable entries. 
+                                    <a href="{% url 'timetable:timeslot_add' %}" class="alert-link">Create time slots here</a>.
+                                </div>
+                            {% else %}
+                                <div class="form-text">Select the day, period, and time for this timetable entry</div>
+                            {% endif %}
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="room" class="form-label">Room</label>
+                            <input type="text" class="form-control" id="room" name="room" 
+                                   value="{% if timetable %}{{ timetable.room }}{% else %}{{ post.room|default:'' }}{% endif %}" 
+                                   maxlength="50" placeholder="e.g., Room 101, Lab A">
+                            <div class="form-text">Optional: Enter the room/venue for this class</div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" type="checkbox" id="is_active" name="is_active" 
+                                       {% if timetable %}{% if timetable.is_active %}checked{% endif %}
+                                       {% else %}{% if post.is_active or not timetable %}checked{% endif %}{% endif %}>
+                                <label class="form-check-label" for="is_active">
+                                    Active
+                                </label>
+                            </div>
+                            <div class="form-text">Uncheck to mark this timetable entry as inactive</div>
+                        </div>
+                        
+                        <div class="d-flex gap-2">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-save me-2"></i>{% if timetable %}Update{% else %}Save{% endif %} Timetable
+                            </button>
+                            <a href="{% url 'timetable:timetable_list' %}" class="btn btn-outline-secondary">
+                                Cancel
+                            </a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,195 @@
+{% extends 'base.html' %}
+{% block title %}{% if time_slot %}Edit Time Slot{% else %}Add Time Slot{% endif %} | School Management System{% endblock %}
+{% block content %}
+<div class="container py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2 class="mb-0">{% if time_slot %}Edit Time Slot{% else %}Add Time Slot{% endif %}</h2>
+        <a href="{% url 'timetable:timeslot_list' %}" class="btn btn-outline-secondary">
+            <i class="fas fa-arrow-left me-2"></i>Back to List
+        </a>
+    </div>
+    
+    <div class="row">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-body">
+                    <form method="post">
+                        {% csrf_token %}
+                        
+                        <div class="mb-3">
+                            <label class="form-label">
+                                Days <span class="text-danger">*</span>
+                            </label>
+                            <div class="mb-2">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" id="all_days" name="all_days" 
+                                           {% if all_days %}checked{% endif %} onchange="toggleDaySelection()">
+                                    <label class="form-check-label" for="all_days">
+                                        <strong>All Days</strong> (Monday - Saturday)
+                                    </label>
+                                </div>
+                            </div>
+                            <div id="day_selection" class="border rounded p-3">
+                                <div class="row g-2">
+                                    <div class="col-md-4">
+                                        <div class="form-check">
+                                            <input class="form-check-input day-checkbox" type="checkbox" name="days" 
+                                                   id="day_monday" value="monday" 
+                                                   {% if 'monday' in selected_days %}checked{% endif %}>
+                                            <label class="form-check-label" for="day_monday">Monday</label>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <div class="form-check">
+                                            <input class="form-check-input day-checkbox" type="checkbox" name="days" 
+                                                   id="day_tuesday" value="tuesday" 
+                                                   {% if 'tuesday' in selected_days %}checked{% endif %}>
+                                            <label class="form-check-label" for="day_tuesday">Tuesday</label>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <div class="form-check">
+                                            <input class="form-check-input day-checkbox" type="checkbox" name="days" 
+                                                   id="day_wednesday" value="wednesday" 
+                                                   {% if 'wednesday' in selected_days %}checked{% endif %}>
+                                            <label class="form-check-label" for="day_wednesday">Wednesday</label>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <div class="form-check">
+                                            <input class="form-check-input day-checkbox" type="checkbox" name="days" 
+                                                   id="day_thursday" value="thursday" 
+                                                   {% if 'thursday' in selected_days %}checked{% endif %}>
+                                            <label class="form-check-label" for="day_thursday">Thursday</label>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <div class="form-check">
+                                            <input class="form-check-input day-checkbox" type="checkbox" name="days" 
+                                                   id="day_friday" value="friday" 
+                                                   {% if 'friday' in selected_days %}checked{% endif %}>
+                                            <label class="form-check-label" for="day_friday">Friday</label>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <div class="form-check">
+                                            <input class="form-check-input day-checkbox" type="checkbox" name="days" 
+                                                   id="day_saturday" value="saturday" 
+                                                   {% if 'saturday' in selected_days %}checked{% endif %}>
+                                            <label class="form-check-label" for="day_saturday">Saturday</label>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="form-text">Select specific days or check "All Days" to create time slots for all weekdays</div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" type="checkbox" id="is_break" name="is_break" 
+                                       {% if is_break %}checked{% endif %} onchange="toggleBreakFields()">
+                                <label class="form-check-label" for="is_break">
+                                    This is a break (e.g., Lunch, Recess)
+                                </label>
+                            </div>
+                        </div>
+                        
+                        <div class="mb-3" id="period_number_field">
+                            <label for="period_number" class="form-label">
+                                Period Number <span class="text-danger">*</span>
+                            </label>
+                            <input type="number" class="form-control" id="period_number" name="period_number" 
+                                   value="{% if period_number %}{{ period_number }}{% endif %}" 
+                                   min="1" max="20" placeholder="e.g., 1, 2, 3...">
+                            <div class="form-text">Enter the period number (1-20)</div>
+                        </div>
+                        
+                        <div class="mb-3" id="break_name_field" style="display: none;">
+                            <label for="break_name" class="form-label">Break Name</label>
+                            <input type="text" class="form-control" id="break_name" name="break_name" 
+                                   value="{% if break_name %}{{ break_name }}{% endif %}" 
+                                   maxlength="50" placeholder="e.g., Lunch, Recess, Morning Break">
+                            <div class="form-text">Enter a name for this break</div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="start_time" class="form-label">
+                                Start Time <span class="text-danger">*</span>
+                            </label>
+                            <input type="time" class="form-control" id="start_time" name="start_time" 
+                                   value="{% if start_time %}{{ start_time }}{% endif %}" required>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="end_time" class="form-label">
+                                End Time <span class="text-danger">*</span>
+                            </label>
+                            <input type="time" class="form-control" id="end_time" name="end_time" 
+                                   value="{% if end_time %}{{ end_time }}{% endif %}" required>
+                        </div>
+                        
+                        <div class="d-flex gap-2">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-save me-2"></i>{% if time_slot %}Update{% else %}Save{% endif %} Time Slot
+                            </button>
+                            <a href="{% url 'timetable:timeslot_list' %}" class="btn btn-outline-secondary">
+                                Cancel
+                            </a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    function toggleBreakFields() {
+        const isBreak = document.getElementById('is_break').checked;
+        const periodField = document.getElementById('period_number_field');
+        const breakNameField = document.getElementById('break_name_field');
+        const periodInput = document.getElementById('period_number');
+        
+        if (isBreak) {
+            periodField.style.display = 'none';
+            breakNameField.style.display = 'block';
+            periodInput.removeAttribute('required');
+        } else {
+            periodField.style.display = 'block';
+            breakNameField.style.display = 'none';
+            periodInput.setAttribute('required', 'required');
+        }
+    }
+    
+    function toggleDaySelection() {
+        const allDays = document.getElementById('all_days').checked;
+        const dayCheckboxes = document.querySelectorAll('.day-checkbox');
+        const daySelection = document.getElementById('day_selection');
+        
+        if (allDays) {
+            // Disable individual day selection when "All Days" is checked
+            dayCheckboxes.forEach(checkbox => {
+                checkbox.checked = false;
+                checkbox.disabled = true;
+            });
+            daySelection.style.opacity = '0.5';
+            daySelection.style.pointerEvents = 'none';
+        } else {
+            // Enable individual day selection
+            dayCheckboxes.forEach(checkbox => {
+                checkbox.disabled = false;
+            });
+            daySelection.style.opacity = '1';
+            daySelection.style.pointerEvents = 'auto';
+        }
+    }
+    
+    // Initialize on page load
+    document.addEventListener('DOMContentLoaded', function() {
+        toggleBreakFields();
+        toggleDaySelection();
+    });
+</script>
+{% endblock %}
