@@ -24,6 +24,7 @@
                 <option value="thursday" {% if day_filter == 'thursday' %}selected{% endif %}>Thursday</option>
                 <option value="friday" {% if day_filter == 'friday' %}selected{% endif %}>Friday</option>
                 <option value="saturday" {% if day_filter == 'saturday' %}selected{% endif %}>Saturday</option>
+                <option value="sunday" {% if day_filter == 'sunday' %}selected{% endif %}>Sunday</option>
             </select>
         </div>
         <div class="col-md-4">
@@ -41,62 +42,148 @@
         </div>
     </form>
     
-    {% if time_slots_by_day %}
-        {% for day_name, slots in time_slots_by_day.items %}
-        <div class="card mb-4">
-            <div class="card-header">
-                <h5 class="mb-0">{{ day_name }}</h5>
+    <form id="bulkDeleteForm" method="post" action="{% url 'timetable:timeslot_bulk_delete' %}">
+        {% csrf_token %}
+        <div class="mb-3 d-flex justify-content-between align-items-center">
+            <div>
+                <button type="button" class="btn btn-sm btn-outline-secondary" onclick="selectAll()">
+                    <i class="fas fa-check-square me-1"></i>Select All
+                </button>
+                <button type="button" class="btn btn-sm btn-outline-secondary" onclick="deselectAll()">
+                    <i class="fas fa-square me-1"></i>Deselect All
+                </button>
+                <span id="selectedCount" class="ms-2 text-muted">0 selected</span>
             </div>
-            <div class="card-body p-0">
-                <table class="table table-bordered mb-0">
-                    <thead class="table-light">
-                        <tr>
-                            <th>Period/Break</th>
-                            <th>Start Time</th>
-                            <th>End Time</th>
-                            <th>Type</th>
-                            <th>Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for slot in slots %}
-                        <tr>
-                            <td>
-                                {% if slot.is_break %}
-                                    {{ slot.break_name|default:"Break" }}
-                                {% else %}
-                                    Period {{ slot.period_number }}
-                                {% endif %}
-                            </td>
-                            <td>{{ slot.start_time }}</td>
-                            <td>{{ slot.end_time }}</td>
-                            <td>
-                                <span class="badge {% if slot.is_break %}bg-warning{% else %}bg-primary{% endif %}">
-                                    {% if slot.is_break %}Break{% else %}Period{% endif %}
-                                </span>
-                            </td>
-                            <td>
-                                <div class="btn-group btn-group-sm" role="group">
-                                    <a href="{% url 'timetable:timeslot_edit' slot.id %}" class="btn btn-outline-primary" title="Edit">
-                                        <i class="fas fa-edit"></i>
-                                    </a>
-                                    <a href="{% url 'timetable:timeslot_delete' slot.id %}" class="btn btn-outline-danger" title="Delete">
-                                        <i class="fas fa-trash"></i>
-                                    </a>
-                                </div>
-                            </td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
+            <button type="submit" class="btn btn-danger btn-sm" id="bulkDeleteBtn" disabled onclick="return confirm('Are you sure you want to delete the selected time slots? This action cannot be undone.');">
+                <i class="fas fa-trash me-1"></i>Delete Selected
+            </button>
+        </div>
+        
+        {% if time_slots_by_day %}
+            {% for day_name, slots in time_slots_by_day.items %}
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0">{{ day_name }}</h5>
+                </div>
+                <div class="card-body p-0">
+                    <table class="table table-bordered mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th width="40">
+                                    <input type="checkbox" class="day-select-all" data-day="{{ day_name }}" onclick="toggleDaySelectAll(this)" title="Select All for {{ day_name }}">
+                                </th>
+                                <th>Period/Break</th>
+                                <th>Start Time</th>
+                                <th>End Time</th>
+                                <th>Type</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for slot in slots %}
+                            <tr>
+                                <td>
+                                    <input type="checkbox" class="timeslot-checkbox" name="timeslot_ids" value="{{ slot.id }}" onchange="updateSelectedCount()">
+                                </td>
+                                <td>
+                                    {% if slot.is_break %}
+                                        {{ slot.break_name|default:"Break" }}
+                                    {% else %}
+                                        Period {{ slot.period_number }}
+                                    {% endif %}
+                                </td>
+                                <td>{{ slot.start_time }}</td>
+                                <td>{{ slot.end_time }}</td>
+                                <td>
+                                    <span class="badge {% if slot.is_break %}bg-warning{% else %}bg-primary{% endif %}">
+                                        {% if slot.is_break %}Break{% else %}Period{% endif %}
+                                    </span>
+                                </td>
+                                <td>
+                                    <div class="btn-group btn-group-sm" role="group">
+                                        <a href="{% url 'timetable:timeslot_edit' slot.id %}" class="btn btn-outline-primary" title="Edit">
+                                            <i class="fas fa-edit"></i>
+                                        </a>
+                                        <a href="{% url 'timetable:timeslot_delete' slot.id %}" class="btn btn-outline-danger" title="Delete">
+                                            <i class="fas fa-trash"></i>
+                                        </a>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
             </div>
-        </div>
-        {% endfor %}
-    {% else %}
-        <div class="alert alert-info">
-            <i class="fas fa-info-circle me-2"></i>No time slots found. 
-            <a href="{% url 'timetable:timeslot_add' %}" class="alert-link">Create your first time slot</a>.
-        </div>
-    {% endif %}
+            {% endfor %}
+        {% else %}
+            <div class="alert alert-info">
+                <i class="fas fa-info-circle me-2"></i>No time slots found. 
+                <a href="{% url 'timetable:timeslot_add' %}" class="alert-link">Create your first time slot</a>.
+            </div>
+        {% endif %}
+    </form>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    function updateSelectedCount() {
+        const checkboxes = document.querySelectorAll('.timeslot-checkbox:checked');
+        const count = checkboxes.length;
+        const countSpan = document.getElementById('selectedCount');
+        const bulkDeleteBtn = document.getElementById('bulkDeleteBtn');
+        
+        if (countSpan) {
+            countSpan.textContent = count + ' selected';
+        }
+        if (bulkDeleteBtn) {
+            bulkDeleteBtn.disabled = count === 0;
+        }
+        
+        // Update day-level select all checkboxes
+        const daySelectAlls = document.querySelectorAll('.day-select-all');
+        daySelectAlls.forEach(dayCheckbox => {
+            const dayCard = dayCheckbox.closest('.card');
+            const dayCheckboxes = dayCard.querySelectorAll('.timeslot-checkbox');
+            const dayChecked = dayCard.querySelectorAll('.timeslot-checkbox:checked');
+            dayCheckbox.checked = dayCheckboxes.length > 0 && dayCheckboxes.length === dayChecked.length;
+            dayCheckbox.indeterminate = dayChecked.length > 0 && dayChecked.length < dayCheckboxes.length;
+        });
+    }
+    
+    function toggleDaySelectAll(checkbox) {
+        const dayCard = checkbox.closest('.card');
+        const dayCheckboxes = dayCard.querySelectorAll('.timeslot-checkbox');
+        dayCheckboxes.forEach(cb => {
+            cb.checked = checkbox.checked;
+        });
+        updateSelectedCount();
+    }
+    
+    function selectAll() {
+        const checkboxes = document.querySelectorAll('.timeslot-checkbox');
+        checkboxes.forEach(checkbox => {
+            checkbox.checked = true;
+        });
+        const daySelectAlls = document.querySelectorAll('.day-select-all');
+        daySelectAlls.forEach(cb => cb.checked = true);
+        updateSelectedCount();
+    }
+    
+    function deselectAll() {
+        const checkboxes = document.querySelectorAll('.timeslot-checkbox');
+        checkboxes.forEach(checkbox => {
+            checkbox.checked = false;
+        });
+        const daySelectAlls = document.querySelectorAll('.day-select-all');
+        daySelectAlls.forEach(cb => cb.checked = false);
+        updateSelectedCount();
+    }
+    
+    // Initialize on page load
+    document.addEventListener('DOMContentLoaded', function() {
+        updateSelectedCount();
+    });
+</script>
 {% endblock %}

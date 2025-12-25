@@ -78,6 +78,7 @@ class TimeSlot(models.Model):
         ('thursday', 'Thursday'),
         ('friday', 'Friday'),
         ('saturday', 'Saturday'),
+        ('sunday', 'Sunday'),
     ]
     
     school = models.ForeignKey(School, on_delete=models.CASCADE, related_name='time_slots')

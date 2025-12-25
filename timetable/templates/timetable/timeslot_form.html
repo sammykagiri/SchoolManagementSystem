@@ -25,7 +25,7 @@
                                     <input class="form-check-input" type="checkbox" id="all_days" name="all_days" 
                                            {% if all_days %}checked{% endif %} onchange="toggleDaySelection()">
                                     <label class="form-check-label" for="all_days">
-                                        <strong>All Days</strong> (Monday - Saturday)
+                                        <strong>All Days</strong> (Monday - Sunday)
                                     </label>
                                 </div>
                             </div>
@@ -77,6 +77,14 @@
                                                    id="day_saturday" value="saturday" 
                                                    {% if 'saturday' in selected_days %}checked{% endif %}>
                                             <label class="form-check-label" for="day_saturday">Saturday</label>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <div class="form-check">
+                                            <input class="form-check-input day-checkbox" type="checkbox" name="days" 
+                                                   id="day_sunday" value="sunday" 
+                                                   {% if 'sunday' in selected_days %}checked{% endif %}>
+                                            <label class="form-check-label" for="day_sunday">Sunday</label>
                                         </div>
                                     </div>
                                 </div>
@@ -164,20 +172,20 @@
     }
     
     function toggleDaySelection() {
-        const allDays = document.getElementById('all_days').checked;
+        const allDaysCheckbox = document.getElementById('all_days');
         const dayCheckboxes = document.querySelectorAll('.day-checkbox');
         const daySelection = document.getElementById('day_selection');
         
-        if (allDays) {
-            // Disable individual day selection when "All Days" is checked
+        if (allDaysCheckbox.checked) {
+            // When "All Days" is checked, check all individual days but keep them enabled
             dayCheckboxes.forEach(checkbox => {
-                checkbox.checked = false;
-                checkbox.disabled = true;
+                checkbox.checked = true;
+                checkbox.disabled = false;
             });
-            daySelection.style.opacity = '0.5';
-            daySelection.style.pointerEvents = 'none';
+            daySelection.style.opacity = '1';
+            daySelection.style.pointerEvents = 'auto';
         } else {
-            // Enable individual day selection
+            // When "All Days" is unchecked, keep individual days enabled
             dayCheckboxes.forEach(checkbox => {
                 checkbox.disabled = false;
             });
@@ -186,10 +194,26 @@
         }
     }
     
+    function updateAllDaysCheckbox() {
+        const allDaysCheckbox = document.getElementById('all_days');
+        const dayCheckboxes = document.querySelectorAll('.day-checkbox');
+        const allChecked = Array.from(dayCheckboxes).every(cb => cb.checked);
+        const someChecked = Array.from(dayCheckboxes).some(cb => cb.checked);
+        
+        // Update "All Days" checkbox based on individual day selections
+        allDaysCheckbox.checked = allChecked && someChecked;
+    }
+    
     // Initialize on page load
     document.addEventListener('DOMContentLoaded', function() {
         toggleBreakFields();
         toggleDaySelection();
+        
+        // Add event listeners to individual day checkboxes
+        const dayCheckboxes = document.querySelectorAll('.day-checkbox');
+        dayCheckboxes.forEach(checkbox => {
+            checkbox.addEventListener('change', updateAllDaysCheckbox);
+        });
     });
 </script>
 {% endblock %}

@@ -484,8 +484,8 @@ def timeslot_list(request):
     if day_filter:
         time_slots = time_slots.filter(day=day_filter)
     
-    # Filter by break status
-    show_breaks = request.GET.get('show_breaks', 'false').lower() == 'true'
+    # Filter by break status (default to True - show breaks by default)
+    show_breaks = request.GET.get('show_breaks', 'true').lower() == 'true'
     if not show_breaks:
         time_slots = time_slots.filter(is_break=False)
     
@@ -545,11 +545,12 @@ def timeslot_add(request):
             errors.append('Period number is required for non-break time slots.')
         
         # Determine which days to create time slots for
+        # Priority: selected_days (even if "All Days" is checked, user may have unchecked some days)
         days_to_create = []
-        if all_days:
-            days_to_create = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday']
-        elif selected_days:
+        if selected_days:
             days_to_create = selected_days
+        elif all_days:
+            days_to_create = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday']
         else:
             errors.append('Please select at least one day or choose "All Days".')
         
@@ -718,95 +719,287 @@ def timeslot_delete(request, timeslot_id):
 
 
 @login_required
-def timeslot_generate(request):
-    """Generate generic time slots for all days"""
+def timeslot_bulk_delete(request):
+    """Bulk delete time slots"""
     school = request.user.profile.school
     
     if request.method == 'POST':
-        # Default time slots configuration
-        # You can customize these default times
-        default_periods = [
-            {'period': 1, 'start': '08:00', 'end': '08:40'},
-            {'period': 2, 'start': '08:40', 'end': '09:20'},
-            {'period': 3, 'start': '09:20', 'end': '10:00'},
-            {'period': 4, 'start': '10:00', 'end': '10:40'},
-            {'period': 5, 'start': '11:00', 'end': '11:40'},
-            {'period': 6, 'start': '11:40', 'end': '12:20'},
-            {'period': 7, 'start': '12:20', 'end': '13:00'},
-            {'period': 8, 'start': '13:00', 'end': '13:40'},
-        ]
+        timeslot_ids = request.POST.getlist('timeslot_ids')
         
-        # Default breaks
-        default_breaks = [
-            {'name': 'Morning Break', 'start': '10:40', 'end': '11:00'},
-            {'name': 'Lunch Break', 'start': '13:40', 'end': '14:20'},
-        ]
+        if not timeslot_ids:
+            messages.warning(request, 'No time slots selected for deletion.')
+            return redirect('timetable:timeslot_list')
         
-        days = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday']
+        # Get time slots that belong to this school
+        time_slots = TimeSlot.objects.filter(id__in=timeslot_ids, school=school)
+        
+        # Check which time slots are used in timetables
+        used_slots = []
+        deletable_slots = []
+        
+        for slot in time_slots:
+            if Timetable.objects.filter(time_slot=slot).exists():
+                used_slots.append(slot)
+            else:
+                deletable_slots.append(slot)
+        
+        # Delete only slots that are not in use
+        deleted_count = 0
+        for slot in deletable_slots:
+            slot.delete()
+            deleted_count += 1
+        
+        if deleted_count > 0:
+            messages.success(request, f'Successfully deleted {deleted_count} time slot(s)!')
+        if used_slots:
+            messages.error(request, f'Cannot delete {len(used_slots)} time slot(s) because they are being used in timetable entries.')
+        
+        return redirect('timetable:timeslot_list')
+    
+    return redirect('timetable:timeslot_list')
+
+
+@login_required
+def timeslot_generate(request):
+    """Generate generic time slots for all days"""
+    from datetime import datetime, timedelta
+    
+    school = request.user.profile.school
+    
+    if request.method == 'POST':
+        # Get form parameters
+        start_time_str = request.POST.get('start_time', '').strip()
+        num_periods = request.POST.get('num_periods', '').strip()
+        period_duration = request.POST.get('period_duration', '').strip()  # in minutes
+        
+        # Get selected days
+        all_days = request.POST.get('all_days') == 'on'
+        selected_days = request.POST.getlist('days')
+        
+        # Get breaks data
+        breaks_data = []
+        break_count = int(request.POST.get('break_count', '0') or '0')
+        for i in range(break_count):
+            break_name = request.POST.get(f'break_{i}_name', '').strip()
+            break_start = request.POST.get(f'break_{i}_start', '').strip()
+            break_duration = request.POST.get(f'break_{i}_duration', '').strip()  # in minutes
+            
+            if break_name and break_start and break_duration:
+                # Calculate break end time
+                break_start_time = datetime.strptime(break_start, '%H:%M').time()
+                break_duration_min = int(break_duration)
+                break_end_time = (datetime.combine(datetime.today(), break_start_time) + 
+                                 timedelta(minutes=break_duration_min)).time()
+                breaks_data.append({
+                    'name': break_name,
+                    'start': break_start,
+                    'end': break_end_time.strftime('%H:%M'),
+                    'start_time_obj': break_start_time
+                })
+        
+        # Determine which days to create time slots for
+        # Priority: selected_days (even if "All Days" is checked, user may have unchecked some days)
+        days_to_create = []
+        if selected_days:
+            days_to_create = selected_days
+        elif all_days:
+            days_to_create = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday']
+        else:
+            days_to_create = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday']  # Default to all days
+        
+        errors = []
+        if not start_time_str:
+            errors.append('Start time is required.')
+        if not num_periods:
+            errors.append('Number of periods is required.')
+        if not period_duration:
+            errors.append('Period duration is required.')
+        
+        if errors:
+            for error in errors:
+                messages.error(request, error)
+            return render(request, 'timetable/timeslot_generate.html', {
+                'start_time': start_time_str,
+                'num_periods': num_periods,
+                'period_duration': period_duration,
+                'break_count': break_count,
+                'all_days': all_days,
+                'selected_days': selected_days,
+                'existing_count': TimeSlot.objects.filter(school=school).count(),
+            })
+        
+        # Parse start time and calculate periods
+        start_time = datetime.strptime(start_time_str, '%H:%M').time()
+        period_duration_min = int(period_duration)
+        num_periods_int = int(num_periods)
+        
+        # Sort breaks by start time
+        breaks_data.sort(key=lambda x: x['start_time_obj'])
+        
+        # Generate periods and breaks together, adjusting period times when breaks occur
+        all_slots = []
+        current_time = datetime.combine(datetime.today(), start_time)
+        period_num = 1
+        break_index = 0
+        
+        for period_idx in range(num_periods_int):
+            # Check if there's a break that should occur before this period starts
+            while break_index < len(breaks_data):
+                break_data = breaks_data[break_index]
+                break_start = break_data['start_time_obj']
+                break_end = datetime.strptime(break_data['end'], '%H:%M').time()
+                
+                # If break starts before or at current time, insert it
+                if break_start <= current_time.time():
+                    all_slots.append({
+                        'type': 'break',
+                        'name': break_data['name'],
+                        'start': break_data['start'],
+                        'end': break_data['end'],
+                        'start_time_obj': break_start
+                    })
+                    # Move current time to after break ends
+                    current_time = datetime.combine(datetime.today(), break_end)
+                    break_index += 1
+                else:
+                    break
+            
+            # Calculate period start and end
+            period_start = current_time.time()
+            period_end = (current_time + timedelta(minutes=period_duration_min)).time()
+            
+            # Check if there's a break that occurs during this period
+            if break_index < len(breaks_data):
+                break_data = breaks_data[break_index]
+                break_start = break_data['start_time_obj']
+                break_end_time = datetime.strptime(break_data['end'], '%H:%M').time()
+                
+                # If break starts during this period (before period ends), adjust period end
+                if break_start < period_end:
+                    # Period ends at break start
+                    period_end = break_start
+                    all_slots.append({
+                        'type': 'period',
+                        'number': period_num,
+                        'start': period_start.strftime('%H:%M'),
+                        'end': period_end.strftime('%H:%M'),
+                        'start_time_obj': period_start
+                    })
+                    # Insert the break
+                    all_slots.append({
+                        'type': 'break',
+                        'name': break_data['name'],
+                        'start': break_data['start'],
+                        'end': break_data['end'],
+                        'start_time_obj': break_start
+                    })
+                    # Move current time to after break ends for next period
+                    current_time = datetime.combine(datetime.today(), break_end_time)
+                    period_num += 1
+                    break_index += 1
+                    continue
+            
+            # No break during this period - add the full period
+            all_slots.append({
+                'type': 'period',
+                'number': period_num,
+                'start': period_start.strftime('%H:%M'),
+                'end': period_end.strftime('%H:%M'),
+                'start_time_obj': period_start
+            })
+            
+            # Move to next period start
+            current_time = datetime.combine(datetime.today(), period_end)
+            period_num += 1
+        
+        # Add any remaining breaks that come after all periods
+        while break_index < len(breaks_data):
+            break_data = breaks_data[break_index]
+            all_slots.append({
+                'type': 'break',
+                'name': break_data['name'],
+                'start': break_data['start'],
+                'end': break_data['end'],
+                'start_time_obj': break_data['start_time_obj']
+            })
+            break_index += 1
+        
+        # Sort all slots by start time to ensure chronological order
+        all_slots.sort(key=lambda x: x['start_time_obj'])
+        
+        # Use sorted list as periods
+        periods = all_slots
+        
+        # Create time slots for selected days
         created_count = 0
         skipped_count = 0
         
-        for day in days:
-            # Create periods
-            for period_data in default_periods:
-                # Check if time slot already exists
-                if not TimeSlot.objects.filter(
-                    school=school, 
-                    day=day, 
-                    period_number=period_data['period'],
-                    is_break=False
-                ).exists():
-                    TimeSlot.objects.create(
+        for day in days_to_create:
+            # Get existing period numbers for this day to avoid conflicts
+            existing_periods = set(
+                TimeSlot.objects.filter(school=school, day=day)
+                .values_list('period_number', flat=True)
+            )
+            
+            # First, create all periods
+            for period_data in periods:
+                if period_data['type'] == 'period':
+                    period_num = period_data['number']
+                    # Check if time slot already exists
+                    if period_num not in existing_periods:
+                        try:
+                            TimeSlot.objects.create(
+                                school=school,
+                                day=day,
+                                start_time=period_data['start'],
+                                end_time=period_data['end'],
+                                period_number=period_num,
+                                is_break=False
+                            )
+                            existing_periods.add(period_num)
+                            created_count += 1
+                        except Exception:
+                            skipped_count += 1
+                    else:
+                        skipped_count += 1
+            
+            # Then, create all breaks (after periods to avoid conflicts)
+            for period_data in periods:
+                if period_data['type'] == 'break':
+                    # Check if break already exists (by time and name)
+                    if not TimeSlot.objects.filter(
                         school=school,
                         day=day,
                         start_time=period_data['start'],
                         end_time=period_data['end'],
-                        period_number=period_data['period'],
-                        is_break=False
-                    )
-                    created_count += 1
-                else:
-                    skipped_count += 1
-            
-            # Create breaks
-            for break_data in default_breaks:
-                # Check if break already exists (by time range and break name)
-                if not TimeSlot.objects.filter(
-                    school=school,
-                    day=day,
-                    start_time=break_data['start'],
-                    end_time=break_data['end'],
-                    is_break=True,
-                    break_name=break_data['name']
-                ).exists():
-                    # Find the maximum period number for this day (including breaks)
-                    max_period = TimeSlot.objects.filter(
-                        school=school, 
-                        day=day
-                    ).aggregate(Max('period_number'))['period_number__max'] or 0
-                    
-                    # Find next available period number that doesn't conflict
-                    next_period = max_period + 1
-                    # Ensure it doesn't conflict with existing periods
-                    while TimeSlot.objects.filter(
-                        school=school,
-                        day=day,
-                        period_number=next_period
-                    ).exists():
-                        next_period += 1
-                    
-                    TimeSlot.objects.create(
-                        school=school,
-                        day=day,
-                        start_time=break_data['start'],
-                        end_time=break_data['end'],
-                        period_number=next_period,
                         is_break=True,
-                        break_name=break_data['name']
-                    )
-                    created_count += 1
-                else:
-                    skipped_count += 1
+                        break_name=period_data['name']
+                    ).exists():
+                        # Find next available period number that doesn't conflict
+                        # Start from max period number + 1
+                        max_period = max(existing_periods) if existing_periods else 0
+                        next_period = max_period + 1
+                        
+                        # Find the next available period number
+                        while next_period in existing_periods:
+                            next_period += 1
+                        
+                        try:
+                            TimeSlot.objects.create(
+                                school=school,
+                                day=day,
+                                start_time=period_data['start'],
+                                end_time=period_data['end'],
+                                period_number=next_period,
+                                is_break=True,
+                                break_name=period_data['name']
+                            )
+                            existing_periods.add(next_period)
+                            created_count += 1
+                        except Exception:
+                            skipped_count += 1
+                    else:
+                        skipped_count += 1
         
         if created_count > 0:
             messages.success(request, f'Successfully created {created_count} generic time slots! You can now customize them as needed.')
@@ -815,8 +1008,10 @@ def timeslot_generate(request):
         
         return redirect('timetable:timeslot_list')
     
-    # GET request - show confirmation page
+    # GET request - show form
     existing_count = TimeSlot.objects.filter(school=school).count()
     return render(request, 'timetable/timeslot_generate.html', {
         'existing_count': existing_count,
+        'all_days': True,  # Default to all days checked
+        'selected_days': [],  # Empty list means all days will be checked by default
     })

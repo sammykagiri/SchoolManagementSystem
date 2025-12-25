@@ -4,7 +4,7 @@ from .views import (
     SubjectViewSet, TeacherViewSet, TimeSlotViewSet, TimetableViewSet,
     timetable_list, timetable_add, timetable_edit, timetable_delete,
     subject_list, subject_detail, subject_add, subject_edit, subject_delete, teacher_list,
-    timeslot_list, timeslot_add, timeslot_edit, timeslot_delete, timeslot_generate
+    timeslot_list, timeslot_add, timeslot_edit, timeslot_delete, timeslot_generate, timeslot_bulk_delete
 )
 
 app_name = 'timetable'
@@ -29,6 +29,7 @@ urlpatterns = [
     path('time-slots/', timeslot_list, name='timeslot_list'),
     path('time-slots/add/', timeslot_add, name='timeslot_add'),
     path('time-slots/generate/', timeslot_generate, name='timeslot_generate'),
+    path('time-slots/bulk-delete/', timeslot_bulk_delete, name='timeslot_bulk_delete'),
     path('time-slots/<int:timeslot_id>/edit/', timeslot_edit, name='timeslot_edit'),
     path('time-slots/<int:timeslot_id>/delete/', timeslot_delete, name='timeslot_delete'),
     path('', include(router.urls)),

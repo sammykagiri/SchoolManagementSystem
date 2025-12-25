@@ -10,95 +10,144 @@
     </div>
     
     <div class="row">
-        <div class="col-md-8">
+        <div class="col-md-10">
             <div class="card">
                 <div class="card-body">
                     <div class="alert alert-info" role="alert">
                         <i class="fas fa-info-circle me-2"></i>
-                        <strong>What will be created:</strong>
-                        <ul class="mb-0 mt-2">
-                            <li>8 standard periods (Period 1-8) for each day (Monday-Saturday)</li>
-                            <li>2 break periods (Morning Break, Lunch Break) for each day</li>
-                            <li>Default time slots that you can customize later</li>
-                        </ul>
+                        <strong>Configure your time slots:</strong> Enter the details below and select which days to generate time slots for.
                     </div>
                     
-                    <h5 class="mb-3">Default Time Schedule:</h5>
-                    <div class="table-responsive">
-                        <table class="table table-bordered">
-                            <thead class="table-light">
-                                <tr>
-                                    <th>Period</th>
-                                    <th>Start Time</th>
-                                    <th>End Time</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <tr>
-                                    <td>Period 1</td>
-                                    <td>08:00</td>
-                                    <td>08:40</td>
-                                </tr>
-                                <tr>
-                                    <td>Period 2</td>
-                                    <td>08:40</td>
-                                    <td>09:20</td>
-                                </tr>
-                                <tr>
-                                    <td>Period 3</td>
-                                    <td>09:20</td>
-                                    <td>10:00</td>
-                                </tr>
-                                <tr>
-                                    <td>Period 4</td>
-                                    <td>10:00</td>
-                                    <td>10:40</td>
-                                </tr>
-                                <tr class="table-warning">
-                                    <td><strong>Morning Break</strong></td>
-                                    <td>10:40</td>
-                                    <td>11:00</td>
-                                </tr>
-                                <tr>
-                                    <td>Period 5</td>
-                                    <td>11:00</td>
-                                    <td>11:40</td>
-                                </tr>
-                                <tr>
-                                    <td>Period 6</td>
-                                    <td>11:40</td>
-                                    <td>12:20</td>
-                                </tr>
-                                <tr>
-                                    <td>Period 7</td>
-                                    <td>12:20</td>
-                                    <td>13:00</td>
-                                </tr>
-                                <tr>
-                                    <td>Period 8</td>
-                                    <td>13:00</td>
-                                    <td>13:40</td>
-                                </tr>
-                                <tr class="table-warning">
-                                    <td><strong>Lunch Break</strong></td>
-                                    <td>13:40</td>
-                                    <td>14:20</td>
-                                </tr>
-                            </tbody>
-                        </table>
-                    </div>
-                    
-                    {% if existing_count > 0 %}
-                    <div class="alert alert-warning mt-3" role="alert">
-                        <i class="fas fa-exclamation-triangle me-2"></i>
-                        <strong>Note:</strong> You currently have {{ existing_count }} time slot(s). 
-                        Existing time slots will not be overwritten. Only new time slots will be created.
-                    </div>
-                    {% endif %}
-                    
-                    <form method="post" class="mt-4">
+                    <form method="post" id="generateForm">
                         {% csrf_token %}
-                        <div class="d-flex gap-2">
+                        
+                        <div class="mb-3">
+                            <label class="form-label">
+                                Days to Generate <span class="text-danger">*</span>
+                            </label>
+                            <div class="mb-2">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" id="all_days" name="all_days" 
+                                           {% if all_days or not selected_days %}checked{% endif %} onchange="toggleDaySelection()">
+                                    <label class="form-check-label" for="all_days">
+                                        <strong>All Days</strong> (Monday - Sunday)
+                                    </label>
+                                </div>
+                            </div>
+                            <div id="day_selection" class="border rounded p-3">
+                                <div class="row g-2">
+                                    <div class="col-md-4">
+                                        <div class="form-check">
+                                            <input class="form-check-input day-checkbox" type="checkbox" name="days" 
+                                                   id="day_monday" value="monday" 
+                                                   {% if all_days or not selected_days or 'monday' in selected_days %}checked{% endif %}>
+                                            <label class="form-check-label" for="day_monday">Monday</label>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <div class="form-check">
+                                            <input class="form-check-input day-checkbox" type="checkbox" name="days" 
+                                                   id="day_tuesday" value="tuesday" 
+                                                   {% if all_days or not selected_days or 'tuesday' in selected_days %}checked{% endif %}>
+                                            <label class="form-check-label" for="day_tuesday">Tuesday</label>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <div class="form-check">
+                                            <input class="form-check-input day-checkbox" type="checkbox" name="days" 
+                                                   id="day_wednesday" value="wednesday" 
+                                                   {% if all_days or not selected_days or 'wednesday' in selected_days %}checked{% endif %}>
+                                            <label class="form-check-label" for="day_wednesday">Wednesday</label>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <div class="form-check">
+                                            <input class="form-check-input day-checkbox" type="checkbox" name="days" 
+                                                   id="day_thursday" value="thursday" 
+                                                   {% if all_days or not selected_days or 'thursday' in selected_days %}checked{% endif %}>
+                                            <label class="form-check-label" for="day_thursday">Thursday</label>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <div class="form-check">
+                                            <input class="form-check-input day-checkbox" type="checkbox" name="days" 
+                                                   id="day_friday" value="friday" 
+                                                   {% if all_days or not selected_days or 'friday' in selected_days %}checked{% endif %}>
+                                            <label class="form-check-label" for="day_friday">Friday</label>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <div class="form-check">
+                                            <input class="form-check-input day-checkbox" type="checkbox" name="days" 
+                                                   id="day_saturday" value="saturday" 
+                                                   {% if all_days or not selected_days or 'saturday' in selected_days %}checked{% endif %}>
+                                            <label class="form-check-label" for="day_saturday">Saturday</label>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <div class="form-check">
+                                            <input class="form-check-input day-checkbox" type="checkbox" name="days" 
+                                                   id="day_sunday" value="sunday" 
+                                                   {% if all_days or not selected_days or 'sunday' in selected_days %}checked{% endif %}>
+                                            <label class="form-check-label" for="day_sunday">Sunday</label>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="row mb-3">
+                            <div class="col-md-4">
+                                <label for="start_time" class="form-label">
+                                    School Start Time <span class="text-danger">*</span>
+                                </label>
+                                <input type="time" class="form-control" id="start_time" name="start_time" 
+                                       value="{% if start_time %}{{ start_time }}{% else %}08:00{% endif %}" required>
+                                <div class="form-text">When does the school day begin?</div>
+                            </div>
+                            <div class="col-md-4">
+                                <label for="num_periods" class="form-label">
+                                    Number of Periods <span class="text-danger">*</span>
+                                </label>
+                                <input type="number" class="form-control" id="num_periods" name="num_periods" 
+                                       value="{% if num_periods %}{{ num_periods }}{% else %}8{% endif %}" 
+                                       min="1" max="20" required>
+                                <div class="form-text">How many periods per day?</div>
+                            </div>
+                            <div class="col-md-4">
+                                <label for="period_duration" class="form-label">
+                                    Period Duration (minutes) <span class="text-danger">*</span>
+                                </label>
+                                <input type="number" class="form-control" id="period_duration" name="period_duration" 
+                                       value="{% if period_duration %}{{ period_duration }}{% else %}40{% endif %}" 
+                                       min="15" max="120" required>
+                                <div class="form-text">Duration of each period in minutes</div>
+                            </div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="break_count" class="form-label">
+                                Number of Breaks
+                            </label>
+                            <input type="number" class="form-control" id="break_count" name="break_count" 
+                                   value="{% if break_count %}{{ break_count }}{% else %}0{% endif %}" 
+                                   min="0" max="10" onchange="updateBreakFields()">
+                            <div class="form-text">How many breaks do you want to add?</div>
+                        </div>
+                        
+                        <div id="breaks_container">
+                            {# Break fields will be dynamically added by JavaScript #}
+                        </div>
+                        
+                        {% if existing_count > 0 %}
+                        <div class="alert alert-warning mt-3" role="alert">
+                            <i class="fas fa-exclamation-triangle me-2"></i>
+                            <strong>Note:</strong> You currently have {{ existing_count }} time slot(s). 
+                            Existing time slots will not be overwritten. Only new time slots will be created.
+                        </div>
+                        {% endif %}
+                        
+                        <div class="d-flex gap-2 mt-4">
                             <button type="submit" class="btn btn-primary">
                                 <i class="fas fa-magic me-2"></i>Generate Time Slots
                             </button>
@@ -112,4 +161,92 @@
         </div>
     </div>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    function updateBreakFields() {
+        const breakCount = parseInt(document.getElementById('break_count').value) || 0;
+        const container = document.getElementById('breaks_container');
+        container.innerHTML = '';
+        
+        for (let i = 0; i < breakCount; i++) {
+            const breakCard = document.createElement('div');
+            breakCard.className = 'card mb-3 break-item';
+            breakCard.innerHTML = `
+                <div class="card-body">
+                    <h6 class="card-title">Break ${i + 1}</h6>
+                    <div class="row g-3">
+                        <div class="col-md-4">
+                            <label class="form-label">Break Name</label>
+                            <input type="text" class="form-control" name="break_${i}_name" 
+                                   placeholder="e.g., Morning Break, Lunch Break" required>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Start Time</label>
+                            <input type="time" class="form-control" name="break_${i}_start" required>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Duration (minutes)</label>
+                            <input type="number" class="form-control" name="break_${i}_duration" 
+                                   value="20" min="5" max="120" required>
+                        </div>
+                    </div>
+                </div>
+            `;
+            container.appendChild(breakCard);
+        }
+    }
+    
+    function toggleDaySelection() {
+        const allDaysCheckbox = document.getElementById('all_days');
+        const dayCheckboxes = document.querySelectorAll('.day-checkbox');
+        const daySelection = document.getElementById('day_selection');
+        
+        if (allDaysCheckbox.checked) {
+            // When "All Days" is checked, check all individual days but keep them enabled
+            dayCheckboxes.forEach(checkbox => {
+                checkbox.checked = true;
+                checkbox.disabled = false;
+            });
+            daySelection.style.opacity = '1';
+            daySelection.style.pointerEvents = 'auto';
+        } else {
+            // When "All Days" is unchecked, keep individual days enabled
+            dayCheckboxes.forEach(checkbox => {
+                checkbox.disabled = false;
+            });
+            daySelection.style.opacity = '1';
+            daySelection.style.pointerEvents = 'auto';
+        }
+    }
+    
+    function updateAllDaysCheckbox() {
+        const allDaysCheckbox = document.getElementById('all_days');
+        const dayCheckboxes = document.querySelectorAll('.day-checkbox');
+        const allChecked = Array.from(dayCheckboxes).every(cb => cb.checked);
+        const someChecked = Array.from(dayCheckboxes).some(cb => cb.checked);
+        
+        // Update "All Days" checkbox based on individual day selections
+        allDaysCheckbox.checked = allChecked && someChecked;
+    }
+    
+    // Initialize on page load
+    document.addEventListener('DOMContentLoaded', function() {
+        const breakCount = document.getElementById('break_count');
+        if (breakCount) {
+            // Only update if break_count has a value
+            if (breakCount.value && parseInt(breakCount.value) > 0) {
+                updateBreakFields();
+            }
+        }
+        toggleDaySelection();
+        
+        // Add event listeners to individual day checkboxes
+        const dayCheckboxes = document.querySelectorAll('.day-checkbox');
+        dayCheckboxes.forEach(checkbox => {
+            checkbox.addEventListener('change', updateAllDaysCheckbox);
+        });
+    });
+</script>
 {% endblock %}
