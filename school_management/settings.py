@@ -120,9 +120,9 @@ AUTH_PASSWORD_VALIDATORS = [
 # Internationalization
 # https://docs.djangoproject.com/en/5.2/topics/i18n/
 
-LANGUAGE_CODE = 'en-in'  # Indian English
+LANGUAGE_CODE = 'en-us'  # English
 
-TIME_ZONE = 'Asia/Kolkata'  # Indian Standard Time
+TIME_ZONE = 'UTC'  # Coordinated Universal Time
 
 USE_I18N = True
 
@@ -198,3 +198,24 @@ MPESA_CONSUMER_SECRET = config('MPESA_CONSUMER_SECRET', default='')
 MPESA_BUSINESS_SHORT_CODE = config('MPESA_BUSINESS_SHORT_CODE', default='')
 MPESA_PASSKEY = config('MPESA_PASSKEY', default='')
 MPESA_ENVIRONMENT = config('MPESA_ENVIRONMENT', default='sandbox')  # sandbox or live
+
+# Session settings
+SESSION_ENGINE = 'django.contrib.sessions.backends.db'
+SESSION_COOKIE_AGE = 3600  # 1 hour in seconds
+SESSION_SAVE_EVERY_REQUEST = True
+SESSION_EXPIRE_AT_BROWSER_CLOSE = True
+SESSION_COOKIE_SECURE = True  # for HTTPS
+SESSION_COOKIE_HTTPONLY = True  # Prevent JavaScript access
+
+# Security middleware settings
+SECURE_SSL_REDIRECT = not DEBUG  # Redirect all HTTP traffic to HTTPS only in production
+SECURE_HSTS_SECONDS = 31536000  # 1 year
+SECURE_HSTS_INCLUDE_SUBDOMAINS = True
+SECURE_HSTS_PRELOAD = True
+SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+
+# Additional security headers
+SECURE_BROWSER_XSS_FILTER = True
+SECURE_CONTENT_TYPE_NOSNIFF = True
+X_FRAME_OPTIONS = 'DENY'  # Prevent clickjacking
+REFERRER_POLICY = 'same-origin'
