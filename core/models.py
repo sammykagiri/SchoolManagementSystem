@@ -514,7 +514,14 @@ class SchoolClass(models.Model):
     school = models.ForeignKey(School, on_delete=models.CASCADE, related_name='school_classes')
     grade = models.ForeignKey(Grade, on_delete=models.CASCADE, related_name='school_classes')
     name = models.CharField(max_length=100)
-    class_teacher = models.CharField(max_length=100, blank=True, null=True)
+    class_teacher = models.ForeignKey(
+        'timetable.Teacher',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='classes_taught',
+        help_text='Assigned class teacher'
+    )
     description = models.TextField(blank=True, null=True)
     is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)

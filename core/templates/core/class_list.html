@@ -40,7 +40,7 @@
                                     <tr>
                                         <td>{{ class.name }}</td>
                                         <td>{{ class.grade.name }}</td>
-                                        <td>{{ class.class_teacher|default:"Not Assigned" }}</td>
+                                        <td>{% if class.class_teacher %}{{ class.class_teacher.full_name }} ({{ class.class_teacher.employee_id }}){% else %}Not Assigned{% endif %}</td>
                                         <td>{{ class.description|default:"-"|truncatewords:10 }}</td>
                                         <td>
                                             <span class="badge {% if class.is_active %}bg-success{% else %}bg-secondary{% endif %}">
@@ -100,8 +100,15 @@
                         </div>
                         <div class="mb-3">
                             <label for="id_class_teacher" class="form-label">Class Teacher</label>
-                            <input type="text" name="class_teacher" id="id_class_teacher" class="form-control" 
-                                   placeholder="Optional">
+                            <select name="class_teacher" id="id_class_teacher" class="form-select">
+                                <option value="">Select Teacher (Optional)</option>
+                                {% for teacher in teachers %}
+                                    <option value="{{ teacher.id }}">{{ teacher.full_name }} ({{ teacher.employee_id }})</option>
+                                {% endfor %}
+                            </select>
+                            {% if not teachers %}
+                            <small class="form-text text-muted">No teachers found. <a href="{% url 'core:teacher_add' %}">Add a teacher</a> first.</small>
+                            {% endif %}
                         </div>
                         <div class="mb-3">
                             <label for="id_description" class="form-label">Description</label>

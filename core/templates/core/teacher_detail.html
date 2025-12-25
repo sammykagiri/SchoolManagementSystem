@@ -1,0 +1,163 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load date_format %}
+
+{% block title %}Teacher Detail - {{ teacher.first_name }} {{ teacher.last_name }}{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="card">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <h3 class="mb-0">{{ teacher.full_name }}</h3>
+            <div>
+                <a href="{% url 'core:teacher_edit' teacher.id %}" class="btn btn-warning">
+                    <i class="fas fa-edit"></i> Edit
+                </a>
+                <a href="{% url 'core:teacher_delete' teacher.id %}" class="btn btn-danger">
+                    <i class="fas fa-trash"></i> Delete
+                </a>
+                <a href="{% url 'core:teacher_list' %}" class="btn btn-secondary">
+                    <i class="fas fa-arrow-left"></i> Back to List
+                </a>
+            </div>
+        </div>
+        <div class="card-body">
+            <div class="row">
+                <!-- Teacher Photo -->
+                <div class="col-md-3 text-center">
+                    {% if teacher.photo %}
+                        <img src="{{ teacher.photo.url }}" alt="{{ teacher.full_name }}" class="img-thumbnail mb-3" style="max-width: 200px; max-height: 200px;">
+                    {% else %}
+                        <div class="bg-light d-flex align-items-center justify-content-center mb-3" style="width: 200px; height: 200px; margin: 0 auto;">
+                            <i class="fas fa-user-tie fa-5x text-muted"></i>
+                        </div>
+                    {% endif %}
+                </div>
+                
+                <!-- Teacher Information -->
+                <div class="col-md-9">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h5>Personal Information:</h5>
+                            <table class="table table-borderless">
+                                <tr>
+                                    <th width="40%">Employee ID:</th>
+                                    <td>{{ teacher.employee_id }}</td>
+                                </tr>
+                                <tr>
+                                    <th>First Name:</th>
+                                    <td>{{ teacher.first_name }}</td>
+                                </tr>
+                                <tr>
+                                    <th>Last Name:</th>
+                                    <td>{{ teacher.last_name }}</td>
+                                </tr>
+                                <tr>
+                                    <th>Gender:</th>
+                                    <td>{{ teacher.get_gender_display|default:"Not specified" }}</td>
+                                </tr>
+                                {% if teacher.date_of_birth %}
+                                <tr>
+                                    <th>Date of Birth:</th>
+                                    <td>{{ teacher.date_of_birth|date:"F d, Y" }}</td>
+                                </tr>
+                                {% endif %}
+                                {% if teacher.date_of_joining %}
+                                <tr>
+                                    <th>Date of Joining:</th>
+                                    <td>{{ teacher.date_of_joining|date:"F d, Y" }}</td>
+                                </tr>
+                                {% endif %}
+                            </table>
+                        </div>
+                        <div class="col-md-6">
+                            <h5>Contact & Professional Information:</h5>
+                            <table class="table table-borderless">
+                                {% if teacher.email %}
+                                <tr>
+                                    <th width="40%">Email:</th>
+                                    <td>{{ teacher.email }}</td>
+                                </tr>
+                                {% endif %}
+                                {% if teacher.phone %}
+                                <tr>
+                                    <th>Phone:</th>
+                                    <td>{{ teacher.phone }}</td>
+                                </tr>
+                                {% endif %}
+                                {% if teacher.address %}
+                                <tr>
+                                    <th>Address:</th>
+                                    <td>{{ teacher.address }}</td>
+                                </tr>
+                                {% endif %}
+                                {% if teacher.qualification %}
+                                <tr>
+                                    <th>Qualification:</th>
+                                    <td>{{ teacher.qualification }}</td>
+                                </tr>
+                                {% endif %}
+                                {% if teacher.specialization %}
+                                <tr>
+                                    <th>Specialization:</th>
+                                    <td>{{ teacher.specialization }}</td>
+                                </tr>
+                                {% endif %}
+                                <tr>
+                                    <th>Status:</th>
+                                    <td>
+                                        <span class="badge {% if teacher.is_active %}bg-success{% else %}bg-secondary{% endif %}">
+                                            {{ teacher.is_active|yesno:"Active,Inactive" }}
+                                        </span>
+                                    </td>
+                                </tr>
+                            </table>
+                        </div>
+                    </div>
+                    
+                    <!-- Classes Taught -->
+                    {% if classes_taught %}
+                    <div class="row mt-4">
+                        <div class="col-12">
+                            <h5>Classes Taught:</h5>
+                            <div class="table-responsive">
+                                <table class="table table-bordered">
+                                    <thead class="table-light">
+                                        <tr>
+                                            <th>Class Name</th>
+                                            <th>Grade</th>
+                                            <th>Status</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for class in classes_taught %}
+                                        <tr>
+                                            <td><a href="{% url 'core:class_edit' class.id %}">{{ class.name }}</a></td>
+                                            <td>{{ class.grade.name }}</td>
+                                            <td>
+                                                <span class="badge {% if class.is_active %}bg-success{% else %}bg-secondary{% endif %}">
+                                                    {{ class.is_active|yesno:"Active,Inactive" }}
+                                                </span>
+                                            </td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                    {% else %}
+                    <div class="row mt-4">
+                        <div class="col-12">
+                            <div class="alert alert-info">
+                                <i class="fas fa-info-circle me-2"></i>This teacher is not currently assigned to any classes.
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

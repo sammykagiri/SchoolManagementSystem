@@ -33,6 +33,21 @@
                     </a>
                 </li>
                 
+                <!-- Teachers -->
+                <li class="nav-item dropdown">
+                    <a class="nav-link dropdown-toggle {% if request.resolver_match.url_name == 'teacher_list' or request.resolver_match.url_name == 'teacher_add' or request.resolver_match.url_name == 'teacher_edit' or request.resolver_match.url_name == 'teacher_detail' %}active{% endif %}" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                        <i class="fas fa-user-tie me-2"></i>Teachers
+                    </a>
+                    <ul class="dropdown-menu">
+                        <li><a class="dropdown-item" href="{% url 'core:teacher_list' %}">
+                            <i class="fas fa-list me-2"></i>Teacher List
+                        </a></li>
+                        <li><a class="dropdown-item" href="{% url 'core:teacher_add' %}">
+                            <i class="fas fa-plus me-2"></i>Add Teacher
+                        </a></li>
+                    </ul>
+                </li>
+                
                 <!-- Fees Management (MVP Module 3: Fees Management) -->
                 <li class="nav-item dropdown">
                     <a class="nav-link dropdown-toggle {% if 'payments' in request.resolver_match.namespace or request.resolver_match.url_name == 'fee_structure_list' or request.resolver_match.url_name == 'generate_student_fees' %}active{% endif %}" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
@@ -90,9 +105,6 @@
                         </a></li>
                         <li><a class="dropdown-item" href="{% url 'timetable:subject_list' %}">
                             <i class="fas fa-book-open me-2"></i>Subjects
-                        </a></li>
-                        <li><a class="dropdown-item" href="{% url 'timetable:teacher_list' %}">
-                            <i class="fas fa-user-tie me-2"></i>Teachers
                         </a></li>
                     </ul>
                 </li>

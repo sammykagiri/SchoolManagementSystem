@@ -3,6 +3,7 @@ from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.core.paginator import Paginator
+from django.db.models import Q
 from .models import Subject, Teacher, TimeSlot, Timetable
 from .serializers import SubjectSerializer, TeacherSerializer, TimeSlotSerializer, TimetableSerializer
 from core.models import SchoolClass
@@ -151,7 +152,27 @@ def subject_list(request):
 def teacher_list(request):
     """List teachers"""
     school = request.user.profile.school
-    teachers = Teacher.objects.filter(school=school, is_active=True).prefetch_related('subjects').order_by('first_name', 'last_name')
+    teachers = Teacher.objects.filter(school=school).prefetch_related('subjects').order_by('first_name', 'last_name')
     
-    context = {'teachers': teachers}
+    # Filter by active status (default: show active only)
+    show_inactive = request.GET.get('show_inactive', 'false').lower() == 'true'
+    if not show_inactive:
+        teachers = teachers.filter(is_active=True)
+    
+    # Search functionality
+    search_query = request.GET.get('search', '')
+    if search_query:
+        teachers = teachers.filter(
+            Q(employee_id__icontains=search_query) |
+            Q(first_name__icontains=search_query) |
+            Q(last_name__icontains=search_query) |
+            Q(email__icontains=search_query) |
+            Q(phone__icontains=search_query)
+        )
+    
+    context = {
+        'teachers': teachers,
+        'show_inactive': show_inactive,
+        'search_query': search_query,
+    }
     return render(request, 'timetable/teacher_list.html', context)

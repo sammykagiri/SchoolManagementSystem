@@ -83,6 +83,13 @@ urlpatterns = [
     path('classes/<int:class_id>/edit/', views.class_edit, name='class_edit'),
     path('classes/<int:class_id>/delete/', views.class_delete, name='class_delete'),
     
+    # Teachers
+    path('teachers/', views.teacher_list, name='teacher_list'),
+    path('teachers/<int:teacher_id>/', views.teacher_detail, name='teacher_detail'),
+    path('teachers/add/', views.teacher_add, name='teacher_add'),
+    path('teachers/<int:teacher_id>/edit/', views.teacher_edit, name='teacher_edit'),
+    path('teachers/<int:teacher_id>/delete/', views.teacher_delete, name='teacher_delete'),
+    
     # User Management
     path('users/', views.user_list, name='user_list'),
     path('users/create/', views.user_create, name='user_create'),

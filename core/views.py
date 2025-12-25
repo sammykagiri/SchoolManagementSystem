@@ -8,6 +8,7 @@ from django.utils import timezone
 from .models import (
     School, Grade, Term, FeeCategory, TransportRoute, Student, FeeStructure, StudentFee, SchoolClass
 )
+from timetable.models import Teacher
 from rest_framework import viewsets, permissions
 from .serializers import (
     SchoolSerializer, GradeSerializer, TermSerializer, FeeCategorySerializer,
@@ -24,7 +25,7 @@ from rest_framework.permissions import IsAdminUser
 from rest_framework.response import Response
 from rest_framework.permissions import BasePermission
 from rest_framework import permissions
-from .services import DashboardService, StudentService
+from .services import DashboardService, StudentService, TeacherService
 from .decorators import role_required
 from django.core.exceptions import PermissionDenied
 from django.contrib.auth.views import LoginView
@@ -226,7 +227,7 @@ def student_list(request):
 def student_detail(request, student_id):
     """Student detail view"""
     student = get_object_or_404(
-        Student.objects.select_related('grade', 'transport_route').prefetch_related('parents__user'),
+        Student.objects.select_related('grade', 'transport_route', 'school_class').prefetch_related('parents__user'),
         student_id=student_id
     )
     student_fees = StudentFee.objects.filter(student=student).select_related(
@@ -961,7 +962,7 @@ def class_list(request):
     if request.method == 'POST':
         name = request.POST.get('name', '').strip()
         grade_id = request.POST.get('grade')
-        class_teacher = request.POST.get('class_teacher', '').strip()
+        class_teacher_id = request.POST.get('class_teacher', '')
         description = request.POST.get('description', '').strip()
         is_active = request.POST.get('is_active') == 'on'
         
@@ -981,15 +982,16 @@ def class_list(request):
                 school=school,
                 grade_id=grade_id,
                 name=name,
-                class_teacher=class_teacher if class_teacher else None,
+                class_teacher_id=class_teacher_id if class_teacher_id and class_teacher_id.isdigit() else None,
                 description=description if description else None,
                 is_active=is_active
             )
             messages.success(request, 'Class added successfully!')
             return redirect('core:class_list')
     
-    classes = SchoolClass.objects.filter(school=school).select_related('grade')
-    return render(request, 'core/class_list.html', {'classes': classes, 'grades': grades})
+    classes = SchoolClass.objects.filter(school=school).select_related('grade', 'class_teacher')
+    teachers = Teacher.objects.filter(school=school, is_active=True).order_by('first_name', 'last_name')
+    return render(request, 'core/class_list.html', {'classes': classes, 'grades': grades, 'teachers': teachers})
 
 @login_required
 @role_required('super_admin', 'school_admin', 'teacher')
@@ -1008,7 +1010,7 @@ def class_add(request):
     if request.method == 'POST':
         name = request.POST.get('name', '').strip()
         grade_id = request.POST.get('grade')
-        class_teacher = request.POST.get('class_teacher', '').strip()
+        class_teacher_id = request.POST.get('class_teacher', '')
         description = request.POST.get('description', '').strip()
         errors = []
         if not name:
@@ -1020,11 +1022,13 @@ def class_add(request):
         if errors:
             for error in errors:
                 messages.error(request, error)
-            return render(request, 'core/class_form.html', {'grades': grades, 'post': request.POST, 'school_class': None})
-        SchoolClass.objects.create(school=school, grade_id=grade_id, name=name, class_teacher=class_teacher, description=description)
+            teachers = Teacher.objects.filter(school=school, is_active=True).order_by('first_name', 'last_name')
+            return render(request, 'core/class_form.html', {'grades': grades, 'teachers': teachers, 'post': request.POST, 'school_class': None})
+        SchoolClass.objects.create(school=school, grade_id=grade_id, name=name, class_teacher_id=class_teacher_id if class_teacher_id and class_teacher_id.isdigit() else None, description=description)
         messages.success(request, 'Class added successfully!')
         return redirect('core:class_list')
-    return render(request, 'core/class_form.html', {'grades': grades, 'post': {}, 'school_class': None})
+    teachers = Teacher.objects.filter(school=school, is_active=True).order_by('first_name', 'last_name')
+    return render(request, 'core/class_form.html', {'grades': grades, 'teachers': teachers, 'post': {}, 'school_class': None})
 
 @login_required
 @role_required('super_admin', 'school_admin', 'teacher')
@@ -1044,7 +1048,7 @@ def class_edit(request, class_id):
     if request.method == 'POST':
         name = request.POST.get('name', '').strip()
         grade_id = request.POST.get('grade')
-        class_teacher = request.POST.get('class_teacher', '').strip()
+        class_teacher_id = request.POST.get('class_teacher', '')
         description = request.POST.get('description', '').strip()
         errors = []
         if not name:
@@ -1056,15 +1060,17 @@ def class_edit(request, class_id):
         if errors:
             for error in errors:
                 messages.error(request, error)
-            return render(request, 'core/class_form.html', {'grades': grades, 'post': request.POST, 'school_class': school_class})
+            teachers = Teacher.objects.filter(school=school, is_active=True).order_by('first_name', 'last_name')
+            return render(request, 'core/class_form.html', {'grades': grades, 'teachers': teachers, 'post': request.POST, 'school_class': school_class})
         school_class.name = name
         school_class.grade_id = grade_id
-        school_class.class_teacher = class_teacher
+        school_class.class_teacher_id = class_teacher_id if class_teacher_id and class_teacher_id.isdigit() else None
         school_class.description = description
         school_class.save()
         messages.success(request, 'Class updated successfully!')
         return redirect('core:class_list')
-    return render(request, 'core/class_form.html', {'grades': grades, 'school_class': school_class})
+    teachers = Teacher.objects.filter(school=school, is_active=True).order_by('first_name', 'last_name')
+    return render(request, 'core/class_form.html', {'grades': grades, 'teachers': teachers, 'school_class': school_class})
 
 @login_required
 @role_required('super_admin', 'school_admin')
@@ -1076,6 +1082,173 @@ def class_delete(request, class_id):
         messages.success(request, 'Class deleted successfully!')
         return redirect('core:class_list')
     return render(request, 'core/class_confirm_delete.html', {'school_class': school_class})
+
+
+# Teacher Management Views
+@login_required
+@role_required('super_admin', 'school_admin', 'teacher')
+def teacher_detail(request, teacher_id):
+    """View teacher details"""
+    school = request.user.profile.school
+    teacher = get_object_or_404(Teacher, id=teacher_id, school=school)
+    
+    # Get classes taught by this teacher
+    classes_taught = SchoolClass.objects.filter(class_teacher=teacher, school=school).select_related('grade')
+    
+    context = {
+        'teacher': teacher,
+        'classes_taught': classes_taught,
+    }
+    return render(request, 'core/teacher_detail.html', context)
+
+
+@login_required
+@role_required('super_admin', 'school_admin', 'teacher')
+def teacher_list(request):
+    """List all teachers"""
+    school = request.user.profile.school
+    teachers = Teacher.objects.filter(school=school).order_by('first_name', 'last_name')
+    
+    # Filter by active status
+    show_inactive = request.GET.get('show_inactive', 'false').lower() == 'true'
+    if not show_inactive:
+        teachers = teachers.filter(is_active=True)
+    
+    # Search functionality
+    search_query = request.GET.get('search', '')
+    if search_query:
+        teachers = teachers.filter(
+            Q(employee_id__icontains=search_query) |
+            Q(first_name__icontains=search_query) |
+            Q(last_name__icontains=search_query) |
+            Q(email__icontains=search_query) |
+            Q(phone__icontains=search_query)
+        )
+    
+    context = {
+        'teachers': teachers,
+        'show_inactive': show_inactive,
+        'search_query': search_query,
+    }
+    return render(request, 'core/teacher_list.html', context)
+
+
+@login_required
+@role_required('super_admin', 'school_admin', 'teacher')
+def teacher_add(request):
+    """Add a new teacher"""
+    school = request.user.profile.school
+    
+    if request.method == 'POST':
+        first_name = request.POST.get('first_name', '').strip()
+        last_name = request.POST.get('last_name', '').strip()
+        gender = request.POST.get('gender', '')
+        email = request.POST.get('email', '').strip()
+        phone = request.POST.get('phone', '').strip()
+        address = request.POST.get('address', '').strip()
+        date_of_birth = request.POST.get('date_of_birth', '') or None
+        date_of_joining = request.POST.get('date_of_joining', '') or None
+        qualification = request.POST.get('qualification', '').strip()
+        specialization = request.POST.get('specialization', '').strip()
+        is_active = request.POST.get('is_active') == 'on'
+        photo = request.FILES.get('photo')
+        
+        errors = []
+        if not first_name:
+            errors.append('First name is required.')
+        if not last_name:
+            errors.append('Last name is required.')
+        
+        if errors:
+            for error in errors:
+                messages.error(request, error)
+            return render(request, 'core/teacher_form.html', {'post': request.POST, 'teacher': None})
+        
+        # Generate employee ID
+        employee_id = TeacherService.generate_employee_id(school)
+        
+        # Check for duplicate employee_id
+        while Teacher.objects.filter(employee_id=employee_id).exists():
+            employee_id = TeacherService.generate_employee_id(school)
+        
+        teacher = Teacher.objects.create(
+            school=school,
+            employee_id=employee_id,
+            first_name=first_name,
+            last_name=last_name,
+            gender=gender if gender else None,
+            email=email if email else None,
+            phone=phone if phone else None,
+            address=address if address else None,
+            date_of_birth=date_of_birth,
+            date_of_joining=date_of_joining,
+            qualification=qualification if qualification else None,
+            specialization=specialization if specialization else None,
+            photo=photo,
+            is_active=is_active
+        )
+        
+        messages.success(request, f'Teacher {teacher.full_name} added successfully!')
+        return redirect('core:teacher_list')
+    
+    return render(request, 'core/teacher_form.html', {'post': {}, 'teacher': None})
+
+
+@login_required
+@role_required('super_admin', 'school_admin', 'teacher')
+def teacher_edit(request, teacher_id):
+    """Edit a teacher"""
+    school = request.user.profile.school
+    teacher = get_object_or_404(Teacher, id=teacher_id, school=school)
+    
+    if request.method == 'POST':
+        teacher.first_name = request.POST.get('first_name', '').strip()
+        teacher.last_name = request.POST.get('last_name', '').strip()
+        teacher.gender = request.POST.get('gender', '') or None
+        teacher.email = request.POST.get('email', '').strip() or None
+        teacher.phone = request.POST.get('phone', '').strip() or None
+        teacher.address = request.POST.get('address', '').strip() or None
+        teacher.date_of_birth = request.POST.get('date_of_birth', '') or None
+        teacher.date_of_joining = request.POST.get('date_of_joining', '') or None
+        teacher.qualification = request.POST.get('qualification', '').strip() or None
+        teacher.specialization = request.POST.get('specialization', '').strip() or None
+        teacher.is_active = request.POST.get('is_active') == 'on'
+        
+        if 'photo' in request.FILES:
+            teacher.photo = request.FILES['photo']
+        
+        errors = []
+        if not teacher.first_name:
+            errors.append('First name is required.')
+        if not teacher.last_name:
+            errors.append('Last name is required.')
+        
+        if errors:
+            for error in errors:
+                messages.error(request, error)
+            return render(request, 'core/teacher_form.html', {'post': request.POST, 'teacher': teacher})
+        
+        teacher.save()
+        messages.success(request, f'Teacher {teacher.full_name} updated successfully!')
+        return redirect('core:teacher_list')
+    
+    return render(request, 'core/teacher_form.html', {'teacher': teacher})
+
+
+@login_required
+@role_required('super_admin', 'school_admin')
+def teacher_delete(request, teacher_id):
+    """Delete a teacher"""
+    school = request.user.profile.school
+    teacher = get_object_or_404(Teacher, id=teacher_id, school=school)
+    
+    if request.method == 'POST':
+        teacher_name = teacher.full_name
+        teacher.delete()
+        messages.success(request, f'Teacher {teacher_name} deleted successfully!')
+        return redirect('core:teacher_list')
+    
+    return render(request, 'core/teacher_confirm_delete.html', {'teacher': teacher})
 
 
 # User Management Views

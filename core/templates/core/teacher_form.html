@@ -1,0 +1,130 @@
+{% extends 'base.html' %}
+{% block title %}{% if teacher %}Edit Teacher{% else %}Add Teacher{% endif %} | School Management System{% endblock %}
+{% block content %}
+<div class="container py-4">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <h4 class="mb-0">{% if teacher %}Edit Teacher{% else %}Add Teacher{% endif %}</h4>
+                </div>
+                <div class="card-body">
+                    {% if messages %}
+                        {% for message in messages %}
+                            <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                                {{ message }}
+                                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                            </div>
+                        {% endfor %}
+                    {% endif %}
+                    <form method="post" enctype="multipart/form-data" novalidate>
+                        {% csrf_token %}
+                        <div class="row g-3">
+                            <div class="col-md-4">
+                                <label class="form-label">Employee ID</label>
+                                <input type="text" class="form-control" value="{% if teacher %}{{ teacher.employee_id }}{% else %}Auto-generated{% endif %}" disabled>
+                                <div class="form-text">Employee ID will be auto-generated</div>
+                            </div>
+                            
+                            <div class="col-md-4">
+                                <label for="id_first_name" class="form-label">First Name <span class="text-danger">*</span></label>
+                                <input type="text" name="first_name" id="id_first_name" class="form-control" 
+                                       value="{% if post.first_name %}{{ post.first_name }}{% elif teacher %}{{ teacher.first_name }}{% endif %}" required>
+                            </div>
+                            
+                            <div class="col-md-4">
+                                <label for="id_last_name" class="form-label">Last Name <span class="text-danger">*</span></label>
+                                <input type="text" name="last_name" id="id_last_name" class="form-control" 
+                                       value="{% if post.last_name %}{{ post.last_name }}{% elif teacher %}{{ teacher.last_name }}{% endif %}" required>
+                            </div>
+                            
+                            <div class="col-md-4">
+                                <label for="id_gender" class="form-label">Gender</label>
+                                <select name="gender" id="id_gender" class="form-select">
+                                    <option value="">Select Gender</option>
+                                    <option value="M" {% if post.gender == 'M' or teacher.gender == 'M' %}selected{% endif %}>Male</option>
+                                    <option value="F" {% if post.gender == 'F' or teacher.gender == 'F' %}selected{% endif %}>Female</option>
+                                </select>
+                            </div>
+                            
+                            <div class="col-md-4">
+                                <label for="id_email" class="form-label">Email</label>
+                                <input type="email" name="email" id="id_email" class="form-control" 
+                                       value="{% if post.email %}{{ post.email }}{% elif teacher %}{{ teacher.email|default:'' }}{% endif %}">
+                            </div>
+                            
+                            <div class="col-md-4">
+                                <label for="id_phone" class="form-label">Phone</label>
+                                <input type="text" name="phone" id="id_phone" class="form-control" 
+                                       value="{% if post.phone %}{{ post.phone }}{% elif teacher %}{{ teacher.phone|default:'' }}{% endif %}">
+                            </div>
+                            
+                            <div class="col-md-6">
+                                <label for="id_date_of_birth" class="form-label">Date of Birth</label>
+                                <input type="date" name="date_of_birth" id="id_date_of_birth" class="form-control" 
+                                       value="{% if post.date_of_birth %}{{ post.date_of_birth }}{% elif teacher and teacher.date_of_birth %}{{ teacher.date_of_birth|date:'Y-m-d' }}{% endif %}">
+                            </div>
+                            
+                            <div class="col-md-6">
+                                <label for="id_date_of_joining" class="form-label">Date of Joining</label>
+                                <input type="date" name="date_of_joining" id="id_date_of_joining" class="form-control" 
+                                       value="{% if post.date_of_joining %}{{ post.date_of_joining }}{% elif teacher and teacher.date_of_joining %}{{ teacher.date_of_joining|date:'Y-m-d' }}{% endif %}">
+                            </div>
+                            
+                            <div class="col-md-6">
+                                <label for="id_qualification" class="form-label">Qualification</label>
+                                <input type="text" name="qualification" id="id_qualification" class="form-control" 
+                                       value="{% if post.qualification %}{{ post.qualification }}{% elif teacher %}{{ teacher.qualification|default:'' }}{% endif %}" 
+                                       placeholder="e.g., B.Ed, M.Sc">
+                            </div>
+                            
+                            <div class="col-md-6">
+                                <label for="id_specialization" class="form-label">Specialization</label>
+                                <input type="text" name="specialization" id="id_specialization" class="form-control" 
+                                       value="{% if post.specialization %}{{ post.specialization }}{% elif teacher %}{{ teacher.specialization|default:'' }}{% endif %}" 
+                                       placeholder="e.g., Mathematics, Science">
+                            </div>
+                            
+                            <div class="col-md-12">
+                                <label for="id_address" class="form-label">Address</label>
+                                <textarea name="address" id="id_address" class="form-control" rows="2" 
+                                          placeholder="Optional">{% if post.address %}{{ post.address }}{% elif teacher %}{{ teacher.address|default:'' }}{% endif %}</textarea>
+                            </div>
+                            
+                            <div class="col-md-6">
+                                <label for="id_photo" class="form-label">Photo</label>
+                                {% if teacher and teacher.photo %}
+                                    <div class="mb-2">
+                                        <img src="{{ teacher.photo.url }}" alt="Current photo" class="img-thumbnail" style="max-width: 200px; max-height: 200px;">
+                                        <div class="form-text">Current photo</div>
+                                    </div>
+                                {% endif %}
+                                <input type="file" name="photo" id="id_photo" class="form-control" accept="image/*">
+                                <div class="form-text">Optional - Upload teacher photo (JPG, PNG, max 5MB)</div>
+                            </div>
+                            
+                            <div class="col-md-6">
+                                <div class="form-check form-switch mt-4">
+                                    <input class="form-check-input" type="checkbox" name="is_active" id="id_is_active" 
+                                           {% if post.is_active or teacher.is_active %}checked{% endif %}>
+                                    <label class="form-check-label" for="id_is_active">Active</label>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="d-flex justify-content-between mt-4">
+                            <a href="{% url 'core:teacher_list' %}" class="btn btn-outline-secondary">Cancel</a>
+                            <div>
+                                {% if teacher %}
+                                    <a href="{% url 'core:teacher_delete' teacher.id %}" class="btn btn-danger me-2" onclick="return confirm('Are you sure you want to delete this teacher?');">Delete</a>
+                                {% endif %}
+                                <button type="submit" class="btn btn-primary">{% if teacher %}Update{% else %}Add{% endif %} Teacher</button>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

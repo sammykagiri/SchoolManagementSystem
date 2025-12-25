@@ -213,6 +213,27 @@ class StudentService:
             next_id = int(last_student.student_id) + 1
             return str(next_id).zfill(5)
         return '00001'
+
+
+class TeacherService:
+    """Service for teacher-related business logic"""
+    
+    @staticmethod
+    def generate_employee_id(school):
+        """Generate unique employee ID for teachers"""
+        from timetable.models import Teacher
+        last_teacher = Teacher.objects.filter(
+            school=school
+        ).exclude(employee_id='').order_by('-id').first()
+        
+        if last_teacher and last_teacher.employee_id:
+            # Extract numeric part if exists (e.g., "EMP001" -> "001")
+            import re
+            match = re.search(r'\d+', last_teacher.employee_id)
+            if match:
+                next_id = int(match.group()) + 1
+                return f"EMP{str(next_id).zfill(3)}"
+        return 'EMP001'
     
     @staticmethod
     def get_student_statistics(student):

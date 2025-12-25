@@ -42,9 +42,19 @@
                         </div>
                         <div class="mb-3">
                             <label for="id_class_teacher" class="form-label">Class Teacher</label>
-                            <input type="text" name="class_teacher" id="id_class_teacher" class="form-control" 
-                                   value="{% if post.class_teacher %}{{ post.class_teacher }}{% elif school_class %}{{ school_class.class_teacher|default:'' }}{% endif %}" 
-                                   placeholder="Optional">
+                            <select name="class_teacher" id="id_class_teacher" class="form-select">
+                                <option value="">Select Teacher (Optional)</option>
+                                {% for teacher in teachers %}
+                                    <option value="{{ teacher.id }}" 
+                                            {% if post.class_teacher|default:'' == teacher.id|stringformat:'s' %}selected
+                                            {% elif school_class and school_class.class_teacher and school_class.class_teacher.id == teacher.id %}selected{% endif %}>
+                                        {{ teacher.full_name }} ({{ teacher.employee_id }})
+                                    </option>
+                                {% endfor %}
+                            </select>
+                            {% if not teachers %}
+                            <small class="form-text text-muted">No teachers found. <a href="{% url 'core:teacher_add' %}">Add a teacher</a> first.</small>
+                            {% endif %}
                         </div>
                         <div class="mb-3">
                             <label for="id_description" class="form-label">Description</label>

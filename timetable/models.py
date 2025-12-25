@@ -24,13 +24,25 @@ class Subject(models.Model):
 
 class Teacher(models.Model):
     """Model for teachers"""
+    GENDER_CHOICES = [
+        ('M', 'Male'),
+        ('F', 'Female'),
+    ]
+    
     school = models.ForeignKey(School, on_delete=models.CASCADE, related_name='teachers')
-    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='teacher_profile', null=True, blank=True)
-    employee_id = models.CharField(max_length=50, unique=True)
+    user = models.OneToOneField(User, on_delete=models.SET_NULL, related_name='teacher_profile', null=True, blank=True)
+    employee_id = models.CharField(max_length=50)
     first_name = models.CharField(max_length=100)
     last_name = models.CharField(max_length=100)
+    gender = models.CharField(max_length=1, choices=GENDER_CHOICES, blank=True)
     email = models.EmailField(blank=True)
     phone = models.CharField(max_length=15, blank=True)
+    address = models.TextField(blank=True)
+    date_of_birth = models.DateField(null=True, blank=True)
+    date_of_joining = models.DateField(null=True, blank=True)
+    qualification = models.CharField(max_length=200, blank=True)
+    specialization = models.CharField(max_length=200, blank=True, help_text='Subject specialization or area of expertise')
+    photo = models.ImageField(upload_to='teacher_photos/', blank=True, null=True)
     subjects = models.ManyToManyField(Subject, related_name='teachers', blank=True)
     is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -45,6 +57,7 @@ class Teacher(models.Model):
 
     class Meta:
         ordering = ['first_name', 'last_name']
+        unique_together = ['school', 'employee_id']
 
 
 class TimeSlot(models.Model):

@@ -43,13 +43,21 @@ class StudentForm(forms.ModelForm):
             from .models import Parent
             self.fields['parents'].queryset = Parent.objects.filter(school=school, is_active=True)
         
-        # Filter school_class based on selected grade
+        # Filter school_class based on selected grade when editing
         if self.instance and self.instance.pk and self.instance.grade:
-            self.fields['school_class'].queryset = SchoolClass.objects.filter(
+            # Filter classes by the student's grade
+            queryset = SchoolClass.objects.filter(
                 school=school if school else self.instance.school,
                 grade=self.instance.grade,
                 is_active=True
             )
+            # Ensure the currently assigned class is included even if it doesn't match the grade filter
+            if self.instance.school_class:
+                queryset = queryset | SchoolClass.objects.filter(
+                    id=self.instance.school_class.id,
+                    school=school if school else self.instance.school
+                )
+            self.fields['school_class'].queryset = queryset.distinct()
         
         # Make required fields more obvious
         self.fields['first_name'].required = True

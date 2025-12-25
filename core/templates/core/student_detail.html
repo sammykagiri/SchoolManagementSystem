@@ -139,7 +139,15 @@
                                 </tr>
                                 <tr>
                                     <th>Class:</th>
-                                    <td>{% with current_class=student.get_current_class %}{{ current_class.name|default:"Not assigned" }}{% endwith %}</td>
+                                    <td>
+                                        {% if student.school_class %}
+                                            {{ student.school_class.name }}
+                                        {% elif student.get_current_class %}
+                                            {{ student.get_current_class.name }} <small class="text-muted">(inferred)</small>
+                                        {% else %}
+                                            Not assigned
+                                        {% endif %}
+                                    </td>
                                 </tr>
                                 <tr>
                                     <th>Admission Date:</th>
