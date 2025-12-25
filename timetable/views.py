@@ -149,6 +149,125 @@ def subject_list(request):
 
 
 @login_required
+def subject_detail(request, subject_id):
+    """View subject details"""
+    school = request.user.profile.school
+    subject = get_object_or_404(Subject, id=subject_id, school=school)
+    
+    context = {'subject': subject}
+    return render(request, 'timetable/subject_detail.html', context)
+
+
+@login_required
+def subject_add(request):
+    """Add a new subject"""
+    school = request.user.profile.school
+    
+    if request.method == 'POST':
+        name = request.POST.get('name', '').strip()
+        code = request.POST.get('code', '').strip()
+        description = request.POST.get('description', '').strip()
+        is_active = request.POST.get('is_active') == 'on'
+        
+        errors = []
+        if not name:
+            errors.append('Subject name is required.')
+        
+        # Check for duplicate subject name in the same school
+        if name and Subject.objects.filter(school=school, name=name).exists():
+            errors.append('A subject with this name already exists.')
+        
+        if errors:
+            for error in errors:
+                messages.error(request, error)
+            return render(request, 'timetable/subject_form.html', {
+                'name': name,
+                'code': code,
+                'description': description,
+                'is_active': is_active,
+            })
+        
+        # Create the subject
+        subject = Subject.objects.create(
+            school=school,
+            name=name,
+            code=code,
+            description=description,
+            is_active=is_active
+        )
+        
+        messages.success(request, f'Subject "{subject.name}" added successfully!')
+        return redirect('timetable:subject_list')
+    
+    return render(request, 'timetable/subject_form.html')
+
+
+@login_required
+def subject_edit(request, subject_id):
+    """Edit an existing subject"""
+    school = request.user.profile.school
+    subject = get_object_or_404(Subject, id=subject_id, school=school)
+    
+    if request.method == 'POST':
+        name = request.POST.get('name', '').strip()
+        code = request.POST.get('code', '').strip()
+        description = request.POST.get('description', '').strip()
+        is_active = request.POST.get('is_active') == 'on'
+        
+        errors = []
+        if not name:
+            errors.append('Subject name is required.')
+        
+        # Check for duplicate subject name in the same school (excluding current subject)
+        if name and Subject.objects.filter(school=school, name=name).exclude(id=subject.id).exists():
+            errors.append('A subject with this name already exists.')
+        
+        if errors:
+            for error in errors:
+                messages.error(request, error)
+            return render(request, 'timetable/subject_form.html', {
+                'subject': subject,
+                'name': name,
+                'code': code,
+                'description': description,
+                'is_active': is_active,
+            })
+        
+        # Update the subject
+        subject.name = name
+        subject.code = code
+        subject.description = description
+        subject.is_active = is_active
+        subject.save()
+        
+        messages.success(request, f'Subject "{subject.name}" updated successfully!')
+        return redirect('timetable:subject_list')
+    
+    return render(request, 'timetable/subject_form.html', {
+        'subject': subject,
+        'name': subject.name,
+        'code': subject.code,
+        'description': subject.description,
+        'is_active': subject.is_active,
+    })
+
+
+@login_required
+def subject_delete(request, subject_id):
+    """Delete a subject"""
+    school = request.user.profile.school
+    subject = get_object_or_404(Subject, id=subject_id, school=school)
+    
+    if request.method == 'POST':
+        subject_name = subject.name
+        subject.delete()
+        messages.success(request, f'Subject "{subject_name}" deleted successfully!')
+        return redirect('timetable:subject_list')
+    
+    return render(request, 'timetable/subject_confirm_delete.html', {'subject': subject})
+
+
+@login_required
 def teacher_list(request):
     """List teachers"""
     school = request.user.profile.school

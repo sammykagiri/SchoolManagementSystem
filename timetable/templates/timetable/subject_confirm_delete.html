@@ -1,0 +1,63 @@
+{% extends 'base.html' %}
+{% block title %}Delete Subject | School Management System{% endblock %}
+{% block content %}
+<div class="container py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2 class="mb-0">Delete Subject</h2>
+        <a href="{% url 'timetable:subject_list' %}" class="btn btn-outline-secondary">
+            <i class="fas fa-arrow-left me-2"></i>Back to List
+        </a>
+    </div>
+    
+    <div class="row">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-body">
+                    <div class="alert alert-warning" role="alert">
+                        <i class="fas fa-exclamation-triangle me-2"></i>
+                        <strong>Warning:</strong> Are you sure you want to delete this subject? This action cannot be undone.
+                    </div>
+                    
+                    <h5 class="mb-3">Subject Details:</h5>
+                    <table class="table table-bordered">
+                        <tr>
+                            <th width="30%">Name:</th>
+                            <td>{{ subject.name }}</td>
+                        </tr>
+                        <tr>
+                            <th>Code:</th>
+                            <td>{{ subject.code|default:"-" }}</td>
+                        </tr>
+                        <tr>
+                            <th>Status:</th>
+                            <td>
+                                <span class="badge {% if subject.is_active %}bg-success{% else %}bg-secondary{% endif %}">
+                                    {% if subject.is_active %}Active{% else %}Inactive{% endif %}
+                                </span>
+                            </td>
+                        </tr>
+                        {% if subject.description %}
+                        <tr>
+                            <th>Description:</th>
+                            <td>{{ subject.description }}</td>
+                        </tr>
+                        {% endif %}
+                    </table>
+                    
+                    <form method="post" class="mt-4">
+                        {% csrf_token %}
+                        <div class="d-flex gap-2">
+                            <button type="submit" class="btn btn-danger">
+                                <i class="fas fa-trash me-2"></i>Delete Subject
+                            </button>
+                            <a href="{% url 'timetable:subject_list' %}" class="btn btn-outline-secondary">
+                                Cancel
+                            </a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

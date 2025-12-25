@@ -1138,6 +1138,7 @@ def teacher_list(request):
 def teacher_add(request):
     """Add a new teacher"""
     school = request.user.profile.school
+    from timetable.models import Subject as TimetableSubject
     
     if request.method == 'POST':
         first_name = request.POST.get('first_name', '').strip()
@@ -1149,7 +1150,8 @@ def teacher_add(request):
         date_of_birth = request.POST.get('date_of_birth', '') or None
         date_of_joining = request.POST.get('date_of_joining', '') or None
         qualification = request.POST.get('qualification', '').strip()
-        specialization = request.POST.get('specialization', '').strip()
+        specialization_list = request.POST.getlist('specialization')
+        specialization = ', '.join([s.strip() for s in specialization_list if s.strip()]) or None
         is_active = request.POST.get('is_active') == 'on'
         photo = request.FILES.get('photo')
         
@@ -1162,7 +1164,8 @@ def teacher_add(request):
         if errors:
             for error in errors:
                 messages.error(request, error)
-            return render(request, 'core/teacher_form.html', {'post': request.POST, 'teacher': None})
+            subjects = TimetableSubject.objects.filter(school=school, is_active=True).order_by('name')
+            return render(request, 'core/teacher_form.html', {'post': request.POST, 'teacher': None, 'subjects': subjects})
         
         # Generate employee ID
         employee_id = TeacherService.generate_employee_id(school)
@@ -1191,7 +1194,14 @@ def teacher_add(request):
         messages.success(request, f'Teacher {teacher.full_name} added successfully!')
         return redirect('core:teacher_list')
     
-    return render(request, 'core/teacher_form.html', {'post': {}, 'teacher': None})
+    subjects = TimetableSubject.objects.filter(school=school, is_active=True).order_by('name')
+    selected_specializations = []
+    return render(request, 'core/teacher_form.html', {
+        'post': {}, 
+        'teacher': None, 
+        'subjects': subjects,
+        'selected_specializations': selected_specializations
+    })
 
 
 @login_required
@@ -1200,6 +1210,7 @@ def teacher_edit(request, teacher_id):
     """Edit a teacher"""
     school = request.user.profile.school
     teacher = get_object_or_404(Teacher, id=teacher_id, school=school)
+    from timetable.models import Subject as TimetableSubject
     
     if request.method == 'POST':
         teacher.first_name = request.POST.get('first_name', '').strip()
@@ -1211,7 +1222,8 @@ def teacher_edit(request, teacher_id):
         teacher.date_of_birth = request.POST.get('date_of_birth', '') or None
         teacher.date_of_joining = request.POST.get('date_of_joining', '') or None
         teacher.qualification = request.POST.get('qualification', '').strip() or None
-        teacher.specialization = request.POST.get('specialization', '').strip() or None
+        specialization_list = request.POST.getlist('specialization')
+        teacher.specialization = ', '.join([s.strip() for s in specialization_list if s.strip()]) or None
         teacher.is_active = request.POST.get('is_active') == 'on'
         
         if 'photo' in request.FILES:
@@ -1226,13 +1238,31 @@ def teacher_edit(request, teacher_id):
         if errors:
             for error in errors:
                 messages.error(request, error)
-            return render(request, 'core/teacher_form.html', {'post': request.POST, 'teacher': teacher})
+            subjects = TimetableSubject.objects.filter(school=school, is_active=True).order_by('name')
+            specialization_list = request.POST.getlist('specialization')
+            selected_specializations = [s.strip() for s in specialization_list if s.strip()]
+            return render(request, 'core/teacher_form.html', {
+                'post': request.POST, 
+                'teacher': teacher, 
+                'subjects': subjects,
+                'selected_specializations': selected_specializations
+            })
         
         teacher.save()
         messages.success(request, f'Teacher {teacher.full_name} updated successfully!')
         return redirect('core:teacher_list')
     
-    return render(request, 'core/teacher_form.html', {'teacher': teacher})
+    subjects = TimetableSubject.objects.filter(school=school, is_active=True).order_by('name')
+    # Parse existing specializations from comma-separated string
+    selected_specializations = []
+    if teacher and teacher.specialization:
+        selected_specializations = [s.strip() for s in teacher.specialization.split(',') if s.strip()]
+    return render(request, 'core/teacher_form.html', {
+        'post': {}, 
+        'teacher': teacher, 
+        'subjects': subjects,
+        'selected_specializations': selected_specializations
+    })
 
 
 @login_required

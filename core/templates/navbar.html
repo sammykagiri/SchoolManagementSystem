@@ -102,17 +102,29 @@
                     </ul>
                 </li>
                 
+                <!-- Subjects -->
+                <li class="nav-item dropdown">
+                    <a class="nav-link dropdown-toggle {% if request.resolver_match.url_name == 'subject_list' or request.resolver_match.url_name == 'subject_add' %}active{% endif %}" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                        <i class="fas fa-book-open me-2"></i>Subjects
+                    </a>
+                    <ul class="dropdown-menu">
+                        <li><a class="dropdown-item" href="{% url 'timetable:subject_list' %}">
+                            <i class="fas fa-list me-2"></i>Subject List
+                        </a></li>
+                        <li><a class="dropdown-item" href="{% url 'timetable:subject_add' %}">
+                            <i class="fas fa-plus me-2"></i>Add Subject
+                        </a></li>
+                    </ul>
+                </li>
+                
                 <!-- Timetable Management (MVP Module 5: Time Table Management) -->
                 <li class="nav-item dropdown">
-                    <a class="nav-link dropdown-toggle {% if 'timetable' in request.resolver_match.namespace %}active{% endif %}" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                    <a class="nav-link dropdown-toggle {% if 'timetable' in request.resolver_match.namespace and request.resolver_match.url_name != 'subject_list' and request.resolver_match.url_name != 'subject_add' %}active{% endif %}" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
                         <i class="fas fa-calendar-week me-2"></i>Timetable
                     </a>
                     <ul class="dropdown-menu">
                         <li><a class="dropdown-item" href="{% url 'timetable:timetable_list' %}">
                             <i class="fas fa-calendar me-2"></i>Class Timetables
-                        </a></li>
-                        <li><a class="dropdown-item" href="{% url 'timetable:subject_list' %}">
-                            <i class="fas fa-book-open me-2"></i>Subjects
                         </a></li>
                     </ul>
                 </li>
