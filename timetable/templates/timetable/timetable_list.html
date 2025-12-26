@@ -3,6 +3,9 @@
 {% block title %}Timetable | School Management System{% endblock %}
 {% block content %}
 <style>
+    .timetable-wrapper {
+        margin: 0 -5px;
+    }
     .timetable-cell {
         min-height: 100px;
         border: 1px solid #dee2e6;
@@ -12,16 +15,93 @@
     .timetable-cell:hover {
         background-color: #e9ecef;
     }
-    table.table-bordered th,
-    table.table-bordered td {
+    .timetable-table {
+        table-layout: fixed;
+        width: 100%;
+        font-size: 0.875rem;
+    }
+    .timetable-table th,
+    .timetable-table td {
         vertical-align: top;
+        padding: 4px 6px !important;
+    }
+    .timetable-table th {
+        padding: 6px 6px !important;
+        font-size: 0.85rem;
+        white-space: nowrap;
+    }
+    .timetable-table th:first-child {
+        width: 100px;
+        min-width: 100px;
+    }
+    .timetable-table th:not(:first-child) {
+        width: auto;
+        min-width: 110px;
+    }
+    .table-responsive {
+        overflow-x: visible;
+    }
+    @media (max-width: 1600px) {
+        .table-responsive {
+            overflow-x: auto;
+        }
+    }
+    .card-body {
+        padding: 0.75rem !important;
+    }
+    .summary-sidebar .card {
+        font-size: 0.875rem;
+    }
+    /* Break row styling - make it thin */
+    .timetable-table tr.table-warning {
+        height: auto;
+        line-height: 1.2;
+    }
+    .timetable-table tr.table-warning td {
+        padding: 2px 4px !important;
+        vertical-align: middle;
+        font-size: 0.8rem;
+    }
+    .timetable-table tr.table-warning td small {
+        font-size: 0.7rem;
+        display: block;
+        margin-top: 1px;
+    }
+    .summary-sidebar {
+        position: sticky;
+        top: 20px;
+        max-height: calc(100vh - 40px);
+        overflow-y: auto;
+    }
+    .summary-card {
+        border-left: 3px solid;
+        margin-bottom: 15px;
+    }
+    .summary-card.teachers {
+        border-left-color: #0d6efd;
+    }
+    .summary-card.subjects {
+        border-left-color: #198754;
+    }
+    .summary-card.unassigned {
+        border-left-color: #dc3545;
+    }
+    .stat-item {
+        padding: 8px 12px;
+        border-bottom: 1px solid #e9ecef;
+    }
+    .stat-item:last-child {
+        border-bottom: none;
+    }
+    .stat-item:hover {
+        background-color: #f8f9fa;
     }
 </style>
 <div class="container py-4">
     <div class="d-flex justify-content-between align-items-center mb-4">
         <h2 class="mb-0">Timetable</h2>
         <div class="btn-group" role="group">
-            <a href="{% url 'timetable:timetable_print' %}{% if class_id %}?class_id={{ class_id }}{% endif %}" class="btn btn-outline-info" target="_blank">
+            <a href="{% url 'timetable:timetable_print' %}{% if class_id or grade_id %}?{% if class_id %}class_id={{ class_id }}{% endif %}{% if class_id and grade_id %}&{% endif %}{% if grade_id %}grade_id={{ grade_id }}{% endif %}{% endif %}" class="btn btn-outline-info" target="_blank">
                 <i class="fas fa-print me-2"></i>Print
             </a>
             <a href="{% url 'timetable:timetable_generate' %}" class="btn btn-outline-primary">
@@ -34,15 +114,23 @@
     </div>
     
     <form method="get" class="mb-3 row g-2">
-        <div class="col-md-4">
-            <select name="class_id" class="form-select" onchange="this.form.submit()">
-                <option value="">All Classes</option>
-                {% for class in classes %}
-                    <option value="{{ class.id }}" {% if class_id|default:'' == class.id|stringformat:'s' %}selected{% endif %}>{{ class.name }}</option>
+        <div class="col-md-3">
+            <select name="grade_id" class="form-select" onchange="this.form.submit()">
+                <option value="">All Grades</option>
+                {% for grade in grades %}
+                    <option value="{{ grade.id }}" {% if grade_id|default:'' == grade.id|stringformat:'s' %}selected{% endif %}>{{ grade.name }}</option>
                 {% endfor %}
             </select>
         </div>
-        <div class="col-md-4">
+        <div class="col-md-3">
+            <select name="class_id" class="form-select" onchange="this.form.submit()">
+                <option value="">All Classes</option>
+                {% for class in classes %}
+                    <option value="{{ class.id }}" {% if class_id|default:'' == class.id|stringformat:'s' %}selected{% endif %}>{{ class.name }} ({{ class.grade.name }})</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="col-md-3">
             <select name="day" class="form-select" onchange="this.form.submit()">
                 <option value="">All Days</option>
                 <option value="monday" {% if day == 'monday' %}selected{% endif %}>Monday</option>
@@ -54,17 +142,19 @@
                 <option value="sunday" {% if day == 'sunday' %}selected{% endif %}>Sunday</option>
             </select>
         </div>
-        <div class="col-md-3">
+        <div class="col-md-1">
             <a href="{% url 'timetable:subject_list' %}" class="btn btn-outline-info w-100"><i class="fas fa-book me-2"></i>Subjects</a>
         </div>
-        <div class="col-md-3">
+        <div class="col-md-1">
             <a href="{% url 'timetable:teacher_list' %}" class="btn btn-outline-info w-100"><i class="fas fa-user-tie me-2"></i>Teachers</a>
         </div>
-        <div class="col-md-3">
+        <div class="col-md-1">
             <a href="{% url 'timetable:timeslot_list' %}" class="btn btn-outline-info w-100"><i class="fas fa-clock me-2"></i>Time Slots</a>
         </div>
     </form>
     
+    <div class="row g-3">
+        <div class="col-lg-9 col-xl-9">
     {% if timetable_dict %}
         {% for class_name, time_slots_data in timetable_dict.items %}
         <div class="card mb-4">
@@ -73,7 +163,7 @@
             </div>
             <div class="card-body p-0">
                 <div class="table-responsive">
-                    <table class="table table-bordered mb-0">
+                    <table class="table table-bordered mb-0 timetable-table">
                         <thead class="table-light">
                             <tr>
                                 <th>Time Slot</th>
@@ -87,23 +177,23 @@
                                 {% if slot_data.is_break %}
                                     {# Break row - thin row with merged cells #}
                                     <tr class="table-warning">
-                                        <td class="fw-bold text-center" style="min-width: 120px; padding: 4px;">
+                                        <td class="fw-bold text-center">
                                             <i class="fas fa-coffee"></i> {{ slot_data.break_name|default:"Break" }}
-                                            <br><small class="text-muted">{{ slot_data.start_time }} - {{ slot_data.end_time }}</small>
+                                            <small class="text-muted d-block">{{ slot_data.start_time }} - {{ slot_data.end_time }}</small>
                                         </td>
-                                        <td colspan="{{ day_order|length }}" class="text-center fw-bold" style="padding: 4px;">
+                                        <td colspan="{{ day_order|length }}" class="text-center fw-bold">
                                             <i class="fas fa-coffee"></i> {{ slot_data.break_name|default:"Break" }}
                                         </td>
                                     </tr>
                                 {% else %}
                                     {# Regular period row #}
                                     <tr>
-                                        <td class="fw-bold" style="min-width: 120px;">
+                                        <td class="fw-bold" style="font-size: 0.85rem;">
                                             <div>Period {{ slot_data.period_number }}</div>
-                                            <small class="text-muted">{{ slot_data.start_time }} - {{ slot_data.end_time }}</small>
+                                            <small class="text-muted" style="font-size: 0.75rem;">{{ slot_data.start_time }} - {{ slot_data.end_time }}</small>
                                         </td>
                                         {% for day_name in day_order %}
-                                            <td style="min-width: 150px;">
+                                            <td>
                                                 {% if day_name in slot_data.days %}
                                                     {% with timetable=slot_data.days|get_item:day_name %}
                                                         {% if timetable %}
@@ -159,6 +249,116 @@
             <a href="{% url 'timetable:timetable_add' %}" class="alert-link">add timetable entries manually</a>.
         </div>
     {% endif %}
+        </div>
+        
+        <div class="col-lg-3 col-xl-3">
+            <div class="summary-sidebar">
+                <h5 class="mb-3"><i class="fas fa-chart-bar me-2"></i>Summary</h5>
+                
+                {# Teachers Summary #}
+                <div class="card summary-card teachers mb-3">
+                    <div class="card-header bg-primary bg-opacity-10">
+                        <h6 class="mb-0">
+                            <i class="fas fa-user-tie me-2"></i>Lessons per Teacher
+                        </h6>
+                    </div>
+                    <div class="card-body p-0">
+                        {% if teacher_stats %}
+                            {% for stat in teacher_stats|slice:":10" %}
+                                <div class="stat-item">
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <div class="flex-grow-1">
+                                            <div class="fw-bold">{{ stat.teacher__first_name }} {{ stat.teacher__last_name }}</div>
+                                            {% if stat.teacher__employee_id %}
+                                                <small class="text-muted">{{ stat.teacher__employee_id }}</small>
+                                            {% endif %}
+                                        </div>
+                                        <span class="badge bg-primary ms-2">{{ stat.lesson_count }}</span>
+                                    </div>
+                                </div>
+                            {% endfor %}
+                            {% if teacher_stats_remaining > 0 %}
+                                <div class="stat-item text-center text-muted">
+                                    <small>+ {{ teacher_stats_remaining }} more</small>
+                                </div>
+                            {% endif %}
+                        {% else %}
+                            <div class="stat-item text-muted text-center">
+                                <small>No teachers assigned</small>
+                            </div>
+                        {% endif %}
+                    </div>
+                </div>
+                
+                {# Subjects Summary #}
+                <div class="card summary-card subjects mb-3">
+                    <div class="card-header bg-success bg-opacity-10">
+                        <h6 class="mb-0">
+                            <i class="fas fa-book me-2"></i>Lessons per Subject
+                        </h6>
+                    </div>
+                    <div class="card-body p-0">
+                        {% if subject_stats %}
+                            {% for stat in subject_stats|slice:":10" %}
+                                <div class="stat-item">
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <div class="flex-grow-1">
+                                            <div class="fw-bold">{{ stat.subject__name }}</div>
+                                            {% if stat.subject__code %}
+                                                <small class="text-muted">{{ stat.subject__code }}</small>
+                                            {% endif %}
+                                        </div>
+                                        <span class="badge bg-success ms-2">{{ stat.lesson_count }}</span>
+                                    </div>
+                                </div>
+                            {% endfor %}
+                            {% if subject_stats_remaining > 0 %}
+                                <div class="stat-item text-center text-muted">
+                                    <small>+ {{ subject_stats_remaining }} more</small>
+                                </div>
+                            {% endif %}
+                        {% else %}
+                            <div class="stat-item text-muted text-center">
+                                <small>No subjects assigned</small>
+                            </div>
+                        {% endif %}
+                    </div>
+                </div>
+                
+                {# Unassigned Summary #}
+                <div class="card summary-card unassigned">
+                    <div class="card-header bg-danger bg-opacity-10">
+                        <h6 class="mb-0">
+                            <i class="fas fa-exclamation-triangle me-2"></i>Unassigned Lessons
+                        </h6>
+                    </div>
+                    <div class="card-body p-0">
+                        <div class="stat-item">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <span>Missing Teacher</span>
+                                <span class="badge bg-warning text-dark">{{ unassigned_no_teacher }}</span>
+                            </div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <span>Missing Subject</span>
+                                <span class="badge bg-warning text-dark">{{ unassigned_no_subject }}</span>
+                            </div>
+                        </div>
+                        <div class="stat-item border-top">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <strong>Total Unassigned</strong>
+                                <span class="badge bg-danger">{{ unassigned_total }}</span>
+                            </div>
+                            <small class="text-muted d-block mt-1" style="font-size: 0.7rem;">
+                                (Entries missing teacher or subject)
+                            </small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
 </div>
 {% endblock %}
 

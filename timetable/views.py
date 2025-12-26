@@ -112,11 +112,22 @@ def timetable_list(request):
     if class_id:
         timetables = timetables.filter(school_class_id=class_id)
     
+    grade_id = request.GET.get('grade_id', '')
+    if grade_id:
+        timetables = timetables.filter(school_class__grade_id=grade_id)
+    
     day = request.GET.get('day', '')
     if day:
         timetables = timetables.filter(time_slot__day=day)
     
+    # Get grades for filter dropdown
+    from core.models import Grade
+    grades = Grade.objects.filter(school=school).order_by('name')
+    
+    # Get classes - filter by grade if grade filter is applied
     classes = SchoolClass.objects.filter(school=school, is_active=True).select_related('grade').order_by('name')
+    if grade_id:
+        classes = classes.filter(grade_id=grade_id)
     
     # Get all time slots (including breaks) for the school, ordered by start time
     all_time_slots = TimeSlot.objects.filter(school=school).order_by('start_time', 'period_number').distinct()
@@ -257,13 +268,63 @@ def timetable_list(request):
                     if slot_id_key in time_slot_id_map:
                         slot_data['time_slot_ids'][day_name] = time_slot_id_map[slot_id_key]
     
+    # Calculate statistics for sidebar summary
+    from django.db.models import Count, Q
+    from collections import Counter
+    
+    # Get all timetable entries for statistics (respecting filters)
+    all_timetable_entries = Timetable.objects.filter(school=school, is_active=True)
+    if class_id:
+        all_timetable_entries = all_timetable_entries.filter(school_class_id=class_id)
+    if grade_id:
+        all_timetable_entries = all_timetable_entries.filter(school_class__grade_id=grade_id)
+    if day:
+        all_timetable_entries = all_timetable_entries.filter(time_slot__day=day)
+    
+    # Lessons per teacher
+    teacher_stats_list = list(all_timetable_entries.filter(teacher__isnull=False).values(
+        'teacher__first_name', 'teacher__last_name', 'teacher__employee_id'
+    ).annotate(
+        lesson_count=Count('id')
+    ).order_by('-lesson_count', 'teacher__first_name', 'teacher__last_name'))
+    teacher_stats = teacher_stats_list
+    teacher_stats_remaining = max(0, len(teacher_stats_list) - 10) if len(teacher_stats_list) > 10 else 0
+    
+    # Lessons per subject
+    subject_stats_list = list(all_timetable_entries.filter(subject__isnull=False).values(
+        'subject__name', 'subject__code'
+    ).annotate(
+        lesson_count=Count('id')
+    ).order_by('-lesson_count', 'subject__name'))
+    subject_stats = subject_stats_list
+    subject_stats_remaining = max(0, len(subject_stats_list) - 10) if len(subject_stats_list) > 10 else 0
+    
+    # Unassigned lessons (no teacher or no subject)
+    # Note: subject is required (ForeignKey without null=True), so unassigned_no_subject should typically be 0
+    unassigned_no_teacher = all_timetable_entries.filter(teacher__isnull=True).count()
+    unassigned_no_subject = all_timetable_entries.filter(subject__isnull=True).count()
+    # Total unassigned: entries missing either teacher or subject (or both)
+    # Since each timetable entry is unique, we don't need distinct()
+    unassigned_total = all_timetable_entries.filter(
+        Q(teacher__isnull=True) | Q(subject__isnull=True)
+    ).count()
+    
     context = {
         'timetable_dict': timetable_dict,
         'classes': classes,
+        'grades': grades,
         'class_id': class_id,
+        'grade_id': grade_id,
         'day': day,
         'day_order': day_order,
         'all_time_slots': all_time_slots,
+        'teacher_stats': teacher_stats,
+        'teacher_stats_remaining': teacher_stats_remaining,
+        'subject_stats': subject_stats,
+        'subject_stats_remaining': subject_stats_remaining,
+        'unassigned_no_teacher': unassigned_no_teacher,
+        'unassigned_no_subject': unassigned_no_subject,
+        'unassigned_total': unassigned_total,
     }
     return render(request, 'timetable/timetable_list.html', context)
 
@@ -275,6 +336,7 @@ def timetable_print(request):
     
     # Get filter parameters
     class_id = request.GET.get('class_id', '')
+    grade_id = request.GET.get('grade_id', '')
     
     # Get timetables
     timetables = Timetable.objects.filter(school=school, is_active=True).select_related(
@@ -283,6 +345,9 @@ def timetable_print(request):
     
     if class_id:
         timetables = timetables.filter(school_class_id=class_id)
+    
+    if grade_id:
+        timetables = timetables.filter(school_class__grade_id=grade_id)
     
     classes = SchoolClass.objects.filter(school=school, is_active=True).select_related('grade').order_by('name')
     
@@ -377,6 +442,7 @@ def timetable_print(request):
         'timetable_dict': timetable_dict,
         'classes': classes,
         'class_id': class_id,
+        'grade_id': grade_id,
         'day_order': day_order,
         'school': school_obj,
     }
