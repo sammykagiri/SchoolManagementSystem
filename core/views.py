@@ -1146,15 +1146,21 @@ def school_update(request):
         phone = request.POST.get('phone', '').strip()
         logo = request.FILES.get('logo')
         primary_color = request.POST.get('primary_color', '#0d6efd').strip()
+        secondary_color = request.POST.get('secondary_color', '').strip()
         use_color_scheme = bool(request.POST.get('use_color_scheme'))
+        use_secondary_on_headers = bool(request.POST.get('use_secondary_on_headers'))
         errors = []
         if not name:
             errors.append('School name is required.')
         # Validate color format (hex code)
         if primary_color and not primary_color.startswith('#'):
-            errors.append('Color must be a valid hex code starting with #.')
+            errors.append('Primary color must be a valid hex code starting with #.')
         elif primary_color and len(primary_color) != 7:
-            errors.append('Color must be a valid hex code (e.g., #0d6efd).')
+            errors.append('Primary color must be a valid hex code (e.g., #0d6efd).')
+        if secondary_color and not secondary_color.startswith('#'):
+            errors.append('Secondary color must be a valid hex code starting with #.')
+        elif secondary_color and len(secondary_color) != 7:
+            errors.append('Secondary color must be a valid hex code (e.g., #6c757d).')
         if errors:
             for error in errors:
                 messages.error(request, error)
@@ -1164,7 +1170,9 @@ def school_update(request):
         school.email = email
         school.phone = phone
         school.primary_color = primary_color
+        school.secondary_color = secondary_color if secondary_color else None
         school.use_color_scheme = use_color_scheme
+        school.use_secondary_on_headers = use_secondary_on_headers
         if logo:
             school.logo = logo
         school.save()
@@ -1183,7 +1191,9 @@ def school_add(request):
         phone = request.POST.get('phone', '').strip()
         logo = request.FILES.get('logo')
         primary_color = request.POST.get('primary_color', '#0d6efd').strip()
+        secondary_color = request.POST.get('secondary_color', '').strip()
         use_color_scheme = bool(request.POST.get('use_color_scheme'))
+        use_secondary_on_headers = bool(request.POST.get('use_secondary_on_headers'))
         errors = []
         if not name:
             errors.append('School name is required.')
@@ -1193,9 +1203,13 @@ def school_add(request):
             errors.append('A school with this email already exists.')
         # Validate color format (hex code)
         if primary_color and not primary_color.startswith('#'):
-            errors.append('Color must be a valid hex code starting with #.')
+            errors.append('Primary color must be a valid hex code starting with #.')
         elif primary_color and len(primary_color) != 7:
-            errors.append('Color must be a valid hex code (e.g., #0d6efd).')
+            errors.append('Primary color must be a valid hex code (e.g., #0d6efd).')
+        if secondary_color and not secondary_color.startswith('#'):
+            errors.append('Secondary color must be a valid hex code starting with #.')
+        elif secondary_color and len(secondary_color) != 7:
+            errors.append('Secondary color must be a valid hex code (e.g., #6c757d).')
         if errors:
             for error in errors:
                 messages.error(request, error)
@@ -1207,7 +1221,9 @@ def school_add(request):
             phone=phone, 
             logo=logo,
             primary_color=primary_color,
-            use_color_scheme=use_color_scheme
+            secondary_color=secondary_color if secondary_color else None,
+            use_color_scheme=use_color_scheme,
+            use_secondary_on_headers=use_secondary_on_headers
         )
         messages.success(request, 'School added successfully!')
         return redirect('core:school_admin_list')
@@ -1248,7 +1264,9 @@ def school_admin_edit(request, school_id):
         phone = request.POST.get('phone', '').strip()
         logo = request.FILES.get('logo')
         primary_color = request.POST.get('primary_color', '#0d6efd').strip()
+        secondary_color = request.POST.get('secondary_color', '').strip()
         use_color_scheme = bool(request.POST.get('use_color_scheme'))
+        use_secondary_on_headers = bool(request.POST.get('use_secondary_on_headers'))
         errors = []
         if not name:
             errors.append('School name is required.')
@@ -1258,9 +1276,13 @@ def school_admin_edit(request, school_id):
             errors.append('A school with this email already exists.')
         # Validate color format (hex code)
         if primary_color and not primary_color.startswith('#'):
-            errors.append('Color must be a valid hex code starting with #.')
+            errors.append('Primary color must be a valid hex code starting with #.')
         elif primary_color and len(primary_color) != 7:
-            errors.append('Color must be a valid hex code (e.g., #0d6efd).')
+            errors.append('Primary color must be a valid hex code (e.g., #0d6efd).')
+        if secondary_color and not secondary_color.startswith('#'):
+            errors.append('Secondary color must be a valid hex code starting with #.')
+        elif secondary_color and len(secondary_color) != 7:
+            errors.append('Secondary color must be a valid hex code (e.g., #6c757d).')
         if errors:
             for error in errors:
                 messages.error(request, error)
@@ -1270,7 +1292,9 @@ def school_admin_edit(request, school_id):
         school.email = email
         school.phone = phone
         school.primary_color = primary_color
+        school.secondary_color = secondary_color if secondary_color else None
         school.use_color_scheme = use_color_scheme
+        school.use_secondary_on_headers = use_secondary_on_headers
         if logo:
             school.logo = logo
         try:

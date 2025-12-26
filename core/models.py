@@ -13,7 +13,9 @@ class School(models.Model):
     phone = models.CharField(max_length=20, blank=True)
     logo = models.ImageField(upload_to='school_logos/', blank=True, null=True)
     primary_color = models.CharField(max_length=7, default='#0d6efd', help_text='Primary color for the school theme (hex code)')
+    secondary_color = models.CharField(max_length=7, blank=True, null=True, help_text='Secondary color for the school theme (hex code)')
     use_color_scheme = models.BooleanField(default=False, help_text='Apply this color scheme to the application')
+    use_secondary_on_headers = models.BooleanField(default=False, help_text='Apply secondary color to headers')
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

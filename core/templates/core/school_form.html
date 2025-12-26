@@ -45,23 +45,45 @@
                             {% endif %}
                         </div>
                         <div class="mb-3">
-                            <label for="id_primary_color" class="form-label">School Color Scheme</label>
-                            <div class="input-group">
-                                <input type="color" 
-                                       name="primary_color" 
-                                       id="id_primary_color" 
-                                       class="form-control form-control-color" 
-                                       value="{% if school.primary_color %}{{ school.primary_color }}{% else %}#0d6efd{% endif %}"
-                                       title="Choose primary color">
-                                <input type="text" 
-                                       id="id_primary_color_text" 
-                                       class="form-control" 
-                                       value="{% if school.primary_color %}{{ school.primary_color }}{% else %}#0d6efd{% endif %}"
-                                       placeholder="#0d6efd"
-                                       pattern="^#[0-9A-Fa-f]{6}$"
-                                       maxlength="7">
+                            <label class="form-label">School Color Scheme</label>
+                            <div class="mb-2">
+                                <label for="id_primary_color" class="form-label small">Primary Color</label>
+                                <div class="input-group">
+                                    <input type="color" 
+                                           name="primary_color" 
+                                           id="id_primary_color" 
+                                           class="form-control form-control-color" 
+                                           value="{% if school.primary_color %}{{ school.primary_color }}{% else %}#0d6efd{% endif %}"
+                                           title="Choose primary color">
+                                    <input type="text" 
+                                           id="id_primary_color_text" 
+                                           class="form-control" 
+                                           value="{% if school.primary_color %}{{ school.primary_color }}{% else %}#0d6efd{% endif %}"
+                                           placeholder="#0d6efd"
+                                           pattern="^#[0-9A-Fa-f]{6}$"
+                                           maxlength="7">
+                                </div>
+                                <div class="form-text small">Primary color for buttons and primary elements</div>
                             </div>
-                            <div class="form-text">Select a primary color for your school theme (hex code format: #RRGGBB)</div>
+                            <div class="mb-2">
+                                <label for="id_secondary_color" class="form-label small">Secondary Color (Optional)</label>
+                                <div class="input-group">
+                                    <input type="color" 
+                                           name="secondary_color" 
+                                           id="id_secondary_color" 
+                                           class="form-control form-control-color" 
+                                           value="{% if school.secondary_color %}{{ school.secondary_color }}{% else %}#6c757d{% endif %}"
+                                           title="Choose secondary color">
+                                    <input type="text" 
+                                           id="id_secondary_color_text" 
+                                           class="form-control" 
+                                           value="{% if school.secondary_color %}{{ school.secondary_color }}{% else %}#6c757d{% endif %}"
+                                           placeholder="#6c757d"
+                                           pattern="^#[0-9A-Fa-f]{6}$"
+                                           maxlength="7">
+                                </div>
+                                <div class="form-text small">Secondary color for accents and optional header styling</div>
+                            </div>
                         </div>
                         <div class="mb-3">
                             <div class="form-check form-switch">
@@ -74,7 +96,20 @@
                                     Apply this color scheme to the application
                                 </label>
                             </div>
-                            <div class="form-text">When enabled, the selected color will be used throughout the application for buttons, headers, and other primary elements.</div>
+                            <div class="form-text">When enabled, the selected colors will be used throughout the application.</div>
+                        </div>
+                        <div class="mb-3">
+                            <div class="form-check form-switch">
+                                <input type="checkbox" 
+                                       name="use_secondary_on_headers" 
+                                       id="id_use_secondary_on_headers" 
+                                       class="form-check-input" 
+                                       {% if school.use_secondary_on_headers %}checked{% endif %}>
+                                <label class="form-check-label" for="id_use_secondary_on_headers">
+                                    Apply secondary color to headers
+                                </label>
+                            </div>
+                            <div class="form-text">When enabled, the secondary color will be applied to card headers and section headers.</div>
                         </div>
                         <div class="d-flex justify-content-end gap-2">
                             <a href="{% url 'core:school_admin_list' %}" class="btn btn-secondary">Cancel</a>
@@ -93,11 +128,14 @@
     document.addEventListener('DOMContentLoaded', function() {
         const colorPicker = document.getElementById('id_primary_color');
         const colorText = document.getElementById('id_primary_color_text');
+        const secondaryColorPicker = document.getElementById('id_secondary_color');
+        const secondaryColorText = document.getElementById('id_secondary_color_text');
         const useColorScheme = document.getElementById('id_use_color_scheme');
+        const useSecondaryOnHeaders = document.getElementById('id_use_secondary_on_headers');
         
         // Function to update color scheme preview
-        function updateColorSchemePreview(color) {
-            if (!color || !/^#[0-9A-Fa-f]{6}$/.test(color)) {
+        function updateColorSchemePreview(primaryColor, secondaryColor) {
+            if (!primaryColor || !/^#[0-9A-Fa-f]{6}$/.test(primaryColor)) {
                 return;
             }
             
@@ -107,7 +145,10 @@
             }
             
             // Update CSS variables
-            document.documentElement.style.setProperty('--bs-primary', color);
+            document.documentElement.style.setProperty('--bs-primary', primaryColor);
+            if (secondaryColor && /^#[0-9A-Fa-f]{6}$/.test(secondaryColor)) {
+                document.documentElement.style.setProperty('--bs-secondary', secondaryColor);
+            }
             
             // Update all primary elements
             const style = document.createElement('style');
@@ -119,52 +160,76 @@
                 existingStyle.remove();
             }
             
-            style.textContent = `
+            let styleContent = `
                 .bg-primary {
-                    background-color: ${color} !important;
+                    background-color: ${primaryColor} !important;
                 }
                 .btn-primary {
-                    background-color: ${color};
-                    border-color: ${color};
+                    background-color: ${primaryColor};
+                    border-color: ${primaryColor};
                 }
                 .btn-primary:hover,
                 .btn-primary:focus,
                 .btn-primary:active {
-                    background-color: ${color};
-                    border-color: ${color};
+                    background-color: ${primaryColor};
+                    border-color: ${primaryColor};
                     filter: brightness(0.9);
                 }
                 .text-primary {
-                    color: ${color} !important;
+                    color: ${primaryColor} !important;
                 }
                 .border-primary {
-                    border-color: ${color} !important;
+                    border-color: ${primaryColor} !important;
                 }
                 .btn-outline-primary {
-                    color: ${color};
-                    border-color: ${color};
+                    color: ${primaryColor};
+                    border-color: ${primaryColor};
                 }
                 .btn-outline-primary:hover,
                 .btn-outline-primary:focus,
                 .btn-outline-primary:active {
-                    background-color: ${color};
-                    border-color: ${color};
+                    background-color: ${primaryColor};
+                    border-color: ${primaryColor};
                     color: #fff;
                 }
                 .alert-primary {
-                    background-color: ${color};
-                    border-color: ${color};
+                    background-color: ${primaryColor};
+                    border-color: ${primaryColor};
                     color: #fff;
                 }
                 .badge.bg-primary {
-                    background-color: ${color} !important;
+                    background-color: ${primaryColor} !important;
                 }
                 a.text-primary:hover,
                 a.text-primary:focus {
-                    color: ${color} !important;
+                    color: ${primaryColor} !important;
                 }
             `;
             
+            // Add secondary color styles if provided
+            if (secondaryColor && /^#[0-9A-Fa-f]{6}$/.test(secondaryColor)) {
+                styleContent += `
+                    .bg-secondary {
+                        background-color: ${secondaryColor} !important;
+                    }
+                `;
+                
+                // Apply to headers if checkbox is checked
+                if (useSecondaryOnHeaders && useSecondaryOnHeaders.checked) {
+                    styleContent += `
+                        .card-header.bg-primary {
+                            background-color: ${secondaryColor} !important;
+                        }
+                        h1, h2, h3, h4, h5, h6,
+                        .card-title, .card-title h1, .card-title h2, .card-title h3, .card-title h4, .card-title h5, .card-title h6,
+                        .title, .page-title, .section-title {
+                            color: ${secondaryColor} !important;
+                        }
+                    `;
+                }
+            }
+            
+            style.textContent = styleContent;
             document.head.appendChild(style);
         }
         
@@ -177,13 +242,21 @@
             document.documentElement.style.removeProperty('--bs-primary');
         }
         
+        // Helper function to get current colors
+        function getCurrentColors() {
+            const primary = colorPicker ? colorPicker.value : '';
+            const secondary = secondaryColorPicker ? secondaryColorPicker.value : '';
+            return { primary, secondary };
+        }
+        
         // Sync color picker with text input and update preview
         if (colorPicker && colorText) {
             colorPicker.addEventListener('input', function() {
                 const color = colorPicker.value;
                 colorText.value = color;
                 if (useColorScheme && useColorScheme.checked) {
-                    updateColorSchemePreview(color);
+                    const colors = getCurrentColors();
+                    updateColorSchemePreview(colors.primary, colors.secondary);
                 }
             });
             
@@ -193,7 +266,8 @@
                 if (/^#[0-9A-Fa-f]{6}$/.test(value)) {
                     colorPicker.value = value;
                     if (useColorScheme && useColorScheme.checked) {
-                        updateColorSchemePreview(value);
+                        const colors = getCurrentColors();
+                        updateColorSchemePreview(colors.primary, colors.secondary);
                     }
                 }
             });
@@ -207,11 +281,44 @@
             });
         }
         
-        // Handle checkbox change
+        // Sync secondary color picker with text input and update preview
+        if (secondaryColorPicker && secondaryColorText) {
+            secondaryColorPicker.addEventListener('input', function() {
+                const color = secondaryColorPicker.value;
+                secondaryColorText.value = color;
+                if (useColorScheme && useColorScheme.checked) {
+                    const colors = getCurrentColors();
+                    updateColorSchemePreview(colors.primary, colors.secondary);
+                }
+            });
+            
+            secondaryColorText.addEventListener('input', function() {
+                const value = secondaryColorText.value.trim();
+                // Validate hex color format
+                if (/^#[0-9A-Fa-f]{6}$/.test(value)) {
+                    secondaryColorPicker.value = value;
+                    if (useColorScheme && useColorScheme.checked) {
+                        const colors = getCurrentColors();
+                        updateColorSchemePreview(colors.primary, colors.secondary);
+                    }
+                }
+            });
+            
+            secondaryColorText.addEventListener('blur', function() {
+                const value = secondaryColorText.value.trim();
+                // If invalid format, reset to picker value
+                if (!/^#[0-9A-Fa-f]{6}$/.test(value)) {
+                    secondaryColorText.value = secondaryColorPicker.value;
+                }
+            });
+        }
+        
+        // Handle checkbox changes
         if (useColorScheme) {
             useColorScheme.addEventListener('change', function() {
                 if (this.checked && colorPicker) {
-                    updateColorSchemePreview(colorPicker.value);
+                    const colors = getCurrentColors();
+                    updateColorSchemePreview(colors.primary, colors.secondary);
                 } else {
                     removeColorSchemePreview();
                 }
@@ -219,8 +326,19 @@
             
             // Initialize preview if checkbox is checked on load
             if (useColorScheme.checked && colorPicker) {
-                updateColorSchemePreview(colorPicker.value);
+                const colors = getCurrentColors();
+                updateColorSchemePreview(colors.primary, colors.secondary);
             }
+        }
+        
+        // Handle secondary on headers checkbox
+        if (useSecondaryOnHeaders) {
+            useSecondaryOnHeaders.addEventListener('change', function() {
+                if (useColorScheme && useColorScheme.checked && colorPicker) {
+                    const colors = getCurrentColors();
+                    updateColorSchemePreview(colors.primary, colors.secondary);
+                }
+            });
         }
     });
 </script>

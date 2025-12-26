@@ -62,10 +62,18 @@
     <style>
         :root {
             --bs-primary: {{ request.user.profile.school.primary_color }};
+            {% if request.user.profile.school.secondary_color %}
+            --bs-secondary: {{ request.user.profile.school.secondary_color }};
+            {% endif %}
         }
         .bg-primary {
             background-color: {{ request.user.profile.school.primary_color }} !important;
         }
+        {% if request.user.profile.school.secondary_color %}
+        .bg-secondary {
+            background-color: {{ request.user.profile.school.secondary_color }} !important;
+        }
+        {% endif %}
         .btn-primary {
             background-color: {{ request.user.profile.school.primary_color }};
             border-color: {{ request.user.profile.school.primary_color }};
@@ -106,6 +114,16 @@
         a.text-primary:focus {
             color: {{ request.user.profile.school.primary_color }} !important;
         }
+        {% if request.user.profile.school.use_secondary_on_headers and request.user.profile.school.secondary_color %}
+        .card-header.bg-primary {
+            background-color: {{ request.user.profile.school.secondary_color }} !important;
+        }
+        h1, h2, h3, h4, h5, h6,
+        .card-title, .card-title h1, .card-title h2, .card-title h3, .card-title h4, .card-title h5, .card-title h6,
+        .title, .page-title, .section-title {
+            color: {{ request.user.profile.school.secondary_color }} !important;
+        }
+        {% endif %}
     </style>
     {% endif %}
 </head>
