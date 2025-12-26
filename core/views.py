@@ -333,18 +333,108 @@ def student_delete(request, student_id):
 @role_required('super_admin', 'school_admin', 'teacher')
 def grade_list(request):
     """List all grades"""
-    grades = Grade.objects.all()
+    school = request.user.profile.school
+    grades = Grade.objects.filter(school=school)
+    
+    # Sort grades naturally (handles numeric sorting: Grade 1, Grade 2, ..., Grade 10)
+    import re
+    def natural_sort_key(name):
+        """Extract numbers for natural sorting"""
+        parts = re.split(r'(\d+)', name)
+        return [int(part) if part.isdigit() else part.lower() for part in parts]
+    
+    grades = sorted(grades, key=lambda g: natural_sort_key(g.name))
     
     if request.method == 'POST':
-        name = request.POST.get('name')
-        description = request.POST.get('description')
-        
-        try:
-            Grade.objects.create(name=name, description=description)
-            messages.success(request, 'Grade created successfully.')
-            return redirect('core:grade_list')
-        except Exception as e:
-            messages.error(request, f'Error creating grade: {str(e)}')
+        # Check if this is a bulk delete request
+        if 'bulk_delete' in request.POST:
+            grade_ids = request.POST.getlist('grade_ids')
+            if grade_ids:
+                # Get grades that belong to this school
+                grades_to_delete = Grade.objects.filter(id__in=grade_ids, school=school)
+                
+                # Check which grades are used in classes, students, or fee structures
+                from core.models import SchoolClass, Student, FeeStructure
+                used_grades = []
+                deletable_grades = []
+                
+                for grade in grades_to_delete:
+                    usage_reasons = []
+                    
+                    # Check if used in classes
+                    if SchoolClass.objects.filter(grade=grade).exists():
+                        usage_reasons.append('classes')
+                    
+                    # Check if used in students
+                    if Student.objects.filter(grade=grade).exists():
+                        usage_reasons.append('students')
+                    
+                    # Check if used in fee structures
+                    if FeeStructure.objects.filter(grade=grade).exists():
+                        usage_reasons.append('fee structures')
+                    
+                    if usage_reasons:
+                        used_grades.append((grade, usage_reasons))
+                    else:
+                        deletable_grades.append(grade)
+                
+                # Delete only grades that are not in use
+                deleted_count = 0
+                error_messages = []
+                
+                for grade in deletable_grades:
+                    try:
+                        grade.delete()
+                        deleted_count += 1
+                    except Exception as e:
+                        error_messages.append(f'Error deleting {grade.name}: {str(e)}')
+                
+                # Build detailed error messages for used grades
+                if used_grades:
+                    grade_messages = []
+                    for grade, reasons in used_grades:
+                        reason_text = ', '.join(reasons)
+                        grade_messages.append(f'{grade.name} (used in {reason_text})')
+                    messages.error(request, f'Cannot delete {len(used_grades)} grade(s): {"; ".join(grade_messages)}.')
+                
+                if deleted_count > 0:
+                    messages.success(request, f'Successfully deleted {deleted_count} grade(s)!')
+                
+                if error_messages:
+                    for error_msg in error_messages:
+                        messages.error(request, error_msg)
+                
+                return redirect('core:grade_list')
+        else:
+            # Regular grade creation
+            name = request.POST.get('name', '').strip()
+            description = request.POST.get('description', '').strip()
+            
+            if not name:
+                messages.error(request, 'Grade name is required.')
+            else:
+                # Normalize name for comparison (remove extra spaces, case-insensitive)
+                normalized_name = ' '.join(name.split())
+                
+                # Check if grade with this name (exact or normalized) already exists
+                from django.db.models import Q
+                existing_grade = Grade.objects.filter(school=school).filter(
+                    Q(name=name) | Q(name=normalized_name)
+                ).first()
+                
+                if existing_grade:
+                    messages.error(request, f'A grade with the name "{existing_grade.name}" already exists. Please choose a different name.')
+                else:
+                    try:
+                        Grade.objects.create(school=school, name=normalized_name, description=description)
+                        messages.success(request, 'Grade created successfully.')
+                        return redirect('core:grade_list')
+                    except Exception as e:
+                        from django.db import IntegrityError
+                        if isinstance(e, IntegrityError):
+                            messages.error(request, f'A grade with this name already exists. Please choose a different name.')
+                        else:
+                            messages.error(request, f'Error creating grade: {str(e)}')
     
     context = {'grades': grades}
     return render(request, 'core/grade_list.html', context)
@@ -352,9 +442,95 @@ def grade_list(request):
 
 @login_required
 @role_required('super_admin', 'school_admin', 'teacher')
+def grade_generate(request):
+    """Generate multiple grades generically"""
+    school = request.user.profile.school
+    
+    if request.method == 'POST':
+        grade_name = request.POST.get('grade_name', '').strip()
+        highest_grade = request.POST.get('highest_grade', '')
+        
+        errors = []
+        if not grade_name:
+            errors.append('Grade name is required.')
+        if not highest_grade or not highest_grade.isdigit():
+            errors.append('Highest grade number is required and must be a valid number.')
+        else:
+            highest_grade = int(highest_grade)
+            if highest_grade < 1 or highest_grade > 50:
+                errors.append('Highest grade must be between 1 and 50.')
+        
+        if errors:
+            for error in errors:
+                messages.error(request, error)
+            # Re-render form with errors
+            return render(request, 'core/grade_generate.html', {
+                'grade_name': request.POST.get('grade_name', ''),
+                'highest_grade': request.POST.get('highest_grade', ''),
+            })
+        
+        # Create grades, skipping ones that already exist
+        created_grades = []
+        skipped_grades = []
+        error_count = 0
+        
+        for i in range(1, highest_grade + 1):
+            grade_full_name = f"{grade_name} {i}"
+            grade_variation = f"{grade_name}{i}"
+            normalized_full = ' '.join(grade_full_name.split())
+            normalized_variation = ' '.join(grade_variation.split())
+            
+            # Check if it already exists (with or without space, normalized)
+            existing_grade = None
+            if Grade.objects.filter(school=school, name=grade_full_name).exists():
+                existing_grade = Grade.objects.filter(school=school, name=grade_full_name).first()
+            elif Grade.objects.filter(school=school, name=grade_variation).exists():
+                existing_grade = Grade.objects.filter(school=school, name=grade_variation).first()
+            elif Grade.objects.filter(school=school, name=normalized_full).exists():
+                existing_grade = Grade.objects.filter(school=school, name=normalized_full).first()
+            elif Grade.objects.filter(school=school, name=normalized_variation).exists():
+                existing_grade = Grade.objects.filter(school=school, name=normalized_variation).first()
+            
+            if existing_grade:
+                skipped_grades.append(existing_grade.name)
+            else:
+                try:
+                    Grade.objects.create(
+                        school=school,
+                        name=normalized_full,
+                        description=f'{grade_name} {i}'
+                    )
+                    created_grades.append(normalized_full)
+                except Exception as e:
+                    from django.db import IntegrityError
+                    if isinstance(e, IntegrityError):
+                        skipped_grades.append(normalized_full)
+                    else:
+                        error_count += 1
+                        messages.error(request, f'Error creating {grade_full_name}: {str(e)}')
+        
+        # Build appropriate messages
+        if created_grades and skipped_grades:
+            messages.success(request, f'Successfully created {len(created_grades)} grade(s): {", ".join(created_grades)}.')
+            messages.info(request, f'Skipped {len(skipped_grades)} grade(s) that already exist: {", ".join(skipped_grades)}.')
+        elif created_grades:
+            messages.success(request, f'Successfully created {len(created_grades)} grade(s): {", ".join(created_grades)}.')
+        elif skipped_grades:
+            messages.warning(request, f'All {len(skipped_grades)} grade(s) already exist: {", ".join(skipped_grades)}. No new grades were created.')
+        else:
+            messages.warning(request, 'No grades were created.')
+        
+        return redirect('core:grade_list')
+    
+    return render(request, 'core/grade_generate.html')
+
+
+@login_required
+@role_required('super_admin', 'school_admin', 'teacher')
 def grade_edit(request, grade_id):
     """Edit a grade"""
-    grade = get_object_or_404(Grade, id=grade_id)
+    school = request.user.profile.school
+    grade = get_object_or_404(Grade, id=grade_id, school=school)
     
     if request.method == 'POST':
         name = request.POST.get('name')
@@ -377,7 +553,8 @@ def grade_edit(request, grade_id):
 @role_required('super_admin', 'school_admin')
 def grade_delete(request, grade_id):
     """Delete a grade"""
-    grade = get_object_or_404(Grade, id=grade_id)
+    school = request.user.profile.school
+    grade = get_object_or_404(Grade, id=grade_id, school=school)
     
     if request.method == 'POST':
         try:

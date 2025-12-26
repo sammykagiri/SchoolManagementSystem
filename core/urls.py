@@ -33,6 +33,7 @@ urlpatterns = [
     
     # Grades
     path('grades/', views.grade_list, name='grade_list'),
+    path('grades/generate/', views.grade_generate, name='grade_generate'),
     path('grades/<int:grade_id>/edit/', views.grade_edit, name='grade_edit'),
     path('grades/<int:grade_id>/delete/', views.grade_delete, name='grade_delete'),
     

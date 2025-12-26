@@ -10,48 +10,67 @@
             <div class="card">
                 <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
                     <h4 class="mb-0">Grades</h4>
+                    <a href="{% url 'core:grade_generate' %}" class="btn btn-light btn-sm">
+                        <i class="fas fa-magic me-2"></i>Generate Generic Grades
+                    </a>
                 </div>
                 <div class="card-body">
-                    {% if messages %}
-                        {% for message in messages %}
-                            <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
-                                {{ message }}
-                                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-                            </div>
-                        {% endfor %}
-                    {% endif %}
-                    
                     {% if grades %}
-                        <table class="table table-bordered table-striped">
-                            <thead>
-                                <tr>
-                                    <th>Name</th>
-                                    <th>Description</th>
-                                    <th>Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {% for grade in grades %}
-                                <tr>
-                                    <td>{{ grade.name }}</td>
-                                    <td>{{ grade.description|default:"-" }}</td>
-                                    <td>
-                                        <div class="btn-group btn-group-sm" role="group">
-                                            <a href="{% url 'core:grade_edit' grade.id %}" class="btn btn-outline-primary" title="Edit">
-                                                <i class="fas fa-edit"></i>
-                                            </a>
-                                            <a href="{% url 'core:grade_delete' grade.id %}" class="btn btn-outline-danger" title="Delete" 
-                                               onclick="return confirm('Are you sure you want to delete this grade?');">
-                                                <i class="fas fa-trash"></i>
-                                            </a>
-                                        </div>
-                                    </td>
-                                </tr>
-                                {% empty %}
-                                <tr><td colspan="3">No grades found.</td></tr>
-                                {% endfor %}
-                            </tbody>
-                        </table>
+                        <form id="bulkDeleteForm" method="post">
+                            {% csrf_token %}
+                            <input type="hidden" name="bulk_delete" value="1">
+                            <div class="mb-3 d-flex justify-content-between align-items-center">
+                                <div>
+                                    <button type="button" class="btn btn-sm btn-outline-secondary" onclick="selectAll()">
+                                        <i class="fas fa-check-square me-1"></i>Select All
+                                    </button>
+                                    <button type="button" class="btn btn-sm btn-outline-secondary" onclick="deselectAll()">
+                                        <i class="fas fa-square me-1"></i>Deselect All
+                                    </button>
+                                    <span id="selectedCount" class="ms-2 text-muted">0 selected</span>
+                                </div>
+                                <button type="submit" class="btn btn-danger btn-sm" id="bulkDeleteBtn" disabled onclick="return confirm('Are you sure you want to delete the selected grades? This action cannot be undone.');">
+                                    <i class="fas fa-trash me-1"></i>Delete Selected
+                                </button>
+                            </div>
+                            
+                            <table class="table table-bordered table-striped">
+                                <thead>
+                                    <tr>
+                                        <th style="width: 40px;">
+                                            <input type="checkbox" id="selectAllCheckbox" onchange="toggleSelectAll(this)">
+                                        </th>
+                                        <th>Name</th>
+                                        <th>Description</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for grade in grades %}
+                                    <tr>
+                                        <td>
+                                            <input type="checkbox" name="grade_ids" value="{{ grade.id }}" class="grade-checkbox" onchange="updateSelectedCount()">
+                                        </td>
+                                        <td>{{ grade.name }}</td>
+                                        <td>{{ grade.description|default:"-" }}</td>
+                                        <td>
+                                            <div class="btn-group btn-group-sm" role="group">
+                                                <a href="{% url 'core:grade_edit' grade.id %}" class="btn btn-outline-primary" title="Edit">
+                                                    <i class="fas fa-edit"></i>
+                                                </a>
+                                                <a href="{% url 'core:grade_delete' grade.id %}" class="btn btn-outline-danger" title="Delete" 
+                                                   onclick="return confirm('Are you sure you want to delete this grade?');">
+                                                    <i class="fas fa-trash"></i>
+                                                </a>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                    {% empty %}
+                                    <tr><td colspan="4">No grades found.</td></tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </form>
                     {% else %}
                         <div class="text-center py-4">
                             <i class="fas fa-graduation-cap fa-3x text-muted mb-3"></i>
@@ -88,4 +107,67 @@
         </div>
     </div>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    function updateSelectedCount() {
+        const checkboxes = document.querySelectorAll('.grade-checkbox:checked');
+        const count = checkboxes.length;
+        const countSpan = document.getElementById('selectedCount');
+        const bulkDeleteBtn = document.getElementById('bulkDeleteBtn');
+        const selectAllCheckbox = document.getElementById('selectAllCheckbox');
+        
+        if (countSpan) {
+            countSpan.textContent = count + ' selected';
+        }
+        if (bulkDeleteBtn) {
+            bulkDeleteBtn.disabled = count === 0;
+        }
+        if (selectAllCheckbox) {
+            const allCheckboxes = document.querySelectorAll('.grade-checkbox');
+            selectAllCheckbox.checked = allCheckboxes.length > 0 && allCheckboxes.length === count;
+            selectAllCheckbox.indeterminate = count > 0 && count < allCheckboxes.length;
+        }
+    }
+    
+    function toggleSelectAll(checkbox) {
+        const gradeCheckboxes = document.querySelectorAll('.grade-checkbox');
+        gradeCheckboxes.forEach(cb => {
+            cb.checked = checkbox.checked;
+        });
+        updateSelectedCount();
+    }
+    
+    function selectAll() {
+        const checkboxes = document.querySelectorAll('.grade-checkbox');
+        const selectAllCheckbox = document.getElementById('selectAllCheckbox');
+        checkboxes.forEach(checkbox => {
+            checkbox.checked = true;
+        });
+        if (selectAllCheckbox) {
+            selectAllCheckbox.checked = true;
+            selectAllCheckbox.indeterminate = false;
+        }
+        updateSelectedCount();
+    }
+    
+    function deselectAll() {
+        const checkboxes = document.querySelectorAll('.grade-checkbox');
+        const selectAllCheckbox = document.getElementById('selectAllCheckbox');
+        checkboxes.forEach(checkbox => {
+            checkbox.checked = false;
+        });
+        if (selectAllCheckbox) {
+            selectAllCheckbox.checked = false;
+            selectAllCheckbox.indeterminate = false;
+        }
+        updateSelectedCount();
+    }
+    
+    // Initialize on page load
+    document.addEventListener('DOMContentLoaded', function() {
+        updateSelectedCount();
+    });
+</script>
 {% endblock %}

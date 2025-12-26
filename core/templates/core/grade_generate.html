@@ -1,0 +1,80 @@
+{% extends 'base.html' %}
+
+{% block title %}Generate Generic Grades | School Management System{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <h4 class="mb-0">
+                        <i class="fas fa-magic me-2"></i>Generate Generic Grades
+                    </h4>
+                </div>
+                <div class="card-body">
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle me-2"></i>
+                        <strong>How it works:</strong> Enter a base grade name (e.g., "Grade", "Class", "Form") and the highest grade number. 
+                        The system will create grades from 1 to the highest number (e.g., "Grade 1", "Grade 2", ..., "Grade 12").
+                    </div>
+                    
+                    <form method="post" novalidate>
+                        {% csrf_token %}
+                        
+                        <div class="mb-3">
+                            <label for="id_grade_name" class="form-label">
+                                Grade Name <span class="text-danger">*</span>
+                            </label>
+                            <input type="text" 
+                                   name="grade_name" 
+                                   id="id_grade_name" 
+                                   class="form-control" 
+                                   placeholder="e.g., Grade, Class, Form, Standard"
+                                   value="{% if grade_name %}{{ grade_name }}{% endif %}"
+                                   required>
+                            <div class="form-text">Base name for the grades (e.g., "Grade" will create "Grade 1", "Grade 2", etc.)</div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="id_highest_grade" class="form-label">
+                                Highest Grade Number <span class="text-danger">*</span>
+                            </label>
+                            <input type="number" 
+                                   name="highest_grade" 
+                                   id="id_highest_grade" 
+                                   class="form-control" 
+                                   min="1" 
+                                   max="50" 
+                                   placeholder="e.g., 12"
+                                   value="{% if highest_grade %}{{ highest_grade }}{% endif %}"
+                                   required>
+                            <div class="form-text">Enter the highest grade number (e.g., 12 will create grades 1 through 12)</div>
+                        </div>
+                        
+                        <div class="d-flex gap-2">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-magic me-2"></i>Generate Grades
+                            </button>
+                            <a href="{% url 'core:grade_list' %}" class="btn btn-outline-secondary">
+                                <i class="fas fa-arrow-left me-2"></i>Cancel
+                            </a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+            
+            <div class="card mt-3">
+                <div class="card-body">
+                    <h6 class="card-title">Examples:</h6>
+                    <ul class="mb-0">
+                        <li><strong>Grade Name:</strong> "Grade", <strong>Highest Grade:</strong> 12 → Creates: Grade 1, Grade 2, ..., Grade 12</li>
+                        <li><strong>Grade Name:</strong> "Class", <strong>Highest Grade:</strong> 10 → Creates: Class 1, Class 2, ..., Class 10</li>
+                        <li><strong>Grade Name:</strong> "Form", <strong>Highest Grade:</strong> 4 → Creates: Form 1, Form 2, Form 3, Form 4</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
