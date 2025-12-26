@@ -80,6 +80,7 @@ urlpatterns = [
 
     # Classes
     path('classes/', views.class_list, name='class_list'),
+    path('classes/generate/', views.class_generate, name='class_generate'),
     path('classes/add/', views.class_add, name='class_add'),
     path('classes/<int:class_id>/edit/', views.class_edit, name='class_edit'),
     path('classes/<int:class_id>/delete/', views.class_delete, name='class_delete'),

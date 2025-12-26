@@ -145,10 +145,11 @@
                                             {% if student.school_class.class_teacher %}
                                                 <br><small class="text-muted">Class Teacher: {{ student.school_class.class_teacher.full_name }}</small>
                                             {% endif %}
-                                        {% elif student.get_current_class %}
-                                            {{ student.get_current_class.name }} <small class="text-muted">(inferred)</small>
                                         {% else %}
-                                            Not assigned
+                                            <span class="text-danger fw-bold">
+                                                <i class="fas fa-exclamation-triangle me-1"></i>Not Assigned
+                                            </span>
+                                            <br><small class="text-muted">Please assign a class to this student.</small>
                                         {% endif %}
                                     </td>
                                 </tr>

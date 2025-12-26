@@ -1134,7 +1134,16 @@ def api_school_update(request, pk):
 @role_required('super_admin', 'school_admin', 'teacher')
 def class_list(request):
     school = request.user.profile.school
-    grades = Grade.objects.filter(school=school)
+    grades_queryset = Grade.objects.filter(school=school)
+    
+    # Sort grades naturally (handles numeric sorting: Grade 1, Grade 2, ..., Grade 10)
+    import re
+    def natural_sort_key(name):
+        """Extract numbers for natural sorting"""
+        parts = re.split(r'(\d+)', name)
+        return [int(part) if part.isdigit() else part.lower() for part in parts]
+    
+    grades = sorted(grades_queryset, key=lambda g: natural_sort_key(g.name))
     
     if request.method == 'POST':
         name = request.POST.get('name', '').strip()
@@ -1169,6 +1178,115 @@ def class_list(request):
     classes = SchoolClass.objects.filter(school=school).select_related('grade', 'class_teacher')
     teachers = Teacher.objects.filter(school=school, is_active=True).order_by('first_name', 'last_name')
     return render(request, 'core/class_list.html', {'classes': classes, 'grades': grades, 'teachers': teachers})
+
+
+@login_required
+@role_required('super_admin', 'school_admin', 'teacher')
+def class_generate(request):
+    """Generate multiple classes generically based on grades and streams"""
+    school = request.user.profile.school
+    grades_queryset = Grade.objects.filter(school=school)
+    
+    # Sort grades naturally (handles numeric sorting: Grade 1, Grade 2, ..., Grade 10)
+    import re
+    def natural_sort_key(name):
+        """Extract numbers for natural sorting"""
+        parts = re.split(r'(\d+)', name)
+        return [int(part) if part.isdigit() else part.lower() for part in parts]
+    
+    grades = sorted(grades_queryset, key=lambda g: natural_sort_key(g.name))
+    
+    if request.method == 'POST':
+        all_grades = request.POST.get('all_grades') == 'on'
+        selected_grades = request.POST.getlist('selected_grades')
+        num_streams = request.POST.get('num_streams', '')
+        stream_names_input = request.POST.get('stream_names', '').strip()
+        
+        errors = []
+        
+        # Validate number of streams
+        if not num_streams or not num_streams.isdigit():
+            errors.append('Number of streams is required and must be a valid number.')
+        else:
+            num_streams = int(num_streams)
+            if num_streams < 1 or num_streams > 20:
+                errors.append('Number of streams must be between 1 and 20.')
+        
+        # Validate stream names
+        stream_names = []
+        if stream_names_input:
+            # Parse comma-separated stream names
+            stream_names = [name.strip() for name in stream_names_input.split(',') if name.strip()]
+            if len(stream_names) != num_streams:
+                errors.append(f'Number of stream names ({len(stream_names)}) must match the number of streams ({num_streams}).')
+        else:
+            # Generate default stream names (A, B, C, ... or 1, 2, 3, ...)
+            if num_streams <= 26:
+                stream_names = [chr(65 + i) for i in range(num_streams)]  # A, B, C, ...
+            else:
+                stream_names = [str(i + 1) for i in range(num_streams)]  # 1, 2, 3, ...
+        
+        # Determine which grades to process
+        if all_grades:
+            grades_to_process = list(grades)
+        elif selected_grades:
+            grades_to_process = [g for g in grades if str(g.id) in selected_grades]
+        else:
+            errors.append('Please select at least one grade or choose "All Grades".')
+        
+        if errors:
+            for error in errors:
+                messages.error(request, error)
+            return render(request, 'core/class_generate.html', {
+                'grades': grades,
+                'all_grades': all_grades,
+                'selected_grades': selected_grades,
+                'num_streams': request.POST.get('num_streams', ''),
+                'stream_names': stream_names_input,
+            })
+        
+        # Generate classes
+        created_classes = []
+        skipped_classes = []
+        
+        for grade in grades_to_process:
+            for stream_name in stream_names:
+                class_name = f"{grade.name} {stream_name}"
+                
+                # Check if class already exists
+                if SchoolClass.objects.filter(school=school, grade=grade, name=class_name).exists():
+                    skipped_classes.append(class_name)
+                else:
+                    try:
+                        SchoolClass.objects.create(
+                            school=school,
+                            grade=grade,
+                            name=class_name,
+                            description=f'{grade.name} {stream_name}',
+                            is_active=True
+                        )
+                        created_classes.append(class_name)
+                    except Exception as e:
+                        from django.db import IntegrityError
+                        if isinstance(e, IntegrityError):
+                            skipped_classes.append(class_name)
+                        else:
+                            messages.error(request, f'Error creating {class_name}: {str(e)}')
+        
+        # Build appropriate messages
+        if created_classes and skipped_classes:
+            messages.success(request, f'Successfully created {len(created_classes)} class(es).')
+            messages.info(request, f'Skipped {len(skipped_classes)} class(es) that already exist.')
+        elif created_classes:
+            messages.success(request, f'Successfully created {len(created_classes)} class(es).')
+        elif skipped_classes:
+            messages.warning(request, f'All {len(skipped_classes)} class(es) already exist. No new classes were created.')
+        else:
+            messages.warning(request, 'No classes were created.')
+        
+        return redirect('core:class_list')
+    
+    return render(request, 'core/class_generate.html', {'grades': grades})
 
 @login_required
 @role_required('super_admin', 'school_admin', 'teacher')
