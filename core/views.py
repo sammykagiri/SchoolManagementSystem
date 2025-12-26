@@ -641,6 +641,164 @@ def term_add(request):
 
 @login_required
 @role_required('super_admin', 'school_admin', 'teacher')
+def term_generate(request):
+    """Generate multiple terms generically for an academic year"""
+    school = request.user.profile.school
+    from datetime import date
+    from django.utils import timezone
+    
+    # Determine default academic year
+    current_year = timezone.now().year
+    existing_years = Term.objects.filter(school=school).values_list('academic_year', flat=True).distinct()
+    
+    # Check if current year exists, if so default to next year
+    current_year_str = f"{current_year}-{current_year + 1}"
+    next_year_str = f"{current_year + 1}-{current_year + 2}"
+    default_year = next_year_str if current_year_str in existing_years else current_year_str
+    
+    if request.method == 'POST':
+        academic_year = request.POST.get('academic_year', '').strip()
+        num_terms = request.POST.get('num_terms', '')
+        
+        errors = []
+        
+        # Validate academic year
+        if not academic_year:
+            errors.append('Academic year is required.')
+        
+        # Validate number of terms
+        if not num_terms or not num_terms.isdigit():
+            errors.append('Number of terms is required and must be a valid number.')
+        else:
+            num_terms = int(num_terms)
+            if num_terms < 1 or num_terms > 9:  # Limited by term_number max_length=1
+                errors.append('Number of terms must be between 1 and 9.')
+        
+        # Collect term dates
+        term_dates = []
+        if num_terms and isinstance(num_terms, int):
+            for i in range(1, num_terms + 1):
+                start_date = request.POST.get(f'term_{i}_start_date', '').strip()
+                end_date = request.POST.get(f'term_{i}_end_date', '').strip()
+                
+                if not start_date:
+                    errors.append(f'Start date for Term {i} is required.')
+                if not end_date:
+                    errors.append(f'End date for Term {i} is required.')
+                
+                if start_date and end_date:
+                    try:
+                        from datetime import datetime
+                        start_dt = datetime.strptime(start_date, '%Y-%m-%d').date()
+                        end_dt = datetime.strptime(end_date, '%Y-%m-%d').date()
+                        
+                        if start_dt > end_dt:
+                            errors.append(f'Term {i}: Start date cannot be after end date.')
+                        
+                        term_dates.append({
+                            'term_number': str(i),
+                            'start_date': start_date,
+                            'end_date': end_date,
+                            'start_dt': start_dt,
+                            'end_dt': end_dt,
+                        })
+                    except ValueError:
+                        errors.append(f'Term {i}: Invalid date format.')
+        
+        # Check for overlapping dates
+        if not errors and len(term_dates) > 1:
+            for i, term1 in enumerate(term_dates):
+                for j, term2 in enumerate(term_dates[i+1:], start=i+1):
+                    if (term1['start_dt'] <= term2['end_dt'] and term1['end_dt'] >= term2['start_dt']):
+                        errors.append(f'Term {i+1} and Term {j+1} have overlapping dates.')
+        
+        # Check if terms already exist
+        if not errors:
+            existing_terms = []
+            for term_data in term_dates:
+                if Term.objects.filter(school=school, term_number=term_data['term_number'], academic_year=academic_year).exists():
+                    existing_terms.append(f"Term {term_data['term_number']}")
+            
+            if existing_terms:
+                errors.append(f'The following terms already exist for {academic_year}: {", ".join(existing_terms)}.')
+        
+        if errors:
+            for error in errors:
+                messages.error(request, error)
+            # Re-render form with errors - preserve term dates
+            term_dates_json = []
+            for td in term_dates:
+                term_dates_json.append({
+                    'term_number': td['term_number'],
+                    'start_date': td['start_date'],
+                    'end_date': td['end_date'],
+                })
+            
+            context = {
+                'academic_year': request.POST.get('academic_year', default_year),
+                'num_terms': request.POST.get('num_terms', ''),
+                'term_dates': term_dates_json,
+            }
+            return render(request, 'core/term_generate.html', context)
+        
+        # Generate terms
+        created_terms = []
+        skipped_terms = []
+        
+        term_name_map = {
+            '1': 'First Term', '2': 'Second Term', '3': 'Third Term',
+            '4': 'Fourth Term', '5': 'Fifth Term', '6': 'Sixth Term',
+            '7': 'Seventh Term', '8': 'Eighth Term', '9': 'Ninth Term'
+        }
+        
+        for term_data in term_dates:
+            term_number = term_data['term_number']
+            term_name = term_name_map.get(term_number, f'Term {term_number}')
+            
+            # Check if it already exists
+            if Term.objects.filter(school=school, term_number=term_number, academic_year=academic_year).exists():
+                skipped_terms.append(f"Term {term_number}")
+            else:
+                try:
+                    Term.objects.create(
+                        school=school,
+                        name=term_name,
+                        term_number=term_number,
+                        academic_year=academic_year,
+                        start_date=term_data['start_date'],
+                        end_date=term_data['end_date'],
+                        is_active=False  # Default to inactive, user can activate later
+                    )
+                    created_terms.append(f"Term {term_number}")
+                except Exception as e:
+                    from django.db import IntegrityError
+                    if isinstance(e, IntegrityError):
+                        skipped_terms.append(f"Term {term_number}")
+                    else:
+                        messages.error(request, f'Error creating Term {term_number}: {str(e)}')
+        
+        # Build appropriate messages
+        if created_terms and skipped_terms:
+            messages.success(request, f'Successfully created {len(created_terms)} term(s): {", ".join(created_terms)}.')
+            messages.info(request, f'Skipped {len(skipped_terms)} term(s) that already exist: {", ".join(skipped_terms)}.')
+        elif created_terms:
+            messages.success(request, f'Successfully created {len(created_terms)} term(s): {", ".join(created_terms)}.')
+        elif skipped_terms:
+            messages.warning(request, f'All {len(skipped_terms)} term(s) already exist. No new terms were created.')
+        else:
+            messages.warning(request, 'No terms were created.')
+        
+        return redirect('core:term_list')
+    
+    # GET request - show the form
+    return render(request, 'core/term_generate.html', {
+        'academic_year': default_year,
+        'term_dates': [],
+    })
+
+
+@login_required
+@role_required('super_admin', 'school_admin', 'teacher')
 def term_edit(request, term_id):
     """Edit existing term"""
     school = request.user.profile.school
@@ -987,9 +1145,16 @@ def school_update(request):
         email = request.POST.get('email', '').strip()
         phone = request.POST.get('phone', '').strip()
         logo = request.FILES.get('logo')
+        primary_color = request.POST.get('primary_color', '#0d6efd').strip()
+        use_color_scheme = bool(request.POST.get('use_color_scheme'))
         errors = []
         if not name:
             errors.append('School name is required.')
+        # Validate color format (hex code)
+        if primary_color and not primary_color.startswith('#'):
+            errors.append('Color must be a valid hex code starting with #.')
+        elif primary_color and len(primary_color) != 7:
+            errors.append('Color must be a valid hex code (e.g., #0d6efd).')
         if errors:
             for error in errors:
                 messages.error(request, error)
@@ -998,6 +1163,8 @@ def school_update(request):
         school.address = address
         school.email = email
         school.phone = phone
+        school.primary_color = primary_color
+        school.use_color_scheme = use_color_scheme
         if logo:
             school.logo = logo
         school.save()
@@ -1015,6 +1182,8 @@ def school_add(request):
         email = request.POST.get('email', '').strip()
         phone = request.POST.get('phone', '').strip()
         logo = request.FILES.get('logo')
+        primary_color = request.POST.get('primary_color', '#0d6efd').strip()
+        use_color_scheme = bool(request.POST.get('use_color_scheme'))
         errors = []
         if not name:
             errors.append('School name is required.')
@@ -1022,11 +1191,24 @@ def school_add(request):
             errors.append('A school with this name already exists.')
         if email and School.objects.filter(email=email).exists():
             errors.append('A school with this email already exists.')
+        # Validate color format (hex code)
+        if primary_color and not primary_color.startswith('#'):
+            errors.append('Color must be a valid hex code starting with #.')
+        elif primary_color and len(primary_color) != 7:
+            errors.append('Color must be a valid hex code (e.g., #0d6efd).')
         if errors:
             for error in errors:
                 messages.error(request, error)
             return render(request, 'core/school_add_form.html', {'post': request.POST})
-        School.objects.create(name=name, address=address, email=email, phone=phone, logo=logo)
+        School.objects.create(
+            name=name, 
+            address=address, 
+            email=email, 
+            phone=phone, 
+            logo=logo,
+            primary_color=primary_color,
+            use_color_scheme=use_color_scheme
+        )
         messages.success(request, 'School added successfully!')
         return redirect('core:school_admin_list')
     return render(request, 'core/school_add_form.html', {'post': {}})
@@ -1065,6 +1247,8 @@ def school_admin_edit(request, school_id):
         email = request.POST.get('email', '').strip()
         phone = request.POST.get('phone', '').strip()
         logo = request.FILES.get('logo')
+        primary_color = request.POST.get('primary_color', '#0d6efd').strip()
+        use_color_scheme = bool(request.POST.get('use_color_scheme'))
         errors = []
         if not name:
             errors.append('School name is required.')
@@ -1072,6 +1256,11 @@ def school_admin_edit(request, school_id):
             errors.append('A school with this name already exists.')
         if email and School.objects.filter(email=email).exclude(id=school.id).exists():
             errors.append('A school with this email already exists.')
+        # Validate color format (hex code)
+        if primary_color and not primary_color.startswith('#'):
+            errors.append('Color must be a valid hex code starting with #.')
+        elif primary_color and len(primary_color) != 7:
+            errors.append('Color must be a valid hex code (e.g., #0d6efd).')
         if errors:
             for error in errors:
                 messages.error(request, error)
@@ -1080,6 +1269,8 @@ def school_admin_edit(request, school_id):
         school.address = address
         school.email = email
         school.phone = phone
+        school.primary_color = primary_color
+        school.use_color_scheme = use_color_scheme
         if logo:
             school.logo = logo
         try:

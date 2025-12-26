@@ -12,6 +12,8 @@ class School(models.Model):
     email = models.EmailField(blank=True, unique=True)
     phone = models.CharField(max_length=20, blank=True)
     logo = models.ImageField(upload_to='school_logos/', blank=True, null=True)
+    primary_color = models.CharField(max_length=7, default='#0d6efd', help_text='Primary color for the school theme (hex code)')
+    use_color_scheme = models.BooleanField(default=False, help_text='Apply this color scheme to the application')
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

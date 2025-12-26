@@ -1,0 +1,149 @@
+{% extends 'base.html' %}
+
+{% block title %}Generate Generic Terms | School Management System{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="row justify-content-center">
+        <div class="col-md-10">
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <h4 class="mb-0">
+                        <i class="fas fa-magic me-2"></i>Generate Generic Terms
+                    </h4>
+                </div>
+                <div class="card-body">
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle me-2"></i>
+                        <strong>How it works:</strong> Enter the academic year and number of terms. 
+                        Then specify the start and end dates for each term. The system will create all terms for the academic year.
+                    </div>
+                    
+                    <form method="post" novalidate id="termGenerateForm">
+                        {% csrf_token %}
+                        
+                        <div class="mb-3">
+                            <label for="id_academic_year" class="form-label">
+                                Academic Year <span class="text-danger">*</span>
+                            </label>
+                            <input type="text" 
+                                   name="academic_year" 
+                                   id="id_academic_year" 
+                                   class="form-control" 
+                                   placeholder="e.g., 2024-2025"
+                                   value="{% if academic_year %}{{ academic_year }}{% endif %}"
+                                   required>
+                            <div class="form-text">Format: YYYY-YYYY (e.g., 2024-2025)</div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="id_num_terms" class="form-label">
+                                Number of Terms <span class="text-danger">*</span>
+                            </label>
+                            <input type="number" 
+                                   name="num_terms" 
+                                   id="id_num_terms" 
+                                   class="form-control" 
+                                   min="1" 
+                                   max="9" 
+                                   placeholder="e.g., 3"
+                                   value="{% if num_terms %}{{ num_terms }}{% endif %}"
+                                   required
+                                   onchange="updateTermDateFields()">
+                            <div class="form-text">Enter the number of terms (1-9)</div>
+                        </div>
+                        
+                        <div id="termDatesContainer" class="mb-3">
+                            <!-- Term date fields will be dynamically generated here -->
+                        </div>
+                        
+                        <div class="d-flex gap-2">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-magic me-2"></i>Generate Terms
+                            </button>
+                            <a href="{% url 'core:term_list' %}" class="btn btn-outline-secondary">
+                                <i class="fas fa-arrow-left me-2"></i>Cancel
+                            </a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+            
+            <div class="card mt-3">
+                <div class="card-body">
+                    <h6 class="card-title">Examples:</h6>
+                    <ul class="mb-0">
+                        <li><strong>Academic Year:</strong> 2024-2025, <strong>Terms:</strong> 3 → Creates: First Term, Second Term, Third Term</li>
+                        <li><strong>Academic Year:</strong> 2025-2026, <strong>Terms:</strong> 2 → Creates: First Term, Second Term</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    const termDates = [
+        {% for td in term_dates %}
+        {
+            term_number: '{{ td.term_number }}',
+            start_date: '{{ td.start_date }}',
+            end_date: '{{ td.end_date }}'
+        }{% if not forloop.last %},{% endif %}
+        {% endfor %}
+    ];
+    
+    function updateTermDateFields() {
+        const numTerms = parseInt(document.getElementById('id_num_terms').value) || 0;
+        const container = document.getElementById('termDatesContainer');
+        container.innerHTML = '';
+        
+        if (numTerms > 0) {
+            const card = document.createElement('div');
+            card.className = 'card';
+            card.innerHTML = '<div class="card-header"><h6 class="mb-0">Term Dates</h6></div><div class="card-body"></div>';
+            const cardBody = card.querySelector('.card-body');
+            
+            for (let i = 1; i <= numTerms; i++) {
+                const termData = termDates.find(t => parseInt(t.term_number) === i) || {};
+                const row = document.createElement('div');
+                row.className = 'row mb-3';
+                row.innerHTML = `
+                    <div class="col-md-2">
+                        <label class="form-label fw-bold">Term ${i}:</label>
+                    </div>
+                    <div class="col-md-5">
+                        <label class="form-label">Start Date <span class="text-danger">*</span></label>
+                        <input type="date" 
+                               name="term_${i}_start_date" 
+                               class="form-control" 
+                               value="${termData.start_date || ''}"
+                               required>
+                    </div>
+                    <div class="col-md-5">
+                        <label class="form-label">End Date <span class="text-danger">*</span></label>
+                        <input type="date" 
+                               name="term_${i}_end_date" 
+                               class="form-control" 
+                               value="${termData.end_date || ''}"
+                               required>
+                    </div>
+                `;
+                cardBody.appendChild(row);
+            }
+            
+            container.appendChild(card);
+        }
+    }
+    
+    // Initialize on page load
+    document.addEventListener('DOMContentLoaded', function() {
+        const numTerms = parseInt(document.getElementById('id_num_terms').value) || 0;
+        if (numTerms > 0) {
+            updateTermDateFields();
+        }
+    });
+</script>
+{% endblock %}

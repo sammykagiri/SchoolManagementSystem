@@ -4,13 +4,15 @@
 <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
     <div class="container-fluid">
         {% if user.is_authenticated and user.profile.school and user.profile.school.logo %}
-            <img src="{{ user.profile.school.logo.url }}" alt="School Logo" style="max-height: 32px; margin-right: 10px;">
+            <div class="school-logo-container" style="display: inline-block; background-color: #ffffff; padding: 4px 8px; border-radius: 4px; margin-right: 10px; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);">
+                <img src="{{ user.profile.school.logo.url }}" alt="School Logo" style="max-height: 32px; display: block;">
+            </div>
         {% endif %}
         <a class="navbar-brand" href="{% url 'core:dashboard' %}">
             {% if user.is_authenticated and user.profile.school %}
-                {{ user.profile.school.name|title }} School Management
+                {{ user.profile.school.name|title }}
             {% else %}
-                School Management
+                School Management System
             {% endif %}
         </a>
         <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">

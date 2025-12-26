@@ -39,6 +39,7 @@ urlpatterns = [
     
     # Terms
     path('terms/', views.term_list, name='term_list'),
+    path('terms/generate/', views.term_generate, name='term_generate'),
     path('terms/add/', views.term_add, name='term_add'),
     path('terms/<int:term_id>/edit/', views.term_edit, name='term_edit'),
     path('terms/<int:term_id>/delete/', views.term_delete, name='term_delete'),

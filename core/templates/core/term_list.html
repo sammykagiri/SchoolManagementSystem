@@ -4,7 +4,12 @@
 <div class="container py-4">
     <div class="d-flex justify-content-between align-items-center mb-4">
         <h2 class="mb-0">Academic Terms</h2>
-        <a href="{% url 'core:term_add' %}" class="btn btn-primary"><i class="fas fa-plus me-2"></i>Add Term</a>
+        <div class="btn-group">
+            <a href="{% url 'core:term_generate' %}" class="btn btn-outline-primary">
+                <i class="fas fa-magic me-2"></i>Generate Generic Terms
+            </a>
+            <a href="{% url 'core:term_add' %}" class="btn btn-primary"><i class="fas fa-plus me-2"></i>Add Term</a>
+        </div>
     </div>
     <div class="card">
         <div class="card-body p-0">

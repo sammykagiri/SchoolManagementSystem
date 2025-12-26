@@ -44,6 +44,38 @@
                                 </div>
                             {% endif %}
                         </div>
+                        <div class="mb-3">
+                            <label for="id_primary_color" class="form-label">School Color Scheme</label>
+                            <div class="input-group">
+                                <input type="color" 
+                                       name="primary_color" 
+                                       id="id_primary_color" 
+                                       class="form-control form-control-color" 
+                                       value="{% if school.primary_color %}{{ school.primary_color }}{% else %}#0d6efd{% endif %}"
+                                       title="Choose primary color">
+                                <input type="text" 
+                                       id="id_primary_color_text" 
+                                       class="form-control" 
+                                       value="{% if school.primary_color %}{{ school.primary_color }}{% else %}#0d6efd{% endif %}"
+                                       placeholder="#0d6efd"
+                                       pattern="^#[0-9A-Fa-f]{6}$"
+                                       maxlength="7">
+                            </div>
+                            <div class="form-text">Select a primary color for your school theme (hex code format: #RRGGBB)</div>
+                        </div>
+                        <div class="mb-3">
+                            <div class="form-check form-switch">
+                                <input type="checkbox" 
+                                       name="use_color_scheme" 
+                                       id="id_use_color_scheme" 
+                                       class="form-check-input" 
+                                       {% if school.use_color_scheme %}checked{% endif %}>
+                                <label class="form-check-label" for="id_use_color_scheme">
+                                    Apply this color scheme to the application
+                                </label>
+                            </div>
+                            <div class="form-text">When enabled, the selected color will be used throughout the application for buttons, headers, and other primary elements.</div>
+                        </div>
                         <div class="d-flex justify-content-end gap-2">
                             <a href="{% url 'core:school_admin_list' %}" class="btn btn-secondary">Cancel</a>
                             <button type="submit" class="btn btn-primary">Update School</button>
@@ -54,4 +86,142 @@
         </div>
     </div>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const colorPicker = document.getElementById('id_primary_color');
+        const colorText = document.getElementById('id_primary_color_text');
+        const useColorScheme = document.getElementById('id_use_color_scheme');
+        
+        // Function to update color scheme preview
+        function updateColorSchemePreview(color) {
+            if (!color || !/^#[0-9A-Fa-f]{6}$/.test(color)) {
+                return;
+            }
+            
+            // Only update if checkbox is checked
+            if (useColorScheme && !useColorScheme.checked) {
+                return;
+            }
+            
+            // Update CSS variables
+            document.documentElement.style.setProperty('--bs-primary', color);
+            
+            // Update all primary elements
+            const style = document.createElement('style');
+            style.id = 'dynamic-color-scheme';
+            
+            // Remove existing dynamic style if any
+            const existingStyle = document.getElementById('dynamic-color-scheme');
+            if (existingStyle) {
+                existingStyle.remove();
+            }
+            
+            style.textContent = `
+                .bg-primary {
+                    background-color: ${color} !important;
+                }
+                .btn-primary {
+                    background-color: ${color};
+                    border-color: ${color};
+                }
+                .btn-primary:hover,
+                .btn-primary:focus,
+                .btn-primary:active {
+                    background-color: ${color};
+                    border-color: ${color};
+                    filter: brightness(0.9);
+                }
+                .text-primary {
+                    color: ${color} !important;
+                }
+                .border-primary {
+                    border-color: ${color} !important;
+                }
+                .btn-outline-primary {
+                    color: ${color};
+                    border-color: ${color};
+                }
+                .btn-outline-primary:hover,
+                .btn-outline-primary:focus,
+                .btn-outline-primary:active {
+                    background-color: ${color};
+                    border-color: ${color};
+                    color: #fff;
+                }
+                .alert-primary {
+                    background-color: ${color};
+                    border-color: ${color};
+                    color: #fff;
+                }
+                .badge.bg-primary {
+                    background-color: ${color} !important;
+                }
+                a.text-primary:hover,
+                a.text-primary:focus {
+                    color: ${color} !important;
+                }
+            `;
+            
+            document.head.appendChild(style);
+        }
+        
+        // Function to remove color scheme preview
+        function removeColorSchemePreview() {
+            const existingStyle = document.getElementById('dynamic-color-scheme');
+            if (existingStyle) {
+                existingStyle.remove();
+            }
+            document.documentElement.style.removeProperty('--bs-primary');
+        }
+        
+        // Sync color picker with text input and update preview
+        if (colorPicker && colorText) {
+            colorPicker.addEventListener('input', function() {
+                const color = colorPicker.value;
+                colorText.value = color;
+                if (useColorScheme && useColorScheme.checked) {
+                    updateColorSchemePreview(color);
+                }
+            });
+            
+            colorText.addEventListener('input', function() {
+                const value = colorText.value.trim();
+                // Validate hex color format
+                if (/^#[0-9A-Fa-f]{6}$/.test(value)) {
+                    colorPicker.value = value;
+                    if (useColorScheme && useColorScheme.checked) {
+                        updateColorSchemePreview(value);
+                    }
+                }
+            });
+            
+            colorText.addEventListener('blur', function() {
+                const value = colorText.value.trim();
+                // If invalid format, reset to picker value
+                if (!/^#[0-9A-Fa-f]{6}$/.test(value)) {
+                    colorText.value = colorPicker.value;
+                }
+            });
+        }
+        
+        // Handle checkbox change
+        if (useColorScheme) {
+            useColorScheme.addEventListener('change', function() {
+                if (this.checked && colorPicker) {
+                    updateColorSchemePreview(colorPicker.value);
+                } else {
+                    removeColorSchemePreview();
+                }
+            });
+            
+            // Initialize preview if checkbox is checked on load
+            if (useColorScheme.checked && colorPicker) {
+                updateColorSchemePreview(colorPicker.value);
+            }
+        }
+    });
+</script>
 {% endblock %}
