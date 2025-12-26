@@ -105,7 +105,7 @@ def timetable_list(request):
     """List timetables"""
     school = request.user.profile.school
     timetables = Timetable.objects.filter(school=school, is_active=True).select_related(
-        'school_class', 'subject', 'teacher', 'time_slot'
+        'school_class', 'school_class__grade', 'subject', 'teacher', 'time_slot'
     ).order_by('school_class', 'time_slot__day', 'time_slot__period_number')
     
     class_id = request.GET.get('class_id', '')
@@ -116,26 +116,271 @@ def timetable_list(request):
     if day:
         timetables = timetables.filter(time_slot__day=day)
     
-    classes = SchoolClass.objects.filter(school=school, is_active=True).order_by('name')
+    classes = SchoolClass.objects.filter(school=school, is_active=True).select_related('grade').order_by('name')
     
-    # Group by class and day
-    timetable_dict = {}
+    # Get all time slots (including breaks) for the school, ordered by start time
+    all_time_slots = TimeSlot.objects.filter(school=school).order_by('start_time', 'period_number').distinct()
+    
+    # Day order for consistent display - filter to selected day if day filter is applied
+    all_days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
+    day_lower_map = {
+        'monday': 'Monday',
+        'tuesday': 'Tuesday',
+        'wednesday': 'Wednesday',
+        'thursday': 'Thursday',
+        'friday': 'Friday',
+        'saturday': 'Saturday',
+        'sunday': 'Sunday'
+    }
+    if day and day in day_lower_map:
+        day_order = [day_lower_map[day]]
+    else:
+        day_order = all_days
+    
+    # Group by class, then by time slot, then by day
+    from collections import OrderedDict
+    timetable_dict = OrderedDict()
+    
+    # Get all time slots grouped by day to build the complete structure
+    # This ensures breaks are included even if they don't have timetable entries
+    # Only process days that are in day_order (filtered if day filter is applied)
+    all_slots_by_day = {}
+    days_to_process = [d.lower() for d in day_order] if day else ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday']
+    for day_lower in days_to_process:
+        day_slots = TimeSlot.objects.filter(school=school, day=day_lower).order_by('start_time', 'period_number')
+        all_slots_by_day[day_lower] = day_slots
+    
+    # Process timetable entries
+    # Create a mapping of class names to class objects for reference
+    class_name_to_class = {}
+    for c in classes:
+        class_name_to_class[f"{c.name} ({c.grade.name})"] = c
+    
+    # Create a mapping of time slot keys to time slot IDs for each day
+    # Only process days that are in day_order (filtered if day filter is applied)
+    time_slot_id_map = {}  # {(start_time, end_time, period_number, is_break, day): time_slot_id}
+    for day_lower in days_to_process:
+        day_slots = TimeSlot.objects.filter(school=school, day=day_lower)
+        for slot in day_slots:
+            slot_key = (slot.start_time, slot.end_time, slot.period_number, slot.is_break, day_lower)
+            time_slot_id_map[slot_key] = slot.id
+    
     for tt in timetables:
-        class_name = tt.school_class.name
-        day_name = tt.time_slot.get_day_display()
+        # Include grade in class name
+        class_name = f"{tt.school_class.name} ({tt.school_class.grade.name})"
+        time_slot = tt.time_slot
+        start_time = time_slot.start_time
+        end_time = time_slot.end_time
+        day_name = time_slot.get_day_display()
+        day_lower = time_slot.day
+        
+        # Create a unique key for time slot (using start_time for proper chronological ordering)
+        time_slot_key = (start_time, end_time, time_slot.period_number, time_slot.is_break)
+        
         if class_name not in timetable_dict:
-            timetable_dict[class_name] = {}
-        if day_name not in timetable_dict[class_name]:
-            timetable_dict[class_name][day_name] = []
-        timetable_dict[class_name][day_name].append(tt)
+            timetable_dict[class_name] = OrderedDict()
+        
+        if time_slot_key not in timetable_dict[class_name]:
+            timetable_dict[class_name][time_slot_key] = {
+                'period_number': time_slot.period_number,
+                'start_time': start_time,
+                'end_time': end_time,
+                'is_break': time_slot.is_break,
+                'break_name': time_slot.break_name if time_slot.is_break else None,
+                'days': {},
+                'class_id': tt.school_class.id,
+            }
+        timetable_dict[class_name][time_slot_key]['days'][day_name] = tt
+    
+    # For each class, add all time slots (including breaks) that exist but don't have timetable entries
+    # This ensures breaks are shown even if they don't have entries
+    for class_name, time_slots_data in timetable_dict.items():
+        class_obj = class_name_to_class.get(class_name)
+        if not class_obj:
+            continue
+            
+        # Get all unique time slots across filtered days only
+        for day_lower in days_to_process:
+            day_name = day_lower_map.get(day_lower, day_lower.capitalize())
+            day_slots = all_slots_by_day.get(day_lower, [])
+            
+            for slot in day_slots:
+                time_slot_key = (slot.start_time, slot.end_time, slot.period_number, slot.is_break)
+                
+                # Add time slot structure if it doesn't exist
+                if time_slot_key not in time_slots_data:
+                    time_slots_data[time_slot_key] = {
+                        'period_number': slot.period_number,
+                        'start_time': slot.start_time,
+                        'end_time': slot.end_time,
+                        'is_break': slot.is_break,
+                        'break_name': slot.break_name if slot.is_break else None,
+                        'days': {},
+                        'class_id': class_obj.id,
+                    }
+                
+                # Store time slot ID for each day in the slot_data for "Add Entry" links
+                # Only store for days in day_order (filtered days)
+                if day_name in day_order:
+                    slot_id_key = (slot.start_time, slot.end_time, slot.period_number, slot.is_break, day_lower)
+                    if slot_id_key in time_slot_id_map:
+                        if 'time_slot_ids' not in time_slots_data[time_slot_key]:
+                            time_slots_data[time_slot_key]['time_slot_ids'] = {}
+                        time_slots_data[time_slot_key]['time_slot_ids'][day_name] = time_slot_id_map[slot_id_key]
+                    
+                    # If it's a break and no timetable entry exists for this day, mark it
+                    # Only mark for days in day_order (filtered days)
+                    if slot.is_break and day_name not in time_slots_data[time_slot_key]['days']:
+                        time_slots_data[time_slot_key]['days'][day_name] = None  # None means break exists but no entry
+    
+    # Sort each class's time slots by start time (chronological order)
+    for class_name in timetable_dict:
+        sorted_slots = OrderedDict(sorted(timetable_dict[class_name].items(), key=lambda x: (x[1]['start_time'], x[1]['period_number'])))
+        timetable_dict[class_name] = sorted_slots
+    
+    # Ensure time slot IDs are stored only for filtered days (for empty cells to show Add Entry button)
+    # Only add IDs for days that are in day_order (filtered if day filter is applied)
+    for class_name, time_slots_data in timetable_dict.items():
+        for time_slot_key, slot_data in time_slots_data.items():
+            if 'time_slot_ids' not in slot_data:
+                slot_data['time_slot_ids'] = {}
+            # Only add time slot IDs for days in day_order (filtered days)
+            for day_name in day_order:
+                # Find the corresponding day_lower for this day_name
+                day_lower = None
+                for d_lower, d_name in day_lower_map.items():
+                    if d_name == day_name:
+                        day_lower = d_lower
+                        break
+                if day_lower:
+                    slot_id_key = (slot_data['start_time'], slot_data['end_time'], slot_data['period_number'], slot_data['is_break'], day_lower)
+                    if slot_id_key in time_slot_id_map:
+                        slot_data['time_slot_ids'][day_name] = time_slot_id_map[slot_id_key]
     
     context = {
         'timetable_dict': timetable_dict,
         'classes': classes,
         'class_id': class_id,
         'day': day,
+        'day_order': day_order,
+        'all_time_slots': all_time_slots,
     }
     return render(request, 'timetable/timetable_list.html', context)
+
+
+@login_required
+def timetable_print(request):
+    """Printable timetable view - one class per page"""
+    school = request.user.profile.school
+    
+    # Get filter parameters
+    class_id = request.GET.get('class_id', '')
+    
+    # Get timetables
+    timetables = Timetable.objects.filter(school=school, is_active=True).select_related(
+        'school_class', 'school_class__grade', 'subject', 'teacher', 'time_slot'
+    ).order_by('school_class', 'time_slot__day', 'time_slot__period_number')
+    
+    if class_id:
+        timetables = timetables.filter(school_class_id=class_id)
+    
+    classes = SchoolClass.objects.filter(school=school, is_active=True).select_related('grade').order_by('name')
+    
+    # Get all time slots grouped by day
+    all_slots_by_day = {}
+    for day_lower in ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday']:
+        day_slots = TimeSlot.objects.filter(school=school, day=day_lower).order_by('start_time', 'period_number')
+        all_slots_by_day[day_lower] = day_slots
+    
+    # Day order for consistent display
+    day_order = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
+    
+    # Group by class, then by time slot, then by day (same logic as timetable_list)
+    from collections import OrderedDict
+    timetable_dict = OrderedDict()
+    
+    # Create a mapping of time slot keys to time slot IDs for each day
+    time_slot_id_map = {}
+    for day_lower in ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday']:
+        day_slots = TimeSlot.objects.filter(school=school, day=day_lower)
+        for slot in day_slots:
+            slot_key = (slot.start_time, slot.end_time, slot.period_number, slot.is_break, day_lower)
+            time_slot_id_map[slot_key] = slot.id
+    
+    # Process timetable entries
+    class_name_to_class = {}
+    for c in classes:
+        class_name_to_class[f"{c.name} ({c.grade.name})"] = c
+    
+    for tt in timetables:
+        class_name = f"{tt.school_class.name} ({tt.school_class.grade.name})"
+        time_slot = tt.time_slot
+        start_time = time_slot.start_time
+        end_time = time_slot.end_time
+        day_name = time_slot.get_day_display()
+        day_lower = time_slot.day
+        
+        time_slot_key = (start_time, end_time, time_slot.period_number, time_slot.is_break)
+        
+        if class_name not in timetable_dict:
+            timetable_dict[class_name] = OrderedDict()
+        
+        if time_slot_key not in timetable_dict[class_name]:
+            timetable_dict[class_name][time_slot_key] = {
+                'period_number': time_slot.period_number,
+                'start_time': start_time,
+                'end_time': end_time,
+                'is_break': time_slot.is_break,
+                'break_name': time_slot.break_name if time_slot.is_break else None,
+                'days': {},
+                'class_id': tt.school_class.id,
+            }
+        timetable_dict[class_name][time_slot_key]['days'][day_name] = tt
+    
+    # Add all time slots (including breaks) that don't have entries
+    for class_name, time_slots_data in timetable_dict.items():
+        class_obj = class_name_to_class.get(class_name)
+        if not class_obj:
+            continue
+            
+        for day_lower in ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday']:
+            day_name = day_order[['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'].index(day_lower)]
+            day_slots = all_slots_by_day.get(day_lower, [])
+            
+            for slot in day_slots:
+                time_slot_key = (slot.start_time, slot.end_time, slot.period_number, slot.is_break)
+                
+                if time_slot_key not in time_slots_data:
+                    time_slots_data[time_slot_key] = {
+                        'period_number': slot.period_number,
+                        'start_time': slot.start_time,
+                        'end_time': slot.end_time,
+                        'is_break': slot.is_break,
+                        'break_name': slot.break_name if slot.is_break else None,
+                        'days': {},
+                        'class_id': class_obj.id,
+                    }
+                
+                if slot.is_break and day_name not in time_slots_data[time_slot_key]['days']:
+                    time_slots_data[time_slot_key]['days'][day_name] = None
+    
+    # Sort each class's time slots by start time
+    for class_name in timetable_dict:
+        sorted_slots = OrderedDict(sorted(timetable_dict[class_name].items(), key=lambda x: (x[1]['start_time'], x[1]['period_number'])))
+        timetable_dict[class_name] = sorted_slots
+    
+    # Get school info for header
+    from core.models import School
+    school_obj = school
+    
+    context = {
+        'timetable_dict': timetable_dict,
+        'classes': classes,
+        'class_id': class_id,
+        'day_order': day_order,
+        'school': school_obj,
+    }
+    return render(request, 'timetable/timetable_print.html', context)
 
 
 @login_required
@@ -200,11 +445,17 @@ def timetable_add(request):
     teachers = Teacher.objects.filter(school=school, is_active=True).order_by('first_name', 'last_name')
     time_slots = TimeSlot.objects.filter(school=school, is_break=False).order_by('day', 'period_number')
     
+    # Get pre-filled values from query parameters
+    prefill_class_id = request.GET.get('class_id', '')
+    prefill_time_slot_id = request.GET.get('time_slot_id', '')
+    
     context = {
         'classes': classes,
         'subjects': subjects,
         'teachers': teachers,
         'time_slots': time_slots,
+        'prefill_class_id': prefill_class_id,
+        'prefill_time_slot_id': prefill_time_slot_id,
     }
     return render(request, 'timetable/timetable_form.html', context)
 
@@ -293,6 +544,100 @@ def timetable_delete(request, timetable_id):
         return redirect('timetable:timetable_list')
     
     return render(request, 'timetable/timetable_confirm_delete.html', {'timetable': timetable})
+
+
+@login_required
+def timetable_generate(request):
+    """Generate generic timetable entries for selected classes and time slots"""
+    school = request.user.profile.school
+    
+    if request.method == 'POST':
+        # Get selected classes
+        all_classes = request.POST.get('all_classes') == 'on'
+        selected_classes = request.POST.getlist('classes')
+        
+        # Get default subject (optional)
+        default_subject_id = request.POST.get('default_subject', '').strip()
+        
+        # Determine which classes to create timetables for
+        if all_classes:
+            classes_to_create = SchoolClass.objects.filter(school=school, is_active=True).order_by('name')
+        elif selected_classes:
+            classes_to_create = SchoolClass.objects.filter(school=school, id__in=selected_classes, is_active=True).order_by('name')
+        else:
+            messages.error(request, 'Please select at least one class or choose "All Classes".')
+            return redirect('timetable:timetable_generate')
+        
+        # Get all non-break time slots
+        time_slots = TimeSlot.objects.filter(school=school, is_break=False).order_by('day', 'period_number')
+        
+        if not time_slots.exists():
+            messages.error(request, 'No time slots found. Please create time slots first.')
+            return redirect('timetable:timeslot_list')
+        
+        # Get or create placeholder subject if no default subject is selected
+        if default_subject_id:
+            try:
+                default_subject = Subject.objects.get(id=default_subject_id, school=school)
+            except Subject.DoesNotExist:
+                messages.error(request, 'Selected default subject does not exist.')
+                return redirect('timetable:timetable_generate')
+        else:
+            # Create or get placeholder subject
+            default_subject, created = Subject.objects.get_or_create(
+                school=school,
+                name='To Be Assigned',
+                defaults={
+                    'code': 'TBA',
+                    'description': 'Placeholder subject for timetable entries that need to be assigned',
+                    'is_active': True
+                }
+            )
+            if created:
+                messages.info(request, 'Created placeholder subject "To Be Assigned" for unassigned timetable entries.')
+        
+        # Generate timetable entries
+        created_count = 0
+        skipped_count = 0
+        
+        for school_class in classes_to_create:
+            for time_slot in time_slots:
+                # Check if timetable entry already exists
+                if Timetable.objects.filter(school=school, school_class=school_class, time_slot=time_slot).exists():
+                    skipped_count += 1
+                    continue
+                
+                # Create timetable entry
+                Timetable.objects.create(
+                    school=school,
+                    school_class=school_class,
+                    subject=default_subject,
+                    teacher=None,
+                    time_slot=time_slot,
+                    room='',
+                    is_active=True
+                )
+                created_count += 1
+        
+        if created_count > 0:
+            messages.success(request, f'Successfully created {created_count} generic timetable entries! You can now assign subjects and teachers to them.')
+        if skipped_count > 0:
+            messages.info(request, f'Skipped {skipped_count} timetable entries that already exist.')
+        
+        return redirect('timetable:timetable_list')
+    
+    # GET request - show form
+    classes = SchoolClass.objects.filter(school=school, is_active=True).order_by('name')
+    time_slots = TimeSlot.objects.filter(school=school, is_break=False).order_by('day', 'period_number')
+    subjects = Subject.objects.filter(school=school, is_active=True).order_by('name')
+    existing_count = Timetable.objects.filter(school=school).count()
+    
+    return render(request, 'timetable/timetable_generate.html', {
+        'classes': classes,
+        'time_slots': time_slots,
+        'subjects': subjects,
+        'existing_count': existing_count,
+    })
 
 
 @login_required

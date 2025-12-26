@@ -1,0 +1,183 @@
+{% extends 'base.html' %}
+{% block title %}Generate Generic Timetable | School Management System{% endblock %}
+{% block content %}
+<div class="container py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2 class="mb-0">Generate Generic Timetable</h2>
+        <a href="{% url 'timetable:timetable_list' %}" class="btn btn-outline-secondary">
+            <i class="fas fa-arrow-left me-2"></i>Back to Timetable
+        </a>
+    </div>
+    
+    <div class="row">
+        <div class="col-md-10">
+            <div class="card">
+                <div class="card-body">
+                    <div class="alert alert-info" role="alert">
+                        <i class="fas fa-info-circle me-2"></i>
+                        <strong>Generate timetable entries:</strong> Select classes and optionally a default subject. 
+                        Timetable entries will be created for all selected classes and all available time slots. 
+                        You can assign subjects and teachers later.
+                    </div>
+                    
+                    <form method="post" id="generateForm">
+                        {% csrf_token %}
+                        
+                        <div class="mb-3">
+                            <label class="form-label">
+                                Classes to Generate <span class="text-danger">*</span>
+                            </label>
+                            <div class="mb-2">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" id="all_classes" name="all_classes" 
+                                           checked onchange="toggleClassSelection()">
+                                    <label class="form-check-label" for="all_classes">
+                                        <strong>All Classes</strong>
+                                    </label>
+                                </div>
+                            </div>
+                            <div id="class_selection" class="border rounded p-3">
+                                <div class="row g-2">
+                                    {% for class in classes %}
+                                    <div class="col-md-4">
+                                        <div class="form-check">
+                                            <input class="form-check-input class-checkbox" type="checkbox" name="classes" 
+                                                   id="class_{{ class.id }}" value="{{ class.id }}" checked>
+                                            <label class="form-check-label" for="class_{{ class.id }}">{{ class.name }}</label>
+                                        </div>
+                                    </div>
+                                    {% empty %}
+                                    <div class="col-12">
+                                        <div class="alert alert-warning">
+                                            <i class="fas fa-exclamation-triangle me-2"></i>
+                                            No active classes found. Please create classes first.
+                                        </div>
+                                    </div>
+                                    {% endfor %}
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="default_subject" class="form-label">
+                                Default Subject (Optional)
+                            </label>
+                            <select class="form-select" id="default_subject" name="default_subject">
+                                <option value="">None (Use "To Be Assigned" placeholder)</option>
+                                {% for subject in subjects %}
+                                    <option value="{{ subject.id }}">{{ subject.name }}{% if subject.code %} ({{ subject.code }}){% endif %}</option>
+                                {% endfor %}
+                            </select>
+                            <div class="form-text">
+                                If no subject is selected, a placeholder subject "To Be Assigned" will be created and used for all entries.
+                            </div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label class="form-label">Available Time Slots</label>
+                            <div class="border rounded p-3">
+                                <div class="row">
+                                    <div class="col-12">
+                                        <p class="mb-2"><strong>{{ time_slots.count }} time slot(s) will be used:</strong></p>
+                                        <div class="table-responsive" style="max-height: 300px; overflow-y: auto;">
+                                            <table class="table table-sm table-bordered mb-0">
+                                                <thead class="table-light sticky-top">
+                                                    <tr>
+                                                        <th>Day</th>
+                                                        <th>Period</th>
+                                                        <th>Time</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    {% for slot in time_slots %}
+                                                    <tr>
+                                                        <td>{{ slot.get_day_display }}</td>
+                                                        <td>Period {{ slot.period_number }}</td>
+                                                        <td>{{ slot.start_time }} - {{ slot.end_time }}</td>
+                                                    </tr>
+                                                    {% empty %}
+                                                    <tr>
+                                                        <td colspan="3" class="text-center text-muted">
+                                                            No time slots found. <a href="{% url 'timetable:timeslot_list' %}">Create time slots first</a>.
+                                                        </td>
+                                                    </tr>
+                                                    {% endfor %}
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        {% if existing_count > 0 %}
+                        <div class="alert alert-warning mt-3" role="alert">
+                            <i class="fas fa-exclamation-triangle me-2"></i>
+                            <strong>Note:</strong> You currently have {{ existing_count }} timetable entry/entries. 
+                            Existing entries will not be overwritten. Only new entries will be created.
+                        </div>
+                        {% endif %}
+                        
+                        <div class="d-flex gap-2 mt-4">
+                            <button type="submit" class="btn btn-primary" {% if not classes or not time_slots %}disabled{% endif %}>
+                                <i class="fas fa-magic me-2"></i>Generate Timetable Entries
+                            </button>
+                            <a href="{% url 'timetable:timetable_list' %}" class="btn btn-outline-secondary">
+                                Cancel
+                            </a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    function toggleClassSelection() {
+        const allClassesCheckbox = document.getElementById('all_classes');
+        const classCheckboxes = document.querySelectorAll('.class-checkbox');
+        const classSelection = document.getElementById('class_selection');
+        
+        if (allClassesCheckbox.checked) {
+            // When "All Classes" is checked, check all individual classes but keep them enabled
+            classCheckboxes.forEach(checkbox => {
+                checkbox.checked = true;
+                checkbox.disabled = false;
+            });
+            classSelection.style.opacity = '1';
+            classSelection.style.pointerEvents = 'auto';
+        } else {
+            // When "All Classes" is unchecked, keep individual classes enabled
+            classCheckboxes.forEach(checkbox => {
+                checkbox.disabled = false;
+            });
+            classSelection.style.opacity = '1';
+            classSelection.style.pointerEvents = 'auto';
+        }
+    }
+    
+    function updateAllClassesCheckbox() {
+        const allClassesCheckbox = document.getElementById('all_classes');
+        const classCheckboxes = document.querySelectorAll('.class-checkbox');
+        const allChecked = Array.from(classCheckboxes).every(cb => cb.checked);
+        const someChecked = Array.from(classCheckboxes).some(cb => cb.checked);
+        
+        // Update "All Classes" checkbox based on individual class selections
+        allClassesCheckbox.checked = allChecked && someChecked;
+    }
+    
+    // Initialize on page load
+    document.addEventListener('DOMContentLoaded', function() {
+        toggleClassSelection();
+        
+        // Add event listeners to individual class checkboxes
+        const classCheckboxes = document.querySelectorAll('.class-checkbox');
+        classCheckboxes.forEach(checkbox => {
+            checkbox.addEventListener('change', updateAllClassesCheckbox);
+        });
+    });
+</script>
+{% endblock %}

@@ -25,7 +25,8 @@
                                 {% for class in classes %}
                                     <option value="{{ class.id }}" 
                                             {% if timetable and timetable.school_class.id == class.id %}selected
-                                            {% elif post.school_class == class.id|stringformat:'s' %}selected{% endif %}>
+                                            {% elif post.school_class == class.id|stringformat:'s' %}selected
+                                            {% elif prefill_class_id == class.id|stringformat:'s' %}selected{% endif %}>
                                         {{ class.name }} ({{ class.grade.name }})
                                     </option>
                                 {% endfor %}
@@ -71,7 +72,8 @@
                                 {% for time_slot in time_slots %}
                                     <option value="{{ time_slot.id }}" 
                                             {% if timetable and timetable.time_slot.id == time_slot.id %}selected
-                                            {% elif post.time_slot == time_slot.id|stringformat:'s' %}selected{% endif %}>
+                                            {% elif post.time_slot == time_slot.id|stringformat:'s' %}selected
+                                            {% elif prefill_time_slot_id == time_slot.id|stringformat:'s' %}selected{% endif %}>
                                         {{ time_slot.get_day_display }} - Period {{ time_slot.period_number }} 
                                         ({{ time_slot.start_time }} - {{ time_slot.end_time }})
                                     </option>

@@ -1,0 +1,282 @@
+{% extends 'base.html' %}
+{% load string_utils %}
+{% block title %}Printable Timetable | School Management System{% endblock %}
+{% block extra_css %}
+<style>
+    /* Print Styles */
+    @media print {
+        @page {
+            size: A4 landscape;
+            margin: 1cm 1.2cm;
+        }
+        .no-print {
+            display: none !important;
+        }
+        .page-break {
+            page-break-before: always;
+        }
+        body {
+            font-size: 9pt;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            color: #000;
+            background: #fff !important;
+            margin: 0;
+            padding: 0;
+        }
+        .container {
+            padding: 0 !important;
+            max-width: 100% !important;
+            margin: 0 !important;
+        }
+        .timetable-page {
+            page-break-after: always;
+            margin: 0;
+            padding: 0;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+        }
+        .timetable-page:last-child {
+            page-break-after: auto;
+        }
+        .school-info {
+            margin: 0 0 8px 0 !important;
+            padding: 0 !important;
+            font-size: 10pt !important;
+            line-height: 1.2;
+        }
+        .class-header {
+            margin: 0 0 8px 0 !important;
+            padding: 0 0 5px 0 !important;
+        }
+        .class-header h3 {
+            font-size: 12pt !important;
+            margin: 0 !important;
+            padding: 0 !important;
+        }
+        .table {
+            font-size: 7pt;
+            border-collapse: collapse;
+            width: 100%;
+            margin: 0;
+            table-layout: fixed;
+        }
+        .table th {
+            background: #f8f9fa !important;
+            color: #000 !important;
+            font-weight: 600;
+            border: 1px solid #000 !important;
+            padding: 4px 2px !important;
+            text-align: center;
+            font-size: 7pt;
+        }
+        .table td {
+            border: 1px solid #000 !important;
+            padding: 2px !important;
+            vertical-align: top;
+            font-size: 7pt;
+        }
+        .timetable-cell {
+            min-height: 0;
+            padding: 2px;
+            font-size: 6.5pt;
+            line-height: 1.2;
+        }
+        .timetable-cell .fw-bold {
+            font-size: 7pt;
+            margin-bottom: 1px;
+        }
+        .break-row {
+            background: #fff3cd !important;
+            height: auto;
+        }
+        .break-row td {
+            padding: 1px 2px !important;
+        }
+        .break-cell {
+            background: #fff3cd !important;
+            text-align: center;
+            font-weight: 600;
+            font-size: 6.5pt;
+            padding: 1px 2px !important;
+            line-height: 1.1;
+        }
+        .break-cell small {
+            font-size: 6pt;
+        }
+        .time-slot-cell {
+            font-size: 7pt;
+            padding: 2px !important;
+            text-align: center;
+        }
+        .time-slot-cell small {
+            font-size: 6pt;
+        }
+    }
+    
+    /* Screen Styles */
+    .print-header {
+        background: #f8f9fa;
+        padding: 15px;
+        border-bottom: 2px solid #dee2e6;
+        margin-bottom: 20px;
+    }
+    
+    .timetable-page {
+        background: #fff;
+        padding: 20px;
+        margin-bottom: 30px;
+        border: 1px solid #dee2e6;
+    }
+    
+    .class-header {
+        text-align: center;
+        margin-bottom: 20px;
+        padding-bottom: 10px;
+        border-bottom: 3px solid #2c3e50;
+    }
+    
+    .class-header h3 {
+        margin: 0;
+        color: #2c3e50;
+        font-weight: 700;
+    }
+    
+    .school-info {
+        text-align: center;
+        margin-bottom: 15px;
+        color: #666;
+        font-size: 12pt;
+    }
+    
+    .table {
+        font-size: 9pt;
+    }
+    
+    .timetable-cell {
+        min-height: 60px;
+        padding: 6px;
+        font-size: 8pt;
+    }
+    
+    .break-row {
+        background: #fff3cd;
+    }
+    
+    .break-cell {
+        background: #fff3cd;
+        text-align: center;
+        font-weight: 600;
+        padding: 4px !important;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="no-print print-header">
+        <div class="d-flex justify-content-between align-items-center">
+            <h2 class="mb-0">Printable Timetable</h2>
+            <div>
+                <button onclick="window.print()" class="btn btn-primary">
+                    <i class="fas fa-print me-2"></i>Print
+                </button>
+                <a href="{% url 'timetable:timetable_list' %}" class="btn btn-outline-secondary">
+                    <i class="fas fa-arrow-left me-2"></i>Back to Timetable
+                </a>
+            </div>
+        </div>
+        {% if classes %}
+        <div class="mt-3">
+            <form method="get" class="row g-2">
+                <div class="col-md-4">
+                    <select name="class_id" class="form-select" onchange="this.form.submit()">
+                        <option value="">All Classes</option>
+                        {% for class in classes %}
+                            <option value="{{ class.id }}" {% if class_id|default:'' == class.id|stringformat:'s' %}selected{% endif %}>
+                                {{ class.name }} ({{ class.grade.name }})
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </form>
+        </div>
+        {% endif %}
+    </div>
+    
+    {% if timetable_dict %}
+        {% for class_name, time_slots_data in timetable_dict.items %}
+        <div class="timetable-page {% if not forloop.first %}page-break{% endif %}">
+            <div class="school-info">
+                <strong>{{ school.name }}</strong><br>
+                Timetable
+            </div>
+            
+            <div class="class-header">
+                <h3>{{ class_name }}</h3>
+            </div>
+            
+            <table class="table table-bordered">
+                <thead>
+                    <tr>
+                        <th style="width: 10%;">Time Slot</th>
+                        {% for day_name in day_order %}
+                            <th style="width: {% widthratio 90 day_order|length 1 %}%;">{{ day_name }}</th>
+                        {% endfor %}
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for slot_key, slot_data in time_slots_data.items %}
+                        {% if slot_data.is_break %}
+                            {# Break row - thin row with merged cells #}
+                            <tr class="break-row">
+                                <td class="break-cell">
+                                    <i class="fas fa-coffee"></i> {{ slot_data.break_name|default:"Break" }}<br>
+                                    <small>{{ slot_data.start_time }} - {{ slot_data.end_time }}</small>
+                                </td>
+                                <td colspan="{{ day_order|length }}" class="break-cell">
+                                    <i class="fas fa-coffee"></i> {{ slot_data.break_name|default:"Break" }}
+                                </td>
+                            </tr>
+                        {% else %}
+                            {# Regular period row #}
+                            <tr>
+                                <td class="time-slot-cell fw-bold">
+                                    Period {{ slot_data.period_number }}<br>
+                                    <small>{{ slot_data.start_time }} - {{ slot_data.end_time }}</small>
+                                </td>
+                                {% for day_name in day_order %}
+                                    <td>
+                                        {% if day_name in slot_data.days %}
+                                            {% with timetable=slot_data.days|get_item:day_name %}
+                                                {% if timetable %}
+                                                    <div class="timetable-cell">
+                                                        <div class="fw-bold">{{ timetable.subject.name }}</div>
+                                                        {% if timetable.teacher %}
+                                                            <div class="text-muted">{{ timetable.teacher.full_name }}</div>
+                                                        {% endif %}
+                                                        {% if timetable.room %}
+                                                            <div class="text-muted"><i class="fas fa-door-open"></i> {{ timetable.room }}</div>
+                                                        {% endif %}
+                                                    </div>
+                                                {% endif %}
+                                            {% endwith %}
+                                        {% else %}
+                                            <div class="text-muted text-center">-</div>
+                                        {% endif %}
+                                    </td>
+                                {% endfor %}
+                            </tr>
+                        {% endif %}
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% endfor %}
+    {% else %}
+        <div class="alert alert-info">
+            <i class="fas fa-info-circle me-2"></i>No timetable entries found.
+        </div>
+    {% endif %}
+</div>
+{% endblock %}
