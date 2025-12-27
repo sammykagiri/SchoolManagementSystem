@@ -47,6 +47,8 @@ urlpatterns = [
     # Fee Structures
     path('fee-structures/', views.fee_structure_list, name='fee_structure_list'),
     path('fee-structures/generate/', views.generate_student_fees, name='generate_student_fees'),
+    path('fee-structures/apply-to-students/', views.generate_student_fees_from_structures, name='generate_student_fees_from_structures'),
+    path('fee-structures/apply-to-students/', views.generate_student_fees_from_structures, name='generate_student_fees_from_structures'),
     
     # Fee Categories
     path('fee-categories/', views.fee_category_list, name='fee_category_list'),
@@ -64,6 +66,7 @@ urlpatterns = [
     path('api/dashboard/', views.api_dashboard, name='api_dashboard'),
     path('api/students/<str:student_id>/fees/', views.get_student_fees, name='get_student_fees'),
     path('api/transport-routes/', views.get_transport_routes, name='get_transport_routes'),
+    path('api/previous-term-fees/', views.get_previous_term_fees, name='get_previous_term_fees'),
 
     # Authentication
     path('login/', views.CustomLoginView.as_view(), name='login'),

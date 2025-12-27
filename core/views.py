@@ -6,6 +6,7 @@ from django.core.paginator import Paginator
 from django.db.models import Q, Sum
 from django.db import models
 from django.utils import timezone
+import json
 from .models import (
     School, Grade, Term, FeeCategory, TransportRoute, Student, FeeStructure, StudentFee, SchoolClass
 )
@@ -296,8 +297,106 @@ def student_update(request, student_id):
         form = StudentForm(request.POST, request.FILES, instance=student, school=school)
         if form.is_valid():
             try:
+                # Check if transport route changed
+                old_route = student.transport_route
+                new_route = form.cleaned_data.get('transport_route')  # This is already a TransportRoute object or None
+                
+                # Compare by ID to handle None cases
+                old_route_id = old_route.id if old_route else None
+                new_route_id = new_route.id if new_route else None
+                route_changed = (old_route_id != new_route_id)
+                
+                # Check if user selected terms to apply transport fee changes to (BEFORE saving)
+                apply_to_terms = request.POST.getlist('apply_transport_to_terms')
+                # Filter out empty strings and convert to integers
+                apply_to_terms = [int(t) for t in apply_to_terms if t and t.isdigit()]
+                
+                # Save the student
                 form.save()
-                messages.success(request, f'Student {student.full_name} updated successfully.')
+                
+                # Refresh student from database to get updated transport_route
+                student.refresh_from_db()
+                
+                # Process fees if terms were selected (user explicitly selected terms via modal)
+                # The modal only shows when route changes, so if terms are selected, we should process them
+                if apply_to_terms:
+                    # Get transport category
+                    transport_category = FeeCategory.objects.filter(
+                        school=school,
+                        category_type='transport'
+                    ).first()
+                    
+                    if transport_category:
+                        updated_count = 0
+                        deleted_count = 0
+                        
+                        for term_id in apply_to_terms:
+                            try:
+                                term = Term.objects.get(id=term_id, school=school)
+                                
+                                # Use the updated student.transport_route after save
+                                current_route = student.transport_route
+                                
+                                if current_route and current_route.is_currently_active():
+                                    # Add or update transport fee
+                                    transport_amount = current_route.base_fare
+                                    student_fee, created = StudentFee.objects.get_or_create(
+                                        school=school,
+                                        student=student,
+                                        term=term,
+                                        fee_category=transport_category,
+                                        defaults={
+                                            'amount_charged': transport_amount,
+                                            'due_date': term.end_date,
+                                        }
+                                    )
+                                    
+                                    if not created:
+                                        student_fee.amount_charged = transport_amount
+                                        student_fee.save()
+                                    
+                                    updated_count += 1
+                                else:
+                                    # Remove transport fee (route was removed or is inactive)
+                                    deleted = StudentFee.objects.filter(
+                                        school=school,
+                                        student=student,
+                                        term=term,
+                                        fee_category=transport_category
+                                    ).delete()
+                                    
+                                    if deleted[0] > 0:
+                                        deleted_count += deleted[0]
+                            except Term.DoesNotExist:
+                                continue
+                            except Exception as e:
+                                # Log any errors but continue processing other terms
+                                import logging
+                                logger = logging.getLogger(__name__)
+                                logger.error(f"Error processing term {term_id}: {str(e)}")
+                                continue
+                        
+                        if updated_count > 0 or deleted_count > 0:
+                            fee_msg = []
+                            if updated_count > 0:
+                                fee_msg.append(f'{updated_count} term(s) updated')
+                            if deleted_count > 0:
+                                fee_msg.append(f'{deleted_count} transport fee(s) removed')
+                            messages.success(
+                                request, 
+                                f'Student {student.full_name} updated successfully. Transport fees: {", ".join(fee_msg)}.'
+                            )
+                        else:
+                            messages.warning(request, f'Student {student.full_name} updated successfully, but no transport fees were created or updated. Please check if the transport route is active and the terms are valid.')
+                    else:
+                        messages.warning(request, f'Student {student.full_name} updated successfully, but transport fee category not found. Please create a transport fee category first.')
+                elif route_changed:
+                    # Route changed but no terms selected - just update student
+                    messages.success(request, f'Student {student.full_name} updated successfully. Transport route changed but no terms were selected for fee updates.')
+                else:
+                    # No route change
+                    messages.success(request, f'Student {student.full_name} updated successfully.')
+                
                 return redirect('core:student_detail', student_id=student.student_id)
             except Exception as e:
                 messages.error(request, f'Error updating student: {str(e)}')
@@ -306,10 +405,14 @@ def student_update(request, student_id):
     else:
         form = StudentForm(instance=student, school=school)
     
+    # Get terms for transport fee update selection
+    terms = Term.objects.filter(school=school).order_by('-academic_year', '-term_number')
+    
     context = {
         'form': form,
         'student': student,
         'title': 'Update Student',
+        'terms': terms,
     }
     return render(request, 'core/student_form_new.html', context)
 
@@ -976,7 +1079,8 @@ def fee_category_add(request):
                 name=name,
                 category_type=category_type,
                 description=description,
-                is_optional=is_optional
+                is_optional=is_optional,
+                apply_by_default=apply_by_default if is_optional else False  # Only apply if optional
             )
             messages.success(request, 'Fee category created successfully!')
             return redirect('core:fee_category_list')
@@ -1007,6 +1111,7 @@ def fee_category_edit(request, category_id):
         category_type = request.POST.get('category_type', '').strip()
         description = request.POST.get('description', '').strip()
         is_optional = bool(request.POST.get('is_optional'))
+        apply_by_default = bool(request.POST.get('apply_by_default'))
         
         errors = []
         if not name:
@@ -1033,6 +1138,7 @@ def fee_category_edit(request, category_id):
             category.category_type = category_type
             category.description = description
             category.is_optional = is_optional
+            category.apply_by_default = apply_by_default if is_optional else False  # Only apply if optional
             category.save()
             messages.success(request, 'Fee category updated successfully!')
             return redirect('core:fee_category_list')
@@ -1087,64 +1193,294 @@ def fee_category_delete(request, category_id):
 @login_required
 @role_required('super_admin', 'school_admin', 'accountant')
 def generate_student_fees(request):
-    """Generate student fees for a term"""
+    """Generate student fees - create fee structures for terms and grades"""
+    school = request.user.profile.school
+    
+    if request.method == 'POST':
+        # Get selected term
+        term_id = request.POST.get('term_id')
+        if not term_id:
+            messages.error(request, 'Please select a term.')
+            return redirect('core:generate_student_fees')
+        
+        term = get_object_or_404(Term, id=term_id, school=school)
+        
+        # Process fee amounts for each grade and category
+        created_count = 0
+        updated_count = 0
+        
+        # Get all grades and fee categories
+        grades = Grade.objects.filter(school=school)
+        fee_categories = FeeCategory.objects.filter(school=school)
+        
+        for grade in grades:
+            for category in fee_categories:
+                # Get amount from form (format: amount_{term_id}_{grade_id}_{category_id})
+                field_name = f'amount_{term.id}_{grade.id}_{category.id}'
+                amount_str = request.POST.get(field_name, '').strip()
+                
+                if amount_str:
+                    try:
+                        amount = float(amount_str)
+                        if amount < 0:
+                            continue
+                        
+                        # Create or update fee structure
+                        fee_structure, created = FeeStructure.objects.get_or_create(
+                            school=school,
+                            grade=grade,
+                            term=term,
+                            fee_category=category,
+                            defaults={'amount': amount, 'is_active': True}
+                        )
+                        
+                        if not created:
+                            fee_structure.amount = amount
+                            fee_structure.is_active = True
+                            fee_structure.save()
+                            updated_count += 1
+                        else:
+                            created_count += 1
+                    except ValueError:
+                        continue
+        
+        if created_count > 0 or updated_count > 0:
+            messages.success(
+                request, 
+                f'Successfully saved {created_count} new and {updated_count} updated fee structures for {term.academic_year} - Term {term.term_number}.'
+            )
+        else:
+            messages.info(request, 'No fee structures were saved. Please enter amounts for at least one grade and category.')
+        
+        return redirect('core:generate_student_fees')
+    
+    # GET request - display form
+    terms = Term.objects.filter(school=school).order_by('-academic_year', '-term_number')
+    grades = Grade.objects.filter(school=school).order_by('name')
+    # Exclude transport categories - transport fees are route-based
+    fee_categories = FeeCategory.objects.filter(school=school).exclude(category_type='transport').order_by('category_type', 'name')
+    
+    # Get existing fee structures for display (will be loaded via JavaScript when term is selected)
+    # We'll pass this as JSON for JavaScript to use
+    existing_structures_json = {}
+    if terms.exists():
+        structures = FeeStructure.objects.filter(
+            school=school,
+            term__in=terms
+        ).select_related('term', 'grade', 'fee_category')
+        
+        for structure in structures:
+            term_key = str(structure.term.id)
+            if term_key not in existing_structures_json:
+                existing_structures_json[term_key] = {}
+            grade_key = str(structure.grade.id)
+            if grade_key not in existing_structures_json[term_key]:
+                existing_structures_json[term_key][grade_key] = {}
+            category_key = str(structure.fee_category.id)
+            existing_structures_json[term_key][grade_key][category_key] = float(structure.amount)
+    
+    context = {
+        'terms': terms,
+        'grades': grades,
+        'fee_categories': fee_categories,
+        'existing_structures_json': json.dumps(existing_structures_json)
+    }
+    return render(request, 'core/generate_student_fees.html', context)
+
+
+@login_required
+@role_required('super_admin', 'school_admin', 'accountant')
+def get_previous_term_fees(request):
+    """API endpoint to get fee structures from a previous term for copying"""
+    if request.method != 'GET':
+        return JsonResponse({'error': 'Method not allowed'}, status=405)
+    
+    term_id = request.GET.get('term_id')
+    if not term_id:
+        return JsonResponse({'error': 'Term ID is required'}, status=400)
+    
+    school = request.user.profile.school
+    term = get_object_or_404(Term, id=term_id, school=school)
+    
+    # Get fee structures for this term (exclude transport - it's route-based)
+    fee_structures = FeeStructure.objects.filter(
+        school=school,
+        term=term,
+        is_active=True
+    ).exclude(fee_category__category_type='transport').select_related('grade', 'fee_category')
+    
+    # Format as {grade_id}_{category_id: amount}
+    data = {}
+    for structure in fee_structures:
+        key = f"{structure.grade.id}_{structure.fee_category.id}"
+        data[key] = float(structure.amount)
+    
+    return JsonResponse({'fees': data})
+
+
+@login_required
+@role_required('super_admin', 'school_admin', 'accountant')
+def generate_student_fees_from_structures(request):
+    """Generate StudentFee records from FeeStructure for all students in a term"""
+    school = request.user.profile.school
+    
     if request.method == 'POST':
         term_id = request.POST.get('term_id')
-        grade_id = request.POST.get('grade_id')
+        grade_id = request.POST.get('grade_id', '')
         
-        if term_id and grade_id:
-            term = get_object_or_404(Term, id=term_id)
-            grade = get_object_or_404(Grade, id=grade_id)
+        if not term_id:
+            messages.error(request, 'Please select a term.')
+            return redirect('core:fee_structure_list')
+        
+        term = get_object_or_404(Term, id=term_id, school=school)
+        
+        # Get fee structures for this term (exclude transport - it's route-based)
+        fee_structures = FeeStructure.objects.filter(
+            school=school,
+            term=term,
+            is_active=True
+        ).exclude(fee_category__category_type='transport').select_related('grade', 'fee_category')
+        
+        # Filter by grade if specified
+        if grade_id:
+            fee_structures = fee_structures.filter(grade_id=grade_id)
+            students = Student.objects.filter(school=school, grade_id=grade_id, is_active=True)
+        else:
+            # Get all students in grades that have fee structures
+            grade_ids = fee_structures.values_list('grade_id', flat=True).distinct()
+            students = Student.objects.filter(school=school, grade_id__in=grade_ids, is_active=True)
+        
+        created_count = 0
+        skipped_count = 0
+        
+        # Get transport category for transport fees
+        transport_category = FeeCategory.objects.filter(
+            school=school,
+            category_type='transport'
+        ).first()
+        
+        deleted_count = 0
+        
+        for student in students:
+            # Process fee structures for this student's grade
+            student_grade_structures = fee_structures.filter(grade=student.grade)
             
-            # Get fee structure for this grade and term
-            fee_structures = FeeStructure.objects.filter(
-                grade=grade,
-                term=term,
-                is_active=True
-            )
+            for fee_structure in student_grade_structures:
+                category = fee_structure.fee_category
+                
+                # Check if fee is optional and if student should pay it
+                if category.is_optional:
+                    # For optional fees, check student preferences
+                    if category.category_type == 'meals' and not student.pays_meals:
+                        # Remove fee if student no longer pays meals
+                        StudentFee.objects.filter(
+                            school=school,
+                            student=student,
+                            term=term,
+                            fee_category=category
+                        ).delete()
+                        skipped_count += 1
+                        continue
+                    if category.category_type == 'activities' and not student.pays_activities:
+                        # Remove fee if student no longer pays activities
+                        StudentFee.objects.filter(
+                            school=school,
+                            student=student,
+                            term=term,
+                            fee_category=category
+                        ).delete()
+                        skipped_count += 1
+                        continue
+                
+                # Create or update student fee
+                student_fee, created = StudentFee.objects.get_or_create(
+                    school=school,
+                    student=student,
+                    term=term,
+                    fee_category=category,
+                    defaults={
+                        'amount_charged': fee_structure.amount,
+                        'due_date': term.end_date,
+                    }
+                )
+                
+                if created:
+                    created_count += 1
+                else:
+                    # Update amount if it changed
+                    if student_fee.amount_charged != fee_structure.amount:
+                        student_fee.amount_charged = fee_structure.amount
+                        student_fee.save()
             
-            # Get students in this grade
-            students = Student.objects.filter(grade=grade, is_active=True)
-            
-            created_count = 0
-            for student in students:
-                for fee_structure in fee_structures:
-                    # Check if student should pay this fee category
-                    if fee_structure.fee_category.category_type == 'transport' and not student.uses_transport:
-                        continue
-                    if fee_structure.fee_category.category_type == 'meals' and not student.pays_meals:
-                        continue
-                    if fee_structure.fee_category.category_type == 'activities' and not student.pays_activities:
-                        continue
+            # Handle transport fees
+            if transport_category:
+                # Check if student has an active transport route
+                has_active_route = (
+                    student.transport_route and 
+                    student.transport_route.is_currently_active()
+                )
+                
+                if has_active_route:
+                    # Student has an active route - create or update transport fee
+                    transport_amount = student.transport_route.base_fare
                     
-                    # Calculate amount (for transport, use route-specific amount)
-                    amount = fee_structure.amount
-                    if fee_structure.fee_category.category_type == 'transport' and student.transport_route:
-                        amount = student.transport_route.base_fare
-                    
-                    # Create or update student fee
                     student_fee, created = StudentFee.objects.get_or_create(
-                        school=student.school,
+                        school=school,
                         student=student,
                         term=term,
-                        fee_category=fee_structure.fee_category,
+                        fee_category=transport_category,
                         defaults={
-                            'amount_charged': amount,
+                            'amount_charged': transport_amount,
                             'due_date': term.end_date,
                         }
                     )
                     
                     if created:
                         created_count += 1
-            
-            messages.success(request, f'Generated {created_count} fee records for {grade.name} in {term.name}.')
-            return redirect('core:fee_structure_list')
+                    else:
+                        # Update amount if route fare changed
+                        if student_fee.amount_charged != transport_amount:
+                            student_fee.amount_charged = transport_amount
+                            student_fee.save()
+                else:
+                    # Student doesn't have an active route - remove transport fee if it exists
+                    deleted_transport_fees = StudentFee.objects.filter(
+                        school=school,
+                        student=student,
+                        term=term,
+                        fee_category=transport_category
+                    ).delete()
+                    
+                    if deleted_transport_fees[0] > 0:
+                        deleted_count += deleted_transport_fees[0]
+        
+        if grade_id:
+            grade = Grade.objects.get(id=grade_id)
+            message_parts = [f'Generated {created_count} student fee records for {grade.name} in {term.academic_year} - Term {term.term_number}.']
+            if skipped_count > 0:
+                message_parts.append(f'{skipped_count} optional fees skipped based on student preferences.')
+            if deleted_count > 0:
+                message_parts.append(f'{deleted_count} transport fee(s) removed for students without routes.')
+            messages.success(request, ' '.join(message_parts))
+        else:
+            message_parts = [f'Generated {created_count} student fee records for {term.academic_year} - Term {term.term_number}.']
+            if skipped_count > 0:
+                message_parts.append(f'{skipped_count} optional fees skipped based on student preferences.')
+            if deleted_count > 0:
+                message_parts.append(f'{deleted_count} transport fee(s) removed for students without routes.')
+            messages.success(request, ' '.join(message_parts))
+        
+        return redirect('core:fee_structure_list')
     
-    terms = Term.objects.all().order_by('-academic_year', '-term_number')
-    grades = Grade.objects.all()
+    # GET request - show form
+    terms = Term.objects.filter(school=school).order_by('-academic_year', '-term_number')
+    grades = Grade.objects.filter(school=school).order_by('name')
     
-    context = {'terms': terms, 'grades': grades}
-    return render(request, 'core/generate_student_fees.html', context)
+    context = {
+        'terms': terms,
+        'grades': grades,
+    }
+    return render(request, 'core/generate_student_fees_from_structures.html', context)
 
 
 @login_required

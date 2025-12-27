@@ -18,8 +18,22 @@
                         {% endfor %}
                     {% endif %}
                     
-                    <form method="post" enctype="multipart/form-data" novalidate>
+                    <form method="post" enctype="multipart/form-data" novalidate id="studentForm">
                         {% csrf_token %}
+                        
+                        <!-- Hidden container for term checkboxes (inside form so they submit) -->
+                        {% if student and terms %}
+                        <div id="transportTermsContainer" style="display: none;">
+                            {% for term in terms %}
+                            <input type="checkbox" 
+                                   class="term-checkbox-hidden" 
+                                   name="apply_transport_to_terms" 
+                                   value="{{ term.id }}" 
+                                   id="term_hidden_{{ term.id }}"
+                                   checked>
+                            {% endfor %}
+                        </div>
+                        {% endif %}
                         
                         <!-- Display form errors at the top -->
                         {% if form.non_field_errors %}
@@ -356,6 +370,59 @@
         </div>
     </div>
 </div>
+
+<!-- Modal for Transport Route Change -->
+{% if student %}
+<div class="modal fade" id="transportRouteModal" tabindex="-1" aria-labelledby="transportRouteModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-warning text-dark">
+                <h5 class="modal-title" id="transportRouteModalLabel">
+                    <i class="fas fa-route me-2"></i>Transport Route Changed
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p>You have changed the transport route for this student. Which terms should this change apply to?</p>
+                <div class="mb-3">
+                    <label class="form-label">Select Terms:</label>
+                    <div class="form-check mb-2">
+                        <input class="form-check-input" type="checkbox" id="selectAllTerms" checked>
+                        <label class="form-check-label" for="selectAllTerms">
+                            <strong>Select All</strong>
+                        </label>
+                    </div>
+                    <div style="max-height: 300px; overflow-y: auto; border: 1px solid #dee2e6; border-radius: 0.375rem; padding: 10px;">
+                        {% for term in terms %}
+                        <div class="form-check">
+                            <input class="form-check-input term-checkbox" type="checkbox" 
+                                   value="{{ term.id }}" 
+                                   id="term_{{ term.id }}"
+                                   data-term-id="{{ term.id }}"
+                                   checked>
+                            <label class="form-check-label" for="term_{{ term.id }}">
+                                {{ term.academic_year }} - Term {{ term.term_number }}
+                                {% if term.is_active %}<span class="badge bg-success ms-2">Active</span>{% endif %}
+                            </label>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+                <div class="alert alert-info">
+                    <i class="fas fa-info-circle me-2"></i>
+                    <small>Transport fees will be updated (or removed if route is cleared) for the selected terms.</small>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-warning" id="confirmTransportChange">
+                    <i class="fas fa-check me-2"></i>Apply to Selected Terms
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
 {% endblock %}
 
 {% block extra_js %}
@@ -492,6 +559,15 @@ document.addEventListener('DOMContentLoaded', function() {
     const transportRouteSelect = document.getElementById('{{ form.transport_route.id_for_label }}');
     const transportRouteInfo = document.getElementById('transport_route_info');
     const routeFareDisplay = document.getElementById('route_fare_display');
+    const studentForm = document.getElementById('studentForm');
+    const transportRouteModal = document.getElementById('transportRouteModal');
+    const selectAllTerms = document.getElementById('selectAllTerms');
+    const termCheckboxes = document.querySelectorAll('.term-checkbox');
+    const termCheckboxesHidden = document.querySelectorAll('.term-checkbox-hidden');
+    const confirmTransportChange = document.getElementById('confirmTransportChange');
+    
+    let originalRouteValue = transportRouteSelect ? transportRouteSelect.value : '';
+    let modalConfirmed = false;
     
     if (transportRouteSelect) {
         // Function to update transport route info
@@ -519,6 +595,120 @@ document.addEventListener('DOMContentLoaded', function() {
             updateTransportRouteInfo();
         }
     }
+    
+    // Handle transport route change prompt (only for existing students)
+    {% if student %}
+    if (transportRouteSelect && transportRouteModal && studentForm) {
+        // Store original value on page load
+        originalRouteValue = transportRouteSelect.value;
+        
+        // Intercept form submission
+        studentForm.addEventListener('submit', function(e) {
+            const currentRouteValue = transportRouteSelect.value;
+            
+            // Check if transport route changed and modal hasn't been confirmed
+            if (currentRouteValue !== originalRouteValue && !modalConfirmed) {
+                e.preventDefault();
+                e.stopPropagation();
+                
+                // Reset modal state
+                modalConfirmed = false;
+                
+                // Sync checkboxes to default (all checked) before showing modal
+                syncCheckboxes();
+                
+                // Show modal
+                const modal = new bootstrap.Modal(transportRouteModal);
+                modal.show();
+                
+                return false;
+            }
+        });
+        
+        // Sync visible checkboxes with hidden checkboxes in form
+        function syncCheckboxes() {
+            termCheckboxes.forEach(function(visibleCheckbox) {
+                const termId = visibleCheckbox.getAttribute('data-term-id');
+                const hiddenCheckbox = document.getElementById('term_hidden_' + termId);
+                if (hiddenCheckbox) {
+                    hiddenCheckbox.checked = visibleCheckbox.checked;
+                }
+            });
+        }
+        
+        // Initial sync on page load
+        if (termCheckboxes.length > 0 && termCheckboxesHidden.length > 0) {
+            syncCheckboxes();
+        }
+        
+        // Handle "Select All" checkbox
+        if (selectAllTerms) {
+            selectAllTerms.addEventListener('change', function() {
+                termCheckboxes.forEach(function(checkbox) {
+                    checkbox.checked = this.checked;
+                }, this);
+                syncCheckboxes();
+            });
+        }
+        
+        // Sync when individual checkboxes change
+        termCheckboxes.forEach(function(checkbox) {
+            checkbox.addEventListener('change', syncCheckboxes);
+        });
+        
+        // Handle confirm button
+        if (confirmTransportChange) {
+            confirmTransportChange.addEventListener('click', function() {
+                // Check if at least one term is selected
+                const selectedTerms = Array.from(termCheckboxes).filter(cb => cb.checked);
+                
+                if (selectedTerms.length === 0) {
+                    alert('Please select at least one term, or cancel to proceed without updating transport fees.');
+                    return;
+                }
+                
+                // Sync checkboxes BEFORE closing modal
+                syncCheckboxes();
+                
+                // Mark as confirmed
+                modalConfirmed = true;
+                
+                // Close modal
+                const modal = bootstrap.Modal.getInstance(transportRouteModal);
+                modal.hide();
+                
+                // Submit the form after modal closes
+                setTimeout(function() {
+                    // Double-check sync before submitting
+                    syncCheckboxes();
+                    studentForm.submit();
+                }, 300);
+            });
+        }
+        
+        // Handle modal cancel/close - allow form submission without updating fees
+        transportRouteModal.addEventListener('hidden.bs.modal', function() {
+            // If modal was closed without confirming, uncheck all terms
+            if (!modalConfirmed) {
+                termCheckboxes.forEach(function(checkbox) {
+                    checkbox.checked = false;
+                });
+                // Uncheck all hidden checkboxes
+                termCheckboxesHidden.forEach(function(checkbox) {
+                    checkbox.checked = false;
+                });
+                
+                // Mark as confirmed so form can submit
+                modalConfirmed = true;
+                
+                // Submit the form
+                setTimeout(function() {
+                    studentForm.submit();
+                }, 100);
+            }
+        });
+    }
+    {% endif %}
 });
 </script>
 {% endblock %}

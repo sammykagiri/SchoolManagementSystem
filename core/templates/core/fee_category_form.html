@@ -73,6 +73,20 @@
                             <div class="form-text">Mark this fee category as optional (students may not be required to pay it)</div>
                         </div>
                         
+                        <div class="mb-3">
+                            <div class="form-check form-switch">
+                                <input type="checkbox" 
+                                       name="apply_by_default" 
+                                       id="id_apply_by_default" 
+                                       class="form-check-input" 
+                                       {% if category and category.apply_by_default %}checked{% elif post.apply_by_default %}checked{% endif %}>
+                                <label class="form-check-label" for="id_apply_by_default">
+                                    Apply by Default
+                                </label>
+                            </div>
+                            <div class="form-text">If this is an optional fee, check this to have it selected by default when adding/editing students</div>
+                        </div>
+                        
                         <div class="d-flex justify-content-end gap-2">
                             <a href="{% url 'core:fee_category_list' %}" class="btn btn-secondary">
                                 <i class="fas fa-times me-2"></i>Cancel

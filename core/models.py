@@ -89,7 +89,8 @@ class FeeCategory(models.Model):
     name = models.CharField(max_length=100)
     category_type = models.CharField(max_length=20, choices=CATEGORY_CHOICES)
     description = models.TextField(blank=True)
-    is_optional = models.BooleanField(default=False)
+    is_optional = models.BooleanField(default=False, help_text='If checked, this fee is optional and students can opt in/out')
+    apply_by_default = models.BooleanField(default=False, help_text='If checked, optional fees will be selected by default when adding/editing students')
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -221,9 +222,17 @@ class Student(models.Model):
     )
     uses_transport = models.BooleanField(default=False)
     
-    # Fee Preferences
+    # Fee Preferences (legacy fields for backward compatibility)
     pays_meals = models.BooleanField(default=True)
     pays_activities = models.BooleanField(default=True)
+    
+    # Optional fee categories (many-to-many for flexible optional fee management)
+    optional_fee_categories = models.ManyToManyField(
+        FeeCategory,
+        related_name='students_opted_in',
+        blank=True,
+        help_text='Optional fee categories this student has opted into'
+    )
     
     # Photo
     photo = models.ImageField(upload_to='student_photos/', blank=True, null=True, help_text='Student photo')

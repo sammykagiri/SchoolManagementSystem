@@ -3,7 +3,7 @@ from django.contrib.auth.forms import UserCreationForm
 from django.contrib.auth.models import User
 from django.core.exceptions import ValidationError
 from django.db.models import Q
-from .models import Student, Grade, TransportRoute, Role, UserProfile, School, SchoolClass
+from .models import Student, Grade, TransportRoute, Role, UserProfile, School, SchoolClass, FeeCategory
 
 
 class StudentForm(forms.ModelForm):
@@ -15,7 +15,7 @@ class StudentForm(forms.ModelForm):
             'first_name', 'last_name', 'gender', 'date_of_birth', 
             'grade', 'school_class', 'admission_date', 'parent_name', 'parent_phone', 
             'parent_email', 'address', 'transport_route', 'uses_transport', 
-            'pays_meals', 'pays_activities', 'photo', 'parents'
+            'pays_meals', 'pays_activities', 'photo', 'parents', 'optional_fee_categories'
         ]
         widgets = {
             'date_of_birth': forms.DateInput(attrs={'type': 'date'}),

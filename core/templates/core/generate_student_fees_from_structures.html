@@ -1,0 +1,107 @@
+{% extends 'base.html' %}
+
+{% block title %}Apply Fees to Students | School Management System{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="row">
+        <div class="col-md-8 offset-md-2">
+            <div class="card">
+                <div class="card-header bg-warning text-dark">
+                    <h4 class="mb-0">
+                        <i class="fas fa-user-check me-2"></i>Apply Fees to Students
+                    </h4>
+                </div>
+                <div class="card-body">
+                    {% if messages %}
+                        {% for message in messages %}
+                            <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                                {{ message }}
+                                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                            </div>
+                        {% endfor %}
+                    {% endif %}
+                    
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle me-2"></i>
+                        <strong>How it works:</strong> This will create student fee records for all active students based on the fee structures you've defined. Transport fees will be automatically added based on each student's assigned route. Optional fees (meals, activities) will only be applied to students who have opted in.
+                    </div>
+                    
+                    <form method="post" novalidate>
+                        {% csrf_token %}
+                        <div class="mb-3">
+                            <label for="id_term" class="form-label">Select Term <span class="text-danger">*</span></label>
+                            <select name="term_id" id="id_term" class="form-select" required>
+                                <option value="">Choose a term...</option>
+                                {% for term in terms %}
+                                    <option value="{{ term.id }}">
+                                        {{ term.academic_year }} - Term {{ term.term_number }}
+                                        {% if term.is_active %}(Active){% endif %}
+                                    </option>
+                                {% endfor %}
+                            </select>
+                            <div class="form-text">Select the term for which to generate student fees.</div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="id_grade" class="form-label">Select Grade (Optional)</label>
+                            <select name="grade_id" id="id_grade" class="form-select">
+                                <option value="">All Grades</option>
+                                {% for grade in grades %}
+                                    <option value="{{ grade.id }}">{{ grade.name }}</option>
+                                {% endfor %}
+                            </select>
+                            <div class="form-text">Leave blank to apply fees to all grades, or select a specific grade.</div>
+                        </div>
+                        
+                        <div class="alert alert-warning">
+                            <i class="fas fa-exclamation-triangle me-2"></i>
+                            <strong>Warning:</strong> This action will create or update fee records for all active students in the selected grade(s). Make sure you have defined the appropriate fee structures first using the "Set Fee Amounts" page.
+                        </div>
+                        
+                        <div class="d-flex justify-content-between">
+                            <a href="{% url 'core:fee_structure_list' %}" class="btn btn-secondary">
+                                <i class="fas fa-arrow-left me-2"></i>Back to Fee Structures
+                            </a>
+                            <button type="submit" class="btn btn-warning">
+                                <i class="fas fa-user-check me-2"></i>Apply Fees to Students
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+            
+            <!-- Additional Information Card -->
+            <div class="card mt-4">
+                <div class="card-header bg-light">
+                    <h6 class="mb-0">Before Applying Fees</h6>
+                </div>
+                <div class="card-body">
+                    <ul class="list-unstyled mb-0">
+                        <li class="mb-2">
+                            <i class="fas fa-check text-success me-2"></i>
+                            Ensure you have created fee structures for the selected term and grade(s)
+                        </li>
+                        <li class="mb-2">
+                            <i class="fas fa-check text-success me-2"></i>
+                            Verify that students are properly assigned to grades
+                        </li>
+                        <li class="mb-2">
+                            <i class="fas fa-check text-success me-2"></i>
+                            Transport fees will be automatically added based on student routes
+                        </li>
+                        <li class="mb-2">
+                            <i class="fas fa-check text-success me-2"></i>
+                            Optional fees (meals, activities) will only be applied to students who have opted in
+                        </li>
+                        <li class="mb-0">
+                            <i class="fas fa-check text-success me-2"></i>
+                            Existing student fees will be updated if amounts have changed
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

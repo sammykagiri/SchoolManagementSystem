@@ -5,10 +5,12 @@
 {% block content %}
 <div class="container py-4">
     <div class="row">
-        <div class="col-md-8 offset-md-2">
+        <div class="col-12">
             <div class="card">
                 <div class="card-header bg-primary text-white">
-                    <h4 class="mb-0">Generate Student Fees</h4>
+                    <h4 class="mb-0">
+                        <i class="fas fa-calculator me-2"></i>Generate Student Fees
+                    </h4>
                 </div>
                 <div class="card-body">
                     {% if messages %}
@@ -22,80 +24,263 @@
                     
                     <div class="alert alert-info">
                         <i class="fas fa-info-circle me-2"></i>
-                        <strong>How it works:</strong> This will generate fee records for all active students in the selected grade and term based on the fee structures you've defined.
+                        <strong>How it works:</strong> Select a term, then enter fee amounts for each grade and category. You can copy amounts from a previous term and amend as needed.
                     </div>
                     
-                    <form method="post" novalidate>
+                    <form method="post" id="feeGenerationForm" novalidate>
                         {% csrf_token %}
-                        <div class="mb-3">
-                            <label for="id_term" class="form-label">Select Term</label>
-                            <select name="term_id" id="id_term" class="form-select" required>
-                                <option value="">Choose a term...</option>
-                                {% for term in terms %}
-                                    <option value="{{ term.id }}">
-                                        {{ term.academic_year }} - Term {{ term.term_number }}
-                                        {% if term.is_active %}(Active){% endif %}
-                                    </option>
-                                {% endfor %}
-                            </select>
-                            <div class="form-text">Select the term for which to generate fees.</div>
+                        
+                        <!-- Term Selection -->
+                        <div class="row mb-4">
+                            <div class="col-md-6">
+                                <label for="id_term" class="form-label">Select Term <span class="text-danger">*</span></label>
+                                <select name="term_id" id="id_term" class="form-select" required>
+                                    <option value="">Choose a term...</option>
+                                    {% for term in terms %}
+                                        <option value="{{ term.id }}">
+                                            {{ term.academic_year }} - Term {{ term.term_number }}
+                                            {% if term.is_active %}(Active){% endif %}
+                                        </option>
+                                    {% endfor %}
+                                </select>
+                                <div class="form-text">Select the term for which to set fee amounts.</div>
+                            </div>
+                            
+                            <!-- Copy from Previous Term -->
+                            <div class="col-md-6">
+                                <label class="form-label">Copy from Previous Term</label>
+                                <div class="input-group">
+                                    <select id="copy_from_term" class="form-select">
+                                        <option value="">Select term to copy from...</option>
+                                        {% for term in terms %}
+                                            <option value="{{ term.id }}">
+                                                {{ term.academic_year }} - Term {{ term.term_number }}
+                                            </option>
+                                        {% endfor %}
+                                    </select>
+                                    <button type="button" class="btn btn-outline-secondary" id="btnCopyFees" disabled>
+                                        <i class="fas fa-copy me-2"></i>Copy
+                                    </button>
+                                </div>
+                                <div class="form-text">Select a previous term and click Copy to fill in amounts, then amend as needed.</div>
+                            </div>
                         </div>
                         
-                        <div class="mb-3">
-                            <label for="id_grade" class="form-label">Select Grade</label>
-                            <select name="grade_id" id="id_grade" class="form-select" required>
-                                <option value="">Choose a grade...</option>
-                                {% for grade in grades %}
-                                    <option value="{{ grade.id }}">{{ grade.name }}</option>
-                                {% endfor %}
-                            </select>
-                            <div class="form-text">Select the grade for which to generate fees.</div>
+                        <hr>
+                        
+                        <!-- Fee Amounts Table -->
+                        <div id="feeTableContainer" style="display: none;">
+                            <div class="d-flex justify-content-between align-items-center mb-3">
+                                <h5 class="mb-0">Fee Amounts by Grade and Category</h5>
+                                <div class="d-flex gap-2">
+                                    <a href="{% url 'core:generate_student_fees_from_structures' %}" class="btn btn-warning">
+                                        <i class="fas fa-user-check me-2"></i>Apply to Students
+                                    </a>
+                                    <button type="submit" class="btn btn-primary">
+                                        <i class="fas fa-save me-2"></i>Save Fee Structures
+                                    </button>
+                                </div>
+                            </div>
+                            
+                            <div class="table-responsive">
+                                <table class="table table-bordered table-hover" id="feeAmountsTable">
+                                    <thead class="table-light">
+                                        <tr>
+                                            <th style="position: sticky; left: 0; background-color: #f8f9fa; z-index: 10;">Grade</th>
+                                            {% for category in fee_categories %}
+                                                <th class="text-center">
+                                                    {{ category.name }}
+                                                    <br>
+                                                    <small class="text-muted">({{ category.get_category_type_display }})</small>
+                                                </th>
+                                            {% endfor %}
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for grade in grades %}
+                                            <tr>
+                                                <td style="position: sticky; left: 0; background-color: white; z-index: 9;">
+                                                    <strong>{{ grade.name }}</strong>
+                                                </td>
+                                                {% for category in fee_categories %}
+                                                    <td class="text-center">
+                                                        <input 
+                                                            type="number" 
+                                                            name="" 
+                                                            id="amount_input_{{ grade.id }}_{{ category.id }}"
+                                                            class="form-control form-control-sm text-end fee-input" 
+                                                            step="0.01" 
+                                                            min="0" 
+                                                            placeholder="0.00"
+                                                            data-grade="{{ grade.id }}"
+                                                            data-category="{{ category.id }}">
+                                                    </td>
+                                                {% endfor %}
+                                            </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                            
+                            <div class="alert alert-warning mt-3">
+                                <i class="fas fa-exclamation-triangle me-2"></i>
+                                <strong>Note:</strong> 
+                                <ul class="mb-0 mt-2">
+                                    <li>Leave fields blank if a fee category does not apply to a grade.</li>
+                                    <li><strong>Transport fees are not listed here</strong> - they are automatically applied based on each student's assigned transport route when generating student fees.</li>
+                                    <li>Optional fees will only be applied to students who have opted in (e.g., meals, activities).</li>
+                                    <li>After saving, you can generate actual student fee records from the Fee Structures page.</li>
+                                </ul>
+                            </div>
                         </div>
                         
-                        <div class="alert alert-warning">
-                            <i class="fas fa-exclamation-triangle me-2"></i>
-                            <strong>Warning:</strong> This action will create fee records for all students in the selected grade. Make sure you have defined the appropriate fee structures first.
-                        </div>
-                        
-                        <div class="d-flex justify-content-between">
-                            <a href="{% url 'core:fee_structure_list' %}" class="btn btn-secondary">
-                                <i class="fas fa-arrow-left me-2"></i>Back to Fee Structures
-                            </a>
-                            <button type="submit" class="btn btn-primary">
-                                <i class="fas fa-calculator me-2"></i>Generate Fees
-                            </button>
+                        <div id="noTermSelected" class="text-center py-5 text-muted">
+                            <i class="fas fa-calendar-alt fa-3x mb-3"></i>
+                            <p>Please select a term to begin entering fee amounts.</p>
                         </div>
                     </form>
-                </div>
-            </div>
-            
-            <!-- Additional Information Card -->
-            <div class="card mt-4">
-                <div class="card-header bg-light">
-                    <h6 class="mb-0">Before Generating Fees</h6>
-                </div>
-                <div class="card-body">
-                    <ul class="list-unstyled mb-0">
-                        <li class="mb-2">
-                            <i class="fas fa-check text-success me-2"></i>
-                            Ensure you have created fee structures for the selected grade and term
-                        </li>
-                        <li class="mb-2">
-                            <i class="fas fa-check text-success me-2"></i>
-                            Verify that students are properly assigned to grades
-                        </li>
-                        <li class="mb-2">
-                            <i class="fas fa-check text-success me-2"></i>
-                            Check that fee categories are properly configured
-                        </li>
-                        <li class="mb-0">
-                            <i class="fas fa-check text-success me-2"></i>
-                            Confirm that the term dates are correctly set
-                        </li>
-                    </ul>
                 </div>
             </div>
         </div>
     </div>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const termSelect = document.getElementById('id_term');
+    const copyFromTermSelect = document.getElementById('copy_from_term');
+    const btnCopyFees = document.getElementById('btnCopyFees');
+    const feeTableContainer = document.getElementById('feeTableContainer');
+    const noTermSelected = document.getElementById('noTermSelected');
+    const feeInputs = document.querySelectorAll('.fee-input');
+    
+    // Load existing structures from server
+    const existingStructures = {{ existing_structures_json|safe }};
+    
+    // Function to load existing values for selected term
+    function loadExistingValues(termId) {
+        if (existingStructures[termId]) {
+            feeInputs.forEach(function(input) {
+                const gradeId = input.getAttribute('data-grade');
+                const categoryId = input.getAttribute('data-category');
+                const termData = existingStructures[termId];
+                if (termData[gradeId] && termData[gradeId][categoryId] !== undefined) {
+                    input.value = parseFloat(termData[gradeId][categoryId]).toFixed(2);
+                }
+            });
+        }
+    }
+    
+    // Update input names when term is selected
+    termSelect.addEventListener('change', function() {
+        const selectedTermId = this.value;
+        
+        if (selectedTermId) {
+            // Show fee table
+            feeTableContainer.style.display = 'block';
+            noTermSelected.style.display = 'none';
+            
+            // Update all input names with selected term ID
+            feeInputs.forEach(function(input) {
+                const gradeId = input.getAttribute('data-grade');
+                const categoryId = input.getAttribute('data-category');
+                const newName = `amount_${selectedTermId}_${gradeId}_${categoryId}`;
+                input.setAttribute('name', newName);
+            });
+            
+            // Load existing values for this term
+            loadExistingValues(selectedTermId);
+            
+            // Enable copy button if there are previous terms
+            if (copyFromTermSelect.options.length > 1) {
+                btnCopyFees.disabled = false;
+            }
+        } else {
+            feeTableContainer.style.display = 'none';
+            noTermSelected.style.display = 'block';
+            btnCopyFees.disabled = true;
+            
+            // Clear all inputs
+            feeInputs.forEach(function(input) {
+                input.value = '';
+            });
+        }
+    });
+    
+    // Copy fees from previous term
+    btnCopyFees.addEventListener('click', function() {
+        const selectedTermId = termSelect.value;
+        const copyFromTermId = copyFromTermSelect.value;
+        
+        if (!selectedTermId) {
+            alert('Please select a term first.');
+            return;
+        }
+        
+        if (!copyFromTermId) {
+            alert('Please select a term to copy from.');
+            return;
+        }
+        
+        if (selectedTermId === copyFromTermId) {
+            alert('Cannot copy from the same term. Please select a different term.');
+            return;
+        }
+        
+        // Show loading state
+        btnCopyFees.disabled = true;
+        btnCopyFees.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Loading...';
+        
+        // Fetch fees from previous term
+        fetch(`{% url 'core:get_previous_term_fees' %}?term_id=${copyFromTermId}`)
+            .then(response => response.json())
+            .then(data => {
+                if (data.error) {
+                    alert('Error: ' + data.error);
+                    return;
+                }
+                
+                // Populate inputs with copied values
+                const fees = data.fees;
+                feeInputs.forEach(function(input) {
+                    const gradeId = input.getAttribute('data-grade');
+                    const categoryId = input.getAttribute('data-category');
+                    const key = `${gradeId}_${categoryId}`;
+                    
+                    if (fees[key] !== undefined) {
+                        input.value = parseFloat(fees[key]).toFixed(2);
+                    }
+                });
+                
+                // Show success message
+                const alertDiv = document.createElement('div');
+                alertDiv.className = 'alert alert-success alert-dismissible fade show';
+                alertDiv.innerHTML = `
+                    <i class="fas fa-check-circle me-2"></i>
+                    Fees copied successfully from ${copyFromTermSelect.options[copyFromTermSelect.selectedIndex].text}. You can now amend the amounts as needed.
+                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                `;
+                document.querySelector('.card-body').insertBefore(alertDiv, document.querySelector('.alert-info'));
+                
+                // Scroll to top
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('An error occurred while copying fees. Please try again.');
+            })
+            .finally(() => {
+                btnCopyFees.disabled = false;
+                btnCopyFees.innerHTML = '<i class="fas fa-copy me-2"></i>Copy';
+            });
+    });
+    
+    // Initialize: Check if term is pre-selected (e.g., from URL parameter)
+    if (termSelect.value) {
+        termSelect.dispatchEvent(new Event('change'));
+    }
+});
+</script>
 {% endblock %}
