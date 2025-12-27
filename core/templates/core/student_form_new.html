@@ -362,7 +362,7 @@
                                     <a href="{% url 'core:student_list' %}" class="btn btn-secondary">
                                         <i class="fas fa-arrow-left"></i> Back to Students
                                     </a>
-                                    <button type="submit" class="btn btn-primary">
+                                    <button type="submit" class="btn btn-primary" id="submitStudentForm" {% if student %}disabled{% endif %}>
                                         <i class="fas fa-save"></i> {% if student %}Update{% else %}Create{% endif %} Student
                                     </button>
                                 </div>
@@ -432,6 +432,121 @@
 {% block extra_js %}
 <script>
 document.addEventListener('DOMContentLoaded', function() {
+    // Track form changes to enable/disable submit button (only for updates, not new students)
+    {% if student %}
+    const studentForm = document.getElementById('studentForm');
+    const submitButton = document.getElementById('submitStudentForm');
+    let checkFormChanges = null; // Declare in outer scope
+    
+    if (studentForm && submitButton) {
+        // Store initial form values
+        const initialFormData = new FormData(studentForm);
+        const initialValues = {};
+        
+        // Get all form inputs, selects, and textareas
+        const formInputs = studentForm.querySelectorAll('input, select, textarea');
+        formInputs.forEach(function(input) {
+            if (input.type === 'checkbox' || input.type === 'radio') {
+                // For checkboxes/radios, use a unique identifier (id or name+value)
+                // since multiple checkboxes can have the same name
+                const checkboxId = input.id || input.name + '_' + input.value;
+                initialValues[checkboxId] = input.checked;
+                // Also store by name for backward compatibility with single checkboxes
+                if (!input.id) {
+                    initialValues[input.name] = input.checked;
+                }
+            } else if (input.type === 'file') {
+                // File inputs are handled separately
+                initialValues[input.name] = input.files.length > 0 ? 'has_file' : '';
+            } else {
+                initialValues[input.name] = input.value;
+            }
+        });
+        
+        // Function to check if form has changed
+        checkFormChanges = function() {
+            let hasChanges = false;
+            
+                formInputs.forEach(function(input) {
+                if (input.name && input.name !== 'csrfmiddlewaretoken') {
+                    let currentValue;
+                    let initialValue;
+                    
+                    if (input.type === 'checkbox' || input.type === 'radio') {
+                        currentValue = input.checked;
+                        // For checkboxes/radios, use unique identifier
+                        const checkboxId = input.id || input.name + '_' + input.value;
+                        initialValue = initialValues[checkboxId];
+                        // Fallback to name if id-based lookup fails
+                        if (initialValue === undefined) {
+                            initialValue = initialValues[input.name];
+                        }
+                    } else if (input.type === 'file') {
+                        currentValue = input.files.length > 0 ? 'has_file' : '';
+                        initialValue = initialValues[input.name];
+                    } else {
+                        currentValue = input.value;
+                        initialValue = initialValues[input.name];
+                    }
+                    
+                    // Compare values (handle undefined/null cases)
+                    if (initialValue !== undefined && currentValue !== initialValue) {
+                        hasChanges = true;
+                    }
+                }
+            });
+            
+            // Also check for optional fee categories (many-to-many field)
+            // For checkboxes with the same name, we need to compare arrays of checked values
+            const optionalFeeCheckboxes = studentForm.querySelectorAll('input[name="optional_fee_categories"]');
+            if (optionalFeeCheckboxes.length > 0) {
+                // Get initial checked values (stored during initialization)
+                const initialOptionalFees = Array.from(optionalFeeCheckboxes)
+                    .filter(cb => {
+                        // Check if this checkbox was initially checked
+                        const checkboxId = cb.id || cb.name + '_' + cb.value;
+                        return initialValues[checkboxId] === true;
+                    })
+                    .map(cb => cb.value)
+                    .sort();
+                
+                const currentOptionalFees = Array.from(optionalFeeCheckboxes)
+                    .filter(cb => cb.checked)
+                    .map(cb => cb.value)
+                    .sort();
+                
+                if (JSON.stringify(initialOptionalFees) !== JSON.stringify(currentOptionalFees)) {
+                    hasChanges = true;
+                }
+            }
+            
+            // Enable/disable submit button based on changes
+            submitButton.disabled = !hasChanges;
+            
+            return hasChanges;
+        }
+        
+        // Add event listeners to all form inputs
+        formInputs.forEach(function(input) {
+            input.addEventListener('change', checkFormChanges);
+            input.addEventListener('input', checkFormChanges);
+        });
+        
+        // Also listen for file input changes
+        const fileInputs = studentForm.querySelectorAll('input[type="file"]');
+        fileInputs.forEach(function(input) {
+            input.addEventListener('change', function() {
+                // Update initial value when file is selected
+                initialValues[input.name] = input.files.length > 0 ? 'has_file' : '';
+                checkFormChanges();
+            });
+        });
+        
+        // Initial check (should be disabled if no changes)
+        checkFormChanges();
+    }
+    {% endif %}
+    
     const gradeSelect = document.getElementById('{{ form.grade.id_for_label }}');
     const classSelect = document.getElementById('{{ form.school_class.id_for_label }}');
     
@@ -563,7 +678,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const transportRouteSelect = document.getElementById('{{ form.transport_route.id_for_label }}');
     const transportRouteInfo = document.getElementById('transport_route_info');
     const routeFareDisplay = document.getElementById('route_fare_display');
-    const studentForm = document.getElementById('studentForm');
+    // studentForm is already declared at function scope above
     const transportRouteModal = document.getElementById('transportRouteModal');
     const selectAllTerms = document.getElementById('selectAllTerms');
     const termCheckboxes = document.querySelectorAll('.term-checkbox');
@@ -746,7 +861,7 @@ document.addEventListener('DOMContentLoaded', function() {
             if (!modalConfirmed && modalShownForRouteChange) {
                 // Reset route to original value
                 transportRouteSelect.value = originalRouteValue;
-                // Trigger change event to update UI
+                // Trigger change event to update UI and check form changes
                 transportRouteSelect.dispatchEvent(new Event('change'));
                 
                 // Uncheck all terms
@@ -761,6 +876,11 @@ document.addEventListener('DOMContentLoaded', function() {
                 // Reset flags
                 modalConfirmed = false;
                 modalShownForRouteChange = false;
+                
+                // Trigger form change check to update button state
+                if (typeof checkFormChanges === 'function') {
+                    checkFormChanges();
+                }
                 
                 // Do NOT submit the form - let user decide what to do next
             } else if (modalConfirmed) {
