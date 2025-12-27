@@ -32,6 +32,15 @@
                                    id="term_hidden_{{ term.id }}">
                             {% endfor %}
                         </div>
+                        <div id="optionalFeeTermsContainer" style="display: none;">
+                            {% for term in terms %}
+                            <input type="checkbox" 
+                                   class="optional-fee-term-checkbox-hidden" 
+                                   name="apply_optional_fees_to_terms" 
+                                   value="{{ term.id }}" 
+                                   id="optional_fee_term_hidden_{{ term.id }}">
+                            {% endfor %}
+                        </div>
                         {% endif %}
                         
                         <!-- Display form errors at the top -->
@@ -387,8 +396,26 @@
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body">
-                <p>You have changed the transport route for this student. Which terms should this change apply to?</p>
+                <p>You have changed the transport route for this student. Do you want to apply this change to terms?</p>
+                
                 <div class="mb-3">
+                    <div class="d-flex gap-4">
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="transportApplyOption" id="transportApplyToTerms" value="apply" checked>
+                            <label class="form-check-label" for="transportApplyToTerms">
+                                <strong>Apply changes to terms</strong>
+                            </label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="transportApplyOption" id="transportDontApply" value="dont_apply">
+                            <label class="form-check-label" for="transportDontApply">
+                                <strong>Don't apply to terms</strong>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+                
+                <div id="transportTermsSelection" class="mb-3">
                     <label class="form-label">Select Terms:</label>
                     <div class="form-check mb-2">
                         <input class="form-check-input" type="checkbox" id="selectAllTerms" checked>
@@ -411,22 +438,218 @@
                         </div>
                         {% endfor %}
                     </div>
-                </div>
-                <div class="alert alert-info">
-                    <i class="fas fa-info-circle me-2"></i>
-                    <small>Transport fees will be updated (or removed if route is cleared) for the selected terms.</small>
+                    <div class="alert alert-info mt-2 mb-0">
+                        <i class="fas fa-info-circle me-2"></i>
+                        <small>Transport fees will be updated (or removed if route is cleared) for the selected terms.</small>
+                    </div>
                 </div>
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
                 <button type="button" class="btn btn-warning" id="confirmTransportChange">
-                    <i class="fas fa-check me-2"></i>Apply to Selected Terms
+                    <i class="fas fa-check me-2"></i>Apply Changes
                 </button>
             </div>
         </div>
     </div>
 </div>
 {% endif %}
+
+<!-- Modal for Optional Fee Categories Change -->
+{% if student %}
+<div class="modal fade" id="optionalFeeModal" tabindex="-1" aria-labelledby="optionalFeeModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-info text-dark">
+                <h5 class="modal-title" id="optionalFeeModalLabel">
+                    <i class="fas fa-tags me-2"></i>Optional Fee Categories Changed
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p>You have changed the optional fee categories for this student. Do you want to apply this change to terms?</p>
+                
+                <div class="mb-3">
+                    <div class="d-flex gap-4">
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="optionalFeeApplyOption" id="optionalFeeApplyToTerms" value="apply" checked>
+                            <label class="form-check-label" for="optionalFeeApplyToTerms">
+                                <strong>Apply changes to terms</strong>
+                            </label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="optionalFeeApplyOption" id="optionalFeeDontApply" value="dont_apply">
+                            <label class="form-check-label" for="optionalFeeDontApply">
+                                <strong>Don't apply to terms</strong>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+                
+                <div id="optionalFeeTermsSelection" class="mb-3">
+                    <label class="form-label">Select Terms:</label>
+                    <div class="form-check mb-2">
+                        <input class="form-check-input" type="checkbox" id="selectAllOptionalFeeTerms" checked>
+                        <label class="form-check-label" for="selectAllOptionalFeeTerms">
+                            <strong>Select All</strong>
+                        </label>
+                    </div>
+                    <div style="max-height: 300px; overflow-y: auto; border: 1px solid #dee2e6; border-radius: 0.375rem; padding: 10px;">
+                        {% for term in terms %}
+                        <div class="form-check">
+                            <input class="form-check-input optional-fee-term-checkbox" type="checkbox" 
+                                   value="{{ term.id }}" 
+                                   id="optional_fee_term_{{ term.id }}"
+                                   data-term-id="{{ term.id }}"
+                                   checked>
+                            <label class="form-check-label" for="optional_fee_term_{{ term.id }}">
+                                {{ term.academic_year }} - Term {{ term.term_number }}
+                                {% if term.is_active %}<span class="badge bg-success ms-2">Active</span>{% endif %}
+                            </label>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    <div class="alert alert-info mt-2 mb-0">
+                        <i class="fas fa-info-circle me-2"></i>
+                        <small>Optional fees will be added or removed for the selected terms based on your changes.</small>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-info" id="confirmOptionalFeeChange">
+                    <i class="fas fa-check me-2"></i>Apply Changes
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- Combined Modal for Both Transport Route and Optional Fee Changes -->
+{% if student %}
+<div class="modal fade" id="combinedChangeModal" tabindex="-1" aria-labelledby="combinedChangeModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title" id="combinedChangeModalLabel">
+                    <i class="fas fa-exclamation-triangle me-2"></i>Multiple Changes Detected
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p class="mb-3">You have changed both the transport route and optional fee categories for this student. Do you want to apply these changes to terms?</p>
+                
+                <div class="mb-3">
+                    <div class="d-flex gap-4">
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="combinedApplyOption" id="combinedApplyToTerms" value="apply" checked>
+                            <label class="form-check-label" for="combinedApplyToTerms">
+                                <strong>Apply changes to terms</strong>
+                            </label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="combinedApplyOption" id="combinedDontApply" value="dont_apply">
+                            <label class="form-check-label" for="combinedDontApply">
+                                <strong>Don't apply to terms</strong>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+                
+                <div id="combinedTermsSelection">
+                    <div class="row g-3">
+                        <!-- Transport Route Section -->
+                        <div class="col-md-6">
+                            <div class="card h-100">
+                                <div class="card-header bg-warning text-dark">
+                                    <h6 class="mb-0"><i class="fas fa-route me-2"></i>Transport Route Changes</h6>
+                                </div>
+                                <div class="card-body">
+                                    <div class="mb-3">
+                                        <label class="form-label">Select Terms for Transport Route:</label>
+                                        <div class="form-check mb-2">
+                                            <input class="form-check-input" type="checkbox" id="selectAllTransportTerms" checked>
+                                            <label class="form-check-label" for="selectAllTransportTerms">
+                                                <strong>Select All</strong>
+                                            </label>
+                                        </div>
+                                        <div style="max-height: 200px; overflow-y: auto; border: 1px solid #dee2e6; border-radius: 0.375rem; padding: 10px;">
+                                            {% for term in terms %}
+                                            <div class="form-check">
+                                                <input class="form-check-input combined-transport-term-checkbox" type="checkbox" 
+                                                       value="{{ term.id }}" 
+                                                       id="combined_transport_term_{{ term.id }}"
+                                                       data-term-id="{{ term.id }}"
+                                                       checked>
+                                                <label class="form-check-label" for="combined_transport_term_{{ term.id }}">
+                                                    {{ term.academic_year }} - Term {{ term.term_number }}
+                                                    {% if term.is_active %}<span class="badge bg-success ms-2">Active</span>{% endif %}
+                                                </label>
+                                            </div>
+                                            {% endfor %}
+                                        </div>
+                                    </div>
+                                    <div class="alert alert-warning mb-0">
+                                        <i class="fas fa-info-circle me-2"></i>
+                                        <small>Transport fees will be updated (or removed if route is cleared) for the selected terms.</small>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Optional Fee Categories Section -->
+                        <div class="col-md-6">
+                            <div class="card h-100">
+                                <div class="card-header bg-info text-dark">
+                                    <h6 class="mb-0"><i class="fas fa-tags me-2"></i>Optional Fee Categories Changes</h6>
+                                </div>
+                                <div class="card-body">
+                                    <div class="mb-3">
+                                        <label class="form-label">Select Terms for Optional Fees:</label>
+                                        <div class="form-check mb-2">
+                                            <input class="form-check-input" type="checkbox" id="selectAllOptionalFeeTermsCombined" checked>
+                                            <label class="form-check-label" for="selectAllOptionalFeeTermsCombined">
+                                                <strong>Select All</strong>
+                                            </label>
+                                        </div>
+                                        <div style="max-height: 200px; overflow-y: auto; border: 1px solid #dee2e6; border-radius: 0.375rem; padding: 10px;">
+                                            {% for term in terms %}
+                                            <div class="form-check">
+                                                <input class="form-check-input combined-optional-fee-term-checkbox" type="checkbox" 
+                                                       value="{{ term.id }}" 
+                                                       id="combined_optional_fee_term_{{ term.id }}"
+                                                       data-term-id="{{ term.id }}"
+                                                       checked>
+                                                <label class="form-check-label" for="combined_optional_fee_term_{{ term.id }}">
+                                                    {{ term.academic_year }} - Term {{ term.term_number }}
+                                                    {% if term.is_active %}<span class="badge bg-success ms-2">Active</span>{% endif %}
+                                                </label>
+                                            </div>
+                                            {% endfor %}
+                                        </div>
+                                    </div>
+                                    <div class="alert alert-info mb-0">
+                                        <i class="fas fa-info-circle me-2"></i>
+                                        <small>Optional fees will be added or removed for the selected terms based on your changes.</small>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" id="confirmCombinedChange">
+                    <i class="fas fa-check me-2"></i>Apply Changes
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+</div>
 {% endblock %}
 
 {% block extra_js %}
@@ -674,6 +897,219 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
     
+    // Optional Fee Categories handling
+    {% if student %}
+    const optionalFeeCheckboxes = studentForm.querySelectorAll('input[name="optional_fee_categories"]');
+    const optionalFeeModal = document.getElementById('optionalFeeModal');
+    const combinedChangeModal = document.getElementById('combinedChangeModal');
+    const selectAllOptionalFeeTerms = document.getElementById('selectAllOptionalFeeTerms');
+    const optionalFeeTermCheckboxes = document.querySelectorAll('.optional-fee-term-checkbox');
+    const optionalFeeTermCheckboxesHidden = document.querySelectorAll('.optional-fee-term-checkbox-hidden');
+    const confirmOptionalFeeChange = document.getElementById('confirmOptionalFeeChange');
+    
+    // Combined modal elements
+    const selectAllTransportTermsCombined = document.getElementById('selectAllTransportTerms');
+    const selectAllOptionalFeeTermsCombined = document.getElementById('selectAllOptionalFeeTermsCombined');
+    const combinedTransportTermCheckboxes = document.querySelectorAll('.combined-transport-term-checkbox');
+    const combinedOptionalFeeTermCheckboxes = document.querySelectorAll('.combined-optional-fee-term-checkbox');
+    const confirmCombinedChange = document.getElementById('confirmCombinedChange');
+    
+    let originalOptionalFees = [];
+    let optionalFeeModalConfirmed = false;
+    let modalShownForOptionalFeeChange = false;
+    let combinedModalConfirmed = false;
+    
+    if (optionalFeeCheckboxes.length > 0 && optionalFeeModal && studentForm) {
+        // Store original optional fee selections on page load
+        originalOptionalFees = Array.from(optionalFeeCheckboxes)
+            .filter(cb => cb.checked)
+            .map(cb => cb.value)
+            .sort();
+        
+        // Function to check if optional fees changed
+        function checkOptionalFeesChanged() {
+            const currentOptionalFees = Array.from(optionalFeeCheckboxes)
+                .filter(cb => cb.checked)
+                .map(cb => cb.value)
+                .sort();
+            
+            return JSON.stringify(originalOptionalFees) !== JSON.stringify(currentOptionalFees);
+        }
+        
+        // Sync visible checkboxes with hidden checkboxes in form
+        function syncOptionalFeeCheckboxes() {
+            optionalFeeTermCheckboxes.forEach(function(visibleCheckbox) {
+                const termId = visibleCheckbox.getAttribute('data-term-id');
+                const hiddenCheckbox = document.getElementById('optional_fee_term_hidden_' + termId);
+                if (hiddenCheckbox) {
+                    hiddenCheckbox.checked = visibleCheckbox.checked;
+                }
+            });
+        }
+        
+        // Handle "Select All" checkbox for optional fees
+        if (selectAllOptionalFeeTerms) {
+            selectAllOptionalFeeTerms.addEventListener('change', function() {
+                optionalFeeTermCheckboxes.forEach(function(checkbox) {
+                    checkbox.checked = this.checked;
+                }, this);
+                syncOptionalFeeCheckboxes();
+            });
+        }
+        
+        // Sync when individual checkboxes change
+        optionalFeeTermCheckboxes.forEach(function(checkbox) {
+            checkbox.addEventListener('change', syncOptionalFeeCheckboxes);
+        });
+        
+        // Handle radio buttons for optional fees - show/hide term selection
+        const optionalFeeApplyToTerms = document.getElementById('optionalFeeApplyToTerms');
+        const optionalFeeDontApply = document.getElementById('optionalFeeDontApply');
+        const optionalFeeTermsSelection = document.getElementById('optionalFeeTermsSelection');
+        
+        // Function to check if Apply Changes button should be enabled for optional fees
+        function checkOptionalFeeApplyButtonState() {
+            if (!confirmOptionalFeeChange) return;
+            
+            if (optionalFeeDontApply && optionalFeeDontApply.checked) {
+                // If "Don't apply to terms" is selected, button is always enabled
+                confirmOptionalFeeChange.disabled = false;
+            } else if (optionalFeeApplyToTerms && optionalFeeApplyToTerms.checked) {
+                // If "Apply changes to terms" is selected, check if at least one term is selected
+                const selectedTerms = Array.from(optionalFeeTermCheckboxes).filter(cb => cb.checked);
+                confirmOptionalFeeChange.disabled = selectedTerms.length === 0;
+            }
+        }
+        
+        if (optionalFeeApplyToTerms && optionalFeeDontApply && optionalFeeTermsSelection) {
+            function toggleOptionalFeeTermsSelection() {
+                if (optionalFeeApplyToTerms.checked) {
+                    optionalFeeTermsSelection.style.display = 'block';
+                } else {
+                    optionalFeeTermsSelection.style.display = 'none';
+                    // Uncheck all when hidden
+                    optionalFeeTermCheckboxes.forEach(function(checkbox) {
+                        checkbox.checked = false;
+                    });
+                    optionalFeeTermCheckboxesHidden.forEach(function(checkbox) {
+                        checkbox.checked = false;
+                    });
+                    if (selectAllOptionalFeeTerms) {
+                        selectAllOptionalFeeTerms.checked = false;
+                    }
+                }
+                checkOptionalFeeApplyButtonState();
+            }
+            
+            optionalFeeApplyToTerms.addEventListener('change', toggleOptionalFeeTermsSelection);
+            optionalFeeDontApply.addEventListener('change', toggleOptionalFeeTermsSelection);
+        }
+        
+        // Update button state when term checkboxes change
+        optionalFeeTermCheckboxes.forEach(function(checkbox) {
+            checkbox.addEventListener('change', checkOptionalFeeApplyButtonState);
+        });
+        
+        if (selectAllOptionalFeeTerms) {
+            selectAllOptionalFeeTerms.addEventListener('change', function() {
+                checkOptionalFeeApplyButtonState();
+            });
+        }
+        
+        // Handle confirm button for optional fees
+        if (confirmOptionalFeeChange) {
+            confirmOptionalFeeChange.addEventListener('click', function() {
+                const applyToTerms = optionalFeeApplyToTerms && optionalFeeApplyToTerms.checked;
+                
+                if (applyToTerms) {
+                    // Check if at least one term is selected
+                    const selectedTerms = Array.from(optionalFeeTermCheckboxes).filter(cb => cb.checked);
+                    
+                    if (selectedTerms.length === 0) {
+                        alert('Please select at least one term.');
+                        return;
+                    }
+                    
+                    // Sync checkboxes BEFORE closing modal
+                    syncOptionalFeeCheckboxes();
+                } else {
+                    // Uncheck all term checkboxes (both visible and hidden)
+                    optionalFeeTermCheckboxes.forEach(function(checkbox) {
+                        checkbox.checked = false;
+                    });
+                    optionalFeeTermCheckboxesHidden.forEach(function(checkbox) {
+                        checkbox.checked = false;
+                    });
+                }
+                
+                // Mark as confirmed
+                optionalFeeModalConfirmed = true;
+                modalShownForOptionalFeeChange = false;
+                
+                // Close modal
+                const modal = bootstrap.Modal.getInstance(optionalFeeModal);
+                modal.hide();
+                
+                // Submit the form after modal closes
+                setTimeout(function() {
+                    if (applyToTerms) {
+                        // Double-check sync before submitting
+                        syncOptionalFeeCheckboxes();
+                        const finalSelected = Array.from(optionalFeeTermCheckboxesHidden).filter(cb => cb.checked).map(cb => cb.value);
+                        
+                        if (finalSelected.length === 0) {
+                            console.error('ERROR: No terms selected for optional fees!');
+                            alert('Error: No terms were selected. Please try again.');
+                            return;
+                        }
+                    }
+                    
+                    // Submit the form
+                    if (studentForm.requestSubmit) {
+                        studentForm.requestSubmit();
+                    } else {
+                        studentForm.submit();
+                    }
+                }, 300);
+            });
+        }
+        
+        // Handle modal cancel/close - reset optional fees to original value if dismissed
+        optionalFeeModal.addEventListener('hidden.bs.modal', function() {
+            // If modal was closed without confirming and it was shown for an optional fee change
+            if (!optionalFeeModalConfirmed && modalShownForOptionalFeeChange) {
+                // Reset optional fees to original values
+                optionalFeeCheckboxes.forEach(function(checkbox) {
+                    checkbox.checked = originalOptionalFees.includes(checkbox.value);
+                });
+                
+                // Uncheck all terms
+                optionalFeeTermCheckboxes.forEach(function(checkbox) {
+                    checkbox.checked = false;
+                });
+                // Uncheck all hidden checkboxes
+                optionalFeeTermCheckboxesHidden.forEach(function(checkbox) {
+                    checkbox.checked = false;
+                });
+                
+                // Reset flags
+                optionalFeeModalConfirmed = false;
+                modalShownForOptionalFeeChange = false;
+                
+                // Trigger form change check to update button state
+                if (typeof checkFormChanges === 'function') {
+                    checkFormChanges();
+                }
+                
+                // Do NOT submit the form - let user decide what to do next
+            } else if (optionalFeeModalConfirmed) {
+                // Modal was confirmed, so flags are already reset
+                modalShownForOptionalFeeChange = false;
+            }
+        });
+    }
+    {% endif %}
+    
     // Transport Route handling
     const transportRouteSelect = document.getElementById('{{ form.transport_route.id_for_label }}');
     const transportRouteInfo = document.getElementById('transport_route_info');
@@ -722,12 +1158,340 @@ document.addEventListener('DOMContentLoaded', function() {
         originalRouteValue = transportRouteSelect.value;
         let modalShownForRouteChange = false; // Track if modal was shown due to route change
         
+        // Sync functions for combined modal
+        function syncCombinedTransportCheckboxes() {
+            combinedTransportTermCheckboxes.forEach(function(visibleCheckbox) {
+                const termId = visibleCheckbox.getAttribute('data-term-id');
+                const hiddenCheckbox = document.getElementById('term_hidden_' + termId);
+                if (hiddenCheckbox) {
+                    hiddenCheckbox.checked = visibleCheckbox.checked;
+                }
+            });
+        }
+        
+        function syncCombinedOptionalFeeCheckboxes() {
+            combinedOptionalFeeTermCheckboxes.forEach(function(visibleCheckbox) {
+                const termId = visibleCheckbox.getAttribute('data-term-id');
+                const hiddenCheckbox = document.getElementById('optional_fee_term_hidden_' + termId);
+                if (hiddenCheckbox) {
+                    hiddenCheckbox.checked = visibleCheckbox.checked;
+                }
+            });
+        }
+        
+        // Handle combined modal checkboxes
+        if (selectAllTransportTermsCombined) {
+            selectAllTransportTermsCombined.addEventListener('change', function() {
+                combinedTransportTermCheckboxes.forEach(function(checkbox) {
+                    checkbox.checked = this.checked;
+                }, this);
+                syncCombinedTransportCheckboxes();
+            });
+        }
+        
+        combinedTransportTermCheckboxes.forEach(function(checkbox) {
+            checkbox.addEventListener('change', syncCombinedTransportCheckboxes);
+        });
+        
+        if (selectAllOptionalFeeTermsCombined) {
+            selectAllOptionalFeeTermsCombined.addEventListener('change', function() {
+                combinedOptionalFeeTermCheckboxes.forEach(function(checkbox) {
+                    checkbox.checked = this.checked;
+                }, this);
+                syncCombinedOptionalFeeCheckboxes();
+            });
+        }
+        
+        combinedOptionalFeeTermCheckboxes.forEach(function(checkbox) {
+            checkbox.addEventListener('change', syncCombinedOptionalFeeCheckboxes);
+        });
+        
+        // Handle radio buttons for combined modal - show/hide term selection
+        const combinedApplyToTerms = document.getElementById('combinedApplyToTerms');
+        const combinedDontApply = document.getElementById('combinedDontApply');
+        const combinedTermsSelection = document.getElementById('combinedTermsSelection');
+        
+        // Function to check if Apply Changes button should be enabled for combined modal
+        function checkCombinedApplyButtonState() {
+            if (!confirmCombinedChange) return;
+            
+            if (combinedDontApply && combinedDontApply.checked) {
+                // If "Don't apply to terms" is selected, button is always enabled
+                confirmCombinedChange.disabled = false;
+            } else if (combinedApplyToTerms && combinedApplyToTerms.checked) {
+                // If "Apply changes to terms" is selected, check if at least one term is selected in EITHER category
+                const selectedTransportTerms = Array.from(combinedTransportTermCheckboxes).filter(cb => cb.checked);
+                const selectedOptionalFeeTerms = Array.from(combinedOptionalFeeTermCheckboxes).filter(cb => cb.checked);
+                confirmCombinedChange.disabled = selectedTransportTerms.length === 0 && selectedOptionalFeeTerms.length === 0;
+            }
+        }
+        
+        if (combinedApplyToTerms && combinedDontApply && combinedTermsSelection) {
+            function toggleCombinedTermsSelection() {
+                if (combinedApplyToTerms.checked) {
+                    combinedTermsSelection.style.display = 'block';
+                } else {
+                    combinedTermsSelection.style.display = 'none';
+                    // Uncheck all when hidden
+                    combinedTransportTermCheckboxes.forEach(function(checkbox) {
+                        checkbox.checked = false;
+                    });
+                    combinedOptionalFeeTermCheckboxes.forEach(function(checkbox) {
+                        checkbox.checked = false;
+                    });
+                    termCheckboxesHidden.forEach(function(checkbox) {
+                        checkbox.checked = false;
+                    });
+                    optionalFeeTermCheckboxesHidden.forEach(function(checkbox) {
+                        checkbox.checked = false;
+                    });
+                    if (selectAllTransportTermsCombined) {
+                        selectAllTransportTermsCombined.checked = false;
+                    }
+                    if (selectAllOptionalFeeTermsCombined) {
+                        selectAllOptionalFeeTermsCombined.checked = false;
+                    }
+                }
+                checkCombinedApplyButtonState();
+            }
+            
+            combinedApplyToTerms.addEventListener('change', toggleCombinedTermsSelection);
+            combinedDontApply.addEventListener('change', toggleCombinedTermsSelection);
+        }
+        
+        // Update button state when term checkboxes change
+        combinedTransportTermCheckboxes.forEach(function(checkbox) {
+            checkbox.addEventListener('change', checkCombinedApplyButtonState);
+        });
+        combinedOptionalFeeTermCheckboxes.forEach(function(checkbox) {
+            checkbox.addEventListener('change', checkCombinedApplyButtonState);
+        });
+        
+        if (selectAllTransportTermsCombined) {
+            selectAllTransportTermsCombined.addEventListener('change', function() {
+                checkCombinedApplyButtonState();
+            });
+        }
+        if (selectAllOptionalFeeTermsCombined) {
+            selectAllOptionalFeeTermsCombined.addEventListener('change', function() {
+                checkCombinedApplyButtonState();
+            });
+        }
+        
+        // Handle confirm button for combined modal
+        if (confirmCombinedChange) {
+            confirmCombinedChange.addEventListener('click', function() {
+                const applyToTerms = combinedApplyToTerms && combinedApplyToTerms.checked;
+                
+                if (applyToTerms) {
+                    // Check if at least one term is selected in either category
+                    const selectedTransportTerms = Array.from(combinedTransportTermCheckboxes).filter(cb => cb.checked);
+                    const selectedOptionalFeeTerms = Array.from(combinedOptionalFeeTermCheckboxes).filter(cb => cb.checked);
+                    
+                    if (selectedTransportTerms.length === 0 && selectedOptionalFeeTerms.length === 0) {
+                        alert('Please select at least one term for transport route or optional fees.');
+                        return;
+                    }
+                    
+                    // Sync checkboxes for categories that have selections
+                    // If transport has selections, sync transport checkboxes
+                    if (selectedTransportTerms.length > 0) {
+                        syncCombinedTransportCheckboxes();
+                    } else {
+                        // If no transport terms selected, uncheck all transport hidden checkboxes
+                        termCheckboxesHidden.forEach(function(checkbox) {
+                            checkbox.checked = false;
+                        });
+                    }
+                    
+                    // If optional fees has selections, sync optional fee checkboxes
+                    if (selectedOptionalFeeTerms.length > 0) {
+                        syncCombinedOptionalFeeCheckboxes();
+                    } else {
+                        // If no optional fee terms selected, uncheck all optional fee hidden checkboxes
+                        optionalFeeTermCheckboxesHidden.forEach(function(checkbox) {
+                            checkbox.checked = false;
+                        });
+                    }
+                } else {
+                    // Uncheck all term checkboxes (both visible and hidden) for both transport and optional fees
+                    combinedTransportTermCheckboxes.forEach(function(checkbox) {
+                        checkbox.checked = false;
+                    });
+                    combinedOptionalFeeTermCheckboxes.forEach(function(checkbox) {
+                        checkbox.checked = false;
+                    });
+                    termCheckboxesHidden.forEach(function(checkbox) {
+                        checkbox.checked = false;
+                    });
+                    optionalFeeTermCheckboxesHidden.forEach(function(checkbox) {
+                        checkbox.checked = false;
+                    });
+                }
+                
+                // Mark both modals as confirmed
+                modalConfirmed = true;
+                optionalFeeModalConfirmed = true;
+                combinedModalConfirmed = true;
+                modalShownForRouteChange = false;
+                modalShownForOptionalFeeChange = false;
+                
+                // Close modal
+                const modal = bootstrap.Modal.getInstance(combinedChangeModal);
+                modal.hide();
+                
+                // Submit the form after modal closes
+                setTimeout(function() {
+                    // Submit the form (backend will handle applying only to categories with selected terms)
+                    if (studentForm.requestSubmit) {
+                        studentForm.requestSubmit();
+                    } else {
+                        studentForm.submit();
+                    }
+                }, 300);
+            });
+        }
+        
+        // Handle combined modal cancel/close
+        if (combinedChangeModal) {
+            combinedChangeModal.addEventListener('hidden.bs.modal', function() {
+                // If modal was closed without confirming
+                if (!combinedModalConfirmed) {
+                    // Reset transport route to original value
+                    transportRouteSelect.value = originalRouteValue;
+                    
+                    // Reset optional fees to original values
+                    optionalFeeCheckboxes.forEach(function(checkbox) {
+                        checkbox.checked = originalOptionalFees.includes(checkbox.value);
+                    });
+                    
+                    // Uncheck all combined modal checkboxes
+                    combinedTransportTermCheckboxes.forEach(function(checkbox) {
+                        checkbox.checked = false;
+                    });
+                    combinedOptionalFeeTermCheckboxes.forEach(function(checkbox) {
+                        checkbox.checked = false;
+                    });
+                    // Uncheck all hidden checkboxes
+                    termCheckboxesHidden.forEach(function(checkbox) {
+                        checkbox.checked = false;
+                    });
+                    optionalFeeTermCheckboxesHidden.forEach(function(checkbox) {
+                        checkbox.checked = false;
+                    });
+                    
+                    // Reset flags
+                    modalConfirmed = false;
+                    optionalFeeModalConfirmed = false;
+                    combinedModalConfirmed = false;
+                    modalShownForRouteChange = false;
+                    modalShownForOptionalFeeChange = false;
+                    
+                    // Trigger form change check to update button state
+                    if (typeof checkFormChanges === 'function') {
+                        checkFormChanges();
+                    }
+                } else {
+                    // Modal was confirmed, reset flags
+                    combinedModalConfirmed = false;
+                }
+            });
+        }
+        
         // Intercept form submission
         studentForm.addEventListener('submit', function(e) {
             const currentRouteValue = transportRouteSelect.value;
+            const routeChanged = currentRouteValue !== originalRouteValue;
+            const optionalFeesChanged = (typeof checkOptionalFeesChanged === 'function') ? checkOptionalFeesChanged() : false;
             
-            // Check if transport route changed and modal hasn't been confirmed
-            if (currentRouteValue !== originalRouteValue && !modalConfirmed) {
+            // Check if BOTH changed - show combined modal
+            if (routeChanged && optionalFeesChanged && !combinedModalConfirmed && combinedChangeModal) {
+                e.preventDefault();
+                e.stopPropagation();
+                
+                // Reset modal states
+                modalConfirmed = false;
+                optionalFeeModalConfirmed = false;
+                combinedModalConfirmed = false;
+                modalShownForRouteChange = true;
+                modalShownForOptionalFeeChange = true;
+                
+                // Ensure all visible checkboxes in combined modal are checked
+                combinedTransportTermCheckboxes.forEach(function(checkbox) {
+                    checkbox.checked = true;
+                });
+                combinedOptionalFeeTermCheckboxes.forEach(function(checkbox) {
+                    checkbox.checked = true;
+                });
+                if (selectAllTransportTermsCombined) {
+                    selectAllTransportTermsCombined.checked = true;
+                }
+                if (selectAllOptionalFeeTermsCombined) {
+                    selectAllOptionalFeeTermsCombined.checked = true;
+                }
+                
+                // Sync checkboxes to default (all checked) before showing modal
+                syncCombinedTransportCheckboxes();
+                syncCombinedOptionalFeeCheckboxes();
+                
+                // Ensure radio button is set to "Apply changes to terms"
+                if (combinedApplyToTerms) {
+                    combinedApplyToTerms.checked = true;
+                }
+                if (combinedTermsSelection) {
+                    combinedTermsSelection.style.display = 'block';
+                }
+                
+                // Update button state
+                checkCombinedApplyButtonState();
+                
+                // Show combined modal
+                const modal = new bootstrap.Modal(combinedChangeModal);
+                modal.show();
+                
+                return false;
+            }
+            
+            // Check if only optional fees changed and modal hasn't been confirmed
+            if (optionalFeesChanged && !routeChanged && !optionalFeeModalConfirmed && optionalFeeModal) {
+                e.preventDefault();
+                e.stopPropagation();
+                
+                // Reset modal state
+                optionalFeeModalConfirmed = false;
+                modalShownForOptionalFeeChange = true;
+                
+                // Ensure all visible checkboxes are checked (they should be by default, but just in case)
+                optionalFeeTermCheckboxes.forEach(function(checkbox) {
+                    checkbox.checked = true;
+                });
+                if (selectAllOptionalFeeTerms) {
+                    selectAllOptionalFeeTerms.checked = true;
+                }
+                
+                // Sync checkboxes to default (all checked) before showing modal
+                syncOptionalFeeCheckboxes();
+                
+                // Ensure radio button is set to "Apply changes to terms"
+                if (optionalFeeApplyToTerms) {
+                    optionalFeeApplyToTerms.checked = true;
+                }
+                if (optionalFeeTermsSelection) {
+                    optionalFeeTermsSelection.style.display = 'block';
+                }
+                
+                // Update button state
+                checkOptionalFeeApplyButtonState();
+                
+                // Show modal
+                const modal = new bootstrap.Modal(optionalFeeModal);
+                modal.show();
+                
+                return false;
+            }
+            
+            // Check if only transport route changed and modal hasn't been confirmed
+            if (routeChanged && !optionalFeesChanged && !modalConfirmed) {
                 e.preventDefault();
                 e.stopPropagation();
                 
@@ -746,8 +1510,16 @@ document.addEventListener('DOMContentLoaded', function() {
                 // Sync checkboxes to default (all checked) before showing modal
                 syncCheckboxes();
                 
-                // Debug: Log synced checkboxes (can be removed in production)
-                // console.log('Modal shown. Synced checkboxes:', Array.from(termCheckboxesHidden).filter(cb => cb.checked).map(cb => cb.value));
+                // Ensure radio button is set to "Apply changes to terms"
+                if (transportApplyToTerms) {
+                    transportApplyToTerms.checked = true;
+                }
+                if (transportTermsSelection) {
+                    transportTermsSelection.style.display = 'block';
+                }
+                
+                // Update button state
+                checkTransportApplyButtonState();
                 
                 // Show modal
                 const modal = new bootstrap.Modal(transportRouteModal);
@@ -792,23 +1564,85 @@ document.addEventListener('DOMContentLoaded', function() {
             checkbox.addEventListener('change', syncCheckboxes);
         });
         
+        // Handle radio buttons for transport route - show/hide term selection
+        const transportApplyToTerms = document.getElementById('transportApplyToTerms');
+        const transportDontApply = document.getElementById('transportDontApply');
+        const transportTermsSelection = document.getElementById('transportTermsSelection');
+        
+        // Function to check if Apply Changes button should be enabled for transport route
+        function checkTransportApplyButtonState() {
+            if (!confirmTransportChange) return;
+            
+            if (transportDontApply && transportDontApply.checked) {
+                // If "Don't apply to terms" is selected, button is always enabled
+                confirmTransportChange.disabled = false;
+            } else if (transportApplyToTerms && transportApplyToTerms.checked) {
+                // If "Apply changes to terms" is selected, check if at least one term is selected
+                const selectedTerms = Array.from(termCheckboxes).filter(cb => cb.checked);
+                confirmTransportChange.disabled = selectedTerms.length === 0;
+            }
+        }
+        
+        if (transportApplyToTerms && transportDontApply && transportTermsSelection) {
+            function toggleTransportTermsSelection() {
+                if (transportApplyToTerms.checked) {
+                    transportTermsSelection.style.display = 'block';
+                } else {
+                    transportTermsSelection.style.display = 'none';
+                    // Uncheck all when hidden
+                    termCheckboxes.forEach(function(checkbox) {
+                        checkbox.checked = false;
+                    });
+                    termCheckboxesHidden.forEach(function(checkbox) {
+                        checkbox.checked = false;
+                    });
+                    if (selectAllTerms) {
+                        selectAllTerms.checked = false;
+                    }
+                }
+                checkTransportApplyButtonState();
+            }
+            
+            transportApplyToTerms.addEventListener('change', toggleTransportTermsSelection);
+            transportDontApply.addEventListener('change', toggleTransportTermsSelection);
+        }
+        
+        // Update button state when term checkboxes change
+        termCheckboxes.forEach(function(checkbox) {
+            checkbox.addEventListener('change', checkTransportApplyButtonState);
+        });
+        
+        if (selectAllTerms) {
+            selectAllTerms.addEventListener('change', function() {
+                checkTransportApplyButtonState();
+            });
+        }
+        
         // Handle confirm button
         if (confirmTransportChange) {
             confirmTransportChange.addEventListener('click', function() {
-                // Check if at least one term is selected
-                const selectedTerms = Array.from(termCheckboxes).filter(cb => cb.checked);
+                const applyToTerms = transportApplyToTerms && transportApplyToTerms.checked;
                 
-                if (selectedTerms.length === 0) {
-                    alert('Please select at least one term, or cancel to proceed without updating transport fees.');
-                    return;
+                if (applyToTerms) {
+                    // Check if at least one term is selected
+                    const selectedTerms = Array.from(termCheckboxes).filter(cb => cb.checked);
+                    
+                    if (selectedTerms.length === 0) {
+                        alert('Please select at least one term.');
+                        return;
+                    }
+                    
+                    // Sync checkboxes BEFORE closing modal
+                    syncCheckboxes();
+                } else {
+                    // Uncheck all term checkboxes (both visible and hidden)
+                    termCheckboxes.forEach(function(checkbox) {
+                        checkbox.checked = false;
+                    });
+                    termCheckboxesHidden.forEach(function(checkbox) {
+                        checkbox.checked = false;
+                    });
                 }
-                
-                // Sync checkboxes BEFORE closing modal
-                syncCheckboxes();
-                
-                // Debug: Log selected terms before submit (can be removed in production)
-                // const selectedHidden = Array.from(termCheckboxesHidden).filter(cb => cb.checked).map(cb => cb.value);
-                // console.log('Confirm clicked. Selected terms:', selectedHidden);
                 
                 // Mark as confirmed
                 modalConfirmed = true;
@@ -820,29 +1654,25 @@ document.addEventListener('DOMContentLoaded', function() {
                 
                 // Submit the form after modal closes
                 setTimeout(function() {
-                    // Double-check sync before submitting - ensure all visible checked boxes sync to hidden
-                    termCheckboxes.forEach(function(visibleCheckbox) {
-                        if (visibleCheckbox.checked) {
-                            const termId = visibleCheckbox.getAttribute('data-term-id');
-                            const hiddenCheckbox = document.getElementById('term_hidden_' + termId);
-                            if (hiddenCheckbox) {
-                                hiddenCheckbox.checked = true;
+                    if (applyToTerms) {
+                        // Double-check sync before submitting - ensure all visible checked boxes sync to hidden
+                        termCheckboxes.forEach(function(visibleCheckbox) {
+                            if (visibleCheckbox.checked) {
+                                const termId = visibleCheckbox.getAttribute('data-term-id');
+                                const hiddenCheckbox = document.getElementById('term_hidden_' + termId);
+                                if (hiddenCheckbox) {
+                                    hiddenCheckbox.checked = true;
+                                }
                             }
+                        });
+                        
+                        const finalSelected = Array.from(termCheckboxesHidden).filter(cb => cb.checked).map(cb => cb.value);
+                        
+                        if (finalSelected.length === 0) {
+                            console.error('ERROR: No terms selected! Checkboxes may not be syncing correctly.');
+                            alert('Error: No terms were selected. Please try again.');
+                            return;
                         }
-                    });
-                    
-                    const finalSelected = Array.from(termCheckboxesHidden).filter(cb => cb.checked).map(cb => cb.value);
-                    // Debug logging (can be removed in production)
-                    // console.log('Final selected terms before submit:', finalSelected);
-                    
-                    // Verify checkboxes are in the form
-                    const formCheckboxes = studentForm.querySelectorAll('input[name="apply_transport_to_terms"]:checked');
-                    // console.log('Form checkboxes found:', formCheckboxes.length, Array.from(formCheckboxes).map(cb => cb.value));
-                    
-                    if (finalSelected.length === 0) {
-                        console.error('ERROR: No terms selected! Checkboxes may not be syncing correctly.');
-                        alert('Error: No terms were selected. Please try again.');
-                        return;
                     }
                     
                     // Submit the form - modalConfirmed is true so submit handler won't intercept

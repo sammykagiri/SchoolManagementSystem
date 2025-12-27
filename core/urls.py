@@ -30,6 +30,9 @@ urlpatterns = [
     path('students/<str:student_id>/', views.student_detail, name='student_detail'),
     path('students/<str:student_id>/update/', views.student_update, name='student_update'),
     path('students/<str:student_id>/delete/', views.student_delete, name='student_delete'),
+    path('students/<str:student_id>/statement/', views.student_statement, name='student_statement'),
+    path('students/<str:student_id>/statement/pdf/', views.student_statement_pdf, name='student_statement_pdf'),
+    path('students/<str:student_id>/statement/email/', views.student_statement_email, name='student_statement_email'),
     
     # Grades
     path('grades/', views.grade_list, name='grade_list'),
@@ -48,7 +51,8 @@ urlpatterns = [
     path('fee-structures/', views.fee_structure_list, name='fee_structure_list'),
     path('fee-structures/generate/', views.generate_student_fees, name='generate_student_fees'),
     path('fee-structures/apply-to-students/', views.generate_student_fees_from_structures, name='generate_student_fees_from_structures'),
-    path('fee-structures/apply-to-students/', views.generate_student_fees_from_structures, name='generate_student_fees_from_structures'),
+    path('fee-structures/<int:fee_structure_id>/edit/', views.fee_structure_edit, name='fee_structure_edit'),
+    path('fee-structures/<int:fee_structure_id>/delete/', views.fee_structure_delete, name='fee_structure_delete'),
     
     # Fee Categories
     path('fee-categories/', views.fee_category_list, name='fee_category_list'),

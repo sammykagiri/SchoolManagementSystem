@@ -1,0 +1,398 @@
+{% load static %}
+{% load humanize %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fee Statement - {{ student.full_name }}</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        @page {
+            size: A4;
+            margin: 1cm;
+        }
+        
+        body {
+            font-family: 'Arial', 'Helvetica', sans-serif;
+            font-size: 11px;
+            line-height: 1.4;
+            color: #333;
+            padding: 0;
+        }
+        
+        .header {
+            border-bottom: 3px solid #333;
+            padding-bottom: 15px;
+            margin-bottom: 20px;
+        }
+        
+        .school-info {
+            text-align: center;
+            margin-bottom: 15px;
+        }
+        
+        .school-logo {
+            max-height: 70px;
+            max-width: 180px;
+            margin-bottom: 8px;
+        }
+        
+        .school-name {
+            font-size: 18px;
+            font-weight: bold;
+            margin-bottom: 4px;
+        }
+        
+        .statement-title {
+            text-align: center;
+            font-size: 15px;
+            font-weight: bold;
+            margin: 8px 0;
+            text-transform: uppercase;
+        }
+        
+        .details-summary-row {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 15px;
+        }
+        
+        .student-details-left {
+            flex: 1;
+        }
+        
+        .detail-item {
+            margin-bottom: 3px;
+            font-size: 10px;
+        }
+        
+        .detail-label {
+            font-weight: bold;
+            display: inline-block;
+            width: 110px;
+        }
+        
+        .summary-boxes-right {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 5px;
+            width: 340px;
+        }
+        
+        .summary-box {
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            padding: 6px 8px;
+            text-align: center;
+            background: #fff;
+        }
+        
+        .summary-label {
+            font-size: 8px;
+            color: #666;
+            font-weight: 600;
+            text-transform: uppercase;
+            margin-bottom: 3px;
+        }
+        
+        .summary-amount {
+            font-size: 12px;
+            font-weight: bold;
+        }
+        
+        .summary-amount.debit {
+            color: #d9534f;
+        }
+        
+        .summary-amount.credit {
+            color: #5cb85c;
+        }
+        
+        .summary-amount.balance {
+            color: #0275d8;
+        }
+        
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 15px 0;
+            border: 1px solid #ddd;
+        }
+        
+        thead {
+            background-color: #f5f5f5;
+        }
+        
+        th, td {
+            border: 1px solid #ddd;
+            padding: 6px;
+            text-align: left;
+        }
+        
+        th {
+            font-weight: bold;
+            font-size: 10px;
+            text-transform: uppercase;
+        }
+
+        .text-right {
+            text-align: right;
+        }
+        
+        .text-center {
+            text-align: center;
+        }
+        
+        .debit-amount {
+            color: #d9534f;
+        }
+        
+        .credit-amount {
+            color: #5cb85c;
+        }
+        
+        .balance-amount {
+            font-weight: bold;
+        }
+        
+        .balance-positive {
+            color: #d9534f;
+        }
+        
+        .balance-negative {
+            color: #5cb85c;
+        }
+        
+        tfoot {
+            background-color: #f5f5f5;
+            font-weight: bold;
+        }
+        
+        .footer {
+            margin-top: 25px;
+            padding-top: 12px;
+            border-top: 2px solid #ddd;
+            font-size: 9px;
+            text-align: center;
+            color: #666;
+        }
+        
+        .note-box {
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            background-color: #f9f9f9;
+            padding: 10px;
+            margin-top: 15px;
+            font-size: 10px;
+        }
+        
+        .opening-balance-row {
+            background-color: #f0f0f0;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <!-- Header -->
+    <div class="header">
+        <div class="school-info">
+            <div class="school-name">{{ school.name }}</div>
+            {% if school.address %}
+            <div style="font-size: 10px;">{{ school.address }}</div>
+            {% endif %}
+            {% if school.phone %}
+            <div style="font-size: 10px;">Phone: {{ school.phone }}</div>
+            {% endif %}
+            {% if school.email %}
+            <div style="font-size: 10px;">Email: {{ school.email }}</div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Statement Title -->
+    <div class="statement-title">Student Fee Statement</div>
+
+    <!-- Student Details and Summary in One Row -->
+    <div class="details-summary-row">
+        <!-- Student Details -->
+        <div class="student-details-left">
+            <div class="detail-item">
+                <span class="detail-label">Student Name:</span>
+                <span>{{ student.full_name }}</span>
+            </div>
+            <div class="detail-item">
+                <span class="detail-label">Student ID:</span>
+                <span>{{ student.student_id }}</span>
+            </div>
+            <div class="detail-item">
+                <span class="detail-label">Grade:</span>
+                <span>{{ student.grade.name }}</span>
+            </div>
+            {% if student.school_class %}
+            <div class="detail-item">
+                <span class="detail-label">Class:</span>
+                <span>{{ student.school_class.name }}</span>
+            </div>
+            {% endif %}
+            <div class="detail-item">
+                <span class="detail-label">Parent:</span>
+                <span>{{ student.parent_name }}</span>
+            </div>
+            {% if student.parent_phone %}
+            <div class="detail-item">
+                <span class="detail-label">Phone:</span>
+                <span>{{ student.parent_phone }}</span>
+            </div>
+            {% endif %}
+            <div class="detail-item">
+                <span class="detail-label">Statement Date:</span>
+                <span>{{ statement_date|date:"d M, Y" }}</span>
+            </div>
+            <div class="detail-item">
+                <span class="detail-label">Period:</span>
+                <span>
+                    {% if start_date and end_date %}
+                        {{ start_date|date:"d M, Y" }} to {{ end_date|date:"d M, Y" }}
+                    {% else %}
+                        All Time
+                    {% endif %}
+                </span>
+            </div>
+        </div>
+
+        <!-- Summary Boxes in Grid -->
+        <div class="summary-boxes-right">
+            {% if opening_balance != 0 %}
+            <div class="summary-box">
+                <div class="summary-label">Opening Balance</div>
+                <div class="summary-amount balance {% if opening_balance > 0 %}debit{% else %}credit{% endif %}">
+                    KES {{ opening_balance|floatformat:2|intcomma }}
+                </div>
+            </div>
+            {% endif %}
+            <div class="summary-box">
+                <div class="summary-label">Total Debits</div>
+                <div class="summary-amount debit">KES {{ total_debits|floatformat:2|intcomma }}</div>
+            </div>
+            <div class="summary-box">
+                <div class="summary-label">Total Credits</div>
+                <div class="summary-amount credit">KES {{ total_credits|floatformat:2|intcomma }}</div>
+            </div>
+            <div class="summary-box">
+                <div class="summary-label">Closing Balance</div>
+                <div class="summary-amount balance {% if closing_balance > 0 %}debit{% else %}credit{% endif %}">
+                    KES {{ closing_balance|floatformat:2|intcomma }}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Transactions Table -->
+    {% if transactions %}
+        <!-- Opening Balance if exists -->
+        {% if opening_balance != 0 %}
+        <table>
+            <tbody>
+                <tr class="opening-balance-row">
+                    <td style="width: 12%;">{% if start_date %}{{ start_date|date:"d M, Y" }}{% else %}-{% endif %}</td>
+                    <td style="width: 38%;"><strong>Opening Balance</strong></td>
+                    <td style="width: 15%;">-</td>
+                    <td class="text-right" style="width: 12%;">-</td>
+                    <td class="text-right" style="width: 12%;">-</td>
+                    <td class="text-right balance-amount {% if opening_balance > 0 %}balance-positive{% else %}balance-negative{% endif %}" style="width: 12%;">
+                        {{ opening_balance|floatformat:2|intcomma }}
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+        {% endif %}
+        
+        <!-- Transactions -->
+        <table>
+            <thead>
+                <tr>
+                    <th style="width: 12%;">Date</th>
+                    <th style="width: 38%;">Description</th>
+                    <th style="width: 15%;">Reference</th>
+                    <th class="text-right" style="width: 12%;">Debit (KES)</th>
+                    <th class="text-right" style="width: 12%;">Credit (KES)</th>
+                    <th class="text-right" style="width: 12%;">Balance (KES)</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for transaction in transactions %}
+                <tr>
+                    <td>{{ transaction.date|date:"d M, Y" }}</td>
+                    <td>{{ transaction.description }}</td>
+                    <td>{{ transaction.reference }}</td>
+                    <td class="text-right debit-amount">
+                        {% if transaction.debit > 0 %}
+                            {{ transaction.debit|floatformat:2|intcomma }}
+                        {% else %}
+                            -
+                        {% endif %}
+                    </td>
+                    <td class="text-right credit-amount">
+                        {% if transaction.credit > 0 %}
+                            {{ transaction.credit|floatformat:2|intcomma }}
+                        {% else %}
+                            -
+                        {% endif %}
+                    </td>
+                    <td class="text-right balance-amount {% if transaction.balance > 0 %}balance-positive{% elif transaction.balance < 0 %}balance-negative{% endif %}">
+                        {{ transaction.balance|floatformat:2|intcomma }}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+            <!-- Grand Total -->
+            <tfoot>
+                <tr>
+                    <td colspan="3" class="text-right" style="width: 65%;"><strong>GRAND TOTAL:</strong></td>
+                    <td class="text-right debit-amount" style="width: 12%;"><strong>{{ total_debits|floatformat:2|intcomma }}</strong></td>
+                    <td class="text-right credit-amount" style="width: 12%;"><strong>{{ total_credits|floatformat:2|intcomma }}</strong></td>
+                    <td class="text-right balance-amount {% if closing_balance > 0 %}balance-positive{% elif closing_balance < 0 %}balance-negative{% endif %}" style="width: 12%;">
+                        <strong>{{ closing_balance|floatformat:2|intcomma }}</strong>
+                    </td>
+                </tr>
+            </tfoot>
+        </table>
+    {% else %}
+        <table>
+            <tbody>
+                <tr>
+                    <td colspan="6" class="text-center">No transactions found for the selected period.</td>
+                </tr>
+            </tbody>
+        </table>
+    {% endif %}
+
+    <!-- Note Box -->
+    <div class="note-box">
+        <strong>NOTE:</strong> 
+        This statement shows all fee charges and payments.
+        {% if closing_balance > 0 %}
+        Your current outstanding balance is <strong>KES {{ closing_balance|floatformat:2|intcomma }}</strong>.
+        Please make payment to clear your account.
+        {% elif closing_balance < 0 %}
+        You have a credit balance of <strong>KES {{ closing_balance_abs|floatformat:2|intcomma }}</strong>.
+        This will be applied to future fees.
+        {% else %}
+        Your account is fully paid up. Thank you!
+        {% endif %}
+    </div>
+
+    <!-- Footer -->
+    <div class="footer">
+        <p>This is a computer-generated statement and does not require a signature.</p>
+        <p>For inquiries, please contact us at the above contact details.</p>
+        <p>Generated on {{ statement_date|date:"d M, Y" }}</p>
+    </div>
+</body>
+</html>

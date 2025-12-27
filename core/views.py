@@ -6,10 +6,16 @@ from django.core.paginator import Paginator
 from django.db.models import Q, Sum
 from django.db import models
 from django.utils import timezone
+from django.template.loader import render_to_string
+from django.core.mail import send_mail
+from django.conf import settings
 import json
+from datetime import datetime
+from decimal import Decimal
 from .models import (
     School, Grade, Term, FeeCategory, TransportRoute, Student, FeeStructure, StudentFee, SchoolClass
 )
+from payments.models import Payment
 from timetable.models import Teacher
 from rest_framework import viewsets, permissions
 from .serializers import (
@@ -306,10 +312,21 @@ def student_update(request, student_id):
                 new_route_id = new_route.id if new_route else None
                 route_changed = (old_route_id != new_route_id)
                 
+                # Check if optional fees changed (BEFORE saving)
+                old_optional_fees = set(student.optional_fee_categories.values_list('id', flat=True))
+                new_optional_fees_raw = request.POST.getlist('optional_fee_categories')
+                new_optional_fees = set([int(f) for f in new_optional_fees_raw if f and f.isdigit()])
+                optional_fees_changed = (old_optional_fees != new_optional_fees)
+                
                 # Check if user selected terms to apply transport fee changes to (BEFORE saving)
                 apply_to_terms_raw = request.POST.getlist('apply_transport_to_terms')
                 # Filter out empty strings and convert to integers
                 apply_to_terms = [int(t) for t in apply_to_terms_raw if t and t.isdigit()]
+                
+                # Check if user selected terms to apply optional fee changes to (BEFORE saving)
+                apply_optional_fees_to_terms_raw = request.POST.getlist('apply_optional_fees_to_terms')
+                # Filter out empty strings and convert to integers
+                apply_optional_fees_to_terms = [int(t) for t in apply_optional_fees_to_terms_raw if t and t.isdigit()]
                 
                 # Debug logging
                 import logging
@@ -401,8 +418,80 @@ def student_update(request, student_id):
                 elif route_changed:
                     # Route changed but no terms selected - just update student
                     messages.success(request, f'Student {student.full_name} updated successfully. Transport route changed but no terms were selected for fee updates.')
-                else:
-                    # No route change
+                
+                # Process optional fee changes if terms were selected
+                if apply_optional_fees_to_terms and optional_fees_changed:
+                    logger.info(f"Processing optional fee changes for {len(apply_optional_fees_to_terms)} term(s)")
+                    added_count = 0
+                    removed_count = 0
+                    
+                    # Get fee structures for the selected terms and grades
+                    fee_structures = FeeStructure.objects.filter(
+                        school=school,
+                        term_id__in=apply_optional_fees_to_terms,
+                        grade=student.grade,
+                        fee_category_id__in=new_optional_fees.union(old_optional_fees),
+                        is_active=True
+                    ).select_related('fee_category', 'term')
+                    
+                    for term_id in apply_optional_fees_to_terms:
+                        try:
+                            term = Term.objects.get(id=term_id, school=school)
+                            
+                            # Get fee structures for this term
+                            term_structures = fee_structures.filter(term_id=term_id)
+                            
+                            # Add fees for newly selected optional categories
+                            added_categories = new_optional_fees - old_optional_fees
+                            for category_id in added_categories:
+                                structure = term_structures.filter(fee_category_id=category_id).first()
+                                if structure:
+                                    student_fee, created = StudentFee.objects.get_or_create(
+                                        school=school,
+                                        student=student,
+                                        term=term,
+                                        fee_category_id=category_id,
+                                        defaults={
+                                            'amount_charged': structure.amount,
+                                            'due_date': term.end_date,
+                                        }
+                                    )
+                                    if created:
+                                        added_count += 1
+                            
+                            # Remove fees for deselected optional categories
+                            removed_categories = old_optional_fees - new_optional_fees
+                            for category_id in removed_categories:
+                                deleted = StudentFee.objects.filter(
+                                    school=school,
+                                    student=student,
+                                    term=term,
+                                    fee_category_id=category_id
+                                ).delete()
+                                if deleted[0] > 0:
+                                    removed_count += deleted[0]
+                        except Term.DoesNotExist:
+                            continue
+                        except Exception as e:
+                            logger.error(f"Error processing optional fees for term {term_id}: {str(e)}")
+                            continue
+                    
+                    if added_count > 0 or removed_count > 0:
+                        fee_msg = []
+                        if added_count > 0:
+                            fee_msg.append(f'{added_count} optional fee(s) added')
+                        if removed_count > 0:
+                            fee_msg.append(f'{removed_count} optional fee(s) removed')
+                        messages.success(
+                            request,
+                            f'Student {student.full_name} updated successfully. Optional fees: {", ".join(fee_msg)}.'
+                        )
+                    elif optional_fees_changed and not apply_optional_fees_to_terms:
+                        # Optional fees changed but no terms selected
+                        messages.success(request, f'Student {student.full_name} updated successfully. Optional fee categories changed but no terms were selected for fee updates.')
+                
+                if not route_changed and not (apply_optional_fees_to_terms and optional_fees_changed):
+                    # No route change and no optional fee changes processed
                     messages.success(request, f'Student {student.full_name} updated successfully.')
                 
                 return redirect('core:student_detail', student_id=student.student_id)
@@ -990,16 +1079,82 @@ def fee_structure_list(request):
         is_active=True, school=school
     ).select_related(
         'grade', 'term', 'fee_category'
-    ).order_by('grade__name', 'term__academic_year', 'term__term_number')
+    ).order_by('term__academic_year', 'term__term_number', 'grade__name', 'fee_category__name')
     
-    # Filter by grade and term
+    # Filter by academic year, grade, and term
+    academic_year_filter = request.GET.get('academic_year', '')
     grade_filter = request.GET.get('grade', '')
     term_filter = request.GET.get('term', '')
     
+    if academic_year_filter:
+        fee_structures = fee_structures.filter(term__academic_year=academic_year_filter)
     if grade_filter:
         fee_structures = fee_structures.filter(grade_id=grade_filter)
     if term_filter:
         fee_structures = fee_structures.filter(term_id=term_filter)
+    
+    grades = Grade.objects.filter(school=school)
+    terms = Term.objects.filter(school=school).order_by('-academic_year', '-term_number')
+    fee_categories = FeeCategory.objects.filter(school=school)
+    
+    # Get unique academic years from terms
+    academic_years = Term.objects.filter(school=school).values_list('academic_year', flat=True).distinct().order_by('-academic_year')
+    
+    # Get grades that have fee structures (for filtering)
+    grades_with_structures = Grade.objects.filter(
+        school=school,
+        fee_structures__is_active=True
+    ).distinct().order_by('name')
+    
+    # Get terms that have fee structures (for filtering)
+    terms_with_structures = Term.objects.filter(
+        school=school,
+        fee_structures__is_active=True
+    ).distinct().order_by('-academic_year', '-term_number')
+    
+    # Get terms grouped by academic year for JavaScript filtering
+    import json
+    terms_by_year = {}
+    for term in terms:
+        if term.academic_year not in terms_by_year:
+            terms_by_year[term.academic_year] = []
+        terms_by_year[term.academic_year].append({
+            'id': term.id,
+            'term_number': term.term_number,
+            'academic_year': term.academic_year
+        })
+    terms_by_year_json = json.dumps(terms_by_year)
+    
+    # Get all terms for JavaScript (when no year filter)
+    all_terms_json = json.dumps([{
+        'id': term.id,
+        'term_number': term.term_number,
+        'academic_year': term.academic_year
+    } for term in terms_with_structures])
+    
+    context = {
+        'fee_structures': fee_structures,
+        'grades': grades,
+        'terms': terms,
+        'fee_categories': fee_categories,
+        'academic_years': academic_years,
+        'terms_by_year_json': terms_by_year_json,
+        'all_terms_json': all_terms_json,
+        'grades_with_structures': grades_with_structures,
+        'terms_with_structures': terms_with_structures,
+        'academic_year_filter': academic_year_filter,
+        'grade_filter': grade_filter,
+        'term_filter': term_filter,
+    }
+    return render(request, 'core/fee_structure_list.html', context)
+
+
+@login_required
+@role_required('super_admin', 'school_admin', 'accountant')
+def fee_structure_edit(request, fee_structure_id):
+    """Edit a fee structure"""
+    school = request.user.profile.school
+    fee_structure = get_object_or_404(FeeStructure, id=fee_structure_id, school=school)
     
     if request.method == 'POST':
         grade_id = request.POST.get('grade')
@@ -1008,31 +1163,48 @@ def fee_structure_list(request):
         amount = request.POST.get('amount')
         
         try:
-            FeeStructure.objects.create(
-                school=school,
-                grade_id=grade_id,
-                term_id=term_id,
-                fee_category_id=fee_category_id,
-                amount=amount
-            )
-            messages.success(request, 'Fee structure created successfully.')
+            fee_structure.grade_id = grade_id
+            fee_structure.term_id = term_id
+            fee_structure.fee_category_id = fee_category_id
+            fee_structure.amount = amount
+            fee_structure.save()
+            messages.success(request, 'Fee structure updated successfully.')
             return redirect('core:fee_structure_list')
         except Exception as e:
-            messages.error(request, f'Error creating fee structure: {str(e)}')
+            messages.error(request, f'Error updating fee structure: {str(e)}')
     
     grades = Grade.objects.filter(school=school)
     terms = Term.objects.filter(school=school).order_by('-academic_year', '-term_number')
     fee_categories = FeeCategory.objects.filter(school=school)
     
     context = {
-        'fee_structures': fee_structures,
+        'fee_structure': fee_structure,
         'grades': grades,
         'terms': terms,
         'fee_categories': fee_categories,
-        'grade_filter': grade_filter,
-        'term_filter': term_filter,
     }
-    return render(request, 'core/fee_structure_list.html', context)
+    return render(request, 'core/fee_structure_form.html', context)
+
+
+@login_required
+@role_required('super_admin', 'school_admin', 'accountant')
+def fee_structure_delete(request, fee_structure_id):
+    """Delete a fee structure"""
+    school = request.user.profile.school
+    fee_structure = get_object_or_404(FeeStructure, id=fee_structure_id, school=school)
+    
+    if request.method == 'POST':
+        try:
+            fee_structure.delete()
+            messages.success(request, 'Fee structure deleted successfully.')
+        except Exception as e:
+            messages.error(request, f'Error deleting fee structure: {str(e)}')
+        return redirect('core:fee_structure_list')
+    
+    context = {
+        'fee_structure': fee_structure,
+    }
+    return render(request, 'core/fee_structure_confirm_delete.html', context)
 
 
 @login_required
@@ -2246,6 +2418,372 @@ def class_generate(request):
     
     return render(request, 'core/class_generate.html', {'grades': grades})
 
+
+@login_required
+@role_required('super_admin', 'school_admin', 'accountant', 'teacher')
+def student_statement(request, student_id):
+    """Generate fee statement for a student"""
+    school = request.user.profile.school
+    student = get_object_or_404(Student, student_id=student_id, school=school)
+    
+    # Get date filters
+    start_date = request.GET.get('start_date')
+    end_date = request.GET.get('end_date')
+    
+    if start_date:
+        start_date = datetime.strptime(start_date, '%Y-%m-%d').date()
+    if end_date:
+        end_date = datetime.strptime(end_date, '%Y-%m-%d').date()
+    
+    # Get all student fees (debits)
+    student_fees = StudentFee.objects.filter(
+        school=school,
+        student=student
+    ).select_related('term', 'fee_category').order_by('term__academic_year', 'term__term_number', 'fee_category__name')
+    
+    # Get all payments (credits)
+    payments = Payment.objects.filter(
+        school=school,
+        student=student,
+        status='completed'
+    ).select_related('student_fee__term', 'student_fee__fee_category').order_by('payment_date')
+    
+    # Calculate opening balance (all fees and payments before start_date)
+    opening_balance = Decimal('0.00')
+    if start_date:
+        opening_fees = StudentFee.objects.filter(
+            school=school,
+            student=student,
+            term__start_date__lt=start_date
+        ).aggregate(total=Sum('amount_charged'))['total'] or Decimal('0.00')
+        
+        opening_payments = Payment.objects.filter(
+            school=school,
+            student=student,
+            status='completed',
+            payment_date__date__lt=start_date
+        ).aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
+        
+        opening_balance = opening_fees - opening_payments
+    
+    # Filter by date range if provided
+    transactions = []
+    
+    # Add fee transactions (debits)
+    for fee in student_fees:
+        if start_date and fee.term.start_date < start_date:
+            continue
+        if end_date and fee.term.start_date > end_date:
+            continue
+        
+        transactions.append({
+            'date': fee.term.start_date,
+            'description': f"{fee.fee_category.name} - {fee.term.academic_year} Term {fee.term.term_number}",
+            'reference': f"Fee-{fee.id}",
+            'debit': fee.amount_charged,
+            'credit': Decimal('0.00'),
+            'type': 'fee'
+        })
+    
+    # Add payment transactions (credits)
+    for payment in payments:
+        payment_date = payment.payment_date.date()
+        if start_date and payment_date < start_date:
+            continue
+        if end_date and payment_date > end_date:
+            continue
+        
+        transactions.append({
+            'date': payment_date,
+            'description': f"Payment - {payment.student_fee.fee_category.name}",
+            'reference': payment.reference_number or str(payment.payment_id),
+            'debit': Decimal('0.00'),
+            'credit': payment.amount,
+            'type': 'payment',
+            'payment_method': payment.get_payment_method_display()
+        })
+    
+    # Sort transactions by date
+    transactions.sort(key=lambda x: x['date'])
+    
+    # Calculate running balance
+    running_balance = opening_balance
+    for transaction in transactions:
+        running_balance += transaction['debit'] - transaction['credit']
+        transaction['balance'] = running_balance
+    
+    # Calculate totals
+    total_debits = sum(t['debit'] for t in transactions)
+    total_credits = sum(t['credit'] for t in transactions)
+    closing_balance = opening_balance + total_debits - total_credits
+    
+    context = {
+        'student': student,
+        'school': school,
+        'transactions': transactions,
+        'opening_balance': opening_balance,
+        'total_debits': total_debits,
+        'total_credits': total_credits,
+        'closing_balance': closing_balance,
+        'start_date': start_date,
+        'end_date': end_date,
+        'statement_date': timezone.now().date(),
+    }
+    
+    return render(request, 'core/student_statement.html', context)
+
+
+@login_required
+@role_required('super_admin', 'school_admin', 'accountant', 'teacher')
+def student_statement_pdf(request, student_id):
+    """Generate PDF version of student statement"""
+    school = request.user.profile.school
+    student = get_object_or_404(Student, student_id=student_id, school=school)
+    
+    # Get date filters
+    start_date = request.GET.get('start_date')
+    end_date = request.GET.get('end_date')
+    
+    if start_date:
+        start_date = datetime.strptime(start_date, '%Y-%m-%d').date()
+    if end_date:
+        end_date = datetime.strptime(end_date, '%Y-%m-%d').date()
+    
+    # Get all student fees (debits)
+    student_fees = StudentFee.objects.filter(
+        school=school,
+        student=student
+    ).select_related('term', 'fee_category').order_by('term__academic_year', 'term__term_number', 'fee_category__name')
+    
+    # Get all payments (credits)
+    payments = Payment.objects.filter(
+        school=school,
+        student=student,
+        status='completed'
+    ).select_related('student_fee__term', 'student_fee__fee_category').order_by('payment_date')
+    
+    # Calculate opening balance
+    opening_balance = Decimal('0.00')
+    if start_date:
+        opening_fees = StudentFee.objects.filter(
+            school=school,
+            student=student,
+            term__start_date__lt=start_date
+        ).aggregate(total=Sum('amount_charged'))['total'] or Decimal('0.00')
+        
+        opening_payments = Payment.objects.filter(
+            school=school,
+            student=student,
+            status='completed',
+            payment_date__date__lt=start_date
+        ).aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
+        
+        opening_balance = opening_fees - opening_payments
+    
+    # Filter by date range if provided
+    transactions = []
+    
+    # Add fee transactions (debits)
+    for fee in student_fees:
+        if start_date and fee.term.start_date < start_date:
+            continue
+        if end_date and fee.term.start_date > end_date:
+            continue
+        
+        transactions.append({
+            'date': fee.term.start_date,
+            'description': f"{fee.fee_category.name} - {fee.term.academic_year} Term {fee.term.term_number}",
+            'reference': f"Fee-{fee.id}",
+            'debit': fee.amount_charged,
+            'credit': Decimal('0.00'),
+            'type': 'fee'
+        })
+    
+    # Add payment transactions (credits)
+    for payment in payments:
+        payment_date = payment.payment_date.date()
+        if start_date and payment_date < start_date:
+            continue
+        if end_date and payment_date > end_date:
+            continue
+        
+        transactions.append({
+            'date': payment_date,
+            'description': f"Payment - {payment.student_fee.fee_category.name}",
+            'reference': payment.reference_number or str(payment.payment_id),
+            'debit': Decimal('0.00'),
+            'credit': payment.amount,
+            'type': 'payment',
+            'payment_method': payment.get_payment_method_display()
+        })
+    
+    # Sort transactions by date
+    transactions.sort(key=lambda x: x['date'])
+    
+    # Calculate running balance
+    running_balance = opening_balance
+    for transaction in transactions:
+        running_balance += transaction['debit'] - transaction['credit']
+        transaction['balance'] = running_balance
+    
+    # Calculate totals
+    total_debits = sum(t['debit'] for t in transactions)
+    total_credits = sum(t['credit'] for t in transactions)
+    closing_balance = opening_balance + total_debits - total_credits
+    
+    context = {
+        'student': student,
+        'school': school,
+        'transactions': transactions,
+        'opening_balance': opening_balance,
+        'total_debits': total_debits,
+        'total_credits': total_credits,
+        'closing_balance': closing_balance,
+        'start_date': start_date,
+        'end_date': end_date,
+        'statement_date': timezone.now().date(),
+    }
+    
+    # For now, return HTML version. PDF generation can be added later with weasyprint or xhtml2pdf
+    return render(request, 'core/student_statement_pdf.html', context)
+
+
+@login_required
+@role_required('super_admin', 'school_admin', 'accountant', 'teacher')
+def student_statement_email(request, student_id):
+    """Email student statement"""
+    school = request.user.profile.school
+    student = get_object_or_404(Student, student_id=student_id, school=school)
+    
+    if not student.parent_email:
+        messages.error(request, 'Student has no email address on file.')
+        return redirect('core:student_statement', student_id=student_id)
+    
+    # Get date filters
+    start_date = request.GET.get('start_date')
+    end_date = request.GET.get('end_date')
+    
+    if start_date:
+        start_date = datetime.strptime(start_date, '%Y-%m-%d').date()
+    if end_date:
+        end_date = datetime.strptime(end_date, '%Y-%m-%d').date()
+    
+    # Get all student fees (debits)
+    student_fees = StudentFee.objects.filter(
+        school=school,
+        student=student
+    ).select_related('term', 'fee_category').order_by('term__academic_year', 'term__term_number', 'fee_category__name')
+    
+    # Get all payments (credits)
+    payments = Payment.objects.filter(
+        school=school,
+        student=student,
+        status='completed'
+    ).select_related('student_fee__term', 'student_fee__fee_category').order_by('payment_date')
+    
+    # Calculate opening balance
+    opening_balance = Decimal('0.00')
+    if start_date:
+        opening_fees = StudentFee.objects.filter(
+            school=school,
+            student=student,
+            term__start_date__lt=start_date
+        ).aggregate(total=Sum('amount_charged'))['total'] or Decimal('0.00')
+        
+        opening_payments = Payment.objects.filter(
+            school=school,
+            student=student,
+            status='completed',
+            payment_date__date__lt=start_date
+        ).aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
+        
+        opening_balance = opening_fees - opening_payments
+    
+    # Filter by date range if provided
+    transactions = []
+    
+    # Add fee transactions (debits)
+    for fee in student_fees:
+        if start_date and fee.term.start_date < start_date:
+            continue
+        if end_date and fee.term.start_date > end_date:
+            continue
+        
+        transactions.append({
+            'date': fee.term.start_date,
+            'description': f"{fee.fee_category.name} - {fee.term.academic_year} Term {fee.term.term_number}",
+            'reference': f"Fee-{fee.id}",
+            'debit': fee.amount_charged,
+            'credit': Decimal('0.00'),
+            'type': 'fee'
+        })
+    
+    # Add payment transactions (credits)
+    for payment in payments:
+        payment_date = payment.payment_date.date()
+        if start_date and payment_date < start_date:
+            continue
+        if end_date and payment_date > end_date:
+            continue
+        
+        transactions.append({
+            'date': payment_date,
+            'description': f"Payment - {payment.student_fee.fee_category.name}",
+            'reference': payment.reference_number or str(payment.payment_id),
+            'debit': Decimal('0.00'),
+            'credit': payment.amount,
+            'type': 'payment',
+            'payment_method': payment.get_payment_method_display()
+        })
+    
+    # Sort transactions by date
+    transactions.sort(key=lambda x: x['date'])
+    
+    # Calculate running balance
+    running_balance = opening_balance
+    for transaction in transactions:
+        running_balance += transaction['debit'] - transaction['credit']
+        transaction['balance'] = running_balance
+    
+    # Calculate totals
+    total_debits = sum(t['debit'] for t in transactions)
+    total_credits = sum(t['credit'] for t in transactions)
+    closing_balance = opening_balance + total_debits - total_credits
+    
+    context = {
+        'student': student,
+        'school': school,
+        'transactions': transactions,
+        'opening_balance': opening_balance,
+        'total_debits': total_debits,
+        'total_credits': total_credits,
+        'closing_balance': closing_balance,
+        'closing_balance_abs': abs(closing_balance),
+        'start_date': start_date,
+        'end_date': end_date,
+        'statement_date': timezone.now().date(),
+    }
+    
+    # Render email template
+    html_message = render_to_string('core/student_statement_email.html', context)
+    
+    # Send email
+    subject = f'Fee Statement - {student.full_name} - {school.name}'
+    try:
+        send_mail(
+            subject=subject,
+            message='',  # Plain text version (empty, using HTML)
+            from_email=settings.DEFAULT_FROM_EMAIL,
+            recipient_list=[student.parent_email],
+            html_message=html_message,
+            fail_silently=False,
+        )
+        messages.success(request, f'Statement sent successfully to {student.parent_email}')
+    except Exception as e:
+        messages.error(request, f'Error sending email: {str(e)}')
+    
+    return redirect('core:student_statement', student_id=student_id)
+
 @login_required
 @role_required('super_admin', 'school_admin', 'teacher')
 def class_add(request):
@@ -2780,3 +3318,371 @@ def role_permissions(request, role_id):
         'role': role,
         'grouped_permissions': grouped_permissions
     })
+
+
+@login_required
+@role_required('super_admin', 'school_admin', 'accountant', 'teacher')
+def student_statement(request, student_id):
+    """Generate fee statement for a student"""
+    school = request.user.profile.school
+    student = get_object_or_404(Student, student_id=student_id, school=school)
+    
+    # Get date filters
+    start_date = request.GET.get('start_date')
+    end_date = request.GET.get('end_date')
+    
+    if start_date:
+        start_date = datetime.strptime(start_date, '%Y-%m-%d').date()
+    if end_date:
+        end_date = datetime.strptime(end_date, '%Y-%m-%d').date()
+    
+    # Get all student fees (debits)
+    student_fees = StudentFee.objects.filter(
+        school=school,
+        student=student
+    ).select_related('term', 'fee_category').order_by('term__academic_year', 'term__term_number', 'fee_category__name')
+    
+    # Get all payments (credits)
+    payments = Payment.objects.filter(
+        school=school,
+        student=student,
+        status='completed'
+    ).select_related('student_fee__term', 'student_fee__fee_category').order_by('payment_date')
+    
+    # Calculate opening balance (all fees and payments before start_date)
+    opening_balance = Decimal('0.00')
+    if start_date:
+        opening_fees = StudentFee.objects.filter(
+            school=school,
+            student=student,
+            term__start_date__lt=start_date
+        ).aggregate(total=Sum('amount_charged'))['total'] or Decimal('0.00')
+        
+        opening_payments = Payment.objects.filter(
+            school=school,
+            student=student,
+            status='completed',
+            payment_date__date__lt=start_date
+        ).aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
+        
+        opening_balance = opening_fees - opening_payments
+    
+    # Filter by date range if provided
+    transactions = []
+    
+    # Add fee transactions (debits)
+    for fee in student_fees:
+        if start_date and fee.term.start_date < start_date:
+            continue
+        if end_date and fee.term.start_date > end_date:
+            continue
+        
+        transactions.append({
+            'date': fee.term.start_date,
+            'description': f"{fee.fee_category.name} - {fee.term.academic_year} Term {fee.term.term_number}",
+            'reference': f"Fee-{fee.id}",
+            'debit': fee.amount_charged,
+            'credit': Decimal('0.00'),
+            'type': 'fee'
+        })
+    
+    # Add payment transactions (credits)
+    for payment in payments:
+        payment_date = payment.payment_date.date()
+        if start_date and payment_date < start_date:
+            continue
+        if end_date and payment_date > end_date:
+            continue
+        
+        transactions.append({
+            'date': payment_date,
+            'description': f"Payment - {payment.student_fee.fee_category.name}",
+            'reference': payment.reference_number or str(payment.payment_id),
+            'debit': Decimal('0.00'),
+            'credit': payment.amount,
+            'type': 'payment',
+            'payment_method': payment.get_payment_method_display()
+        })
+    
+    # Sort transactions by date
+    transactions.sort(key=lambda x: x['date'])
+    
+    # Calculate running balance
+    running_balance = opening_balance
+    for transaction in transactions:
+        running_balance += transaction['debit'] - transaction['credit']
+        transaction['balance'] = running_balance
+    
+    # Calculate totals
+    total_debits = sum(t['debit'] for t in transactions)
+    total_credits = sum(t['credit'] for t in transactions)
+    closing_balance = opening_balance + total_debits - total_credits
+    
+    context = {
+        'student': student,
+        'school': school,
+        'transactions': transactions,
+        'opening_balance': opening_balance,
+        'total_debits': total_debits,
+        'total_credits': total_credits,
+        'closing_balance': closing_balance,
+        'closing_balance_abs': abs(closing_balance),
+        'start_date': start_date,
+        'end_date': end_date,
+        'statement_date': timezone.now().date(),
+    }
+    
+    return render(request, 'core/student_statement.html', context)
+
+
+@login_required
+@role_required('super_admin', 'school_admin', 'accountant', 'teacher')
+def student_statement_pdf(request, student_id):
+    """Generate PDF version of student statement"""
+    school = request.user.profile.school
+    student = get_object_or_404(Student, student_id=student_id, school=school)
+    
+    # Get date filters
+    start_date = request.GET.get('start_date')
+    end_date = request.GET.get('end_date')
+    
+    if start_date:
+        start_date = datetime.strptime(start_date, '%Y-%m-%d').date()
+    if end_date:
+        end_date = datetime.strptime(end_date, '%Y-%m-%d').date()
+    
+    # Get all student fees (debits)
+    student_fees = StudentFee.objects.filter(
+        school=school,
+        student=student
+    ).select_related('term', 'fee_category').order_by('term__academic_year', 'term__term_number', 'fee_category__name')
+    
+    # Get all payments (credits)
+    payments = Payment.objects.filter(
+        school=school,
+        student=student,
+        status='completed'
+    ).select_related('student_fee__term', 'student_fee__fee_category').order_by('payment_date')
+    
+    # Calculate opening balance
+    opening_balance = Decimal('0.00')
+    if start_date:
+        opening_fees = StudentFee.objects.filter(
+            school=school,
+            student=student,
+            term__start_date__lt=start_date
+        ).aggregate(total=Sum('amount_charged'))['total'] or Decimal('0.00')
+        
+        opening_payments = Payment.objects.filter(
+            school=school,
+            student=student,
+            status='completed',
+            payment_date__date__lt=start_date
+        ).aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
+        
+        opening_balance = opening_fees - opening_payments
+    
+    # Filter by date range if provided
+    transactions = []
+    
+    # Add fee transactions (debits)
+    for fee in student_fees:
+        if start_date and fee.term.start_date < start_date:
+            continue
+        if end_date and fee.term.start_date > end_date:
+            continue
+        
+        transactions.append({
+            'date': fee.term.start_date,
+            'description': f"{fee.fee_category.name} - {fee.term.academic_year} Term {fee.term.term_number}",
+            'reference': f"Fee-{fee.id}",
+            'debit': fee.amount_charged,
+            'credit': Decimal('0.00'),
+            'type': 'fee'
+        })
+    
+    # Add payment transactions (credits)
+    for payment in payments:
+        payment_date = payment.payment_date.date()
+        if start_date and payment_date < start_date:
+            continue
+        if end_date and payment_date > end_date:
+            continue
+        
+        transactions.append({
+            'date': payment_date,
+            'description': f"Payment - {payment.student_fee.fee_category.name}",
+            'reference': payment.reference_number or str(payment.payment_id),
+            'debit': Decimal('0.00'),
+            'credit': payment.amount,
+            'type': 'payment',
+            'payment_method': payment.get_payment_method_display()
+        })
+    
+    # Sort transactions by date
+    transactions.sort(key=lambda x: x['date'])
+    
+    # Calculate running balance
+    running_balance = opening_balance
+    for transaction in transactions:
+        running_balance += transaction['debit'] - transaction['credit']
+        transaction['balance'] = running_balance
+    
+    # Calculate totals
+    total_debits = sum(t['debit'] for t in transactions)
+    total_credits = sum(t['credit'] for t in transactions)
+    closing_balance = opening_balance + total_debits - total_credits
+    
+    context = {
+        'student': student,
+        'school': school,
+        'transactions': transactions,
+        'opening_balance': opening_balance,
+        'total_debits': total_debits,
+        'total_credits': total_credits,
+        'closing_balance': closing_balance,
+        'closing_balance_abs': abs(closing_balance),
+        'start_date': start_date,
+        'end_date': end_date,
+        'statement_date': timezone.now().date(),
+    }
+    
+    # For now, return HTML version. PDF generation can be added later with weasyprint or xhtml2pdf
+    return render(request, 'core/student_statement_pdf.html', context)
+
+
+@login_required
+@role_required('super_admin', 'school_admin', 'accountant', 'teacher')
+def student_statement_email(request, student_id):
+    """Email student statement"""
+    school = request.user.profile.school
+    student = get_object_or_404(Student, student_id=student_id, school=school)
+    
+    if not student.parent_email:
+        messages.error(request, 'Student has no email address on file.')
+        return redirect('core:student_statement', student_id=student_id)
+    
+    # Get date filters
+    start_date = request.GET.get('start_date')
+    end_date = request.GET.get('end_date')
+    
+    if start_date:
+        start_date = datetime.strptime(start_date, '%Y-%m-%d').date()
+    if end_date:
+        end_date = datetime.strptime(end_date, '%Y-%m-%d').date()
+    
+    # Get all student fees (debits)
+    student_fees = StudentFee.objects.filter(
+        school=school,
+        student=student
+    ).select_related('term', 'fee_category').order_by('term__academic_year', 'term__term_number', 'fee_category__name')
+    
+    # Get all payments (credits)
+    payments = Payment.objects.filter(
+        school=school,
+        student=student,
+        status='completed'
+    ).select_related('student_fee__term', 'student_fee__fee_category').order_by('payment_date')
+    
+    # Calculate opening balance
+    opening_balance = Decimal('0.00')
+    if start_date:
+        opening_fees = StudentFee.objects.filter(
+            school=school,
+            student=student,
+            term__start_date__lt=start_date
+        ).aggregate(total=Sum('amount_charged'))['total'] or Decimal('0.00')
+        
+        opening_payments = Payment.objects.filter(
+            school=school,
+            student=student,
+            status='completed',
+            payment_date__date__lt=start_date
+        ).aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
+        
+        opening_balance = opening_fees - opening_payments
+    
+    # Filter by date range if provided
+    transactions = []
+    
+    # Add fee transactions (debits)
+    for fee in student_fees:
+        if start_date and fee.term.start_date < start_date:
+            continue
+        if end_date and fee.term.start_date > end_date:
+            continue
+        
+        transactions.append({
+            'date': fee.term.start_date,
+            'description': f"{fee.fee_category.name} - {fee.term.academic_year} Term {fee.term.term_number}",
+            'reference': f"Fee-{fee.id}",
+            'debit': fee.amount_charged,
+            'credit': Decimal('0.00'),
+            'type': 'fee'
+        })
+    
+    # Add payment transactions (credits)
+    for payment in payments:
+        payment_date = payment.payment_date.date()
+        if start_date and payment_date < start_date:
+            continue
+        if end_date and payment_date > end_date:
+            continue
+        
+        transactions.append({
+            'date': payment_date,
+            'description': f"Payment - {payment.student_fee.fee_category.name}",
+            'reference': payment.reference_number or str(payment.payment_id),
+            'debit': Decimal('0.00'),
+            'credit': payment.amount,
+            'type': 'payment',
+            'payment_method': payment.get_payment_method_display()
+        })
+    
+    # Sort transactions by date
+    transactions.sort(key=lambda x: x['date'])
+    
+    # Calculate running balance
+    running_balance = opening_balance
+    for transaction in transactions:
+        running_balance += transaction['debit'] - transaction['credit']
+        transaction['balance'] = running_balance
+    
+    # Calculate totals
+    total_debits = sum(t['debit'] for t in transactions)
+    total_credits = sum(t['credit'] for t in transactions)
+    closing_balance = opening_balance + total_debits - total_credits
+    
+    context = {
+        'student': student,
+        'school': school,
+        'transactions': transactions,
+        'opening_balance': opening_balance,
+        'total_debits': total_debits,
+        'total_credits': total_credits,
+        'closing_balance': closing_balance,
+        'closing_balance_abs': abs(closing_balance),
+        'start_date': start_date,
+        'end_date': end_date,
+        'statement_date': timezone.now().date(),
+    }
+    
+    # Render email template
+    html_message = render_to_string('core/student_statement_email.html', context)
+    
+    # Send email
+    subject = f'Fee Statement - {student.full_name} - {school.name}'
+    try:
+        send_mail(
+            subject=subject,
+            message='',  # Plain text version (empty, using HTML)
+            from_email=settings.DEFAULT_FROM_EMAIL,
+            recipient_list=[student.parent_email],
+            html_message=html_message,
+            fail_silently=False,
+        )
+        messages.success(request, f'Statement sent successfully to {student.parent_email}')
+    except Exception as e:
+        messages.error(request, f'Error sending email: {str(e)}')
+    
+    return redirect('core:student_statement', student_id=student_id)

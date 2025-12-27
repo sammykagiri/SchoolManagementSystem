@@ -1,0 +1,386 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load humanize %}
+
+{% block title %}Fee Statement - {{ student.full_name }} | School Management System{% endblock %}
+
+{% block extra_css %}
+<style>
+    /* Page margins for print */
+    @page {
+        margin: 1cm;
+    }
+    
+    .container-fluid {
+        max-width: 1200px;
+        margin: 0 auto;
+    }
+    
+    /* Compact header section */
+    .statement-header {
+        border: 2px solid #007bff;
+        border-radius: 8px;
+        padding: 15px;
+        margin-bottom: 15px;
+        margin-top: 10px;
+        background-color: #f8f9fc;
+    }
+    
+    .school-logo {
+        max-height: 60px;
+        max-width: 150px;
+    }
+    
+    .student-info {
+        font-size: 0.9rem;
+    }
+    
+    .student-info p {
+        margin-bottom: 3px;
+        line-height: 1.3;
+    }
+    
+    .student-info strong {
+        min-width: 100px;
+        display: inline-block;
+    }
+    
+    /* Compact summary boxes */
+    .summary-box {
+        background: #fff;
+        border: 1px solid #dee2e6;
+        border-radius: 5px;
+        padding: 8px 10px;
+        text-align: center;
+    }
+    
+    .summary-box.opening {
+        border-left: 3px solid #6c757d;
+    }
+    
+    .summary-box.debits {
+        border-left: 3px solid #dc3545;
+    }
+    
+    .summary-box.credits {
+        border-left: 3px solid #28a745;
+    }
+    
+    .summary-box.balance {
+        border-left: 3px solid #007bff;
+    }
+    
+    .summary-label {
+        font-size: 0.75rem;
+        color: #6c757d;
+        font-weight: 600;
+        text-transform: uppercase;
+        margin-bottom: 3px;
+    }
+    
+    .summary-value {
+        font-size: 1.1rem;
+        font-weight: bold;
+        margin-bottom: 0;
+    }
+    
+    .summary-sub {
+        font-size: 0.7rem;
+        color: #6c757d;
+    }
+    
+    .statement-table {
+        font-size: 0.9rem;
+    }
+    
+    .statement-table thead {
+        background-color: #f8f9fa;
+    }
+    
+    .statement-table th,
+    .statement-table td {
+        padding: 8px;
+    }
+    
+    .debit-cell {
+        color: #dc3545;
+        font-weight: 500;
+    }
+    
+    .credit-cell {
+        color: #28a745;
+        font-weight: 500;
+    }
+    
+    .balance-cell {
+        font-weight: 600;
+    }
+    
+    .filter-section {
+        background-color: #f8f9fa;
+        padding: 12px;
+        border-radius: 5px;
+        margin-bottom: 15px;
+    }
+    
+    .action-buttons {
+        gap: 8px;
+    }
+    
+    .card {
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    
+    @media print {
+        .no-print {
+            display: none !important;
+        }
+        
+        body {
+            margin: 0;
+            padding: 0;
+        }
+        
+        .statement-header {
+            border: 1px solid #000;
+            page-break-inside: avoid;
+        }
+        
+        .statement-table {
+            font-size: 0.85rem;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Compact Header with Student Info and Summary -->
+    <div class="statement-header">
+        <div class="row g-2">
+            <!-- Logo and Title -->
+            <div class="col-md-2 text-center">
+                {% if school.logo %}
+                <img src="{{ school.logo.url }}" alt="{{ school.name }}" class="school-logo mb-2">
+                {% endif %}
+                <h6 class="mb-0"><strong>Fee Statement</strong></h6>
+            </div>
+            
+            <!-- Student Information -->
+            <div class="col-md-5 student-info">
+                <h5 class="mb-2 text-primary"><strong>{{ student.full_name }}</strong></h5>
+                <div class="row">
+                    <div class="col-6">
+                        <p><strong>Student ID:</strong> {{ student.student_id }}</p>
+                        <p><strong>Grade:</strong> {{ student.grade.name }}</p>
+                        {% if student.school_class %}
+                        <p><strong>Class:</strong> {{ student.school_class.name }}</p>
+                        {% endif %}
+                    </div>
+                    <div class="col-6">
+                        <p><strong>Parent:</strong> {{ student.parent_name }}</p>
+                        {% if student.parent_phone %}<p><strong>Phone:</strong> {{ student.parent_phone }}</p>{% endif %}
+                        {% if student.parent_email %}<p><strong>Email:</strong> {{ student.parent_email }}</p>{% endif %}
+                    </div>
+                </div>
+                <p class="mb-0"><strong>Period:</strong> {% if start_date %}{{ start_date|date:"d M, Y" }} to {{ end_date|date:"d M, Y" }}{% else %}All Time{% endif %}</p>
+            </div>
+            
+            <!-- Summary Boxes -->
+            <div class="col-md-5">
+                <div class="row g-1">
+                    {% if opening_balance != 0 %}
+                    <div class="col-6">
+                        <div class="summary-box opening">
+                            <div class="summary-label">Opening</div>
+                            <div class="summary-value {% if opening_balance > 0 %}text-danger{% else %}text-success{% endif %}">
+                                KES {{ opening_balance|floatformat:2|intcomma }}
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+                    <div class="col-6">
+                        <div class="summary-box debits">
+                            <div class="summary-label">Debits</div>
+                            <div class="summary-value text-danger">KES {{ total_debits|floatformat:2|intcomma }}</div>
+                            <div class="summary-sub">Fees</div>
+                        </div>
+                    </div>
+                    <div class="col-6">
+                        <div class="summary-box credits">
+                            <div class="summary-label">Credits</div>
+                            <div class="summary-value text-success">KES {{ total_credits|floatformat:2|intcomma }}</div>
+                            <div class="summary-sub">Payments</div>
+                        </div>
+                    </div>
+                    <div class="col-6">
+                        <div class="summary-box balance">
+                            <div class="summary-label">Balance Due</div>
+                            <div class="summary-value {% if closing_balance > 0 %}text-danger{% else %}text-success{% endif %}">
+                                KES {{ closing_balance|floatformat:2|intcomma }}
+                            </div>
+                            <div class="summary-sub">
+                                {% if closing_balance > 0 %}Outstanding{% elif closing_balance < 0 %}Credit{% else %}Paid{% endif %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Action Buttons -->
+    <div class="d-flex justify-content-between align-items-center mb-3 no-print">
+        <button onclick="window.history.back()" class="btn btn-sm btn-secondary">
+            <i class="fas fa-arrow-left"></i> Back
+        </button>
+        <div class="d-flex action-buttons">
+            <a href="{% url 'core:student_statement_pdf' student.student_id %}?{% if start_date %}start_date={{ start_date|date:'Y-m-d' }}&{% endif %}{% if end_date %}end_date={{ end_date|date:'Y-m-d' }}{% endif %}" target="_blank" class="btn btn-sm btn-primary">
+                <i class="fas fa-print"></i> Print View
+            </a>
+            <a href="{% url 'core:student_statement_pdf' student.student_id %}?{% if start_date %}start_date={{ start_date|date:'Y-m-d' }}&{% endif %}{% if end_date %}end_date={{ end_date|date:'Y-m-d' }}{% endif %}" class="btn btn-sm btn-info" download>
+                <i class="fas fa-download"></i> Download PDF
+            </a>
+            {% if student.parent_email %}
+            <a href="{% url 'core:student_statement_email' student.student_id %}?{% if start_date %}start_date={{ start_date|date:'Y-m-d' }}&{% endif %}{% if end_date %}end_date={{ end_date|date:'Y-m-d' }}{% endif %}" class="btn btn-sm btn-success" onclick="return confirm('Send statement to {{ student.parent_email }}?')">
+                <i class="fas fa-envelope"></i> Email
+            </a>
+            {% else %}
+            <button class="btn btn-sm btn-secondary" disabled title="Student has no email address">
+                <i class="fas fa-envelope"></i> Email (No Email)
+            </button>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Date Filter -->
+    <div class="filter-section no-print">
+        <form method="get" class="row g-2 align-items-end" id="filterForm">
+            <div class="col-md-3">
+                <label for="start_date" class="form-label small mb-1">Start Date</label>
+                <input type="date" class="form-control form-control-sm" id="start_date" name="start_date" value="{% if start_date %}{{ start_date|date:'Y-m-d' }}{% endif %}">
+            </div>
+            <div class="col-md-3">
+                <label for="end_date" class="form-label small mb-1">End Date</label>
+                <input type="date" class="form-control form-control-sm" id="end_date" name="end_date" value="{% if end_date %}{{ end_date|date:'Y-m-d' }}{% endif %}">
+            </div>
+            <div class="col-md-3">
+                <button type="submit" class="btn btn-sm btn-primary me-2">
+                    <i class="fas fa-filter"></i> Filter
+                </button>
+                <a href="{% url 'core:student_statement' student.student_id %}" class="btn btn-sm btn-outline-secondary">
+                    <i class="fas fa-times"></i> Clear
+                </a>
+            </div>
+        </form>
+    </div>
+
+    <!-- Transactions Table -->
+    <div class="card">
+        <div class="card-header bg-primary text-white py-2">
+            <h6 class="mb-0"><i class="fas fa-list"></i> Transaction History</h6>
+        </div>
+        <div class="card-body p-0">
+            {% if transactions %}
+                <div class="table-responsive">
+                    <table class="table statement-table mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th style="width: 12%;">Date</th>
+                                <th style="width: 38%;">Description</th>
+                                <th style="width: 15%;">Reference</th>
+                                <th class="text-end" style="width: 12%;">Debit (KES)</th>
+                                <th class="text-end" style="width: 12%;">Credit (KES)</th>
+                                <th class="text-end" style="width: 12%;">Balance (KES)</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% if opening_balance != 0 %}
+                            <tr class="table-light">
+                                <td>{% if start_date %}{{ start_date|date:"d M, Y" }}{% else %}-{% endif %}</td>
+                                <td><strong>Opening Balance</strong></td>
+                                <td>-</td>
+                                <td class="text-end">-</td>
+                                <td class="text-end">-</td>
+                                <td class="text-end balance-cell {% if opening_balance > 0 %}text-danger{% else %}text-success{% endif %}">
+                                    {{ opening_balance|floatformat:2|intcomma }}
+                                </td>
+                            </tr>
+                            {% endif %}
+                            
+                            {% for transaction in transactions %}
+                            <tr>
+                                <td>{{ transaction.date|date:"d M, Y" }}</td>
+                                <td>{{ transaction.description }}</td>
+                                <td>{{ transaction.reference }}</td>
+                                <td class="text-end debit-cell">
+                                    {% if transaction.debit > 0 %}
+                                        {{ transaction.debit|floatformat:2|intcomma }}
+                                    {% else %}
+                                        -
+                                    {% endif %}
+                                </td>
+                                <td class="text-end credit-cell">
+                                    {% if transaction.credit > 0 %}
+                                        {{ transaction.credit|floatformat:2|intcomma }}
+                                    {% else %}
+                                        -
+                                    {% endif %}
+                                </td>
+                                <td class="text-end balance-cell {% if transaction.balance > 0 %}text-danger{% elif transaction.balance < 0 %}text-success{% endif %}">
+                                    {{ transaction.balance|floatformat:2|intcomma }}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                        <!-- Grand Total -->
+                        <tfoot class="table-primary">
+                            <tr class="fw-bold">
+                                <td colspan="3" class="text-end">GRAND TOTAL:</td>
+                                <td class="text-end debit-cell">{{ total_debits|floatformat:2|intcomma }}</td>
+                                <td class="text-end credit-cell">{{ total_credits|floatformat:2|intcomma }}</td>
+                                <td class="text-end balance-cell {% if closing_balance > 0 %}text-danger{% elif closing_balance < 0 %}text-success{% endif %}">
+                                    {{ closing_balance|floatformat:2|intcomma }}
+                                </td>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
+            {% else %}
+                <div class="text-center text-muted py-4">
+                    <i class="fas fa-inbox fa-3x mb-3 d-block"></i>
+                    No transactions found for the selected period.
+                </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Footer Note -->
+    <div class="alert alert-info py-2 mt-3">
+        <small>
+            <i class="fas fa-info-circle"></i>
+            <strong>Note:</strong> 
+            {% if closing_balance > 0 %}
+            Outstanding balance: <strong>KES {{ closing_balance|floatformat:2|intcomma }}</strong>.
+            {% elif closing_balance < 0 %}
+            Credit balance: <strong>KES {{ closing_balance_abs|floatformat:2|intcomma }}</strong>.
+            {% else %}
+            Account fully paid.
+            {% endif %}
+            Statement generated on {{ statement_date|date:"d M, Y" }}.
+        </small>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // Auto-print functionality if needed
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.get('auto_print') === 'true') {
+        window.onload = function() {
+            window.print();
+        };
+    }
+</script>
+{% endblock %}

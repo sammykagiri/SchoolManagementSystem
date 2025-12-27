@@ -26,6 +26,7 @@
                                 <th>Name</th>
                                 <th>Type</th>
                                 <th>Optional</th>
+                                <th>Apply by Default</th>
                                 <th>Description</th>
                                 <th>Actions</th>
                             </tr>
@@ -42,6 +43,17 @@
                                         <span class="badge bg-info">Yes</span>
                                     {% else %}
                                         <span class="badge bg-secondary">No</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if category.is_optional %}
+                                        {% if category.apply_by_default %}
+                                            <span class="badge bg-success">Yes</span>
+                                        {% else %}
+                                            <span class="badge bg-secondary">No</span>
+                                        {% endif %}
+                                    {% else %}
+                                        <span class="text-muted">—</span>
                                     {% endif %}
                                 </td>
                                 <td>
@@ -79,4 +91,6 @@
     </div>
 </div>
 {% endblock %}
+
+
 
