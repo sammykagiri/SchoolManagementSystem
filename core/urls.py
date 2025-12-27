@@ -46,7 +46,19 @@ urlpatterns = [
     
     # Fee Structures
     path('fee-structures/', views.fee_structure_list, name='fee_structure_list'),
-    path('generate-fees/', views.generate_student_fees, name='generate_student_fees'),
+    path('fee-structures/generate/', views.generate_student_fees, name='generate_student_fees'),
+    
+    # Fee Categories
+    path('fee-categories/', views.fee_category_list, name='fee_category_list'),
+    path('fee-categories/add/', views.fee_category_add, name='fee_category_add'),
+    path('fee-categories/<int:category_id>/edit/', views.fee_category_edit, name='fee_category_edit'),
+    path('fee-categories/<int:category_id>/delete/', views.fee_category_delete, name='fee_category_delete'),
+    
+    # Transport Routes
+    path('transport-routes/', views.transport_route_list, name='transport_route_list'),
+    path('transport-routes/add/', views.transport_route_add, name='transport_route_add'),
+    path('transport-routes/<int:route_id>/edit/', views.transport_route_edit, name='transport_route_edit'),
+    path('transport-routes/<int:route_id>/delete/', views.transport_route_delete, name='transport_route_delete'),
     
     # API endpoints
     path('api/dashboard/', views.api_dashboard, name='api_dashboard'),

@@ -4,6 +4,7 @@ from django.contrib import messages
 from django.http import JsonResponse
 from django.core.paginator import Paginator
 from django.db.models import Q, Sum
+from django.db import models
 from django.utils import timezone
 from .models import (
     School, Grade, Term, FeeCategory, TransportRoute, Student, FeeStructure, StudentFee, SchoolClass
@@ -925,6 +926,166 @@ def fee_structure_list(request):
 
 @login_required
 @role_required('super_admin', 'school_admin', 'accountant')
+def fee_category_list(request):
+    """List and manage fee categories"""
+    school = request.user.profile.school
+    fee_categories = FeeCategory.objects.filter(school=school).order_by('category_type', 'name')
+    
+    context = {
+        'fee_categories': fee_categories,
+        'category_choices': FeeCategory.CATEGORY_CHOICES,
+    }
+    return render(request, 'core/fee_category_list.html', context)
+
+
+@login_required
+@role_required('super_admin', 'school_admin', 'accountant')
+def fee_category_add(request):
+    """Add a new fee category"""
+    school = request.user.profile.school
+    
+    if request.method == 'POST':
+        name = request.POST.get('name', '').strip()
+        category_type = request.POST.get('category_type', '').strip()
+        description = request.POST.get('description', '').strip()
+        is_optional = bool(request.POST.get('is_optional'))
+        
+        errors = []
+        if not name:
+            errors.append('Fee category name is required.')
+        if not category_type:
+            errors.append('Category type is required.')
+        
+        # Check for duplicates
+        if name and category_type:
+            if FeeCategory.objects.filter(school=school, name=name, category_type=category_type).exists():
+                errors.append('A fee category with this name and type already exists.')
+        
+        if errors:
+            for error in errors:
+                messages.error(request, error)
+            return render(request, 'core/fee_category_form.html', {
+                'category': None,
+                'post': request.POST,
+                'category_choices': FeeCategory.CATEGORY_CHOICES,
+            })
+        
+        try:
+            FeeCategory.objects.create(
+                school=school,
+                name=name,
+                category_type=category_type,
+                description=description,
+                is_optional=is_optional
+            )
+            messages.success(request, 'Fee category created successfully!')
+            return redirect('core:fee_category_list')
+        except Exception as e:
+            messages.error(request, f'Error creating fee category: {str(e)}')
+            return render(request, 'core/fee_category_form.html', {
+                'category': None,
+                'post': request.POST,
+                'category_choices': FeeCategory.CATEGORY_CHOICES,
+            })
+    
+    return render(request, 'core/fee_category_form.html', {
+        'category': None,
+        'post': {},
+        'category_choices': FeeCategory.CATEGORY_CHOICES,
+    })
+
+
+@login_required
+@role_required('super_admin', 'school_admin', 'accountant')
+def fee_category_edit(request, category_id):
+    """Edit an existing fee category"""
+    school = request.user.profile.school
+    category = get_object_or_404(FeeCategory, id=category_id, school=school)
+    
+    if request.method == 'POST':
+        name = request.POST.get('name', '').strip()
+        category_type = request.POST.get('category_type', '').strip()
+        description = request.POST.get('description', '').strip()
+        is_optional = bool(request.POST.get('is_optional'))
+        
+        errors = []
+        if not name:
+            errors.append('Fee category name is required.')
+        if not category_type:
+            errors.append('Category type is required.')
+        
+        # Check for duplicates (excluding current category)
+        if name and category_type:
+            if FeeCategory.objects.filter(school=school, name=name, category_type=category_type).exclude(id=category.id).exists():
+                errors.append('A fee category with this name and type already exists.')
+        
+        if errors:
+            for error in errors:
+                messages.error(request, error)
+            return render(request, 'core/fee_category_form.html', {
+                'category': category,
+                'post': request.POST,
+                'category_choices': FeeCategory.CATEGORY_CHOICES,
+            })
+        
+        try:
+            category.name = name
+            category.category_type = category_type
+            category.description = description
+            category.is_optional = is_optional
+            category.save()
+            messages.success(request, 'Fee category updated successfully!')
+            return redirect('core:fee_category_list')
+        except Exception as e:
+            messages.error(request, f'Error updating fee category: {str(e)}')
+            return render(request, 'core/fee_category_form.html', {
+                'category': category,
+                'post': request.POST,
+                'category_choices': FeeCategory.CATEGORY_CHOICES,
+            })
+    
+    return render(request, 'core/fee_category_form.html', {
+        'category': category,
+        'post': {},
+        'category_choices': FeeCategory.CATEGORY_CHOICES,
+    })
+
+
+@login_required
+@role_required('super_admin', 'school_admin', 'accountant')
+def fee_category_delete(request, category_id):
+    """Delete a fee category"""
+    school = request.user.profile.school
+    category = get_object_or_404(FeeCategory, id=category_id, school=school)
+    
+    if request.method == 'POST':
+        # Check if category is used in fee structures
+        if FeeStructure.objects.filter(fee_category=category).exists():
+            messages.error(request, f'Cannot delete "{category.name}" because it is used in fee structures.')
+            return redirect('core:fee_category_list')
+        
+        # Check if category is used in student fees
+        if StudentFee.objects.filter(fee_category=category).exists():
+            messages.error(request, f'Cannot delete "{category.name}" because it is used in student fees.')
+            return redirect('core:fee_category_list')
+        
+        try:
+            category.delete()
+            messages.success(request, 'Fee category deleted successfully!')
+        except Exception as e:
+            messages.error(request, f'Error deleting fee category: {str(e)}')
+        
+        return redirect('core:fee_category_list')
+    
+    # Show confirmation page
+    context = {
+        'category': category,
+    }
+    return render(request, 'core/fee_category_confirm_delete.html', context)
+
+
+@login_required
+@role_required('super_admin', 'school_admin', 'accountant')
 def generate_student_fees(request):
     """Generate student fees for a term"""
     if request.method == 'POST':
@@ -1019,9 +1180,227 @@ def get_student_fees(request, student_id):
 
 
 @login_required
+@role_required('super_admin', 'school_admin', 'accountant')
+def transport_route_list(request):
+    """List and manage transport routes"""
+    school = request.user.profile.school
+    transport_routes = TransportRoute.objects.filter(school=school).order_by('name')
+    
+    context = {
+        'transport_routes': transport_routes,
+    }
+    return render(request, 'core/transport_route_list.html', context)
+
+
+@login_required
+@role_required('super_admin', 'school_admin', 'accountant')
+def transport_route_add(request):
+    """Add a new transport route"""
+    school = request.user.profile.school
+    
+    if request.method == 'POST':
+        name = request.POST.get('name', '').strip()
+        description = request.POST.get('description', '').strip()
+        base_fare = request.POST.get('base_fare', '').strip()
+        is_active = bool(request.POST.get('is_active'))
+        active_start_date = request.POST.get('active_start_date', '').strip()
+        active_end_date = request.POST.get('active_end_date', '').strip()
+        
+        errors = []
+        if not name:
+            errors.append('Route name is required.')
+        if not base_fare:
+            errors.append('Base fare is required.')
+        else:
+            try:
+                base_fare = float(base_fare)
+                if base_fare < 0:
+                    errors.append('Base fare must be a positive number.')
+            except ValueError:
+                errors.append('Base fare must be a valid number.')
+        
+        # Validate dates
+        start_date = None
+        end_date = None
+        if active_start_date:
+            try:
+                from datetime import datetime
+                start_date = datetime.strptime(active_start_date, '%Y-%m-%d').date()
+            except ValueError:
+                errors.append('Invalid start date format.')
+        
+        if active_end_date:
+            try:
+                from datetime import datetime
+                end_date = datetime.strptime(active_end_date, '%Y-%m-%d').date()
+            except ValueError:
+                errors.append('Invalid end date format.')
+        
+        # Validate date range
+        if start_date and end_date and start_date > end_date:
+            errors.append('Start date cannot be after end date.')
+        
+        # Check for duplicates
+        if name and TransportRoute.objects.filter(school=school, name=name).exists():
+            errors.append('A transport route with this name already exists.')
+        
+        if errors:
+            for error in errors:
+                messages.error(request, error)
+            return render(request, 'core/transport_route_form.html', {
+                'route': None,
+                'post': request.POST,
+            })
+        
+        try:
+            TransportRoute.objects.create(
+                school=school,
+                name=name,
+                description=description,
+                base_fare=base_fare,
+                is_active=is_active,
+                active_start_date=start_date,
+                active_end_date=end_date
+            )
+            messages.success(request, 'Transport route created successfully!')
+            return redirect('core:transport_route_list')
+        except Exception as e:
+            messages.error(request, f'Error creating transport route: {str(e)}')
+            return render(request, 'core/transport_route_form.html', {
+                'route': None,
+                'post': request.POST,
+            })
+    
+    return render(request, 'core/transport_route_form.html', {
+        'route': None,
+        'post': {},
+    })
+
+
+@login_required
+@role_required('super_admin', 'school_admin', 'accountant')
+def transport_route_edit(request, route_id):
+    """Edit an existing transport route"""
+    school = request.user.profile.school
+    route = get_object_or_404(TransportRoute, id=route_id, school=school)
+    
+    if request.method == 'POST':
+        name = request.POST.get('name', '').strip()
+        description = request.POST.get('description', '').strip()
+        base_fare = request.POST.get('base_fare', '').strip()
+        is_active = bool(request.POST.get('is_active'))
+        active_start_date = request.POST.get('active_start_date', '').strip()
+        active_end_date = request.POST.get('active_end_date', '').strip()
+        
+        errors = []
+        if not name:
+            errors.append('Route name is required.')
+        if not base_fare:
+            errors.append('Base fare is required.')
+        else:
+            try:
+                base_fare = float(base_fare)
+                if base_fare < 0:
+                    errors.append('Base fare must be a positive number.')
+            except ValueError:
+                errors.append('Base fare must be a valid number.')
+        
+        # Validate dates
+        start_date = None
+        end_date = None
+        if active_start_date:
+            try:
+                from datetime import datetime
+                start_date = datetime.strptime(active_start_date, '%Y-%m-%d').date()
+            except ValueError:
+                errors.append('Invalid start date format.')
+        
+        if active_end_date:
+            try:
+                from datetime import datetime
+                end_date = datetime.strptime(active_end_date, '%Y-%m-%d').date()
+            except ValueError:
+                errors.append('Invalid end date format.')
+        
+        # Validate date range
+        if start_date and end_date and start_date > end_date:
+            errors.append('Start date cannot be after end date.')
+        
+        # Check for duplicates (excluding current route)
+        if name and TransportRoute.objects.filter(school=school, name=name).exclude(id=route.id).exists():
+            errors.append('A transport route with this name already exists.')
+        
+        if errors:
+            for error in errors:
+                messages.error(request, error)
+            return render(request, 'core/transport_route_form.html', {
+                'route': route,
+                'post': request.POST,
+            })
+        
+        try:
+            route.name = name
+            route.description = description
+            route.base_fare = base_fare
+            route.is_active = is_active
+            route.active_start_date = start_date
+            route.active_end_date = end_date
+            route.save()
+            messages.success(request, 'Transport route updated successfully!')
+            return redirect('core:transport_route_list')
+        except Exception as e:
+            messages.error(request, f'Error updating transport route: {str(e)}')
+            return render(request, 'core/transport_route_form.html', {
+                'route': route,
+                'post': request.POST,
+            })
+    
+    return render(request, 'core/transport_route_form.html', {
+        'route': route,
+        'post': {},
+    })
+
+
+@login_required
+@role_required('super_admin', 'school_admin', 'accountant')
+def transport_route_delete(request, route_id):
+    """Delete a transport route"""
+    school = request.user.profile.school
+    route = get_object_or_404(TransportRoute, id=route_id, school=school)
+    
+    if request.method == 'POST':
+        # Check if route is assigned to any students
+        if Student.objects.filter(transport_route=route).exists():
+            messages.error(request, f'Cannot delete "{route.name}" because it is assigned to one or more students.')
+            return redirect('core:transport_route_list')
+        
+        try:
+            route.delete()
+            messages.success(request, 'Transport route deleted successfully!')
+        except Exception as e:
+            messages.error(request, f'Error deleting transport route: {str(e)}')
+        
+        return redirect('core:transport_route_list')
+    
+    # Show confirmation page
+    context = {
+        'route': route,
+    }
+    return render(request, 'core/transport_route_confirm_delete.html', context)
+
+
+@login_required
 def get_transport_routes(request):
     """Get transport routes as JSON"""
-    routes = TransportRoute.objects.filter(is_active=True)
+    from django.utils import timezone
+    today = timezone.now().date()
+    routes = TransportRoute.objects.filter(
+        is_active=True
+    ).filter(
+        models.Q(active_start_date__isnull=True) | models.Q(active_start_date__lte=today)
+    ).filter(
+        models.Q(active_end_date__isnull=True) | models.Q(active_end_date__gte=today)
+    )
     routes_data = [{'id': route.id, 'name': route.name, 'base_fare': float(route.base_fare)} for route in routes]
     return JsonResponse({'routes': routes_data})
 
@@ -1060,7 +1439,15 @@ class TransportRouteViewSet(viewsets.ReadOnlyModelViewSet):
 
     def get_queryset(self):
         school = self.request.user.profile.school
-        return TransportRoute.objects.filter(school=school, is_active=True)
+        today = timezone.now().date()
+        return TransportRoute.objects.filter(
+            school=school,
+            is_active=True
+        ).filter(
+            models.Q(active_start_date__isnull=True) | models.Q(active_start_date__lte=today)
+        ).filter(
+            models.Q(active_end_date__isnull=True) | models.Q(active_end_date__gte=today)
+        )
 
 
 class SchoolViewSet(viewsets.ReadOnlyModelViewSet):

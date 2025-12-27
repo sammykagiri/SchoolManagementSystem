@@ -2,6 +2,7 @@ from django import forms
 from django.contrib.auth.forms import UserCreationForm
 from django.contrib.auth.models import User
 from django.core.exceptions import ValidationError
+from django.db.models import Q
 from .models import Student, Grade, TransportRoute, Role, UserProfile, School, SchoolClass
 
 
@@ -38,7 +39,19 @@ class StudentForm(forms.ModelForm):
             self.fields['grade'].queryset = Grade.objects.filter(school=school)
             # Filter school classes by school and active status, include class_teacher
             self.fields['school_class'].queryset = SchoolClass.objects.filter(school=school, is_active=True).select_related('class_teacher')
-            self.fields['transport_route'].queryset = TransportRoute.objects.filter(school=school, is_active=True)
+            # Filter active routes - check date ranges
+            from django.utils import timezone
+            from django.db.models import Q
+            today = timezone.now().date()
+            active_routes = TransportRoute.objects.filter(
+                school=school,
+                is_active=True
+            ).filter(
+                Q(active_start_date__isnull=True) | Q(active_start_date__lte=today)
+            ).filter(
+                Q(active_end_date__isnull=True) | Q(active_end_date__gte=today)
+            )
+            self.fields['transport_route'].queryset = active_routes
             # Filter parents by school
             from .models import Parent
             self.fields['parents'].queryset = Parent.objects.filter(school=school, is_active=True)
@@ -132,6 +145,20 @@ class StudentForm(forms.ModelForm):
                 raise ValidationError('Admission date cannot be before date of birth.')
         
         return admission_date
+    
+    def save(self, commit=True):
+        """Override save to automatically set uses_transport based on transport_route"""
+        student = super().save(commit=False)
+
+        # Automatically set uses_transport based on transport_route assignment
+        # If a route is assigned, student uses transport; otherwise, they don't
+        student.uses_transport = bool(student.transport_route)
+
+        if commit:
+            student.save()
+            self.save_m2m()
+
+        return student
 
 
 class UserForm(UserCreationForm):

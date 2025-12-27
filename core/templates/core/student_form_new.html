@@ -244,7 +244,22 @@
                                     {{ form.transport_route.label }}
                                     {% if form.transport_route.field.required %}<span class="text-danger">*</span>{% endif %}
                                 </label>
-                                {{ form.transport_route }}
+                                <select name="{{ form.transport_route.name }}" id="{{ form.transport_route.id_for_label }}" class="form-select">
+                                    <option value="">None</option>
+                                    {% for route in form.transport_route.field.queryset %}
+                                        <option value="{{ route.id }}" 
+                                                data-fare="{{ route.base_fare }}"
+                                                {% if form.transport_route.value == route.id %}selected{% endif %}>
+                                            {{ route.name }} (KES {{ route.base_fare|floatformat:2 }})
+                                        </option>
+                                    {% endfor %}
+                                </select>
+                                <div id="transport_route_info" class="mt-2" style="display: none;">
+                                    <small class="text-muted">
+                                        <i class="fas fa-info-circle me-1"></i>
+                                        <strong>Route Fare:</strong> <span id="route_fare_display"></span>
+                                    </small>
+                                </div>
                                 {% if form.transport_route.help_text %}
                                     <div class="form-text">{{ form.transport_route.help_text }}</div>
                                 {% endif %}
@@ -285,15 +300,7 @@
                             <!-- Checkboxes -->
                             <div class="col-12">
                                 <div class="row">
-                                    <div class="col-md-4">
-                                        <div class="form-check">
-                                            {{ form.uses_transport }}
-                                            <label class="form-check-label" for="{{ form.uses_transport.id_for_label }}">
-                                                {{ form.uses_transport.label }}
-                                            </label>
-                                        </div>
-                                    </div>
-                                    <div class="col-md-4">
+                                    <div class="col-md-6">
                                         <div class="form-check">
                                             {{ form.pays_meals }}
                                             <label class="form-check-label" for="{{ form.pays_meals.id_for_label }}">
@@ -301,7 +308,7 @@
                                             </label>
                                         </div>
                                     </div>
-                                    <div class="col-md-4">
+                                    <div class="col-md-6">
                                         <div class="form-check">
                                             {{ form.pays_activities }}
                                             <label class="form-check-label" for="{{ form.pays_activities.id_for_label }}">
@@ -478,6 +485,38 @@ document.addEventListener('DOMContentLoaded', function() {
                 });
                 displayClassTeacher(initialClassData);
             }
+        }
+    }
+    
+    // Transport Route handling
+    const transportRouteSelect = document.getElementById('{{ form.transport_route.id_for_label }}');
+    const transportRouteInfo = document.getElementById('transport_route_info');
+    const routeFareDisplay = document.getElementById('route_fare_display');
+    
+    if (transportRouteSelect) {
+        // Function to update transport route info
+        function updateTransportRouteInfo() {
+            const selectedOption = transportRouteSelect.options[transportRouteSelect.selectedIndex];
+            
+            if (selectedOption && selectedOption.value) {
+                const fare = selectedOption.getAttribute('data-fare');
+                if (fare) {
+                    routeFareDisplay.textContent = 'KES ' + parseFloat(fare).toFixed(2);
+                    transportRouteInfo.style.display = 'block';
+                } else {
+                    transportRouteInfo.style.display = 'none';
+                }
+            } else {
+                transportRouteInfo.style.display = 'none';
+            }
+        }
+        
+        // Add event listener for transport route change
+        transportRouteSelect.addEventListener('change', updateTransportRouteInfo);
+        
+        // Update on page load if route is already selected
+        if (transportRouteSelect.value) {
+            updateTransportRouteInfo();
         }
     }
 });

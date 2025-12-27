@@ -1,0 +1,74 @@
+{% extends 'base.html' %}
+
+{% block title %}Delete Transport Route | School Management System{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="row justify-content-center">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header bg-danger text-white">
+                    <h4 class="mb-0">
+                        <i class="fas fa-exclamation-triangle me-2"></i>Delete Transport Route
+                    </h4>
+                </div>
+                <div class="card-body">
+                    <div class="alert alert-warning">
+                        <i class="fas fa-exclamation-triangle me-2"></i>
+                        <strong>Warning:</strong> This action cannot be undone. Make sure this transport route is not assigned to any students.
+                    </div>
+                    
+                    <p>Are you sure you want to delete the following transport route?</p>
+                    
+                    <div class="card bg-light mb-3">
+                        <div class="card-body">
+                            <h5>{{ route.name }}</h5>
+                            <p class="mb-1"><strong>Base Fare:</strong> KES {{ route.base_fare|floatformat:2 }}</p>
+                            {% if route.description %}
+                            <p class="mb-1"><strong>Description:</strong> {{ route.description }}</p>
+                            {% endif %}
+                            <p class="mb-1"><strong>Status:</strong> {% if route.is_currently_active %}Active{% elif route.is_active %}Scheduled{% else %}Inactive{% endif %}</p>
+                            {% if route.active_start_date or route.active_end_date %}
+                            <p class="mb-1">
+                                <strong>Active Dates:</strong>
+                                {% if route.active_start_date %}
+                                    From {{ route.active_start_date|date:"M d, Y" }}
+                                {% else %}
+                                    From start
+                                {% endif %}
+                                {% if route.active_end_date %}
+                                    to {{ route.active_end_date|date:"M d, Y" }}
+                                {% else %}
+                                    to indefinite
+                                {% endif %}
+                            </p>
+                            {% endif %}
+                            <p class="mb-0"><strong>Students Assigned:</strong> {{ route.students.count }}</p>
+                        </div>
+                    </div>
+                    
+                    {% if route.students.count > 0 %}
+                    <div class="alert alert-danger">
+                        <i class="fas fa-exclamation-circle me-2"></i>
+                        <strong>Cannot Delete:</strong> This route is assigned to {{ route.students.count }} student(s). Please reassign or remove these students before deleting the route.
+                    </div>
+                    {% endif %}
+                    
+                    <form method="post">
+                        {% csrf_token %}
+                        <div class="d-flex justify-content-end gap-2">
+                            <a href="{% url 'core:transport_route_list' %}" class="btn btn-secondary">
+                                <i class="fas fa-times me-2"></i>Cancel
+                            </a>
+                            <button type="submit" class="btn btn-danger" {% if route.students.count > 0 %}disabled{% endif %}>
+                                <i class="fas fa-trash me-2"></i>Delete Route
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+

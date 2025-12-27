@@ -112,8 +112,26 @@ class TransportRoute(models.Model):
         validators=[MinValueValidator(0)]
     )
     is_active = models.BooleanField(default=True)
+    active_start_date = models.DateField(null=True, blank=True, help_text='Start date when this route becomes active')
+    active_end_date = models.DateField(null=True, blank=True, help_text='End date when this route becomes inactive')
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+    
+    def is_currently_active(self):
+        """Check if route is currently active based on dates and is_active flag"""
+        from django.utils import timezone
+        today = timezone.now().date()
+        
+        if not self.is_active:
+            return False
+        
+        if self.active_start_date and today < self.active_start_date:
+            return False
+        
+        if self.active_end_date and today > self.active_end_date:
+            return False
+        
+        return True
 
     def __str__(self):
         return f"{self.name} - KES {self.base_fare}"

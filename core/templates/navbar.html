@@ -205,7 +205,7 @@
                 
                 <!-- Settings/Configuration -->
                 <li class="nav-item dropdown">
-                    <a class="nav-link dropdown-toggle {% if request.resolver_match.url_name == 'term_list' or request.resolver_match.url_name == 'grade_list' or request.resolver_match.url_name == 'class_list' or request.resolver_match.url_name == 'user_list' or request.resolver_match.url_name == 'role_list' %}active{% endif %}" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                    <a class="nav-link dropdown-toggle {% if request.resolver_match.url_name == 'term_list' or request.resolver_match.url_name == 'grade_list' or request.resolver_match.url_name == 'class_list' or request.resolver_match.url_name == 'user_list' or request.resolver_match.url_name == 'role_list' or request.resolver_match.url_name == 'transport_route_list' or request.resolver_match.url_name == 'fee_category_list' %}active{% endif %}" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
                         <i class="fas fa-cog me-2"></i>Settings
                     </a>
                     <ul class="dropdown-menu">
@@ -222,6 +222,15 @@
                         {% if user|has_permission:'view_class' %}
                         <li><a class="dropdown-item" href="{% url 'core:class_list' %}">
                             <i class="fas fa-chalkboard me-2"></i>Classes
+                        </a></li>
+                        {% endif %}
+                        {% if user.is_superuser or user.profile.is_school_admin or user.profile.is_accountant %}
+                        <li><hr class="dropdown-divider"></li>
+                        <li><a class="dropdown-item" href="{% url 'core:fee_category_list' %}">
+                            <i class="fas fa-tags me-2"></i>Fee Categories
+                        </a></li>
+                        <li><a class="dropdown-item" href="{% url 'core:transport_route_list' %}">
+                            <i class="fas fa-route me-2"></i>Transport Routes
                         </a></li>
                         {% endif %}
                         {% if user.is_superuser or user.profile.is_school_admin %}

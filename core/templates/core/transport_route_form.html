@@ -1,0 +1,121 @@
+{% extends 'base.html' %}
+
+{% block title %}{% if route %}Edit{% else %}Add{% endif %} Transport Route | School Management System{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <h4 class="mb-0">
+                        <i class="fas fa-route me-2"></i>{% if route %}Edit{% else %}Add{% endif %} Transport Route
+                    </h4>
+                </div>
+                <div class="card-body">
+                    {% if messages %}
+                        {% for message in messages %}
+                            <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                                {{ message }}
+                                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                            </div>
+                        {% endfor %}
+                    {% endif %}
+                    
+                    <form method="post" novalidate>
+                        {% csrf_token %}
+                        <div class="mb-3">
+                            <label for="id_name" class="form-label">Route Name <span class="text-danger">*</span></label>
+                            <input type="text" 
+                                   name="name" 
+                                   id="id_name" 
+                                   class="form-control" 
+                                   value="{% if route %}{{ route.name }}{% elif post.name %}{{ post.name }}{% endif %}"
+                                   placeholder="e.g., Route A, North Route, Downtown Route"
+                                   required>
+                            <div class="form-text">Enter a descriptive name for this transport route</div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="id_base_fare" class="form-label">Base Fare (KES) <span class="text-danger">*</span></label>
+                            <input type="number" 
+                                   name="base_fare" 
+                                   id="id_base_fare" 
+                                   class="form-control" 
+                                   value="{% if route %}{{ route.base_fare }}{% elif post.base_fare %}{{ post.base_fare }}{% endif %}"
+                                   step="0.01" 
+                                   min="0" 
+                                   placeholder="0.00"
+                                   required>
+                            <div class="form-text">Enter the base fare amount for this route. This will be used when generating transport fees for students assigned to this route.</div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="id_description" class="form-label">Description</label>
+                            <textarea name="description" 
+                                      id="id_description" 
+                                      class="form-control" 
+                                      rows="3"
+                                      placeholder="Optional description for this route (e.g., areas covered, pickup points)">{% if route %}{{ route.description }}{% elif post.description %}{{ post.description }}{% endif %}</textarea>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <div class="form-check form-switch">
+                                <input type="checkbox" 
+                                       name="is_active" 
+                                       id="id_is_active" 
+                                       class="form-check-input" 
+                                       {% if route and route.is_active or not route %}checked{% elif post.is_active %}checked{% endif %}>
+                                <label class="form-check-label" for="id_is_active">
+                                    Active Route
+                                </label>
+                            </div>
+                            <div class="form-text">Only active routes can be assigned to students</div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label class="form-label">Active Date Range (Optional)</label>
+                            <div class="row g-2">
+                                <div class="col-md-6">
+                                    <label for="id_active_start_date" class="form-label small">Start Date</label>
+                                    <input type="date" 
+                                           name="active_start_date" 
+                                           id="id_active_start_date" 
+                                           class="form-control" 
+                                           value="{% if route and route.active_start_date %}{{ route.active_start_date|date:'Y-m-d' }}{% elif post.active_start_date %}{{ post.active_start_date }}{% endif %}">
+                                    <div class="form-text small">Route becomes active on this date</div>
+                                </div>
+                                <div class="col-md-6">
+                                    <label for="id_active_end_date" class="form-label small">End Date</label>
+                                    <input type="date" 
+                                           name="active_end_date" 
+                                           id="id_active_end_date" 
+                                           class="form-control" 
+                                           value="{% if route and route.active_end_date %}{{ route.active_end_date|date:'Y-m-d' }}{% elif post.active_end_date %}{{ post.active_end_date }}{% endif %}">
+                                    <div class="form-text small">Route becomes inactive after this date</div>
+                                </div>
+                            </div>
+                            <div class="form-text">
+                                <small>
+                                    <i class="fas fa-info-circle me-1"></i>
+                                    Leave blank to keep route active indefinitely. If dates are set, the route will only be active during the specified date range.
+                                </small>
+                            </div>
+                        </div>
+                        
+                        <div class="d-flex justify-content-end gap-2">
+                            <a href="{% url 'core:transport_route_list' %}" class="btn btn-secondary">
+                                <i class="fas fa-times me-2"></i>Cancel
+                            </a>
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-save me-2"></i>{% if route %}Update{% else %}Create{% endif %} Route
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+

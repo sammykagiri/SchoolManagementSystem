@@ -1,0 +1,100 @@
+{% extends 'base.html' %}
+
+{% block title %}Transport Routes | School Management System{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2 class="mb-0">Transport Routes</h2>
+        <div class="btn-group">
+            <a href="{% url 'core:transport_route_add' %}" class="btn btn-primary">
+                <i class="fas fa-plus me-2"></i>Add Transport Route
+            </a>
+        </div>
+    </div>
+    
+    <div class="card">
+        <div class="card-body p-0">
+            {% if transport_routes %}
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Route Name</th>
+                                <th class="text-end">Base Fare (KES)</th>
+                                <th>Description</th>
+                                <th>Active Dates</th>
+                                <th>Status</th>
+                                <th class="text-center">Students Assigned</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for route in transport_routes %}
+                            <tr>
+                                <td><strong>{{ route.name }}</strong></td>
+                                <td class="text-end">{{ route.base_fare|floatformat:2 }}</td>
+                                <td>
+                                    {% if route.description %}
+                                        <small class="text-muted">{{ route.description|truncatewords:10 }}</small>
+                                    {% else %}
+                                        <span class="text-muted">—</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if route.active_start_date or route.active_end_date %}
+                                        <small>
+                                            {% if route.active_start_date %}
+                                                <strong>From:</strong> {{ route.active_start_date|date:"M d, Y" }}<br>
+                                            {% endif %}
+                                            {% if route.active_end_date %}
+                                                <strong>To:</strong> {{ route.active_end_date|date:"M d, Y" }}
+                                            {% else %}
+                                                <strong>To:</strong> <span class="text-muted">Indefinite</span>
+                                            {% endif %}
+                                        </small>
+                                    {% else %}
+                                        <span class="text-muted">Always active</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if route.is_currently_active %}
+                                        <span class="badge bg-success">Active</span>
+                                    {% elif route.is_active %}
+                                        <span class="badge bg-warning">Scheduled</span>
+                                    {% else %}
+                                        <span class="badge bg-secondary">Inactive</span>
+                                    {% endif %}
+                                </td>
+                                <td class="text-center">
+                                    <span class="badge bg-info">{{ route.students.count }}</span>
+                                </td>
+                                <td>
+                                    <div class="btn-group btn-group-sm" role="group">
+                                        <a href="{% url 'core:transport_route_edit' route.id %}" class="btn btn-outline-primary" title="Edit">
+                                            <i class="fas fa-edit"></i>
+                                        </a>
+                                        <a href="{% url 'core:transport_route_delete' route.id %}" class="btn btn-outline-danger" title="Delete" onclick="return confirm('Are you sure you want to delete this transport route?');">
+                                            <i class="fas fa-trash"></i>
+                                        </a>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            {% else %}
+                <div class="text-center py-5">
+                    <i class="fas fa-route fa-3x text-muted mb-3"></i>
+                    <p class="text-muted">No transport routes found.</p>
+                    <a href="{% url 'core:transport_route_add' %}" class="btn btn-primary">
+                        <i class="fas fa-plus me-2"></i>Add First Transport Route
+                    </a>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}
+
