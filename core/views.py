@@ -201,7 +201,7 @@ def student_list(request):
         students = students.filter(grade_id=grade_filter)
     
     # Order by active status first, then by name
-    students = students.order_by('-is_active', 'first_name', 'last_name')
+    students = students.order_by('-is_active', 'first_name', 'middle_name', 'last_name')
     
     # Pagination
     paginator = Paginator(students, 20)
@@ -234,9 +234,11 @@ def student_list(request):
 @role_required('super_admin', 'school_admin', 'teacher', 'accountant')
 def student_detail(request, student_id):
     """Student detail view"""
+    school = request.user.profile.school
     student = get_object_or_404(
         Student.objects.select_related('grade', 'transport_route', 'school_class', 'school_class__class_teacher').prefetch_related('parents__user'),
-        student_id=student_id
+        student_id=student_id,
+        school=school
     )
     student_fees = StudentFee.objects.filter(student=student).select_related(
         'fee_category', 'term'
@@ -518,7 +520,8 @@ def student_update(request, student_id):
 @role_required('super_admin', 'school_admin')
 def student_delete(request, student_id):
     """Delete student"""
-    student = get_object_or_404(Student, student_id=student_id)
+    school = request.user.profile.school
+    student = get_object_or_404(Student, student_id=student_id, school=school)
     
     if request.method == 'POST':
         student.is_active = False
@@ -1685,7 +1688,8 @@ def profile_view(request):
 @login_required
 def get_student_fees(request, student_id):
     """Get student fees as JSON"""
-    student = get_object_or_404(Student, student_id=student_id)
+    school = request.user.profile.school
+    student = get_object_or_404(Student, student_id=student_id, school=school)
     student_fees = StudentFee.objects.filter(student=student).select_related(
         'fee_category', 'term'
     )

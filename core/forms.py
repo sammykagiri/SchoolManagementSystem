@@ -12,7 +12,7 @@ class StudentForm(forms.ModelForm):
     class Meta:
         model = Student
         fields = [
-            'first_name', 'last_name', 'gender', 'date_of_birth', 
+            'first_name', 'middle_name', 'last_name', 'gender', 'date_of_birth', 
             'grade', 'school_class', 'admission_date', 'parent_name', 'parent_phone', 
             'parent_email', 'address', 'transport_route', 'uses_transport', 
             'photo', 'parents', 'optional_fee_categories'

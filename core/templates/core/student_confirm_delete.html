@@ -2,7 +2,7 @@
 {% load date_format %}
 {% load static %}
 
-{% block title %}Delete Student - {{ student.first_name }} {{ student.last_name }}{% endblock %}
+{% block title %}Delete Student - {{ student.full_name }}{% endblock %}
 
 {% block content %}
 <div class="container-fluid">
@@ -32,7 +32,7 @@
                                 </tr>
                                 <tr>
                                     <th>Name:</th>
-                                    <td>{{ student.first_name }} {{ student.last_name }}</td>
+                                    <td>{{ student.full_name }}</td>
                                 </tr>
                                 <tr>
                                     <th>Grade:</th>

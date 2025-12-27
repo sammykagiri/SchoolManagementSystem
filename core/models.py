@@ -191,6 +191,7 @@ class Student(models.Model):
     
     student_id = models.CharField(max_length=20)
     first_name = models.CharField(max_length=100)
+    middle_name = models.CharField(max_length=100, blank=True, help_text='Middle or other names (optional)')
     last_name = models.CharField(max_length=100)
     gender = models.CharField(max_length=1, choices=GENDER_CHOICES)
     date_of_birth = models.DateField()
@@ -259,11 +260,19 @@ class Student(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
     def __str__(self):
-        return f"{self.student_id} - {self.first_name} {self.last_name}"
+        name_parts = [self.first_name]
+        if self.middle_name:
+            name_parts.append(self.middle_name)
+        name_parts.append(self.last_name)
+        return f"{self.student_id} - {' '.join(name_parts)}"
 
     @property
     def full_name(self):
-        return f"{self.first_name} {self.last_name}"
+        name_parts = [self.first_name]
+        if self.middle_name:
+            name_parts.append(self.middle_name)
+        name_parts.append(self.last_name)
+        return ' '.join(name_parts)
     
     def get_school_classes(self):
         """Get all school classes for this student's grade"""
@@ -287,7 +296,7 @@ class Student(models.Model):
         return Subject.objects.filter(id__in=subject_ids, school=self.school, is_active=True)
 
     class Meta:
-        ordering = ['grade', 'first_name', 'last_name']
+        ordering = ['grade', 'first_name', 'middle_name', 'last_name']
         unique_together = ['school', 'student_id']
 
 

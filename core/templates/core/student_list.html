@@ -64,7 +64,7 @@
                                 <span class="badge bg-secondary ms-1">Inactive</span>
                             {% endif %}
                         </td>
-                        <td>{{ student.first_name }} {{ student.last_name }}</td>
+                        <td>{{ student.full_name }}</td>
                         <td>{{ student.grade.name }}</td>
                         <td>
                             {% if student.school_class %}
