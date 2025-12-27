@@ -15,7 +15,7 @@ class StudentForm(forms.ModelForm):
             'first_name', 'last_name', 'gender', 'date_of_birth', 
             'grade', 'school_class', 'admission_date', 'parent_name', 'parent_phone', 
             'parent_email', 'address', 'transport_route', 'uses_transport', 
-            'pays_meals', 'pays_activities', 'photo', 'parents', 'optional_fee_categories'
+            'photo', 'parents', 'optional_fee_categories'
         ]
         widgets = {
             'date_of_birth': forms.DateInput(attrs={'type': 'date'}),
@@ -23,11 +23,10 @@ class StudentForm(forms.ModelForm):
             'parent_email': forms.EmailInput(),
             'address': forms.Textarea(attrs={'rows': 3}),
             'uses_transport': forms.CheckboxInput(),
-            'pays_meals': forms.CheckboxInput(),
-            'pays_activities': forms.CheckboxInput(),
             'photo': forms.FileInput(attrs={'accept': 'image/*', 'class': 'form-control'}),
             'parents': forms.CheckboxSelectMultiple(),
             'school_class': forms.Select(attrs={'class': 'form-select'}),
+            'optional_fee_categories': forms.CheckboxSelectMultiple(),
         }
     
     def __init__(self, *args, **kwargs):
@@ -55,6 +54,19 @@ class StudentForm(forms.ModelForm):
             # Filter parents by school
             from .models import Parent
             self.fields['parents'].queryset = Parent.objects.filter(school=school, is_active=True)
+            
+            # Filter optional fee categories by school and set defaults
+            if school:
+                optional_categories = FeeCategory.objects.filter(school=school, is_optional=True)
+                self.fields['optional_fee_categories'].queryset = optional_categories
+                
+                # Set initial values for new students based on apply_by_default
+                if not self.instance.pk:  # New student
+                    default_categories = optional_categories.filter(apply_by_default=True)
+                    self.fields['optional_fee_categories'].initial = list(default_categories.values_list('id', flat=True))
+            else:
+                # No school provided - hide the field
+                self.fields['optional_fee_categories'].queryset = FeeCategory.objects.none()
         
         # Filter school_class based on selected grade when editing
         if self.instance and self.instance.pk and self.instance.grade:

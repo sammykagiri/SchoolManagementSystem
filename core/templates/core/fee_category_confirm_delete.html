@@ -13,10 +13,17 @@
                     </h4>
                 </div>
                 <div class="card-body">
+                    {% if category.category_type == 'transport' %}
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle me-2"></i>
+                        <strong>Note:</strong> Transport fees are now managed via transport routes. Any fee structures associated with this transport category will be automatically deleted. However, if this category is used in student fees, you must update or remove those fees first.
+                    </div>
+                    {% else %}
                     <div class="alert alert-warning">
                         <i class="fas fa-exclamation-triangle me-2"></i>
                         <strong>Warning:</strong> This action cannot be undone. Make sure this fee category is not being used in any fee structures or student fees.
                     </div>
+                    {% endif %}
                     
                     <p>Are you sure you want to delete the following fee category?</p>
                     
@@ -30,6 +37,13 @@
                             <p class="mb-0"><strong>Optional:</strong> {% if category.is_optional %}Yes{% else %}No{% endif %}</p>
                         </div>
                     </div>
+                    
+                    {% if category.category_type == 'transport' %}
+                    <div class="alert alert-warning">
+                        <i class="fas fa-exclamation-triangle me-2"></i>
+                        <strong>Important:</strong> After deleting this transport category, make sure transport fees are being generated correctly via the transport routes system.
+                    </div>
+                    {% endif %}
                     
                     <form method="post">
                         {% csrf_token %}

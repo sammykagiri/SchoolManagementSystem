@@ -29,8 +29,7 @@
                                    class="term-checkbox-hidden" 
                                    name="apply_transport_to_terms" 
                                    value="{{ term.id }}" 
-                                   id="term_hidden_{{ term.id }}"
-                                   checked>
+                                   id="term_hidden_{{ term.id }}">
                             {% endfor %}
                         </div>
                         {% endif %}
@@ -311,27 +310,32 @@
                                 {% endif %}
                             </div>
                             
-                            <!-- Checkboxes -->
+                            <!-- Optional Fee Categories -->
+                            {% if form.optional_fee_categories.field.queryset %}
                             <div class="col-12">
-                                <div class="row">
-                                    <div class="col-md-6">
-                                        <div class="form-check">
-                                            {{ form.pays_meals }}
-                                            <label class="form-check-label" for="{{ form.pays_meals.id_for_label }}">
-                                                {{ form.pays_meals.label }}
-                                            </label>
+                                <label class="form-label">Optional Fee Categories</label>
+                                <div class="card bg-light">
+                                    <div class="card-body">
+                                        <div class="row">
+                                            {% for checkbox in form.optional_fee_categories %}
+                                            <div class="col-md-6 mb-2">
+                                                <div class="form-check">
+                                                    {{ checkbox.tag }}
+                                                    <label class="form-check-label" for="{{ checkbox.id_for_label }}">
+                                                        {{ checkbox.choice_label }}
+                                                    </label>
+                                                </div>
+                                            </div>
+                                            {% endfor %}
                                         </div>
-                                    </div>
-                                    <div class="col-md-6">
-                                        <div class="form-check">
-                                            {{ form.pays_activities }}
-                                            <label class="form-check-label" for="{{ form.pays_activities.id_for_label }}">
-                                                {{ form.pays_activities.label }}
-                                            </label>
+                                        <div class="form-text mt-2">
+                                            <i class="fas fa-info-circle me-1"></i>
+                                            Select optional fee categories this student should pay. These fees will be applied when generating student fees.
                                         </div>
                                     </div>
                                 </div>
                             </div>
+                            {% endif %}
 
                             <!-- Linked Parents -->
                             <div class="col-md-6">
@@ -601,6 +605,7 @@ document.addEventListener('DOMContentLoaded', function() {
     if (transportRouteSelect && transportRouteModal && studentForm) {
         // Store original value on page load
         originalRouteValue = transportRouteSelect.value;
+        let modalShownForRouteChange = false; // Track if modal was shown due to route change
         
         // Intercept form submission
         studentForm.addEventListener('submit', function(e) {
@@ -613,9 +618,21 @@ document.addEventListener('DOMContentLoaded', function() {
                 
                 // Reset modal state
                 modalConfirmed = false;
+                modalShownForRouteChange = true; // Mark that modal is being shown for route change
+                
+                // Ensure all visible checkboxes are checked (they should be by default, but just in case)
+                termCheckboxes.forEach(function(checkbox) {
+                    checkbox.checked = true;
+                });
+                if (selectAllTerms) {
+                    selectAllTerms.checked = true;
+                }
                 
                 // Sync checkboxes to default (all checked) before showing modal
                 syncCheckboxes();
+                
+                // Debug: Log synced checkboxes (can be removed in production)
+                // console.log('Modal shown. Synced checkboxes:', Array.from(termCheckboxesHidden).filter(cb => cb.checked).map(cb => cb.value));
                 
                 // Show modal
                 const modal = new bootstrap.Modal(transportRouteModal);
@@ -627,19 +644,23 @@ document.addEventListener('DOMContentLoaded', function() {
         
         // Sync visible checkboxes with hidden checkboxes in form
         function syncCheckboxes() {
+            let syncedCount = 0;
             termCheckboxes.forEach(function(visibleCheckbox) {
                 const termId = visibleCheckbox.getAttribute('data-term-id');
                 const hiddenCheckbox = document.getElementById('term_hidden_' + termId);
                 if (hiddenCheckbox) {
                     hiddenCheckbox.checked = visibleCheckbox.checked;
+                    syncedCount++;
+                } else {
+                    console.warn('Hidden checkbox not found for term:', termId);
                 }
             });
+            // Debug logging (can be removed in production)
+            // console.log(`Synced ${syncedCount} checkboxes. Visible: ${termCheckboxes.length}, Hidden: ${termCheckboxesHidden.length}`);
+            return syncedCount;
         }
         
-        // Initial sync on page load
-        if (termCheckboxes.length > 0 && termCheckboxesHidden.length > 0) {
-            syncCheckboxes();
-        }
+        // Don't sync on page load - only sync when modal is shown or when user interacts
         
         // Handle "Select All" checkbox
         if (selectAllTerms) {
@@ -670,8 +691,13 @@ document.addEventListener('DOMContentLoaded', function() {
                 // Sync checkboxes BEFORE closing modal
                 syncCheckboxes();
                 
+                // Debug: Log selected terms before submit (can be removed in production)
+                // const selectedHidden = Array.from(termCheckboxesHidden).filter(cb => cb.checked).map(cb => cb.value);
+                // console.log('Confirm clicked. Selected terms:', selectedHidden);
+                
                 // Mark as confirmed
                 modalConfirmed = true;
+                modalShownForRouteChange = false; // Reset flag
                 
                 // Close modal
                 const modal = bootstrap.Modal.getInstance(transportRouteModal);
@@ -679,17 +705,51 @@ document.addEventListener('DOMContentLoaded', function() {
                 
                 // Submit the form after modal closes
                 setTimeout(function() {
-                    // Double-check sync before submitting
-                    syncCheckboxes();
-                    studentForm.submit();
+                    // Double-check sync before submitting - ensure all visible checked boxes sync to hidden
+                    termCheckboxes.forEach(function(visibleCheckbox) {
+                        if (visibleCheckbox.checked) {
+                            const termId = visibleCheckbox.getAttribute('data-term-id');
+                            const hiddenCheckbox = document.getElementById('term_hidden_' + termId);
+                            if (hiddenCheckbox) {
+                                hiddenCheckbox.checked = true;
+                            }
+                        }
+                    });
+                    
+                    const finalSelected = Array.from(termCheckboxesHidden).filter(cb => cb.checked).map(cb => cb.value);
+                    // Debug logging (can be removed in production)
+                    // console.log('Final selected terms before submit:', finalSelected);
+                    
+                    // Verify checkboxes are in the form
+                    const formCheckboxes = studentForm.querySelectorAll('input[name="apply_transport_to_terms"]:checked');
+                    // console.log('Form checkboxes found:', formCheckboxes.length, Array.from(formCheckboxes).map(cb => cb.value));
+                    
+                    if (finalSelected.length === 0) {
+                        console.error('ERROR: No terms selected! Checkboxes may not be syncing correctly.');
+                        alert('Error: No terms were selected. Please try again.');
+                        return;
+                    }
+                    
+                    // Submit the form - modalConfirmed is true so submit handler won't intercept
+                    if (studentForm.requestSubmit) {
+                        studentForm.requestSubmit();
+                    } else {
+                        studentForm.submit();
+                    }
                 }, 300);
             });
         }
         
-        // Handle modal cancel/close - allow form submission without updating fees
+        // Handle modal cancel/close - reset route to original value if dismissed
         transportRouteModal.addEventListener('hidden.bs.modal', function() {
-            // If modal was closed without confirming, uncheck all terms
-            if (!modalConfirmed) {
+            // If modal was closed without confirming and it was shown for a route change
+            if (!modalConfirmed && modalShownForRouteChange) {
+                // Reset route to original value
+                transportRouteSelect.value = originalRouteValue;
+                // Trigger change event to update UI
+                transportRouteSelect.dispatchEvent(new Event('change'));
+                
+                // Uncheck all terms
                 termCheckboxes.forEach(function(checkbox) {
                     checkbox.checked = false;
                 });
@@ -698,13 +758,14 @@ document.addEventListener('DOMContentLoaded', function() {
                     checkbox.checked = false;
                 });
                 
-                // Mark as confirmed so form can submit
-                modalConfirmed = true;
+                // Reset flags
+                modalConfirmed = false;
+                modalShownForRouteChange = false;
                 
-                // Submit the form
-                setTimeout(function() {
-                    studentForm.submit();
-                }, 100);
+                // Do NOT submit the form - let user decide what to do next
+            } else if (modalConfirmed) {
+                // Modal was confirmed, so flags are already reset
+                modalShownForRouteChange = false;
             }
         });
     }

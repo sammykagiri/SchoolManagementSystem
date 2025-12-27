@@ -307,19 +307,27 @@ def student_update(request, student_id):
                 route_changed = (old_route_id != new_route_id)
                 
                 # Check if user selected terms to apply transport fee changes to (BEFORE saving)
-                apply_to_terms = request.POST.getlist('apply_transport_to_terms')
+                apply_to_terms_raw = request.POST.getlist('apply_transport_to_terms')
                 # Filter out empty strings and convert to integers
-                apply_to_terms = [int(t) for t in apply_to_terms if t and t.isdigit()]
+                apply_to_terms = [int(t) for t in apply_to_terms_raw if t and t.isdigit()]
+                
+                # Debug logging
+                import logging
+                logger = logging.getLogger(__name__)
+                logger.debug(f"Student update - Route changed: {route_changed}, Old route ID: {old_route_id}, New route ID: {new_route_id}")
+                logger.debug(f"Student update - Apply to terms raw: {apply_to_terms_raw}, Processed: {apply_to_terms}")
                 
                 # Save the student
                 form.save()
-                
+
                 # Refresh student from database to get updated transport_route
                 student.refresh_from_db()
-                
+
                 # Process fees if terms were selected (user explicitly selected terms via modal)
-                # The modal only shows when route changes, so if terms are selected, we should process them
+                # The modal only shows when route changes, so if terms are selected, route must have changed
                 if apply_to_terms:
+                    # Process fees - if terms are selected, it means modal was shown, which only happens on route change
+                    logger.debug(f"Processing transport fees for {len(apply_to_terms)} term(s)")
                     # Get transport category
                     transport_category = FeeCategory.objects.filter(
                         school=school,
@@ -1165,15 +1173,35 @@ def fee_category_delete(request, category_id):
     category = get_object_or_404(FeeCategory, id=category_id, school=school)
     
     if request.method == 'POST':
-        # Check if category is used in fee structures
-        if FeeStructure.objects.filter(fee_category=category).exists():
-            messages.error(request, f'Cannot delete "{category.name}" because it is used in fee structures.')
-            return redirect('core:fee_category_list')
+        is_transport = category.category_type == 'transport'
         
-        # Check if category is used in student fees
-        if StudentFee.objects.filter(fee_category=category).exists():
-            messages.error(request, f'Cannot delete "{category.name}" because it is used in student fees.')
-            return redirect('core:fee_category_list')
+        # For transport categories, allow deletion (they're managed via routes now)
+        # But clean up related fee structures and warn about student fees
+        if is_transport:
+            # Delete related fee structures (transport is route-based now)
+            fee_structures_count = FeeStructure.objects.filter(fee_category=category).count()
+            if fee_structures_count > 0:
+                FeeStructure.objects.filter(fee_category=category).delete()
+                messages.warning(request, f'Deleted {fee_structures_count} fee structure(s) associated with this transport category.')
+            
+            # Check if category is used in student fees
+            student_fees_count = StudentFee.objects.filter(fee_category=category).count()
+            if student_fees_count > 0:
+                messages.error(
+                    request, 
+                    f'Cannot delete "{category.name}" because it is used in {student_fees_count} student fee record(s). '
+                    'Please remove or update these student fees first, or they will continue to reference a deleted category.'
+                )
+                return redirect('core:fee_category_list')
+        else:
+            # For non-transport categories, check both fee structures and student fees
+            if FeeStructure.objects.filter(fee_category=category).exists():
+                messages.error(request, f'Cannot delete "{category.name}" because it is used in fee structures.')
+                return redirect('core:fee_category_list')
+            
+            if StudentFee.objects.filter(fee_category=category).exists():
+                messages.error(request, f'Cannot delete "{category.name}" because it is used in student fees.')
+                return redirect('core:fee_category_list')
         
         try:
             category.delete()
@@ -1370,19 +1398,11 @@ def generate_student_fees_from_structures(request):
                 
                 # Check if fee is optional and if student should pay it
                 if category.is_optional:
-                    # For optional fees, check student preferences
-                    if category.category_type == 'meals' and not student.pays_meals:
-                        # Remove fee if student no longer pays meals
-                        StudentFee.objects.filter(
-                            school=school,
-                            student=student,
-                            term=term,
-                            fee_category=category
-                        ).delete()
-                        skipped_count += 1
-                        continue
-                    if category.category_type == 'activities' and not student.pays_activities:
-                        # Remove fee if student no longer pays activities
+                    # Check if student has opted into this optional category
+                    student_opted_in = category in student.optional_fee_categories.all()
+                    
+                    if not student_opted_in:
+                        # Remove fee if student hasn't opted in
                         StudentFee.objects.filter(
                             school=school,
                             student=student,

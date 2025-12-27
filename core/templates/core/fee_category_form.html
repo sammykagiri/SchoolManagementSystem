@@ -79,7 +79,8 @@
                                        name="apply_by_default" 
                                        id="id_apply_by_default" 
                                        class="form-check-input" 
-                                       {% if category and category.apply_by_default %}checked{% elif post.apply_by_default %}checked{% endif %}>
+                                       {% if category and category.apply_by_default %}checked{% elif post.apply_by_default %}checked{% endif %}
+                                       {% if not category or not category.is_optional %}{% if not post.is_optional %}disabled{% endif %}{% endif %}>
                                 <label class="form-check-label" for="id_apply_by_default">
                                     Apply by Default
                                 </label>
@@ -101,5 +102,33 @@
         </div>
     </div>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const isOptionalCheckbox = document.getElementById('id_is_optional');
+    const applyByDefaultCheckbox = document.getElementById('id_apply_by_default');
+    
+    function updateApplyByDefaultState() {
+        if (isOptionalCheckbox && applyByDefaultCheckbox) {
+            if (isOptionalCheckbox.checked) {
+                applyByDefaultCheckbox.disabled = false;
+            } else {
+                applyByDefaultCheckbox.disabled = true;
+                applyByDefaultCheckbox.checked = false; // Uncheck if optional is unchecked
+            }
+        }
+    }
+    
+    // Update on page load
+    updateApplyByDefaultState();
+    
+    // Update when optional checkbox changes
+    if (isOptionalCheckbox) {
+        isOptionalCheckbox.addEventListener('change', updateApplyByDefaultState);
+    }
+});
+</script>
 {% endblock %}
 
