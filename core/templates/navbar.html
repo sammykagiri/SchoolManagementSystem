@@ -5,9 +5,9 @@
 <aside id="sidebar" class="sidebar">
     <div class="sidebar-header">
         {% if user.is_authenticated and user.profile.school and user.profile.school.logo %}
-            <div class="school-logo-container mb-2">
+            <a href="{% url 'core:dashboard' %}" class="school-logo-container mb-2" style="display: block; text-decoration: none; cursor: pointer;">
                 <img src="{{ user.profile.school.logo.url }}" alt="School Logo" class="school-logo">
-            </div>
+            </a>
         {% endif %}
         <a href="{% url 'core:dashboard' %}" class="sidebar-brand">
             {% if user.is_authenticated and user.profile.school %}
