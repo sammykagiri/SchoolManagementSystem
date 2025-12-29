@@ -35,6 +35,15 @@ class Command(BaseCommand):
             return
 
         try:
+            # Check if user with this username already exists
+            if User.objects.filter(username=username).exists():
+                self.stdout.write(
+                    self.style.WARNING(
+                        f'User with username "{username}" already exists. Skipping creation.'
+                    )
+                )
+                return
+            
             User.objects.create_superuser(
                 username=username,
                 email=email,
@@ -49,4 +58,7 @@ class Command(BaseCommand):
             self.stdout.write(
                 self.style.ERROR(f'Error creating superuser: {str(e)}')
             )
+            # Don't raise the exception - just log it and continue
+            import traceback
+            self.stdout.write(self.style.ERROR(traceback.format_exc()))
 
