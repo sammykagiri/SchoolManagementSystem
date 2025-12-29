@@ -91,3 +91,5 @@ class Command(BaseCommand):
                 f'\nSuccessfully created {created_count} profile(s).'
             )
         )
+
+

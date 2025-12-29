@@ -104,3 +104,5 @@ class Command(BaseCommand):
                     f'\n\nCOMPLETE: Updated {total_updated} subject(s) across {len(schools)} school(s)'
                 )
             )
+
+

@@ -187,3 +187,5 @@ Potential improvements:
 - Subject templates customization UI
 - Grade-to-level mapping configuration
 - Subject prerequisites by level
+
+

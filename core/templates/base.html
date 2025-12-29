@@ -191,6 +191,27 @@
             color: var(--sidebar-text);
         }
         
+        .sidebar-footer .dropdown-menu {
+            background-color: var(--sidebar-bg);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            min-width: 200px;
+        }
+        
+        .sidebar-footer .dropdown-item {
+            color: var(--sidebar-text-muted);
+            padding: 0.5rem 1rem;
+        }
+        
+        .sidebar-footer .dropdown-item:hover {
+            background-color: var(--sidebar-hover);
+            color: var(--sidebar-text);
+        }
+        
+        .sidebar-footer .dropdown-divider {
+            border-color: rgba(255, 255, 255, 0.1);
+            margin: 0.25rem 0;
+        }
+        
         .sidebar-toggle {
             display: none;
             position: fixed;
@@ -358,8 +379,10 @@
     </style>
     {% endif %}
 </head>
-<body>
-    {% include "navbar.html" %}
+<body {% if request.resolver_match.url_name == 'login' or 'password_reset' in request.resolver_match.url_name or 'password_change' in request.resolver_match.url_name %}class="no-sidebar"{% endif %}>
+    {% if request.resolver_match.url_name != 'login' and 'password_reset' not in request.resolver_match.url_name and 'password_change' not in request.resolver_match.url_name %}
+        {% include "navbar.html" %}
+    {% endif %}
     
     <!-- CSRF Token for AJAX requests -->
     {% csrf_token %}

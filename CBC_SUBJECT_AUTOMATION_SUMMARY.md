@@ -172,3 +172,5 @@ CBC_SUBJECT_TEMPLATES['lower_primary'].append({
 - Pathways are optional and mainly for Junior Secondary
 - All CBC fields are optional - you can create subjects without them
 - Existing subjects can be updated with CBC fields anytime
+
+

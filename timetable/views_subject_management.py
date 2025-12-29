@@ -257,3 +257,5 @@ def subject_sync_with_templates(request, learning_level):
         'syncable_subjects': syncable,
         'syncable_count': len(syncable),
     })
+
+

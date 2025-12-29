@@ -1708,9 +1708,17 @@ def generate_student_fees_from_structures(request):
 
 
 @login_required
+@login_required
 def profile_view(request):
     """User profile view"""
-    return render(request, 'auth/profile.html')
+    user = request.user
+    profile = getattr(user, 'profile', None)
+    
+    context = {
+        'user': user,
+        'profile': profile,
+    }
+    return render(request, 'auth/profile.html', context)
 
 
 # API views for AJAX requests

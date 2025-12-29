@@ -394,15 +394,19 @@
     <!-- User Profile Section -->
     {% if user.is_authenticated %}
     <div class="sidebar-footer">
-        <div class="dropdown">
-            <a class="nav-link dropdown-toggle user-profile-link" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+        <div class="dropdown" style="position: relative;">
+            <a class="nav-link dropdown-toggle user-profile-link" href="#" role="button" id="userProfileDropdown" data-bs-toggle="dropdown" aria-expanded="false">
                 <i class="fas fa-user-circle me-2"></i>
                 <span>{{ user.username }}</span>
             </a>
-            <ul class="dropdown-menu dropdown-menu-end">
-                <li><a class="dropdown-item" href="#">Profile</a></li>
+            <ul class="dropdown-menu" aria-labelledby="userProfileDropdown">
+                <li><a class="dropdown-item" href="{% url 'core:profile' %}">
+                    <i class="fas fa-user me-2"></i>Profile
+                </a></li>
                 <li><hr class="dropdown-divider"></li>
-                <li><a class="dropdown-item" href="#" onclick="event.preventDefault(); document.getElementById('logout-form').submit();">Logout</a></li>
+                <li><a class="dropdown-item" href="#" onclick="event.preventDefault(); document.getElementById('logout-form').submit();">
+                    <i class="fas fa-sign-out-alt me-2"></i>Logout
+                </a></li>
             </ul>
             <form id="logout-form" method="post" action="{% url 'logout' %}" style="display: none;">
                 {% csrf_token %}
@@ -484,6 +488,24 @@ document.addEventListener('DOMContentLoaded', function() {
                 });
             }
         });
+        });
     });
-});
+    
+    // Initialize Bootstrap dropdown for user profile
+    const userProfileDropdown = document.getElementById('userProfileDropdown');
+    if (userProfileDropdown) {
+        const dropdown = new bootstrap.Dropdown(userProfileDropdown, {
+            boundary: 'viewport',
+            popperConfig: {
+                modifiers: [
+                    {
+                        name: 'preventOverflow',
+                        options: {
+                            boundary: document.getElementById('sidebar')
+                        }
+                    }
+                ]
+            }
+        });
+    }
 </script>

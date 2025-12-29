@@ -83,7 +83,7 @@ urlpatterns = [
     # User Profile
     path('accounts/profile/', views.profile_view, name='profile'),
     path('accounts/password_change/', auth_views.PasswordChangeView.as_view(template_name='auth/change_password.html'), name='change_password'),
-    path('accounts/password_change/done/', auth_views.PasswordChangeDoneView.as_view(template_name='auth/password_reset_done.html'), name='password_change_done'),
+    path('accounts/password_change/done/', auth_views.PasswordChangeDoneView.as_view(template_name='auth/password_change_done.html'), name='password_change_done'),
 
     # School (user profile update)
     path('school/update/', views.school_update, name='school_update'),
