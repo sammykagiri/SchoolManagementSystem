@@ -106,15 +106,26 @@
                 
                 <!-- Subjects -->
                 <li class="nav-item dropdown">
-                    <a class="nav-link dropdown-toggle {% if request.resolver_match.url_name == 'subject_list' or request.resolver_match.url_name == 'subject_add' %}active{% endif %}" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                    <a class="nav-link dropdown-toggle {% if 'subject' in request.resolver_match.url_name or 'subject' in request.resolver_match.namespace %}active{% endif %}" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
                         <i class="fas fa-book-open me-2"></i>Subjects
                     </a>
                     <ul class="dropdown-menu">
                         <li><a class="dropdown-item" href="{% url 'timetable:subject_list' %}">
                             <i class="fas fa-list me-2"></i>Subject List
                         </a></li>
+                        <li><a class="dropdown-item" href="{% url 'timetable:subject_level_overview' %}">
+                            <i class="fas fa-layer-group me-2"></i>View by Level
+                        </a></li>
+                        <li><hr class="dropdown-divider"></li>
                         <li><a class="dropdown-item" href="{% url 'timetable:subject_add' %}">
                             <i class="fas fa-plus me-2"></i>Add Subject
+                        </a></li>
+                        <li><a class="dropdown-item" href="{% url 'timetable:subject_generate' %}">
+                            <i class="fas fa-magic me-2"></i>Generate CBC Subjects
+                        </a></li>
+                        <li><hr class="dropdown-divider"></li>
+                        <li><a class="dropdown-item" href="{% url 'timetable:subject_bulk_update_level' %}">
+                            <i class="fas fa-edit me-2"></i>Bulk Update Levels
                         </a></li>
                     </ul>
                 </li>

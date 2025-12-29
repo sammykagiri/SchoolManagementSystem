@@ -10,11 +10,14 @@
     </div>
     
     <div class="row">
-        <div class="col-md-8">
+        <div class="col-md-10">
             <div class="card">
                 <div class="card-body">
                     <form method="post">
                         {% csrf_token %}
+                        
+                        <!-- Basic Information -->
+                        <h5 class="mb-3">Basic Information</h5>
                         
                         <div class="mb-3">
                             <label for="name" class="form-label">
@@ -25,11 +28,23 @@
                             <div class="form-text">Enter the name of the subject (e.g., Mathematics, English, Science)</div>
                         </div>
                         
-                        <div class="mb-3">
-                            <label for="code" class="form-label">Subject Code</label>
-                            <input type="text" class="form-control" id="code" name="code" 
-                                   value="{% if subject %}{{ subject.code }}{% else %}{{ code|default:'' }}{% endif %}" maxlength="20">
-                            <div class="form-text">Optional: Enter a short code for the subject (e.g., MATH, ENG, SCI)</div>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="code" class="form-label">Internal Code</label>
+                                    <input type="text" class="form-control" id="code" name="code" 
+                                           value="{% if subject %}{{ subject.code }}{% else %}{{ code|default:'' }}{% endif %}" maxlength="20">
+                                    <div class="form-text">Short code (e.g., MATH, ENG, SCI)</div>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="knec_code" class="form-label">KNEC Code</label>
+                                    <input type="text" class="form-control" id="knec_code" name="knec_code" 
+                                           value="{% if subject %}{{ subject.knec_code|default:'' }}{% else %}{{ knec_code|default:'' }}{% endif %}" maxlength="20">
+                                    <div class="form-text">Official KNEC subject code (numeric, e.g., 101)</div>
+                                </div>
+                            </div>
                         </div>
                         
                         <div class="mb-3">
@@ -38,6 +53,100 @@
                             <div class="form-text">Optional: Enter a description for this subject</div>
                         </div>
                         
+                        <!-- CBC Information -->
+                        <hr class="my-4">
+                        <h5 class="mb-3">CBC Information</h5>
+                        
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="learning_level" class="form-label">Learning Level</label>
+                                    <select class="form-select" id="learning_level" name="learning_level">
+                                        <option value="">-- Select Level --</option>
+                                        <option value="early_years" {% if subject %}{% if subject.learning_level == 'early_years' %}selected{% endif %}{% else %}{% if learning_level == 'early_years' %}selected{% endif %}{% endif %}>Early Years (Pre-Primary 1-2)</option>
+                                        <option value="lower_primary" {% if subject %}{% if subject.learning_level == 'lower_primary' %}selected{% endif %}{% else %}{% if learning_level == 'lower_primary' %}selected{% endif %}{% endif %}>Lower Primary (Grade 1-3)</option>
+                                        <option value="upper_primary" {% if subject %}{% if subject.learning_level == 'upper_primary' %}selected{% endif %}{% else %}{% if learning_level == 'upper_primary' %}selected{% endif %}{% endif %}>Upper Primary (Grade 4-6)</option>
+                                        <option value="junior_secondary" {% if subject %}{% if subject.learning_level == 'junior_secondary' %}selected{% endif %}{% else %}{% if learning_level == 'junior_secondary' %}selected{% endif %}{% endif %}>Junior Secondary (Grade 7-9)</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="pathway" class="form-label">Pathway (Junior Secondary)</label>
+                                    <select class="form-select" id="pathway" name="pathway">
+                                        <option value="">-- No Pathway --</option>
+                                        {% for pathway in pathways %}
+                                        <option value="{{ pathway.id }}" {% if subject %}{% if subject.pathway and subject.pathway.id == pathway.id %}selected{% endif %}{% else %}{% if pathway_id|stringformat:"s" == pathway.id|stringformat:"s" %}selected{% endif %}{% endif %}>
+                                            {{ pathway.get_name_display }}
+                                        </option>
+                                        {% endfor %}
+                                    </select>
+                                    <div class="form-text">Optional: Assign to a pathway (for Junior Secondary)</div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label class="form-label">Applicable Grades</label>
+                            <div class="border rounded p-3" style="max-height: 200px; overflow-y: auto;">
+                                {% for grade in grades %}
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" name="applicable_grades" 
+                                           value="{{ grade.id }}" id="grade_{{ grade.id }}"
+                                           {% if subject %}
+                                               {% if grade in subject.applicable_grades.all %}checked{% endif %}
+                                           {% else %}
+                                               {% if grade.id|stringformat:"s" in applicable_grade_ids %}checked{% endif %}
+                                           {% endif %}>
+                                    <label class="form-check-label" for="grade_{{ grade.id }}">
+                                        {{ grade.name }}
+                                    </label>
+                                </div>
+                                {% empty %}
+                                <p class="text-muted mb-0">No grades available. <a href="{% url 'core:grade_list' %}">Create grades first</a>.</p>
+                                {% endfor %}
+                            </div>
+                            <div class="form-text">Select which grades this subject applies to</div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" type="checkbox" id="is_compulsory" name="is_compulsory" 
+                                       {% if subject %}{% if subject.is_compulsory %}checked{% endif %}{% else %}{% if is_compulsory|default:True %}checked{% endif %}{% endif %}>
+                                <label class="form-check-label" for="is_compulsory">
+                                    Compulsory Subject
+                                </label>
+                            </div>
+                            <div class="form-text">Uncheck to mark as optional</div>
+                        </div>
+                        
+                        <!-- Religious Education -->
+                        <hr class="my-4">
+                        <h5 class="mb-3">Religious Education</h5>
+                        
+                        <div class="mb-3">
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" type="checkbox" id="is_religious_education" name="is_religious_education" 
+                                       {% if subject %}{% if subject.is_religious_education %}checked{% endif %}{% else %}{% if is_religious_education %}checked{% endif %}{% endif %}
+                                       onchange="toggleReligiousType()">
+                                <label class="form-check-label" for="is_religious_education">
+                                    This is a Religious Education Subject
+                                </label>
+                            </div>
+                        </div>
+                        
+                        <div class="mb-3" id="religious_type_group" style="display: {% if subject %}{% if subject.is_religious_education %}block{% else %}none{% endif %}{% else %}{% if is_religious_education %}block{% else %}none{% endif %}{% endif %};">
+                            <label for="religious_type" class="form-label">Religious Type <span class="text-danger">*</span></label>
+                            <select class="form-select" id="religious_type" name="religious_type">
+                                <option value="">-- Select Type --</option>
+                                <option value="CRE" {% if subject.religious_type == 'CRE' or religious_type == 'CRE' %}selected{% endif %}>Christian Religious Education (CRE)</option>
+                                <option value="IRE" {% if subject.religious_type == 'IRE' or religious_type == 'IRE' %}selected{% endif %}>Islamic Religious Education (IRE)</option>
+                                <option value="HRE" {% if subject.religious_type == 'HRE' or religious_type == 'HRE' %}selected{% endif %}>Hindu Religious Education (HRE)</option>
+                            </select>
+                        </div>
+                        
+                        <!-- Status -->
+                        <hr class="my-4">
                         <div class="mb-3">
                             <div class="form-check form-switch">
                                 <input class="form-check-input" type="checkbox" id="is_active" name="is_active" 
@@ -63,9 +172,21 @@
         </div>
     </div>
 </div>
+
+<script>
+function toggleReligiousType() {
+    const isReligious = document.getElementById('is_religious_education').checked;
+    const religiousTypeGroup = document.getElementById('religious_type_group');
+    const religiousType = document.getElementById('religious_type');
+    
+    if (isReligious) {
+        religiousTypeGroup.style.display = 'block';
+        religiousType.required = true;
+    } else {
+        religiousTypeGroup.style.display = 'none';
+        religiousType.required = false;
+        religiousType.value = '';
+    }
+}
+</script>
 {% endblock %}
-
-
-
-
-

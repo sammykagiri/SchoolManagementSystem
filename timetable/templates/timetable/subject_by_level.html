@@ -1,0 +1,197 @@
+{% extends 'base.html' %}
+{% block title %}Subjects - {{ level_display }} | School Management System{% endblock %}
+{% block content %}
+<div class="container py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2 class="mb-0">
+                <i class="fas fa-graduation-cap me-2"></i>{{ level_display }} Subjects
+            </h2>
+            <p class="text-muted mb-0">
+                Manage subjects for {{ level_display }} learning level
+            </p>
+        </div>
+        <div class="d-flex gap-2">
+            <a href="{% url 'timetable:subject_level_overview' %}" class="btn btn-outline-info">
+                <i class="fas fa-layer-group me-2"></i>Level Overview
+            </a>
+            <a href="{% url 'timetable:subject_list' %}" class="btn btn-outline-secondary">
+                <i class="fas fa-list me-2"></i>All Subjects
+            </a>
+            <a href="{% url 'timetable:subject_generate' %}?learning_level={{ learning_level }}" class="btn btn-success">
+                <i class="fas fa-magic me-2"></i>Generate More
+            </a>
+        </div>
+    </div>
+    
+    <!-- Statistics -->
+    <div class="row mb-4">
+        <div class="col-md-4">
+            <div class="card text-center">
+                <div class="card-body">
+                    <h4 class="text-primary">{{ total_in_level }}</h4>
+                    <p class="text-muted mb-0">Total Subjects</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card text-center">
+                <div class="card-body">
+                    <h4 class="text-success">{{ active_in_level }}</h4>
+                    <p class="text-muted mb-0">Active</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card text-center">
+                <div class="card-body">
+                    <h4 class="text-info">{{ compulsory_in_level }}</h4>
+                    <p class="text-muted mb-0">Compulsory</p>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Filters -->
+    <div class="card mb-4">
+        <div class="card-header bg-light">
+            <h5 class="mb-0">Filters</h5>
+        </div>
+        <div class="card-body">
+            <form method="get" class="row g-3">
+                <input type="hidden" name="learning_level" value="{{ learning_level }}">
+                <div class="col-md-3">
+                    <label for="is_compulsory" class="form-label">Type</label>
+                    <select class="form-select" id="is_compulsory" name="is_compulsory">
+                        <option value="">All</option>
+                        <option value="true" {% if selected_is_compulsory == 'true' %}selected{% endif %}>Compulsory</option>
+                        <option value="false" {% if selected_is_compulsory == 'false' %}selected{% endif %}>Optional</option>
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label for="is_active" class="form-label">Status</label>
+                    <select class="form-select" id="is_active" name="is_active">
+                        <option value="">All</option>
+                        <option value="true" {% if selected_is_active == 'true' %}selected{% endif %}>Active</option>
+                        <option value="false" {% if selected_is_active == 'false' %}selected{% endif %}>Inactive</option>
+                    </select>
+                </div>
+                <div class="col-md-4">
+                    <label for="search" class="form-label">Search</label>
+                    <input type="text" class="form-control" id="search" name="search" 
+                           value="{{ search_query }}" placeholder="Name, code, or KNEC code">
+                </div>
+                <div class="col-md-2 d-flex align-items-end">
+                    <button type="submit" class="btn btn-primary w-100">
+                        <i class="fas fa-filter me-2"></i>Filter
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+    
+    <!-- Applicable Grades Info -->
+    {% if applicable_grades %}
+    <div class="alert alert-info mb-4">
+        <i class="fas fa-info-circle me-2"></i>
+        <strong>Applicable Grades for {{ level_display }}:</strong>
+        {% for grade in applicable_grades %}
+        <span class="badge bg-info me-1">{{ grade.name }}</span>
+        {% endfor %}
+    </div>
+    {% endif %}
+    
+    <!-- Subjects Table -->
+    <div class="card">
+        <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+            <h5 class="mb-0">{{ level_display }} Subjects</h5>
+            <div class="d-flex gap-2">
+                <a href="{% url 'timetable:subject_sync_with_templates' learning_level %}" class="btn btn-sm btn-light">
+                    <i class="fas fa-sync me-2"></i>Sync with Templates
+                </a>
+                <span class="badge bg-light text-dark">{{ subjects|length }} subject(s)</span>
+            </div>
+        </div>
+        <div class="card-body p-0">
+            <table class="table table-hover mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>Name</th>
+                        <th>Internal Code</th>
+                        <th>KNEC Code</th>
+                        <th>Type</th>
+                        <th>Pathway</th>
+                        <th>Applicable Grades</th>
+                        <th>Status</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for subject in subjects %}
+                    <tr>
+                        <td>
+                            <strong>{{ subject.name }}</strong>
+                            {% if subject.is_religious_education %}
+                            <span class="badge bg-info ms-1" title="Religious Education">
+                                {{ subject.get_religious_type_display|default:"RE" }}
+                            </span>
+                            {% endif %}
+                        </td>
+                        <td>{{ subject.code|default:"-" }}</td>
+                        <td>{{ subject.knec_code|default:"-" }}</td>
+                        <td>
+                            <span class="badge {% if subject.is_compulsory %}bg-success{% else %}bg-warning{% endif %}">
+                                {% if subject.is_compulsory %}Compulsory{% else %}Optional{% endif %}
+                            </span>
+                        </td>
+                        <td>
+                            {% if subject.pathway %}
+                            <span class="badge bg-secondary">{{ subject.pathway.get_name_display }}</span>
+                            {% else %}
+                            <span class="text-muted">-</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if subject.applicable_grades.all %}
+                            {% for grade in subject.applicable_grades.all|slice:":3" %}
+                            <span class="badge bg-info me-1">{{ grade.name }}</span>
+                            {% endfor %}
+                            {% if subject.applicable_grades.count > 3 %}
+                            <span class="text-muted">+{{ subject.applicable_grades.count|add:"-3" }} more</span>
+                            {% endif %}
+                            {% else %}
+                            <span class="text-muted">-</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <span class="badge {% if subject.is_active %}bg-success{% else %}bg-secondary{% endif %}">
+                                {% if subject.is_active %}Active{% else %}Inactive{% endif %}
+                            </span>
+                        </td>
+                        <td>
+                            <div class="btn-group btn-group-sm" role="group">
+                                <a href="{% url 'timetable:subject_detail' subject.id %}" class="btn btn-outline-info" title="View">
+                                    <i class="fas fa-eye"></i>
+                                </a>
+                                <a href="{% url 'timetable:subject_edit' subject.id %}" class="btn btn-outline-primary" title="Edit">
+                                    <i class="fas fa-edit"></i>
+                                </a>
+                            </div>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="8" class="text-center py-4">
+                            <p class="text-muted mb-2">No subjects found for {{ level_display }}.</p>
+                            <a href="{% url 'timetable:subject_generate' %}?learning_level={{ learning_level }}" class="btn btn-success">
+                                <i class="fas fa-magic me-2"></i>Generate {{ level_display }} Subjects
+                            </a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

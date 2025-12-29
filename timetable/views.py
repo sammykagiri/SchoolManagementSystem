@@ -3,9 +3,17 @@ from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.core.paginator import Paginator
-from django.db.models import Q, Max
-from .models import Subject, Teacher, TimeSlot, Timetable
-from .serializers import SubjectSerializer, TeacherSerializer, TimeSlotSerializer, TimetableSerializer
+from django.db.models import Q, Max, Count
+from .models import Subject, Teacher, TimeSlot, Timetable, SubjectPathway, StudentSubjectSelection
+from .cbc_subjects import (
+    CBC_SUBJECT_TEMPLATES, get_subjects_for_level, get_all_learning_levels,
+    filter_grades_by_learning_level
+)
+from core.models import Grade
+from .serializers import (
+    SubjectSerializer, TeacherSerializer, TimeSlotSerializer, TimetableSerializer,
+    SubjectPathwaySerializer, StudentSubjectSelectionSerializer
+)
 from core.models import SchoolClass
 
 
@@ -15,11 +23,49 @@ class SubjectViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         school = self.request.user.profile.school
-        queryset = Subject.objects.filter(school=school)
+        queryset = Subject.objects.filter(school=school).prefetch_related(
+            'applicable_grades', 'pathway'
+        )
         
+        # Existing filter
         is_active = self.request.query_params.get('is_active')
         if is_active is not None:
             queryset = queryset.filter(is_active=is_active.lower() == 'true')
+        
+        # NEW: Filter by learning level
+        learning_level = self.request.query_params.get('learning_level')
+        if learning_level:
+            queryset = queryset.filter(learning_level=learning_level)
+        
+        # NEW: Filter by compulsory status
+        is_compulsory = self.request.query_params.get('is_compulsory')
+        if is_compulsory is not None:
+            queryset = queryset.filter(is_compulsory=is_compulsory.lower() == 'true')
+        
+        # NEW: Filter by pathway
+        pathway_id = self.request.query_params.get('pathway_id')
+        if pathway_id:
+            queryset = queryset.filter(pathway_id=pathway_id)
+        
+        # NEW: Filter by grade
+        grade_id = self.request.query_params.get('grade_id')
+        if grade_id:
+            queryset = queryset.filter(applicable_grades__id=grade_id).distinct()
+        
+        # NEW: Filter religious education subjects
+        is_religious = self.request.query_params.get('is_religious_education')
+        if is_religious is not None:
+            queryset = queryset.filter(is_religious_education=is_religious.lower() == 'true')
+        
+        # NEW: Filter by religious type
+        religious_type = self.request.query_params.get('religious_type')
+        if religious_type:
+            queryset = queryset.filter(religious_type=religious_type)
+        
+        # NEW: Search by KNEC code
+        knec_code = self.request.query_params.get('knec_code')
+        if knec_code:
+            queryset = queryset.filter(knec_code=knec_code)
         
         return queryset.order_by('name')
 
@@ -65,6 +111,59 @@ class TimeSlotViewSet(viewsets.ModelViewSet):
         
         return queryset.order_by('day', 'period_number')
 
+    def perform_create(self, serializer):
+        school = self.request.user.profile.school
+        serializer.save(school=school)
+
+
+class SubjectPathwayViewSet(viewsets.ModelViewSet):
+    """API for managing subject pathways"""
+    serializer_class = SubjectPathwaySerializer
+    permission_classes = [permissions.IsAuthenticated]
+    
+    def get_queryset(self):
+        school = self.request.user.profile.school
+        queryset = SubjectPathway.objects.filter(school=school)
+        
+        is_active = self.request.query_params.get('is_active')
+        if is_active is not None:
+            queryset = queryset.filter(is_active=is_active.lower() == 'true')
+        
+        return queryset.order_by('name')
+    
+    def perform_create(self, serializer):
+        school = self.request.user.profile.school
+        serializer.save(school=school)
+
+
+class StudentSubjectSelectionViewSet(viewsets.ModelViewSet):
+    """API for managing student subject selections"""
+    serializer_class = StudentSubjectSelectionSerializer
+    permission_classes = [permissions.IsAuthenticated]
+    
+    def get_queryset(self):
+        school = self.request.user.profile.school
+        queryset = StudentSubjectSelection.objects.filter(
+            school=school
+        ).select_related('student', 'term', 'subject')
+        
+        # Filter by student
+        student_id = self.request.query_params.get('student_id')
+        if student_id:
+            queryset = queryset.filter(student_id=student_id)
+        
+        # Filter by term
+        term_id = self.request.query_params.get('term_id')
+        if term_id:
+            queryset = queryset.filter(term_id=term_id)
+        
+        # Filter by subject
+        subject_id = self.request.query_params.get('subject_id')
+        if subject_id:
+            queryset = queryset.filter(subject_id=subject_id)
+        
+        return queryset.order_by('student', 'term', 'subject')
+    
     def perform_create(self, serializer):
         school = self.request.user.profile.school
         serializer.save(school=school)
@@ -735,11 +834,74 @@ def timetable_generate(request):
 
 @login_required
 def subject_list(request):
-    """List subjects"""
+    """List subjects with filtering by learning level"""
     school = request.user.profile.school
-    subjects = Subject.objects.filter(school=school).order_by('name')
     
-    context = {'subjects': subjects}
+    # Get filter parameters
+    learning_level = request.GET.get('learning_level', '').strip()
+    is_compulsory = request.GET.get('is_compulsory', '').strip()
+    is_active = request.GET.get('is_active', '').strip()
+    search_query = request.GET.get('search', '').strip()
+    
+    # Base queryset
+    subjects = Subject.objects.filter(school=school).prefetch_related('applicable_grades', 'pathway')
+    
+    # Apply filters
+    if learning_level:
+        subjects = subjects.filter(learning_level=learning_level)
+    
+    if is_compulsory:
+        subjects = subjects.filter(is_compulsory=(is_compulsory.lower() == 'true'))
+    
+    if is_active:
+        subjects = subjects.filter(is_active=(is_active.lower() == 'true'))
+    elif is_active == '':
+        # Default to active only if not explicitly set
+        subjects = subjects.filter(is_active=True)
+    
+    if search_query:
+        subjects = subjects.filter(
+            Q(name__icontains=search_query) |
+            Q(code__icontains=search_query) |
+            Q(knec_code__icontains=search_query) |
+            Q(description__icontains=search_query)
+        )
+    
+    # Order by learning level, then name
+    subjects = subjects.order_by('learning_level', 'name')
+    
+    # Get learning levels for filter dropdown
+    learning_levels = get_all_learning_levels()
+    
+    # Count subjects by learning level
+    from django.db.models import Count, Q
+    level_counts = Subject.objects.filter(school=school).values('learning_level').annotate(
+        count=Count('id')
+    ).order_by('learning_level')
+    
+    level_stats = {}
+    for stat in level_counts:
+        level_stats[stat['learning_level'] or 'no_level'] = stat['count']
+    
+    # Total counts
+    total_subjects = Subject.objects.filter(school=school).count()
+    active_subjects = Subject.objects.filter(school=school, is_active=True).count()
+    compulsory_count = Subject.objects.filter(school=school, is_compulsory=True).count()
+    optional_count = Subject.objects.filter(school=school, is_compulsory=False).count()
+    
+    context = {
+        'subjects': subjects,
+        'learning_levels': learning_levels,
+        'selected_level': learning_level,
+        'selected_is_compulsory': is_compulsory,
+        'selected_is_active': is_active,
+        'search_query': search_query,
+        'level_stats': level_stats,
+        'total_subjects': total_subjects,
+        'active_subjects': active_subjects,
+        'compulsory_count': compulsory_count,
+        'optional_count': optional_count,
+    }
     return render(request, 'timetable/subject_list.html', context)
 
 
@@ -754,32 +916,199 @@ def subject_detail(request, subject_id):
 
 
 @login_required
+def subject_generate(request):
+    """Generate CBC subjects based on templates"""
+    school = request.user.profile.school
+    learning_levels = get_all_learning_levels()
+    all_grades = Grade.objects.filter(school=school).order_by('name')
+    pathways = SubjectPathway.objects.filter(school=school, is_active=True).order_by('name')
+    
+    if request.method == 'POST':
+        selected_level = request.POST.get('learning_level', '').strip()
+        selected_subjects = request.POST.getlist('subject_names')  # List of subject names to create
+        apply_to_grades = request.POST.getlist('grade_ids')  # Grades to apply subjects to
+        
+        errors = []
+        if not selected_level:
+            errors.append('Please select a learning level.')
+        if not selected_subjects:
+            errors.append('Please select at least one subject to create.')
+        
+        if errors:
+            for error in errors:
+                messages.error(request, error)
+            # Get subjects for the selected level
+            subjects_template = get_subjects_for_level(selected_level) if selected_level else []
+            # Filter grades by learning level
+            applicable_grades = filter_grades_by_learning_level(all_grades, selected_level) if selected_level else all_grades.none()
+            return render(request, 'timetable/subject_generate.html', {
+                'learning_levels': learning_levels,
+                'selected_level': selected_level,
+                'subjects_template': subjects_template,
+                'grades': applicable_grades,
+                'pathways': pathways,
+            })
+        
+        # Get subject templates for selected level
+        subjects_template = get_subjects_for_level(selected_level)
+        
+        created_count = 0
+        skipped_count = 0
+        errors_list = []
+        
+        for subject_template in subjects_template:
+            if subject_template['name'] not in selected_subjects:
+                continue
+            
+            # Check if subject already exists by name
+            if Subject.objects.filter(school=school, name=subject_template['name']).exists():
+                skipped_count += 1
+                continue
+            
+            # Check if subject with same code already exists (if code is provided)
+            template_code = subject_template.get('code', '').strip()
+            if template_code:
+                existing_with_code = Subject.objects.filter(school=school, code=template_code).first()
+                if existing_with_code:
+                    # Code conflict - skip this subject
+                    errors_list.append(
+                        f"{subject_template['name']}: Code '{template_code}' already used by '{existing_with_code.name}'. Skipping."
+                    )
+                    skipped_count += 1
+                    continue
+            
+            try:
+                # Create subject
+                subject_data = {
+                    'school': school,
+                    'name': subject_template['name'],
+                    'code': template_code,  # Use the checked code
+                    'knec_code': subject_template.get('knec_code', '') or None,
+                    'description': subject_template.get('description', ''),
+                    'learning_level': selected_level,
+                    'is_compulsory': subject_template.get('is_compulsory', True),
+                    'is_religious_education': subject_template.get('is_religious_education', False),
+                    'is_active': True,
+                }
+                
+                # Handle religious type
+                if subject_data['is_religious_education']:
+                    # Check if user specified religious type in form
+                    religious_type = request.POST.get(f"religious_type_{subject_template['name']}", '')
+                    if religious_type:
+                        subject_data['religious_type'] = religious_type
+                    elif subject_template.get('religious_type'):
+                        subject_data['religious_type'] = subject_template['religious_type']
+                
+                # Handle pathway (for Junior Secondary)
+                if selected_level == 'junior_secondary' and subject_template.get('pathway_suggestions'):
+                    pathway_name = request.POST.get(f"pathway_{subject_template['name']}", '')
+                    if pathway_name:
+                        try:
+                            pathway = SubjectPathway.objects.get(school=school, name=pathway_name)
+                            subject_data['pathway'] = pathway
+                        except SubjectPathway.DoesNotExist:
+                            pass  # Pathway not found, skip
+                
+                # Validate before creating
+                from django.core.exceptions import ValidationError
+                subject = Subject(**subject_data)
+                try:
+                    subject.full_clean()  # Run model validation
+                    subject.save()
+                    
+                    # Apply to selected grades
+                    if apply_to_grades:
+                        grade_objects = Grade.objects.filter(id__in=apply_to_grades, school=school)
+                        subject.applicable_grades.set(grade_objects)
+                    
+                    created_count += 1
+                except ValidationError as ve:
+                    # Handle validation errors more gracefully
+                    error_msg = f"{subject_template['name']}: "
+                    if hasattr(ve, 'error_dict'):
+                        for field, errors in ve.error_dict.items():
+                            error_msg += f"{field}: {', '.join([str(e) for e in errors])}"
+                    else:
+                        error_msg += str(ve)
+                    errors_list.append(error_msg)
+                    skipped_count += 1
+            except Exception as e:
+                errors_list.append(f"Error creating {subject_template['name']}: {str(e)}")
+                skipped_count += 1
+        
+        # Display results
+        if created_count > 0:
+            messages.success(request, f'Successfully created {created_count} subject(s)!')
+        if skipped_count > 0:
+            messages.info(request, f'Skipped {skipped_count} subject(s) that already exist.')
+        if errors_list:
+            for error in errors_list:
+                messages.error(request, error)
+        
+        return redirect('timetable:subject_list')
+    
+    # GET request - show form
+    selected_level = request.GET.get('learning_level', '')
+    subjects_template = []
+    
+    if selected_level:
+        subjects_template = get_subjects_for_level(selected_level)
+        # Filter grades by learning level
+        applicable_grades = filter_grades_by_learning_level(all_grades, selected_level)
+    else:
+        applicable_grades = all_grades.none()
+    
+    return render(request, 'timetable/subject_generate.html', {
+        'learning_levels': learning_levels,
+        'selected_level': selected_level,
+        'subjects_template': subjects_template,
+        'grades': applicable_grades,
+        'pathways': pathways,
+    })
+
+
+@login_required
 def subject_add(request):
     """Add a new subject"""
     school = request.user.profile.school
+    grades = Grade.objects.filter(school=school).order_by('name')
+    pathways = SubjectPathway.objects.filter(school=school, is_active=True).order_by('name')
     
     if request.method == 'POST':
         name = request.POST.get('name', '').strip()
         code = request.POST.get('code', '').strip()
+        knec_code = request.POST.get('knec_code', '').strip()
         description = request.POST.get('description', '').strip()
+        learning_level = request.POST.get('learning_level', '').strip() or None
+        is_compulsory = request.POST.get('is_compulsory') == 'on'
+        is_religious_education = request.POST.get('is_religious_education') == 'on'
+        religious_type = request.POST.get('religious_type', '').strip() or None
+        pathway_id = request.POST.get('pathway', '').strip() or None
+        applicable_grade_ids = request.POST.getlist('applicable_grades')
         is_active = request.POST.get('is_active') == 'on'
         
         errors = []
         if not name:
             errors.append('Subject name is required.')
         
-        # Check for duplicate subject name and code in the same school
-        # First check if the exact combination exists (same subject with both name and code)
-        exact_match = name and code and Subject.objects.filter(school=school, name=name, code=code).exists()
-        name_exists = name and Subject.objects.filter(school=school, name=name).exists()
-        code_exists = code and Subject.objects.filter(school=school, code=code).exists()
-        
-        if exact_match:
-            errors.append('A subject with this name and code already exists.')
-        elif name_exists:
+        # Check for duplicate subject name in the same school
+        if Subject.objects.filter(school=school, name=name).exists():
             errors.append('A subject with this name already exists.')
-        elif code_exists:
+        
+        # Check for duplicate code in the same school
+        if code and Subject.objects.filter(school=school, code=code).exclude(name=name).exists():
             errors.append('A subject with this code already exists.')
+        
+        # Check for duplicate KNEC code (globally)
+        if knec_code and Subject.objects.filter(knec_code=knec_code).exists():
+            errors.append('A subject with this KNEC code already exists.')
+        
+        # Validate religious education
+        if is_religious_education and not religious_type:
+            errors.append('Religious type is required for religious education subjects.')
+        if not is_religious_education and religious_type:
+            errors.append('Religious type should only be set for religious education subjects.')
         
         if errors:
             for error in errors:
@@ -787,8 +1116,17 @@ def subject_add(request):
             return render(request, 'timetable/subject_form.html', {
                 'name': name,
                 'code': code,
+                'knec_code': knec_code,
                 'description': description,
+                'learning_level': learning_level,
+                'is_compulsory': is_compulsory,
+                'is_religious_education': is_religious_education,
+                'religious_type': religious_type,
+                'pathway_id': pathway_id,
+                'applicable_grade_ids': applicable_grade_ids,
                 'is_active': is_active,
+                'grades': grades,
+                'pathways': pathways,
             })
         
         # Create the subject
@@ -796,14 +1134,28 @@ def subject_add(request):
             school=school,
             name=name,
             code=code,
+            knec_code=knec_code or None,
             description=description,
+            learning_level=learning_level,
+            is_compulsory=is_compulsory,
+            is_religious_education=is_religious_education,
+            religious_type=religious_type,
+            pathway_id=pathway_id if pathway_id else None,
             is_active=is_active
         )
+        
+        # Set applicable grades
+        if applicable_grade_ids:
+            grade_objects = Grade.objects.filter(id__in=applicable_grade_ids, school=school)
+            subject.applicable_grades.set(grade_objects)
         
         messages.success(request, f'Subject "{subject.name}" added successfully!')
         return redirect('timetable:subject_list')
     
-    return render(request, 'timetable/subject_form.html')
+    return render(request, 'timetable/subject_form.html', {
+        'grades': grades,
+        'pathways': pathways,
+    })
 
 
 @login_required
@@ -811,29 +1163,43 @@ def subject_edit(request, subject_id):
     """Edit an existing subject"""
     school = request.user.profile.school
     subject = get_object_or_404(Subject, id=subject_id, school=school)
+    grades = Grade.objects.filter(school=school).order_by('name')
+    pathways = SubjectPathway.objects.filter(school=school, is_active=True).order_by('name')
     
     if request.method == 'POST':
         name = request.POST.get('name', '').strip()
         code = request.POST.get('code', '').strip()
+        knec_code = request.POST.get('knec_code', '').strip()
         description = request.POST.get('description', '').strip()
+        learning_level = request.POST.get('learning_level', '').strip() or None
+        is_compulsory = request.POST.get('is_compulsory') == 'on'
+        is_religious_education = request.POST.get('is_religious_education') == 'on'
+        religious_type = request.POST.get('religious_type', '').strip() or None
+        pathway_id = request.POST.get('pathway', '').strip() or None
+        applicable_grade_ids = request.POST.getlist('applicable_grades')
         is_active = request.POST.get('is_active') == 'on'
         
         errors = []
         if not name:
             errors.append('Subject name is required.')
         
-        # Check for duplicate subject name and code in the same school (excluding current subject)
-        # First check if the exact combination exists (same subject with both name and code)
-        exact_match = name and code and Subject.objects.filter(school=school, name=name, code=code).exclude(id=subject.id).exists()
-        name_exists = name and Subject.objects.filter(school=school, name=name).exclude(id=subject.id).exists()
-        code_exists = code and Subject.objects.filter(school=school, code=code).exclude(id=subject.id).exists()
-        
-        if exact_match:
-            errors.append('A subject with this name and code already exists.')
-        elif name_exists:
+        # Check for duplicate subject name in the same school (excluding current subject)
+        if Subject.objects.filter(school=school, name=name).exclude(id=subject.id).exists():
             errors.append('A subject with this name already exists.')
-        elif code_exists:
+        
+        # Check for duplicate code in the same school
+        if code and Subject.objects.filter(school=school, code=code).exclude(id=subject.id).exists():
             errors.append('A subject with this code already exists.')
+        
+        # Check for duplicate KNEC code (globally, excluding current)
+        if knec_code and Subject.objects.filter(knec_code=knec_code).exclude(id=subject.id).exists():
+            errors.append('A subject with this KNEC code already exists.')
+        
+        # Validate religious education
+        if is_religious_education and not religious_type:
+            errors.append('Religious type is required for religious education subjects.')
+        if not is_religious_education and religious_type:
+            errors.append('Religious type should only be set for religious education subjects.')
         
         if errors:
             for error in errors:
@@ -842,27 +1208,112 @@ def subject_edit(request, subject_id):
                 'subject': subject,
                 'name': name,
                 'code': code,
+                'knec_code': knec_code,
                 'description': description,
+                'learning_level': learning_level,
+                'is_compulsory': is_compulsory,
+                'is_religious_education': is_religious_education,
+                'religious_type': religious_type,
+                'pathway_id': pathway_id,
+                'applicable_grade_ids': applicable_grade_ids,
                 'is_active': is_active,
+                'grades': grades,
+                'pathways': pathways,
             })
         
         # Update the subject
         subject.name = name
         subject.code = code
+        subject.knec_code = knec_code or None
         subject.description = description
+        subject.learning_level = learning_level
+        subject.is_compulsory = is_compulsory
+        subject.is_religious_education = is_religious_education
+        subject.religious_type = religious_type
+        subject.pathway_id = pathway_id if pathway_id else None
         subject.is_active = is_active
         subject.save()
+        
+        # Update applicable grades
+        if applicable_grade_ids:
+            grade_objects = Grade.objects.filter(id__in=applicable_grade_ids, school=school)
+            subject.applicable_grades.set(grade_objects)
+        else:
+            subject.applicable_grades.clear()
         
         messages.success(request, f'Subject "{subject.name}" updated successfully!')
         return redirect('timetable:subject_list')
     
+    # GET request - populate form with existing data
     return render(request, 'timetable/subject_form.html', {
         'subject': subject,
         'name': subject.name,
         'code': subject.code,
+        'knec_code': subject.knec_code or '',
         'description': subject.description,
+        'learning_level': subject.learning_level or '',
+        'is_compulsory': subject.is_compulsory,
+        'is_religious_education': subject.is_religious_education,
+        'religious_type': subject.religious_type or '',
+        'pathway_id': subject.pathway_id if subject.pathway else '',
+        'applicable_grade_ids': [g.id for g in subject.applicable_grades.all()],
         'is_active': subject.is_active,
+        'grades': grades,
+        'pathways': pathways,
     })
+
+
+@login_required
+def subject_bulk_delete(request):
+    """Bulk delete subjects"""
+    school = request.user.profile.school
+    
+    if request.method == 'POST':
+        subject_ids = request.POST.getlist('subject_ids')
+        
+        if not subject_ids:
+            messages.error(request, 'No subjects selected for deletion.')
+            return redirect('timetable:subject_list')
+        
+        # Verify all subjects belong to the school
+        subjects_to_delete = Subject.objects.filter(
+            id__in=subject_ids,
+            school=school
+        )
+        
+        deleted_count = subjects_to_delete.count()
+        
+        if deleted_count == 0:
+            messages.error(request, 'No valid subjects found to delete.')
+            return redirect('timetable:subject_list')
+        
+        # Check if any subjects are used in timetables
+        from .models import Timetable
+        used_subjects = []
+        for subject in subjects_to_delete:
+            if Timetable.objects.filter(subject=subject, school=school).exists():
+                used_subjects.append(subject.name)
+        
+        if used_subjects:
+            messages.error(
+                request,
+                f'Cannot delete {len(used_subjects)} subject(s) because they are used in timetables: {", ".join(used_subjects[:5])}'
+                + (f' and {len(used_subjects) - 5} more' if len(used_subjects) > 5 else '')
+            )
+            return redirect('timetable:subject_list')
+        
+        # Delete the subjects
+        subjects_to_delete.delete()
+        
+        if deleted_count == 1:
+            messages.success(request, f'{deleted_count} subject deleted successfully!')
+        else:
+            messages.success(request, f'{deleted_count} subjects deleted successfully!')
+        
+        return redirect('timetable:subject_list')
+    
+    # GET request - redirect to subject list
+    return redirect('timetable:subject_list')
 
 
 @login_required
@@ -872,6 +1323,12 @@ def subject_delete(request, subject_id):
     subject = get_object_or_404(Subject, id=subject_id, school=school)
     
     if request.method == 'POST':
+        # Check if subject is used in timetables
+        from .models import Timetable
+        if Timetable.objects.filter(subject=subject, school=school).exists():
+            messages.error(request, f'Cannot delete subject "{subject.name}" because it is used in timetables.')
+            return redirect('timetable:subject_list')
+        
         subject_name = subject.name
         subject.delete()
         messages.success(request, f'Subject "{subject_name}" deleted successfully!')

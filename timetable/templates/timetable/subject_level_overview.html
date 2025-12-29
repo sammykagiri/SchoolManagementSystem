@@ -1,0 +1,151 @@
+{% extends 'base.html' %}
+{% block title %}Subjects by Learning Level | School Management System{% endblock %}
+{% block content %}
+<div class="container py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2 class="mb-0">
+            <i class="fas fa-layer-group me-2"></i>Subjects by Learning Level
+        </h2>
+        <div class="d-flex gap-2">
+            <a href="{% url 'timetable:subject_list' %}" class="btn btn-outline-secondary">
+                <i class="fas fa-list me-2"></i>All Subjects
+            </a>
+            <a href="{% url 'timetable:subject_generate' %}" class="btn btn-success">
+                <i class="fas fa-magic me-2"></i>Generate CBC Subjects
+            </a>
+        </div>
+    </div>
+    
+    <!-- Overall Statistics -->
+    <div class="row mb-4">
+        <div class="col-md-4">
+            <div class="card text-center">
+                <div class="card-body">
+                    <h3 class="text-primary">{{ total_subjects }}</h3>
+                    <p class="text-muted mb-0">Total Subjects</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card text-center">
+                <div class="card-body">
+                    <h3 class="text-success">{{ subjects_with_level }}</h3>
+                    <p class="text-muted mb-0">With Learning Level</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card text-center">
+                <div class="card-body">
+                    <h3 class="text-warning">{{ subjects_without_level }}</h3>
+                    <p class="text-muted mb-0">Without Learning Level</p>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Learning Level Cards -->
+    <div class="row">
+        {% for level_info in level_data %}
+        <div class="col-md-6 mb-4">
+            <div class="card h-100 {% if level_info.has_subjects %}border-primary{% else %}border-secondary{% endif %}">
+                <div class="card-header {% if level_info.has_subjects %}bg-primary text-white{% else %}bg-light{% endif %}">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0">
+                            <i class="fas fa-graduation-cap me-2"></i>{{ level_info.level_display }}
+                        </h5>
+                        {% if level_info.has_subjects %}
+                        <a href="{% url 'timetable:subject_by_level' level_info.level %}" class="btn btn-sm btn-light">
+                            View All <i class="fas fa-arrow-right ms-1"></i>
+                        </a>
+                        {% endif %}
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div class="row mb-3">
+                        <div class="col-6">
+                            <div class="text-center">
+                                <h4 class="text-primary mb-0">{{ level_info.total_subjects }}</h4>
+                                <small class="text-muted">Total Subjects</small>
+                            </div>
+                        </div>
+                        <div class="col-6">
+                            <div class="text-center">
+                                <h4 class="text-success mb-0">{{ level_info.active_subjects }}</h4>
+                                <small class="text-muted">Active</small>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row mb-3">
+                        <div class="col-6">
+                            <div class="text-center">
+                                <h5 class="text-info mb-0">{{ level_info.compulsory_subjects }}</h5>
+                                <small class="text-muted">Compulsory</small>
+                            </div>
+                        </div>
+                        <div class="col-6">
+                            <div class="text-center">
+                                <h5 class="text-warning mb-0">{{ level_info.optional_subjects }}</h5>
+                                <small class="text-muted">Optional</small>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <hr>
+                    
+                    <div class="mb-2">
+                        <small class="text-muted">
+                            <i class="fas fa-list me-1"></i>Template Subjects: <strong>{{ level_info.template_count }}</strong>
+                        </small>
+                    </div>
+                    <div class="mb-3">
+                        <small class="text-muted">
+                            <i class="fas fa-users me-1"></i>Applicable Grades: <strong>{{ level_info.applicable_grades_count }}</strong>
+                        </small>
+                    </div>
+                    
+                    {% if not level_info.has_subjects %}
+                    <div class="alert alert-info mb-0">
+                        <i class="fas fa-info-circle me-2"></i>
+                        No subjects created for this level yet.
+                        <a href="{% url 'timetable:subject_generate' %}?learning_level={{ level_info.level }}" class="alert-link">
+                            Generate subjects
+                        </a>
+                    </div>
+                    {% else %}
+                    <div class="d-grid gap-2">
+                        <a href="{% url 'timetable:subject_by_level' level_info.level %}" class="btn btn-primary btn-sm">
+                            <i class="fas fa-eye me-2"></i>View Subjects
+                        </a>
+                        <a href="{% url 'timetable:subject_sync_with_templates' level_info.level %}" class="btn btn-outline-info btn-sm">
+                            <i class="fas fa-sync me-2"></i>Sync with Templates
+                        </a>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    
+    {% if subjects_without_level > 0 %}
+    <div class="card mt-4 border-warning">
+        <div class="card-header bg-warning">
+            <h5 class="mb-0">
+                <i class="fas fa-exclamation-triangle me-2"></i>Subjects Without Learning Level
+            </h5>
+        </div>
+        <div class="card-body">
+            <p class="mb-3">
+                You have <strong>{{ subjects_without_level }}</strong> subject(s) without a learning level assigned.
+                Consider updating them to organize by CBC levels.
+            </p>
+            <a href="{% url 'timetable:subject_bulk_update_level' %}" class="btn btn-warning">
+                <i class="fas fa-edit me-2"></i>Bulk Update Learning Levels
+            </a>
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

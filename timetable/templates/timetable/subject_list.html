@@ -1,59 +1,328 @@
 {% extends 'base.html' %}
+{% load string_utils %}
 {% block title %}Subjects | School Management System{% endblock %}
 {% block content %}
 <div class="container py-4">
     <div class="d-flex justify-content-between align-items-center mb-4">
         <h2 class="mb-0">Subjects</h2>
-        <a href="{% url 'timetable:subject_add' %}" class="btn btn-primary">
-            <i class="fas fa-plus me-2"></i>Add Subject
-        </a>
+        <div class="d-flex gap-2">
+            <a href="{% url 'timetable:subject_level_overview' %}" class="btn btn-info">
+                <i class="fas fa-layer-group me-2"></i>View by Level
+            </a>
+            <a href="{% url 'timetable:subject_generate' %}" class="btn btn-success">
+                <i class="fas fa-magic me-2"></i>Generate CBC Subjects
+            </a>
+            <a href="{% url 'timetable:subject_add' %}" class="btn btn-primary">
+                <i class="fas fa-plus me-2"></i>Add Subject
+            </a>
+        </div>
     </div>
     
+    <!-- Statistics Cards -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card text-center">
+                <div class="card-body">
+                    <h5 class="card-title text-primary">{{ total_subjects }}</h5>
+                    <p class="card-text text-muted mb-0">Total Subjects</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card text-center">
+                <div class="card-body">
+                    <h5 class="card-title text-success">{{ active_subjects }}</h5>
+                    <p class="card-text text-muted mb-0">Active Subjects</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card text-center">
+                <div class="card-body">
+                    <h5 class="card-title text-info">{{ compulsory_count }}</h5>
+                    <p class="card-text text-muted mb-0">Compulsory</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card text-center">
+                <div class="card-body">
+                    <h5 class="card-title text-warning">{{ optional_count }}</h5>
+                    <p class="card-text text-muted mb-0">Optional</p>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Filters -->
+    <div class="card mb-4">
+        <div class="card-header bg-light">
+            <h5 class="mb-0">Filters</h5>
+        </div>
+        <div class="card-body">
+            <form method="get" class="row g-3">
+                <div class="col-md-3">
+                    <label for="learning_level" class="form-label">Learning Level</label>
+                    <select class="form-select" id="learning_level" name="learning_level">
+                        <option value="">All Levels</option>
+                        {% for level in learning_levels %}
+                        <option value="{{ level }}" {% if selected_level == level %}selected{% endif %}>
+                            {% if level == 'early_years' %}Early Years (Pre-Primary 1-2)
+                            {% elif level == 'lower_primary' %}Lower Primary (Grade 1-3)
+                            {% elif level == 'upper_primary' %}Upper Primary (Grade 4-6)
+                            {% elif level == 'junior_secondary' %}Junior Secondary (Grade 7-9)
+                            {% else %}{{ level|title }}{% endif %}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <label for="is_compulsory" class="form-label">Type</label>
+                    <select class="form-select" id="is_compulsory" name="is_compulsory">
+                        <option value="">All</option>
+                        <option value="true" {% if selected_is_compulsory == 'true' %}selected{% endif %}>Compulsory</option>
+                        <option value="false" {% if selected_is_compulsory == 'false' %}selected{% endif %}>Optional</option>
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <label for="is_active" class="form-label">Status</label>
+                    <select class="form-select" id="is_active" name="is_active">
+                        <option value="">All</option>
+                        <option value="true" {% if selected_is_active == 'true' %}selected{% endif %}>Active</option>
+                        <option value="false" {% if selected_is_active == 'false' %}selected{% endif %}>Inactive</option>
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label for="search" class="form-label">Search</label>
+                    <input type="text" class="form-control" id="search" name="search" 
+                           value="{{ search_query }}" placeholder="Name, code, or KNEC code">
+                </div>
+                <div class="col-md-2 d-flex align-items-end">
+                    <button type="submit" class="btn btn-primary w-100">
+                        <i class="fas fa-filter me-2"></i>Filter
+                    </button>
+                </div>
+            </form>
+            {% if selected_level or selected_is_compulsory or selected_is_active or search_query %}
+            <div class="mt-3">
+                <a href="{% url 'timetable:subject_list' %}" class="btn btn-sm btn-outline-secondary">
+                    <i class="fas fa-times me-2"></i>Clear Filters
+                </a>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+    
+    <!-- Learning Level Quick Links -->
+    {% if level_stats %}
+    <div class="card mb-4">
+        <div class="card-header bg-light">
+            <h5 class="mb-0">Quick Access by Learning Level</h5>
+        </div>
+        <div class="card-body">
+            <div class="row">
+                {% for level in learning_levels %}
+                <div class="col-md-3 mb-2">
+                    <a href="{% url 'timetable:subject_by_level' level %}" class="btn btn-outline-primary w-100">
+                        <i class="fas fa-layer-group me-2"></i>
+                        {% if level == 'early_years' %}Early Years
+                        {% elif level == 'lower_primary' %}Lower Primary
+                        {% elif level == 'upper_primary' %}Upper Primary
+                        {% elif level == 'junior_secondary' %}Junior Secondary
+                        {% else %}{{ level|title }}{% endif %}
+                        {% if level_stats|get_item:level %}
+                        <span class="badge bg-primary ms-2">{{ level_stats|get_item:level }}</span>
+                        {% endif %}
+                    </a>
+                </div>
+                {% endfor %}
+                {% if level_stats.no_level %}
+                <div class="col-md-3 mb-2">
+                    <a href="{% url 'timetable:subject_list' %}?learning_level=" class="btn btn-outline-secondary w-100">
+                        <i class="fas fa-question-circle me-2"></i>No Level
+                        <span class="badge bg-secondary ms-2">{{ level_stats.no_level }}</span>
+                    </a>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    {% endif %}
+    
+    <!-- Subjects Table -->
     <div class="card">
-        <div class="card-body p-0">
-            <table class="table table-hover mb-0">
-                <thead class="table-light">
-                    <tr>
-                        <th>Name</th>
-                        <th>Code</th>
-                        <th>Status</th>
-                        <th>Actions</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for subject in subjects %}
-                    <tr>
-                        <td>{{ subject.name }}</td>
-                        <td>{{ subject.code|default:"-" }}</td>
-                        <td>
-                            <span class="badge {% if subject.is_active %}bg-success{% else %}bg-secondary{% endif %}">
-                                {% if subject.is_active %}Active{% else %}Inactive{% endif %}
-                            </span>
-                        </td>
-                        <td>
-                            <div class="btn-group btn-group-sm" role="group">
-                                <a href="{% url 'timetable:subject_detail' subject.id %}" class="btn btn-outline-info" title="View">
-                                    <i class="fas fa-eye"></i>
-                                </a>
-                                <a href="{% url 'timetable:subject_edit' subject.id %}" class="btn btn-outline-primary" title="Edit">
-                                    <i class="fas fa-edit"></i>
-                                </a>
-                                <a href="{% url 'timetable:subject_delete' subject.id %}" class="btn btn-outline-danger" title="Delete" 
-                                   onclick="return confirm('Are you sure you want to delete this subject?');">
-                                    <i class="fas fa-trash"></i>
-                                </a>
-                            </div>
-                        </td>
-                    </tr>
-                    {% empty %}
-                    <tr>
-                        <td colspan="4" class="text-center">No subjects found.</td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
+        <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+            <h5 class="mb-0">Subjects List</h5>
+            <span class="badge bg-light text-dark">{{ subjects|length }} subject(s)</span>
+        </div>
+        <div class="card-body">
+            {% if subjects %}
+            <form id="bulkDeleteForm" method="post" action="{% url 'timetable:subject_bulk_delete' %}">
+                {% csrf_token %}
+                <div class="mb-3 d-flex justify-content-between align-items-center">
+                    <div>
+                        <button type="button" class="btn btn-sm btn-outline-secondary" onclick="selectAll()">
+                            <i class="fas fa-check-square me-1"></i>Select All
+                        </button>
+                        <button type="button" class="btn btn-sm btn-outline-secondary" onclick="deselectAll()">
+                            <i class="fas fa-square me-1"></i>Deselect All
+                        </button>
+                        <span id="selectedCount" class="ms-2 text-muted">0 selected</span>
+                    </div>
+                    <button type="submit" class="btn btn-danger btn-sm" id="bulkDeleteBtn" disabled 
+                            onclick="return confirm('Are you sure you want to delete the selected subjects? This action cannot be undone.');">
+                        <i class="fas fa-trash me-1"></i>Delete Selected
+                    </button>
+                </div>
+                <div class="table-responsive">
+                    <table class="table table-bordered table-striped table-hover mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th style="width: 40px;">
+                                    <input type="checkbox" id="selectAllCheckbox" onchange="toggleSelectAll(this)">
+                                </th>
+                                <th>Name</th>
+                                <th>Internal Code</th>
+                                <th>KNEC Code</th>
+                                <th>Learning Level</th>
+                                <th>Type</th>
+                                <th>Status</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for subject in subjects %}
+                            <tr>
+                                <td>
+                                    <input type="checkbox" name="subject_ids" value="{{ subject.id }}" 
+                                           class="subject-checkbox" onchange="updateSelectedCount()">
+                                </td>
+                                <td>
+                                    <strong>{{ subject.name }}</strong>
+                                    {% if subject.is_religious_education %}
+                                    <span class="badge bg-info ms-1" title="Religious Education">
+                                        {{ subject.get_religious_type_display|default:"RE" }}
+                                    </span>
+                                    {% endif %}
+                                </td>
+                                <td>{{ subject.code|default:"-" }}</td>
+                                <td>{{ subject.knec_code|default:"-" }}</td>
+                                <td>
+                                    {% if subject.learning_level %}
+                                    <span class="badge bg-secondary">{{ subject.get_learning_level_display }}</span>
+                                    {% else %}
+                                    <span class="text-muted">-</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <span class="badge {% if subject.is_compulsory %}bg-success{% else %}bg-warning{% endif %}">
+                                        {% if subject.is_compulsory %}Compulsory{% else %}Optional{% endif %}
+                                    </span>
+                                </td>
+                                <td>
+                                    <span class="badge {% if subject.is_active %}bg-success{% else %}bg-secondary{% endif %}">
+                                        {% if subject.is_active %}Active{% else %}Inactive{% endif %}
+                                    </span>
+                                </td>
+                                <td>
+                                    <div class="btn-group btn-group-sm" role="group">
+                                        <a href="{% url 'timetable:subject_detail' subject.id %}" class="btn btn-outline-info" title="View">
+                                            <i class="fas fa-eye"></i>
+                                        </a>
+                                        <a href="{% url 'timetable:subject_edit' subject.id %}" class="btn btn-outline-primary" title="Edit">
+                                            <i class="fas fa-edit"></i>
+                                        </a>
+                                        <a href="{% url 'timetable:subject_delete' subject.id %}" class="btn btn-outline-danger" title="Delete" 
+                                           onclick="return confirm('Are you sure you want to delete this subject?');">
+                                            <i class="fas fa-trash"></i>
+                                        </a>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </form>
+            {% else %}
+            <div class="text-center py-4">
+                <p class="text-muted mb-2">No subjects found.</p>
+                {% if selected_level or search_query %}
+                <a href="{% url 'timetable:subject_list' %}" class="btn btn-sm btn-outline-primary">Clear filters</a>
+                {% else %}
+                <a href="{% url 'timetable:subject_generate' %}" class="btn btn-sm btn-success me-2">
+                    <i class="fas fa-magic me-2"></i>Generate CBC Subjects
+                </a>
+                <a href="{% url 'timetable:subject_add' %}" class="btn btn-sm btn-primary">
+                    <i class="fas fa-plus me-2"></i>Add Subject
+                </a>
+                {% endif %}
+            </div>
+            {% endif %}
         </div>
     </div>
 </div>
 {% endblock %}
 
+{% block extra_js %}
+<script>
+    function updateSelectedCount() {
+        const checkboxes = document.querySelectorAll('.subject-checkbox:checked');
+        const count = checkboxes.length;
+        const countSpan = document.getElementById('selectedCount');
+        const bulkDeleteBtn = document.getElementById('bulkDeleteBtn');
+        const selectAllCheckbox = document.getElementById('selectAllCheckbox');
+        
+        if (countSpan) {
+            countSpan.textContent = count + ' selected';
+        }
+        if (bulkDeleteBtn) {
+            bulkDeleteBtn.disabled = count === 0;
+        }
+        if (selectAllCheckbox) {
+            const allCheckboxes = document.querySelectorAll('.subject-checkbox');
+            selectAllCheckbox.checked = allCheckboxes.length > 0 && allCheckboxes.length === count;
+            selectAllCheckbox.indeterminate = count > 0 && count < allCheckboxes.length;
+        }
+    }
+    
+    function toggleSelectAll(checkbox) {
+        const subjectCheckboxes = document.querySelectorAll('.subject-checkbox');
+        subjectCheckboxes.forEach(cb => {
+            cb.checked = checkbox.checked;
+        });
+        updateSelectedCount();
+    }
+    
+    function selectAll() {
+        const checkboxes = document.querySelectorAll('.subject-checkbox');
+        const selectAllCheckbox = document.getElementById('selectAllCheckbox');
+        checkboxes.forEach(checkbox => {
+            checkbox.checked = true;
+        });
+        if (selectAllCheckbox) {
+            selectAllCheckbox.checked = true;
+            selectAllCheckbox.indeterminate = false;
+        }
+        updateSelectedCount();
+    }
+    
+    function deselectAll() {
+        const checkboxes = document.querySelectorAll('.subject-checkbox');
+        const selectAllCheckbox = document.getElementById('selectAllCheckbox');
+        checkboxes.forEach(checkbox => {
+            checkbox.checked = false;
+        });
+        if (selectAllCheckbox) {
+            selectAllCheckbox.checked = false;
+            selectAllCheckbox.indeterminate = false;
+        }
+        updateSelectedCount();
+    }
+    
+    // Initialize on page load
+    document.addEventListener('DOMContentLoaded', function() {
+        updateSelectedCount();
+    });
+</script>
+{% endblock %}

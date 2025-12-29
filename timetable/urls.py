@@ -2,9 +2,14 @@ from django.urls import path, include
 from rest_framework.routers import DefaultRouter
 from .views import (
     SubjectViewSet, TeacherViewSet, TimeSlotViewSet, TimetableViewSet,
+    SubjectPathwayViewSet, StudentSubjectSelectionViewSet,
     timetable_list, timetable_add, timetable_edit, timetable_delete, timetable_generate, timetable_print,
-    subject_list, subject_detail, subject_add, subject_edit, subject_delete, teacher_list,
+    subject_list, subject_generate, subject_detail, subject_add, subject_edit, subject_delete, 
+    subject_bulk_delete, teacher_list,
     timeslot_list, timeslot_add, timeslot_edit, timeslot_delete, timeslot_generate, timeslot_bulk_delete
+)
+from .views_subject_management import (
+    subject_by_level, subject_level_overview, subject_bulk_update_level, subject_sync_with_templates
 )
 
 app_name = 'timetable'
@@ -14,6 +19,8 @@ router.register(r'api/subjects', SubjectViewSet, basename='api-subject')
 router.register(r'api/teachers', TeacherViewSet, basename='api-teacher')
 router.register(r'api/time-slots', TimeSlotViewSet, basename='api-timeslot')
 router.register(r'api/timetables', TimetableViewSet, basename='api-timetable')
+router.register(r'api/pathways', SubjectPathwayViewSet, basename='api-pathway')
+router.register(r'api/student-selections', StudentSubjectSelectionViewSet, basename='api-student-selection')
 
 urlpatterns = [
     path('', timetable_list, name='timetable_list'),
@@ -23,6 +30,12 @@ urlpatterns = [
     path('<int:timetable_id>/edit/', timetable_edit, name='timetable_edit'),
     path('<int:timetable_id>/delete/', timetable_delete, name='timetable_delete'),
     path('subjects/', subject_list, name='subject_list'),
+    path('subjects/generate/', subject_generate, name='subject_generate'),
+    path('subjects/bulk-delete/', subject_bulk_delete, name='subject_bulk_delete'),
+    path('subjects/overview/', subject_level_overview, name='subject_level_overview'),
+    path('subjects/level/<str:learning_level>/', subject_by_level, name='subject_by_level'),
+    path('subjects/bulk-update-level/', subject_bulk_update_level, name='subject_bulk_update_level'),
+    path('subjects/sync/<str:learning_level>/', subject_sync_with_templates, name='subject_sync_with_templates'),
     path('subjects/<int:subject_id>/', subject_detail, name='subject_detail'),
     path('subjects/add/', subject_add, name='subject_add'),
     path('subjects/<int:subject_id>/edit/', subject_edit, name='subject_edit'),
