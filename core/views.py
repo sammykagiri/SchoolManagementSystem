@@ -212,6 +212,11 @@ def student_list(request):
     if grade_filter:
         students = students.filter(grade_id=grade_filter)
     
+    # Filter by class
+    class_filter = request.GET.get('class', '')
+    if class_filter:
+        students = students.filter(school_class_id=class_filter)
+    
     # Order by active status first, then by name
     students = students.order_by('-is_active', 'first_name', 'middle_name', 'last_name')
     
@@ -235,6 +240,7 @@ def student_list(request):
         'can_add_student': can_add_student,
         'search_query': search_query,
         'grade_filter': grade_filter,
+        'class_filter': class_filter,
         'show_inactive': show_inactive,
     }
     
