@@ -58,6 +58,25 @@
                                 <div class="form-text">Student ID will be auto-generated</div>
                             </div>
                             
+                            <!-- NEMIS/UPI Number -->
+                            <div class="col-md-4">
+                                <label for="{{ form.upi.id_for_label }}" class="form-label">
+                                    {{ form.upi.label }}
+                                    {% if form.upi.field.required %}<span class="text-danger">*</span>{% endif %}
+                                </label>
+                                {{ form.upi }}
+                                {% if form.upi.help_text %}
+                                    <div class="form-text">{{ form.upi.help_text }}</div>
+                                {% endif %}
+                                {% if form.upi.errors %}
+                                    <div class="text-danger small">
+                                        {% for error in form.upi.errors %}
+                                            <div>{{ error }}</div>
+                                        {% endfor %}
+                                    </div>
+                                {% endif %}
+                            </div>
+                            
                             <!-- First Name -->
                             <div class="col-md-4">
                                 <label for="{{ form.first_name.id_for_label }}" class="form-label">

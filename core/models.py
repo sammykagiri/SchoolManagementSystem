@@ -190,6 +190,14 @@ class Student(models.Model):
     ]
     
     student_id = models.CharField(max_length=20)
+    upi = models.CharField(
+        max_length=11,
+        blank=True,
+        null=True,
+        unique=True,
+        help_text='11-digit NEMIS / UPI number issued by the Ministry of Education',
+        verbose_name='NEMIS/UPI Number'
+    )
     first_name = models.CharField(max_length=100)
     middle_name = models.CharField(max_length=100, blank=True, help_text='Middle or other names (optional)')
     last_name = models.CharField(max_length=100)
@@ -294,6 +302,28 @@ class Student(models.Model):
             for timetable in timetables:
                 subject_ids.add(timetable.subject_id)
         return Subject.objects.filter(id__in=subject_ids, school=self.school, is_active=True)
+    
+    def clean(self):
+        """Validate UPI field"""
+        from django.core.exceptions import ValidationError
+        
+        super().clean()
+        
+        if self.upi:
+            # Remove any whitespace
+            self.upi = self.upi.strip()
+            
+            # Check if it contains only digits
+            if not self.upi.isdigit():
+                raise ValidationError({
+                    'upi': 'UPI number must contain only digits.'
+                })
+            
+            # Check if it's exactly 11 characters
+            if len(self.upi) != 11:
+                raise ValidationError({
+                    'upi': 'UPI number must be exactly 11 digits.'
+                })
 
     class Meta:
         ordering = ['grade', 'first_name', 'middle_name', 'last_name']

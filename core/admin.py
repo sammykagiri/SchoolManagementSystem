@@ -38,15 +38,15 @@ class TransportRouteAdmin(admin.ModelAdmin):
 
 @admin.register(Student)
 class StudentAdmin(admin.ModelAdmin):
-    list_display = ['student_id', 'first_name', 'middle_name', 'last_name', 'grade', 'linked_account', 'parent_name', 'parent_phone', 'linked_parents', 'is_active']
+    list_display = ['student_id', 'upi', 'first_name', 'middle_name', 'last_name', 'grade', 'linked_account', 'parent_name', 'parent_phone', 'linked_parents', 'is_active']
     list_filter = ['grade', 'gender', 'is_active', 'uses_transport', 'pays_meals', 'pays_activities']
-    search_fields = ['student_id', 'first_name', 'middle_name', 'last_name', 'parent_name', 'parent_phone', 'parent_email', 'user__username', 'user__email']
+    search_fields = ['student_id', 'upi', 'first_name', 'middle_name', 'last_name', 'parent_name', 'parent_phone', 'parent_email', 'user__username', 'user__email']
     ordering = ['grade', 'first_name', 'middle_name', 'last_name']
     readonly_fields = ['created_at', 'updated_at']
     filter_horizontal = ['parents']
     fieldsets = (
         ('Basic Information', {
-            'fields': ('student_id', 'first_name', 'middle_name', 'last_name', 'gender', 'date_of_birth', 'grade', 'admission_date', 'is_active')
+            'fields': ('student_id', 'upi', 'first_name', 'middle_name', 'last_name', 'gender', 'date_of_birth', 'grade', 'admission_date', 'is_active')
         }),
         ('Linked Accounts', {
             'fields': ('user', 'parents')

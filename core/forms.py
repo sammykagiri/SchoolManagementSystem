@@ -12,7 +12,7 @@ class StudentForm(forms.ModelForm):
     class Meta:
         model = Student
         fields = [
-            'first_name', 'middle_name', 'last_name', 'gender', 'date_of_birth', 
+            'first_name', 'middle_name', 'last_name', 'upi', 'gender', 'date_of_birth', 
             'grade', 'school_class', 'admission_date', 'parent_name', 'parent_phone', 
             'parent_email', 'address', 'transport_route', 'uses_transport', 
             'photo', 'parents', 'optional_fee_categories'
@@ -27,6 +27,12 @@ class StudentForm(forms.ModelForm):
             'parents': forms.CheckboxSelectMultiple(),
             'school_class': forms.Select(attrs={'class': 'form-select'}),
             'optional_fee_categories': forms.CheckboxSelectMultiple(),
+            'upi': forms.TextInput(attrs={
+                'class': 'form-control',
+                'maxlength': '11',
+                'pattern': '[0-9]{11}',
+                'placeholder': 'Enter 11-digit NEMIS/UPI number'
+            }),
         }
     
     def __init__(self, *args, **kwargs):
@@ -77,6 +83,7 @@ class StudentForm(forms.ModelForm):
                 is_active=True
             ).select_related('class_teacher')
             # Ensure the currently assigned class is included even if it doesn't match the grade filter
+        
             if self.instance.school_class:
                 queryset = queryset | SchoolClass.objects.filter(
                     id=self.instance.school_class.id,
@@ -95,6 +102,8 @@ class StudentForm(forms.ModelForm):
         self.fields['parent_phone'].required = True
         
         # Add help text
+        if 'upi' in self.fields:
+            self.fields['upi'].help_text = '11-digit NEMIS / UPI number issued by the Ministry of Education (optional)'
         self.fields['parent_email'].help_text = 'Optional - for sending receipts and notifications'
         self.fields['address'].help_text = 'Optional - student home address'
         self.fields['school_class'].help_text = 'Optional - assign student to a specific class'
@@ -157,6 +166,39 @@ class StudentForm(forms.ModelForm):
                 raise ValidationError('Admission date cannot be before date of birth.')
         
         return admission_date
+    
+    def clean_upi(self):
+        """Validate UPI field"""
+        upi = self.cleaned_data.get('upi')
+        
+        if upi:
+            # Remove any whitespace
+            upi = upi.strip()
+            
+            # Check if it contains only digits
+            if not upi.isdigit():
+                raise ValidationError('UPI number must contain only digits.')
+            
+            # Check if it's exactly 11 characters
+            if len(upi) != 11:
+                raise ValidationError('UPI number must be exactly 11 digits.')
+            
+            # Check for uniqueness (excluding current instance if updating)
+            existing_student = Student.objects.filter(upi=upi).exclude(pk=self.instance.pk if self.instance.pk else None).first()
+            if existing_student:
+                raise ValidationError(f'This UPI number is already assigned to student: {existing_student.full_name} ({existing_student.student_id}).')
+        
+        return upi
+    
+    def clean(self):
+        """Additional form-level validation"""
+        cleaned_data = super().clean()
+        
+        # Ensure UPI is stored without whitespace
+        if 'upi' in cleaned_data and cleaned_data['upi']:
+            cleaned_data['upi'] = cleaned_data['upi'].strip()
+        
+        return cleaned_data
     
     def save(self, commit=True):
         """Override save to automatically set uses_transport based on transport_route"""

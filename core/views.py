@@ -200,6 +200,7 @@ def student_list(request):
     if search_query:
         students = students.filter(
             Q(student_id__icontains=search_query) |
+            Q(upi__icontains=search_query) |
             Q(first_name__icontains=search_query) |
             Q(last_name__icontains=search_query) |
             Q(parent_name__icontains=search_query) |
@@ -1967,7 +1968,14 @@ class StudentViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         # Multi-tenant: filter by user's school
         school = self.request.user.profile.school
-        return Student.objects.filter(school=school)
+        queryset = Student.objects.filter(school=school)
+        
+        # Filter by UPI if provided
+        upi = self.request.query_params.get('upi', None)
+        if upi:
+            queryset = queryset.filter(upi=upi)
+        
+        return queryset
 
     def perform_create(self, serializer):
         school = self.request.user.profile.school
