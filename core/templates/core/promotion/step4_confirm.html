@@ -1,0 +1,108 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Student Promotion - Confirm | School Management System{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header bg-warning text-dark">
+                    <h4 class="mb-0">
+                        <i class="fas fa-check-circle me-2"></i>Student Promotion - Final Confirmation
+                    </h4>
+                </div>
+                <div class="card-body">
+                    <div class="alert alert-warning">
+                        <i class="fas fa-exclamation-triangle me-2"></i>
+                        <strong>Warning:</strong> This action cannot be undone. Please review all details carefully before confirming.
+                    </div>
+                    
+                    <div class="row mb-4">
+                        <div class="col-md-6">
+                            <h5>Promotion Summary</h5>
+                            <table class="table table-bordered">
+                                <tr>
+                                    <th>From Academic Year:</th>
+                                    <td>{{ from_year.name }}</td>
+                                </tr>
+                                <tr>
+                                    <th>To Academic Year:</th>
+                                    <td>{{ to_year.name }}</td>
+                                </tr>
+                                <tr>
+                                    <th>Promotion Mode:</th>
+                                    <td>{{ promotion_type|title }}</td>
+                                </tr>
+                            </table>
+                        </div>
+                        <div class="col-md-6">
+                            <h5>Statistics</h5>
+                            <table class="table table-bordered">
+                                <tr>
+                                    <th>Total Students:</th>
+                                    <td><strong>{{ stats.total }}</strong></td>
+                                </tr>
+                                <tr>
+                                    <th>To Promote:</th>
+                                    <td><span class="badge bg-success">{{ stats.promote }}</span></td>
+                                </tr>
+                                <tr>
+                                    <th>To Retain:</th>
+                                    <td><span class="badge bg-warning">{{ stats.retain }}</span></td>
+                                </tr>
+                                <tr>
+                                    <th>To Graduate:</th>
+                                    <td><span class="badge bg-info">{{ stats.graduate }}</span></td>
+                                </tr>
+                                <tr>
+                                    <th>Left School:</th>
+                                    <td><span class="badge bg-secondary">{{ stats.leave }}</span></td>
+                                </tr>
+                            </table>
+                        </div>
+                    </div>
+                    
+                    <form method="post" id="confirmForm">
+                        {% csrf_token %}
+                        <input type="hidden" name="confirm" value="yes">
+                        
+                        <div class="form-check mb-4">
+                            <input class="form-check-input" type="checkbox" id="confirmCheck" required>
+                            <label class="form-check-label" for="confirmCheck">
+                                <strong>I confirm that I have reviewed all details and want to proceed with the promotion.</strong>
+                            </label>
+                        </div>
+                        
+                        <div class="d-flex justify-content-between">
+                            <a href="{% url 'core:promotion_preview' %}" class="btn btn-secondary">
+                                <i class="fas fa-arrow-left me-2"></i>Back to Preview
+                            </a>
+                            <button type="submit" class="btn btn-success btn-lg" id="executeBtn" disabled>
+                                <i class="fas fa-check me-2"></i>Execute Promotion
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    document.getElementById('confirmCheck').addEventListener('change', function() {
+        document.getElementById('executeBtn').disabled = !this.checked;
+    });
+    
+    document.getElementById('confirmForm').addEventListener('submit', function(e) {
+        if (!document.getElementById('confirmCheck').checked) {
+            e.preventDefault();
+            alert('Please confirm by checking the checkbox.');
+            return false;
+        }
+        return confirm('Are you absolutely sure you want to execute this promotion? This action cannot be undone.');
+    });
+</script>
+{% endblock %}
+

@@ -1,0 +1,103 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Promotion History | School Management System{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+                    <h4 class="mb-0">
+                        <i class="fas fa-history me-2"></i>Promotion History
+                    </h4>
+                    <a href="{% url 'core:promotion_wizard_step1' %}" class="btn btn-light btn-sm">
+                        <i class="fas fa-plus me-2"></i>New Promotion
+                    </a>
+                </div>
+                <div class="card-body">
+                    {% if logs %}
+                        <div class="table-responsive">
+                            <table class="table table-bordered table-striped">
+                                <thead class="table-dark">
+                                    <tr>
+                                        <th>Date</th>
+                                        <th>From Year</th>
+                                        <th>To Year</th>
+                                        <th>Type</th>
+                                        <th>Promoted</th>
+                                        <th>Retained</th>
+                                        <th>Graduated</th>
+                                        <th>Left</th>
+                                        <th>Total</th>
+                                        <th>By</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for log in logs %}
+                                    <tr>
+                                        <td>{{ log.created_at|date:"M d, Y H:i" }}</td>
+                                        <td>{{ log.from_academic_year.name }}</td>
+                                        <td>{{ log.to_academic_year.name }}</td>
+                                        <td>
+                                            <span class="badge bg-{% if log.promotion_type == 'automatic' %}primary{% elif log.promotion_type == 'manual' %}success{% else %}info{% endif %}">
+                                                {{ log.promotion_type|title }}
+                                            </span>
+                                        </td>
+                                        <td><span class="badge bg-success">{{ log.promoted_count }}</span></td>
+                                        <td><span class="badge bg-warning">{{ log.retained_count }}</span></td>
+                                        <td><span class="badge bg-info">{{ log.graduated_count }}</span></td>
+                                        <td><span class="badge bg-secondary">{{ log.left_count }}</span></td>
+                                        <td><strong>{{ log.total_students }}</strong></td>
+                                        <td>{{ log.promoted_by.get_full_name|default:log.promoted_by.username }}</td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                        
+                        <!-- Pagination -->
+                        {% if logs.has_other_pages %}
+                            <nav aria-label="Promotion history pagination">
+                                <ul class="pagination justify-content-center mt-4">
+                                    {% if logs.has_previous %}
+                                        <li class="page-item">
+                                            <a class="page-link" href="?page={{ logs.previous_page_number }}">Previous</a>
+                                        </li>
+                                    {% endif %}
+                                    
+                                    {% for num in logs.paginator.page_range %}
+                                        {% if logs.number == num %}
+                                            <li class="page-item active">
+                                                <span class="page-link">{{ num }}</span>
+                                            </li>
+                                        {% else %}
+                                            <li class="page-item">
+                                                <a class="page-link" href="?page={{ num }}">{{ num }}</a>
+                                            </li>
+                                        {% endif %}
+                                    {% endfor %}
+                                    
+                                    {% if logs.has_next %}
+                                        <li class="page-item">
+                                            <a class="page-link" href="?page={{ logs.next_page_number }}">Next</a>
+                                        </li>
+                                    {% endif %}
+                                </ul>
+                            </nav>
+                        {% endif %}
+                    {% else %}
+                        <div class="alert alert-info text-center">
+                            <i class="fas fa-info-circle me-2"></i>
+                            No promotion history found. 
+                            <a href="{% url 'core:promotion_wizard_step1' %}">Start a new promotion</a>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+

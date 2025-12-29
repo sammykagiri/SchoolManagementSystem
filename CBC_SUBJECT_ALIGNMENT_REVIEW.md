@@ -1070,3 +1070,4 @@ class StudentSubjectSelectionAdmin(admin.ModelAdmin):
 This alignment maintains backward compatibility while adding CBC-specific features. All changes are additive, with nullable fields and optional relationships. The system can be migrated incrementally without disrupting existing functionality.
 
 
+

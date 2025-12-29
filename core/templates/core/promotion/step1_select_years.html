@@ -1,0 +1,101 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Student Promotion - Step 1 | School Management System{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="row">
+        <div class="col-md-8 mx-auto">
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <h4 class="mb-0">
+                        <i class="fas fa-graduation-cap me-2"></i>Student Promotion - Step 1: Select Academic Years
+                    </h4>
+                </div>
+                <div class="card-body">
+                    {% if messages %}
+                        {% for message in messages %}
+                            <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                                {{ message }}
+                                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                            </div>
+                        {% endfor %}
+                    {% endif %}
+                    
+                    <p class="text-muted mb-4">
+                        Select the source academic year (current) and target academic year (next) for student promotion.
+                    </p>
+                    
+                    <form method="post">
+                        {% csrf_token %}
+                        
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label for="from_year" class="form-label">
+                                    <strong>From Academic Year (Source)</strong>
+                                </label>
+                                <select class="form-select" id="from_year" name="from_year" required>
+                                    <option value="">-- Select Source Year --</option>
+                                    {% for year in academic_years %}
+                                        <option value="{{ year.id }}" {% if current_year and year.id == current_year.id %}selected{% endif %}>
+                                            {{ year.name }} 
+                                            {% if year.is_current %}(Current){% endif %}
+                                            {% if year.is_active %}(Active){% endif %}
+                                        </option>
+                                    {% endfor %}
+                                </select>
+                                <small class="form-text text-muted">
+                                    The academic year students are currently enrolled in
+                                </small>
+                            </div>
+                            
+                            <div class="col-md-6">
+                                <label for="to_year" class="form-label">
+                                    <strong>To Academic Year (Target)</strong>
+                                </label>
+                                <select class="form-select" id="to_year" name="to_year" required>
+                                    <option value="">-- Select Target Year --</option>
+                                    {% for year in academic_years %}
+                                        <option value="{{ year.id }}">
+                                            {{ year.name }}
+                                            {% if year.is_current %}(Current){% endif %}
+                                            {% if year.is_active %}(Active){% endif %}
+                                        </option>
+                                    {% endfor %}
+                                </select>
+                                <small class="form-text text-muted">
+                                    The academic year students will be promoted to
+                                </small>
+                            </div>
+                        </div>
+                        
+                        {% if academic_years %}
+                            <div class="alert alert-info">
+                                <i class="fas fa-info-circle me-2"></i>
+                                <strong>Note:</strong> Make sure the target year starts after the source year ends.
+                            </div>
+                        {% else %}
+                            <div class="alert alert-warning">
+                                <i class="fas fa-exclamation-triangle me-2"></i>
+                                <strong>No Academic Years Found:</strong> Please create academic years before promoting students.
+                            </div>
+                        {% endif %}
+                        
+                        <div class="d-flex justify-content-between mt-4">
+                            <a href="{% url 'core:dashboard' %}" class="btn btn-secondary">
+                                <i class="fas fa-arrow-left me-2"></i>Cancel
+                            </a>
+                            <button type="submit" class="btn btn-primary" {% if not academic_years %}disabled{% endif %}>
+                                Next Step
+                                <i class="fas fa-arrow-right ms-2"></i>
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+

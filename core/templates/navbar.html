@@ -19,7 +19,7 @@
     </div>
     
     <nav class="sidebar-nav flex-grow-1">
-        {% if user.is_authenticated and not user.profile.is_student and not user.profile.is_parent %}
+        {% if user.is_authenticated and user.profile and not user.profile.is_student and not user.profile.is_parent %}
         <ul class="nav flex-column">
             <!-- Dashboard -->
             <li class="nav-item">
@@ -31,7 +31,7 @@
             
             <!-- Students -->
             <li class="nav-item">
-                <a class="nav-link {% if request.resolver_match.url_name == 'student_list' or request.resolver_match.url_name == 'student_detail' or request.resolver_match.url_name == 'student_create' or request.resolver_match.url_name == 'student_update' %}active{% endif %}" 
+                <a class="nav-link {% if request.resolver_match.url_name == 'student_list' or request.resolver_match.url_name == 'student_detail' or request.resolver_match.url_name == 'student_create' or request.resolver_match.url_name == 'student_update' or 'promotion' in request.resolver_match.url_name %}active{% endif %}" 
                    href="#" data-bs-toggle="collapse" data-bs-target="#studentsSubmenu" aria-expanded="false">
                     <i class="fas fa-users me-2"></i>
                     <span>Students</span>
@@ -48,6 +48,19 @@
                             <i class="fas fa-plus me-2"></i>Add Student
                         </a>
                     </li>
+                    {% if user.is_superuser or user.profile.is_school_admin or user.profile.is_super_admin %}
+                    <li class="nav-item"><hr class="dropdown-divider my-2"></li>
+                    <li class="nav-item">
+                        <a class="nav-link {% if 'promotion' in request.resolver_match.url_name %}active{% endif %}" href="{% url 'core:promotion_wizard_step1' %}">
+                            <i class="fas fa-graduation-cap me-2"></i>Student Promotion
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {% if request.resolver_match.url_name == 'promotion_history' %}active{% endif %}" href="{% url 'core:promotion_history' %}">
+                            <i class="fas fa-history me-2"></i>Promotion History
+                        </a>
+                    </li>
+                    {% endif %}
                 </ul>
             </li>
             

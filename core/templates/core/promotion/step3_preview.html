@@ -1,0 +1,131 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Student Promotion - Preview | School Management System{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <h4 class="mb-0">
+                        <i class="fas fa-eye me-2"></i>Student Promotion - Preview
+                    </h4>
+                </div>
+                <div class="card-body">
+                    <div class="alert alert-info mb-4">
+                        <strong>From:</strong> {{ from_year.name }} 
+                        <strong class="ms-3">To:</strong> {{ to_year.name }}
+                        <strong class="ms-3">Mode:</strong> {{ promotion_type|title }}
+                    </div>
+                    
+                    <!-- Statistics -->
+                    <div class="row mb-4">
+                        <div class="col-md-3">
+                            <div class="card bg-primary text-white">
+                                <div class="card-body text-center">
+                                    <h3>{{ stats.total }}</h3>
+                                    <p class="mb-0">Total Students</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="card bg-success text-white">
+                                <div class="card-body text-center">
+                                    <h3>{{ stats.promote }}</h3>
+                                    <p class="mb-0">To Promote</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="card bg-warning text-white">
+                                <div class="card-body text-center">
+                                    <h3>{{ stats.retain }}</h3>
+                                    <p class="mb-0">To Retain</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="card bg-info text-white">
+                                <div class="card-body text-center">
+                                    <h3>{{ stats.graduate }}</h3>
+                                    <p class="mb-0">To Graduate</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <form method="post">
+                        {% csrf_token %}
+                        
+                        <div class="table-responsive">
+                            <table class="table table-bordered table-striped table-hover">
+                                <thead class="table-dark">
+                                    <tr>
+                                        <th>Student ID</th>
+                                        <th>Name</th>
+                                        <th>Current Grade/Class</th>
+                                        <th>Target Grade/Class</th>
+                                        <th>Action</th>
+                                        <th>Warnings</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for preview in previews %}
+                                    <tr class="{% if preview.warnings %}table-warning{% endif %}">
+                                        <td>{{ preview.student_id_code }}</td>
+                                        <td>{{ preview.student_name }}</td>
+                                        <td>
+                                            {{ preview.current_grade }}
+                                            {% if preview.current_class %} - {{ preview.current_class }}{% endif %}
+                                        </td>
+                                        <td>
+                                            {{ preview.target_grade }}
+                                            {% if preview.target_class %} - {{ preview.target_class }}{% endif %}
+                                        </td>
+                                        <td>
+                                            <span class="badge bg-{% if preview.action == 'promote' %}success{% elif preview.action == 'retain' %}warning{% elif preview.action == 'graduate' %}info{% else %}secondary{% endif %}">
+                                                {{ preview.action|title }}
+                                            </span>
+                                        </td>
+                                        <td>
+                                            {% if preview.warnings %}
+                                                {% for warning in preview.warnings %}
+                                                    <small class="text-danger d-block">
+                                                        <i class="fas fa-exclamation-triangle me-1"></i>{{ warning }}
+                                                    </small>
+                                                {% endfor %}
+                                            {% else %}
+                                                <span class="text-muted">-</span>
+                                            {% endif %}
+                                        </td>
+                                    </tr>
+                                    {% empty %}
+                                    <tr>
+                                        <td colspan="6" class="text-center text-muted">
+                                            No students found for promotion
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                        
+                        <div class="d-flex justify-content-between mt-4">
+                            <a href="{% url 'core:promotion_wizard_step2' %}" class="btn btn-secondary">
+                                <i class="fas fa-arrow-left me-2"></i>Back
+                            </a>
+                            <button type="submit" class="btn btn-primary">
+                                Continue to Confirmation
+                                <i class="fas fa-arrow-right ms-2"></i>
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+

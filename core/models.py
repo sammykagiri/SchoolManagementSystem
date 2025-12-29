@@ -611,3 +611,155 @@ class SchoolClass(models.Model):
 
     def __str__(self):
         return f"{self.name} ({self.grade.name})"
+
+
+class AcademicYear(models.Model):
+    """Represents an academic year (e.g., 2023-2024)"""
+    school = models.ForeignKey(School, on_delete=models.CASCADE, related_name='academic_years')
+    name = models.CharField(max_length=50, help_text='e.g., "2023-2024"')
+    start_date = models.DateField()
+    end_date = models.DateField()
+    is_active = models.BooleanField(default=False, help_text='Whether this academic year is currently active')
+    is_current = models.BooleanField(default=False, help_text='The current academic year (only one can be current)')
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        unique_together = ['school', 'name']
+        ordering = ['-start_date']
+        verbose_name = 'Academic Year'
+        verbose_name_plural = 'Academic Years'
+
+    def __str__(self):
+        return f"{self.name} ({self.school.name})"
+
+    def clean(self):
+        """Validate academic year dates"""
+        from django.core.exceptions import ValidationError
+        if self.start_date >= self.end_date:
+            raise ValidationError('End date must be after start date.')
+
+    def save(self, *args, **kwargs):
+        """Ensure only one academic year is marked as current"""
+        self.full_clean()
+        if self.is_current:
+            # Unset other current academic years for this school
+            AcademicYear.objects.filter(school=self.school, is_current=True).exclude(pk=self.pk).update(is_current=False)
+        super().save(*args, **kwargs)
+
+
+class Section(models.Model):
+    """Represents a section within a class (e.g., Section A, B, Morning, Afternoon)"""
+    school = models.ForeignKey(School, on_delete=models.CASCADE, related_name='sections')
+    school_class = models.ForeignKey(SchoolClass, on_delete=models.CASCADE, related_name='sections')
+    name = models.CharField(max_length=50, help_text='e.g., "A", "B", "Morning", "Afternoon"')
+    capacity = models.PositiveIntegerField(null=True, blank=True, help_text='Maximum number of students (optional)')
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        unique_together = ['school_class', 'name']
+        ordering = ['school_class__grade__name', 'school_class__name', 'name']
+        verbose_name = 'Section'
+        verbose_name_plural = 'Sections'
+
+    def __str__(self):
+        return f"{self.school_class.name} - {self.name}"
+
+    @property
+    def current_enrollment_count(self):
+        """Get current number of active enrollments in this section"""
+        from django.utils import timezone
+        current_year = AcademicYear.objects.filter(school=self.school, is_current=True).first()
+        if not current_year:
+            return 0
+        return self.enrollments.filter(
+            academic_year=current_year,
+            status='active'
+        ).count()
+
+    @property
+    def is_full(self):
+        """Check if section is at capacity"""
+        if self.capacity is None:
+            return False
+        return self.current_enrollment_count >= self.capacity
+
+
+class StudentClassEnrollment(models.Model):
+    """Pivot table tracking student enrollment in classes across academic years"""
+    STATUS_CHOICES = [
+        ('active', 'Active'),
+        ('retained', 'Retained'),
+        ('promoted', 'Promoted'),
+        ('graduated', 'Graduated'),
+        ('left', 'Left School'),
+        ('dropped', 'Dropped Out'),
+    ]
+
+    student = models.ForeignKey(Student, on_delete=models.CASCADE, related_name='enrollments')
+    academic_year = models.ForeignKey(AcademicYear, on_delete=models.CASCADE, related_name='enrollments')
+    grade = models.ForeignKey(Grade, on_delete=models.CASCADE, related_name='enrollments')
+    school_class = models.ForeignKey(SchoolClass, on_delete=models.SET_NULL, null=True, blank=True, related_name='enrollments')
+    section = models.ForeignKey(Section, on_delete=models.SET_NULL, null=True, blank=True, related_name='enrollments')
+    roll_number = models.PositiveIntegerField(null=True, blank=True, help_text='Roll number in class')
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='active')
+    enrollment_date = models.DateField(auto_now_add=True)
+    notes = models.TextField(blank=True, help_text='Additional notes about this enrollment')
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        unique_together = ['student', 'academic_year']
+        ordering = ['roll_number', 'student__first_name', 'student__last_name']
+        verbose_name = 'Student Class Enrollment'
+        verbose_name_plural = 'Student Class Enrollments'
+        indexes = [
+            models.Index(fields=['academic_year', 'status']),
+            models.Index(fields=['grade', 'academic_year']),
+            models.Index(fields=['school_class', 'section']),
+        ]
+
+    def __str__(self):
+        return f"{self.student.full_name} - {self.academic_year.name} ({self.grade.name})"
+
+    def clean(self):
+        """Validate enrollment data"""
+        from django.core.exceptions import ValidationError
+        # Ensure section belongs to school_class if both are provided
+        if self.section and self.school_class and self.section.school_class != self.school_class:
+            raise ValidationError('Section must belong to the selected school class.')
+        # Ensure school_class belongs to grade if both are provided
+        if self.school_class and self.school_class.grade != self.grade:
+            raise ValidationError('School class must belong to the selected grade.')
+
+
+class PromotionLog(models.Model):
+    """Audit trail for student promotions"""
+    PROMOTION_TYPE_CHOICES = [
+        ('automatic', 'Automatic'),
+        ('manual', 'Manual'),
+        ('bulk', 'Bulk'),
+    ]
+
+    school = models.ForeignKey(School, on_delete=models.CASCADE, related_name='promotion_logs')
+    from_academic_year = models.ForeignKey(AcademicYear, on_delete=models.CASCADE, related_name='promotions_from')
+    to_academic_year = models.ForeignKey(AcademicYear, on_delete=models.CASCADE, related_name='promotions_to')
+    promoted_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='promotions')
+    promotion_type = models.CharField(max_length=20, choices=PROMOTION_TYPE_CHOICES, default='automatic')
+    total_students = models.PositiveIntegerField(help_text='Total students processed')
+    promoted_count = models.PositiveIntegerField(default=0)
+    retained_count = models.PositiveIntegerField(default=0)
+    graduated_count = models.PositiveIntegerField(default=0)
+    left_count = models.PositiveIntegerField(default=0)
+    notes = models.TextField(blank=True, help_text='Additional notes about this promotion')
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-created_at']
+        verbose_name = 'Promotion Log'
+        verbose_name_plural = 'Promotion Logs'
+
+    def __str__(self):
+        return f"Promotion: {self.from_academic_year.name} → {self.to_academic_year.name} ({self.created_at.date()})"

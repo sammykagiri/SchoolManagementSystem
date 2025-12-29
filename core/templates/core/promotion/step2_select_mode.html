@@ -1,0 +1,145 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Student Promotion - Step 2 | School Management System{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="row">
+        <div class="col-md-10 mx-auto">
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <h4 class="mb-0">
+                        <i class="fas fa-cog me-2"></i>Student Promotion - Step 2: Select Mode & Filters
+                    </h4>
+                </div>
+                <div class="card-body">
+                    <div class="alert alert-info mb-4">
+                        <strong>Promoting from:</strong> {{ from_year.name }} 
+                        <strong class="ms-3">To:</strong> {{ to_year.name }}
+                    </div>
+                    
+                    <form method="post">
+                        {% csrf_token %}
+                        
+                        <!-- Promotion Type -->
+                        <div class="mb-4">
+                            <label class="form-label"><strong>Promotion Mode</strong></label>
+                            <div class="form-check">
+                                <input class="form-check-input" type="radio" name="promotion_type" id="type_automatic" value="automatic" checked>
+                                <label class="form-check-label" for="type_automatic">
+                                    <strong>Automatic</strong> - Promote all eligible students to next grade
+                                </label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="radio" name="promotion_type" id="type_manual" value="manual">
+                                <label class="form-check-label" for="type_manual">
+                                    <strong>Manual</strong> - Select specific students to promote
+                                </label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="radio" name="promotion_type" id="type_bulk" value="bulk">
+                                <label class="form-check-label" for="type_bulk">
+                                    <strong>Bulk</strong> - Promote by grade/class filters
+                                </label>
+                            </div>
+                        </div>
+                        
+                        <hr>
+                        
+                        <!-- Filters -->
+                        <div class="row mb-4">
+                            <div class="col-md-6">
+                                <label for="grade_filter" class="form-label"><strong>Filter by Grade (Optional)</strong></label>
+                                <select class="form-select" id="grade_filter" name="grade_filter">
+                                    <option value="">All Grades</option>
+                                    {% for grade in grades %}
+                                        <option value="{{ grade.id }}">{{ grade.name }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            
+                            <div class="col-md-6">
+                                <label for="class_filter" class="form-label"><strong>Filter by Class (Optional)</strong></label>
+                                <select class="form-select" id="class_filter" name="class_filter">
+                                    <option value="">All Classes</option>
+                                    {% for class in classes %}
+                                        <option value="{{ class.id }}">{{ class.name }} ({{ class.grade.name }})</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        </div>
+                        
+                        <hr>
+                        
+                        <!-- Student Actions -->
+                        <div class="mb-4">
+                            <h5>Student Actions</h5>
+                            <p class="text-muted">Select students to retain, graduate, or mark as left:</p>
+                            
+                            <div class="row">
+                                <div class="col-md-4">
+                                    <label class="form-label"><strong>Retain Students</strong></label>
+                                    <small class="text-muted d-block mb-2">Students who will repeat the same grade</small>
+                                    <select class="form-select" name="retain_students" multiple size="5">
+                                        {% for enrollment in enrollments %}
+                                            <option value="{{ enrollment.student.id }}">
+                                                {{ enrollment.student.full_name }} ({{ enrollment.grade.name }})
+                                            </option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                                
+                                <div class="col-md-4">
+                                    <label class="form-label"><strong>Graduate Students</strong></label>
+                                    <small class="text-muted d-block mb-2">Students who have completed highest grade</small>
+                                    <select class="form-select" name="graduate_students" multiple size="5">
+                                        {% for enrollment in enrollments %}
+                                            <option value="{{ enrollment.student.id }}">
+                                                {{ enrollment.student.full_name }} ({{ enrollment.grade.name }})
+                                            </option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                                
+                                <div class="col-md-4">
+                                    <label class="form-label"><strong>Left School</strong></label>
+                                    <small class="text-muted d-block mb-2">Students who have left the school</small>
+                                    <select class="form-select" name="leave_students" multiple size="5">
+                                        {% for enrollment in enrollments %}
+                                            <option value="{{ enrollment.student.id }}">
+                                                {{ enrollment.student.full_name }} ({{ enrollment.grade.name }})
+                                            </option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                            </div>
+                            
+                            <small class="text-muted">
+                                <i class="fas fa-info-circle me-1"></i>
+                                Hold Ctrl (Windows) or Cmd (Mac) to select multiple students
+                            </small>
+                        </div>
+                        
+                        <div class="alert alert-warning">
+                            <i class="fas fa-exclamation-triangle me-2"></i>
+                            <strong>Total Students:</strong> {{ total_students }} eligible for promotion
+                        </div>
+                        
+                        <div class="d-flex justify-content-between mt-4">
+                            <a href="{% url 'core:promotion_wizard_step1' %}" class="btn btn-secondary">
+                                <i class="fas fa-arrow-left me-2"></i>Back
+                            </a>
+                            <button type="submit" class="btn btn-primary">
+                                Preview Promotion
+                                <i class="fas fa-arrow-right ms-2"></i>
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+

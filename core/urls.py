@@ -122,6 +122,13 @@ urlpatterns = [
     # Role Management
     path('roles/', views.role_list, name='role_list'),
     path('roles/<int:role_id>/permissions/', views.role_permissions, name='role_permissions'),
+    
+    # Student Promotion
+    path('promotion/', views.promotion_wizard_step1, name='promotion_wizard_step1'),
+    path('promotion/step2/', views.promotion_wizard_step2, name='promotion_wizard_step2'),
+    path('promotion/preview/', views.promotion_preview, name='promotion_preview'),
+    path('promotion/confirm/', views.promotion_confirm, name='promotion_confirm'),
+    path('promotion/history/', views.promotion_history, name='promotion_history'),
 ]
 
 urlpatterns += router.urls

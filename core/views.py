@@ -13,7 +13,8 @@ import json
 from datetime import datetime
 from decimal import Decimal
 from .models import (
-    School, Grade, Term, FeeCategory, TransportRoute, Student, FeeStructure, StudentFee, SchoolClass
+    School, Grade, Term, FeeCategory, TransportRoute, Student, FeeStructure, StudentFee, SchoolClass,
+    AcademicYear, Section, StudentClassEnrollment, PromotionLog
 )
 from payments.models import Payment
 from timetable.models import Teacher
@@ -33,8 +34,36 @@ from rest_framework.permissions import IsAdminUser
 from rest_framework.response import Response
 from rest_framework.permissions import BasePermission
 from rest_framework import permissions
-from .services import DashboardService, StudentService, TeacherService
+# Import existing services from services.py file
+# We need to import it as a submodule to handle relative imports
+import sys
+import importlib.util
+from pathlib import Path
+
+# Ensure 'core' is in sys.modules for relative imports
+if 'core' not in sys.modules:
+    import core
+    sys.modules['core'] = core
+
+# Load services.py as a module
+services_file = Path(__file__).parent / 'services.py'
+spec = importlib.util.spec_from_file_location("core.services_file", str(services_file))
+services_module = importlib.util.module_from_spec(spec)
+sys.modules['core.services_file'] = services_module
+spec.loader.exec_module(services_module)
+
+DashboardService = services_module.DashboardService
+StudentService = services_module.StudentService
+TeacherService = services_module.TeacherService
+
+# Import new promotion service from services package
+from .services.promotion_service import PromotionService, PromotionPreview, PromotionResult
 from .decorators import role_required
+# Import promotion views
+from .views_promotion import (
+    promotion_wizard_step1, promotion_wizard_step2, promotion_preview,
+    promotion_confirm, promotion_history
+)
 from django.core.exceptions import PermissionDenied
 from django.contrib.auth.views import LoginView
 
