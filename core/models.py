@@ -532,11 +532,18 @@ class UserProfile(models.Model):
         # Fallback to old role field
         return self.role == 'student' if self.role else False
 
-# @receiver(post_save, sender=User)
+@receiver(post_save, sender=User)
 def create_user_profile(sender, instance, created, **kwargs):
+    """Automatically create a UserProfile when a User is created"""
     if created:
-        # You may want to set a default school or handle this in registration
-        UserProfile.objects.create(user=instance, school=School.objects.first())
+        # Only create if profile doesn't exist
+        if not hasattr(instance, 'profile'):
+            # Get the first school or None if no schools exist
+            default_school = School.objects.first()
+            UserProfile.objects.get_or_create(
+                user=instance,
+                defaults={'school': default_school}
+            )
 
 
 @receiver(post_save, sender=User)

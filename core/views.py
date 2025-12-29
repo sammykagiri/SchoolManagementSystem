@@ -73,6 +73,17 @@ class IsSuperUser(BasePermission):
 @role_required('super_admin', 'school_admin', 'teacher', 'accountant')
 def dashboard(request):
     """Main dashboard view - uses service for business logic (Admin/Teacher only for MVP)"""
+    # Ensure user has a profile
+    from .models import UserProfile
+    if not hasattr(request.user, 'profile'):
+        # Create a profile if it doesn't exist
+        default_school = School.objects.first()
+        UserProfile.objects.get_or_create(
+            user=request.user,
+            defaults={'school': default_school}
+        )
+        request.user.refresh_from_db()
+    
     school = request.user.profile.school
     dashboard_data = DashboardService.get_dashboard_data(school, request.user)
     

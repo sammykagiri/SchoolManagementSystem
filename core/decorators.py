@@ -31,8 +31,19 @@ def role_required(*allowed_roles):
                 return view_func(request, *args, **kwargs)
             
             if not hasattr(request.user, 'profile'):
-                messages.error(request, 'User profile not found. Please contact administrator.')
-                return redirect('login')
+                # Try to create a profile if it doesn't exist
+                from core.models import UserProfile, School
+                default_school = School.objects.first()
+                UserProfile.objects.get_or_create(
+                    user=request.user,
+                    defaults={'school': default_school}
+                )
+                request.user.refresh_from_db()
+                
+                # If still no profile after creation attempt, redirect
+                if not hasattr(request.user, 'profile'):
+                    messages.error(request, 'User profile not found. Please contact administrator.')
+                    return redirect('login')
             
             # Check if user has any of the required roles
             user_roles = request.user.profile.roles_list
@@ -75,7 +86,18 @@ def permission_required(permission_type, resource_type):
             
             # Check if user has the required permission
             if not hasattr(request.user, 'profile'):
-                raise PermissionDenied("User profile not found.")
+                # Try to create a profile if it doesn't exist
+                from core.models import UserProfile, School
+                default_school = School.objects.first()
+                UserProfile.objects.get_or_create(
+                    user=request.user,
+                    defaults={'school': default_school}
+                )
+                request.user.refresh_from_db()
+                
+                # If still no profile after creation attempt, raise error
+                if not hasattr(request.user, 'profile'):
+                    raise PermissionDenied("User profile not found.")
             
             if request.user.profile.has_permission(permission_type, resource_type):
                 return view_func(request, *args, **kwargs)
