@@ -1,0 +1,525 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Login | School Management System{% endblock %}
+
+{% block extra_css %}
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+    * {
+        font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+    }
+    
+    body {
+        padding-left: 0 !important;
+        margin: 0;
+        min-height: 100vh;
+        max-height: 100vh;
+        overflow: hidden;
+        background: #f5f7fa;
+        position: relative;
+        font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+    }
+    
+    /* Subtle background pattern */
+    body::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background-image: 
+            radial-gradient(circle at 1px 1px, rgba(0,0,0,0.03) 1px, transparent 0);
+        background-size: 30px 30px;
+        pointer-events: none;
+    }
+    
+    .login-wrapper {
+        min-height: 100vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 20px;
+        position: relative;
+        z-index: 1;
+    }
+    
+    .login-container {
+        width: 100%;
+        max-width: 450px;
+        animation: fadeInUp 0.6s ease-out;
+        margin: auto;
+    }
+    
+    @keyframes fadeInUp {
+        from {
+            opacity: 0;
+            transform: translateY(30px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+    
+    .login-card {
+        border-radius: 20px;
+        box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+        overflow: hidden;
+        background: rgba(255, 255, 255, 0.95);
+        backdrop-filter: blur(10px);
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        transition: transform 0.3s ease, box-shadow 0.3s ease;
+    }
+    
+    .login-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 25px 70px rgba(0,0,0,0.35);
+    }
+    
+    .login-header {
+        background: linear-gradient(135deg, #4a5568 0%, #2d3748 100%);
+        color: white;
+        padding: 30px 25px;
+        text-align: center;
+        position: relative;
+        overflow: hidden;
+    }
+    
+    .login-icon {
+        font-size: 3.5rem;
+        margin-bottom: 12px;
+        position: relative;
+        z-index: 1;
+        animation: pulse 2s ease-in-out infinite;
+    }
+    
+    @keyframes pulse {
+        0%, 100% { transform: scale(1); }
+        50% { transform: scale(1.05); }
+    }
+    
+    .login-header h3 {
+        font-weight: 700;
+        font-size: 1.75rem;
+        margin-bottom: 8px;
+        position: relative;
+        z-index: 1;
+        text-shadow: 0 2px 10px rgba(0,0,0,0.2);
+    }
+    
+    .login-header p {
+        font-size: 0.95rem;
+        opacity: 0.95;
+        position: relative;
+        z-index: 1;
+    }
+    
+    .login-body {
+        padding: 30px 30px;
+        background: white;
+    }
+    
+    .form-label {
+        font-weight: 600;
+        color: #2d3748;
+        margin-bottom: 8px;
+        font-size: 0.9rem;
+    }
+    
+    .input-group {
+        margin-bottom: 0;
+        transition: all 0.3s ease;
+    }
+    
+    .input-group:focus-within {
+        transform: translateY(-2px);
+    }
+    
+    .input-group-text {
+        background: #4a5568;
+        color: white;
+        border: none;
+        border-radius: 10px 0 0 10px;
+        padding: 12px 15px;
+        font-size: 1rem;
+    }
+    
+    .form-control {
+        border-radius: 0 10px 10px 0;
+        border: 2px solid #e2e8f0;
+        padding: 12px 15px;
+        font-size: 0.95rem;
+        transition: all 0.3s ease;
+        background: #f8f9fa;
+    }
+    
+    .form-control:focus {
+        border-color: #4a5568;
+        background: white;
+        box-shadow: 0 0 0 3px rgba(74, 85, 104, 0.1);
+        outline: none;
+    }
+    
+    .form-control::placeholder {
+        color: #a0aec0;
+    }
+    
+    .form-check {
+        margin-top: 10px;
+    }
+    
+    .form-check-input {
+        width: 18px;
+        height: 18px;
+        border-radius: 4px;
+        border: 2px solid #cbd5e0;
+        cursor: pointer;
+        transition: all 0.3s ease;
+    }
+    
+    .form-check-input:checked {
+        background-color: #4a5568;
+        border-color: #4a5568;
+    }
+    
+    .form-check-input:focus {
+        box-shadow: 0 0 0 3px rgba(74, 85, 104, 0.1);
+    }
+    
+    .form-check-label {
+        color: #4a5568;
+        font-size: 0.9rem;
+        cursor: pointer;
+        margin-left: 8px;
+    }
+    
+    .btn-login {
+        background: #4a5568;
+        border: none;
+        border-radius: 10px;
+        padding: 14px;
+        font-weight: 600;
+        font-size: 1rem;
+        letter-spacing: 0.5px;
+        transition: all 0.3s ease;
+        box-shadow: 0 4px 15px rgba(74, 85, 104, 0.3);
+        position: relative;
+        overflow: hidden;
+    }
+    
+    .btn-login:hover {
+        background: #2d3748;
+        transform: translateY(-2px);
+        box-shadow: 0 6px 20px rgba(74, 85, 104, 0.4);
+    }
+    
+    .btn-login::before {
+        content: '';
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        width: 0;
+        height: 0;
+        border-radius: 50%;
+        background: rgba(255, 255, 255, 0.3);
+        transform: translate(-50%, -50%);
+        transition: width 0.6s, height 0.6s;
+    }
+    
+    .btn-login:hover::before {
+        width: 300px;
+        height: 300px;
+    }
+    
+    .btn-login:active {
+        transform: translateY(0);
+    }
+    
+    .btn-login span {
+        position: relative;
+        z-index: 1;
+    }
+    
+    .login-footer {
+        background: linear-gradient(to bottom, #f8f9fc, #ffffff);
+        padding: 15px;
+        text-align: center;
+        border-top: 1px solid #e2e8f0;
+    }
+    
+    .login-footer a {
+        color: #4a5568;
+        text-decoration: none;
+        font-weight: 500;
+        font-size: 0.9rem;
+        transition: all 0.3s ease;
+        position: relative;
+    }
+    
+    .login-footer a::after {
+        content: '';
+        position: absolute;
+        bottom: -2px;
+        left: 0;
+        width: 0;
+        height: 2px;
+        background: #4a5568;
+        transition: width 0.3s ease;
+    }
+    
+    .login-footer a:hover {
+        color: #2d3748;
+    }
+    
+    .login-footer a:hover::after {
+        width: 100%;
+    }
+    
+    .alert {
+        border-radius: 10px;
+        border: none;
+        padding: 12px 18px;
+        margin-bottom: 20px;
+        animation: slideDown 0.3s ease-out;
+        font-size: 0.9rem;
+    }
+    
+    @keyframes slideDown {
+        from {
+            opacity: 0;
+            transform: translateY(-10px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+    
+    .invalid-feedback {
+        display: block;
+        margin-top: 5px;
+        font-size: 0.85rem;
+        color: #e53e3e;
+    }
+    
+    .is-invalid {
+        border-color: #e53e3e !important;
+    }
+    
+    .is-invalid:focus {
+        box-shadow: 0 0 0 3px rgba(229, 62, 62, 0.1) !important;
+    }
+    
+    /* Neutral color scheme adjustments */
+    .login-card {
+        box-shadow: 0 10px 40px rgba(0,0,0,0.1);
+    }
+    
+    .login-card:hover {
+        box-shadow: 0 15px 50px rgba(0,0,0,0.15);
+    }
+    
+    /* Responsive adjustments */
+    @media (max-width: 576px) {
+        .login-wrapper {
+            padding: 15px;
+        }
+        
+        .login-container {
+            max-width: 100%;
+        }
+        
+        .login-body {
+            padding: 25px 20px;
+        }
+        
+        .login-header {
+            padding: 25px 20px;
+        }
+        
+        .login-icon {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+        }
+        
+        .login-header h3 {
+            font-size: 1.3rem;
+        }
+        
+        .login-header p {
+            font-size: 0.8rem;
+        }
+    }
+    
+    @media (max-height: 700px) {
+        .login-header {
+            padding: 20px 25px;
+        }
+        
+        .login-icon {
+            font-size: 2.5rem;
+            margin-bottom: 8px;
+        }
+        
+        .login-header h3 {
+            font-size: 1.3rem;
+            margin-bottom: 4px;
+        }
+        
+        .login-header p {
+            font-size: 0.8rem;
+        }
+        
+        .login-body {
+            padding: 25px 30px;
+        }
+        
+        .form-label {
+            font-size: 0.85rem;
+            margin-bottom: 6px;
+        }
+        
+        .form-control {
+            padding: 10px 15px;
+            font-size: 0.9rem;
+        }
+        
+        .input-group-text {
+            padding: 10px 12px;
+        }
+        
+        .btn-login {
+            padding: 12px;
+            font-size: 0.95rem;
+        }
+        
+        .login-footer {
+            padding: 12px;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="login-wrapper">
+    <div class="login-container">
+        <div class="card login-card">
+            <div class="login-header">
+                <i class="fas fa-university login-icon"></i>
+                <h3 class="mb-0">School Management System</h3>
+                <p class="mb-0">Sign in to your account</p>
+            </div>
+            <div class="login-body">
+                {% if messages %}
+                    {% for message in messages %}
+                        <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                            <i class="fas fa-{% if message.tags == 'error' %}exclamation-circle{% elif message.tags == 'success' %}check-circle{% else %}info-circle{% endif %} me-2"></i>
+                            {{ message }}
+                            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                        </div>
+                    {% endfor %}
+                {% endif %}
+                
+                <form method="post" novalidate id="loginForm">
+                    {% csrf_token %}
+                    
+                    <div class="mb-3">
+                        <label for="{{ form.username.id_for_label }}" class="form-label">
+                            <i class="fas fa-user me-1"></i>Username
+                        </label>
+                        <div class="input-group">
+                            <span class="input-group-text"><i class="fas fa-user"></i></span>
+                            <input type="text" 
+                                   name="{{ form.username.name }}" 
+                                   class="form-control {% if form.username.errors %}is-invalid{% endif %}" 
+                                   id="{{ form.username.id_for_label }}" 
+                                   placeholder="Enter your username" 
+                                   required
+                                   autocomplete="username">
+                            {% if form.username.errors %}
+                                <div class="invalid-feedback">
+                                    {{ form.username.errors.0 }}
+                                </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="{{ form.password.id_for_label }}" class="form-label">
+                            <i class="fas fa-lock me-1"></i>Password
+                        </label>
+                        <div class="input-group">
+                            <span class="input-group-text"><i class="fas fa-lock"></i></span>
+                            <input type="password" 
+                                   name="{{ form.password.name }}" 
+                                   class="form-control {% if form.password.errors %}is-invalid{% endif %}" 
+                                   id="{{ form.password.id_for_label }}" 
+                                   placeholder="Enter your password" 
+                                   required
+                                   autocomplete="current-password">
+                            {% if form.password.errors %}
+                                <div class="invalid-feedback">
+                                    {{ form.password.errors.0 }}
+                                </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="rememberMe" name="remember_me">
+                            <label class="form-check-label" for="rememberMe">
+                                Remember me for 30 days
+                            </label>
+                        </div>
+                    </div>
+                    
+                    <div class="d-grid gap-2 mb-0">
+                        <button type="submit" class="btn btn-primary btn-login">
+                            <span><i class="fas fa-sign-in-alt me-2"></i>Sign In</span>
+                        </button>
+                    </div>
+                </form>
+            </div>
+            <div class="login-footer">
+                <a href="{% url 'password_reset' %}">
+                    <i class="fas fa-key me-1"></i>Forgot your password?
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Add smooth form validation feedback
+    document.addEventListener('DOMContentLoaded', function() {
+        const form = document.getElementById('loginForm');
+        const inputs = form.querySelectorAll('input[required]');
+        
+        inputs.forEach(input => {
+            input.addEventListener('blur', function() {
+                if (this.value.trim() === '') {
+                    this.classList.add('is-invalid');
+                } else {
+                    this.classList.remove('is-invalid');
+                }
+            });
+            
+            input.addEventListener('input', function() {
+                if (this.classList.contains('is-invalid') && this.value.trim() !== '') {
+                    this.classList.remove('is-invalid');
+                }
+            });
+        });
+        
+        // Add enter key support
+        form.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                form.submit();
+            }
+        });
+    });
+</script>
+{% endblock %}
