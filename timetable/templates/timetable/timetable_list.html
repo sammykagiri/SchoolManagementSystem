@@ -104,12 +104,24 @@
             <a href="{% url 'timetable:timetable_print' %}{% if class_id or grade_id %}?{% if class_id %}class_id={{ class_id }}{% endif %}{% if class_id and grade_id %}&{% endif %}{% if grade_id %}grade_id={{ grade_id }}{% endif %}{% endif %}" class="btn btn-outline-info" target="_blank">
                 <i class="fas fa-print me-2"></i>Print
             </a>
-            <a href="{% url 'timetable:timetable_generate' %}" class="btn btn-outline-primary">
-                <i class="fas fa-magic me-2"></i>Generate Generic Timetable
-            </a>
-            <a href="{% url 'timetable:timetable_add' %}" class="btn btn-primary">
-                <i class="fas fa-plus me-2"></i>Add Timetable Entry
-            </a>
+            {% if classes|length > 0 and non_break_time_slots|length > 0 %}
+                <a href="{% url 'timetable:timetable_generate' %}" class="btn btn-outline-primary">
+                    <i class="fas fa-magic me-2"></i>Generate Generic Timetable
+                </a>
+            {% else %}
+                <button class="btn btn-outline-primary" disabled title="{% if classes|length == 0 %}Please create at least one class{% elif non_break_time_slots|length == 0 %}Please create at least one time slot{% endif %} before generating timetables">
+                    <i class="fas fa-magic me-2"></i>Generate Generic Timetable
+                </button>
+            {% endif %}
+            {% if classes|length > 0 and non_break_time_slots|length > 0 %}
+                <a href="{% url 'timetable:timetable_add' %}" class="btn btn-primary">
+                    <i class="fas fa-plus me-2"></i>Add Timetable Entry
+                </a>
+            {% else %}
+                <button class="btn btn-primary" disabled title="{% if classes|length == 0 %}Please create at least one class{% elif non_break_time_slots|length == 0 %}Please create at least one time slot{% endif %} before adding timetable entries">
+                    <i class="fas fa-plus me-2"></i>Add Timetable Entry
+                </button>
+            {% endif %}
         </div>
     </div>
     
@@ -244,9 +256,19 @@
         {% endfor %}
     {% else %}
         <div class="alert alert-info">
-            <i class="fas fa-info-circle me-2"></i>No timetable entries found. 
-            <a href="{% url 'timetable:timetable_generate' %}" class="alert-link">Generate a generic timetable</a> or 
-            <a href="{% url 'timetable:timetable_add' %}" class="alert-link">add timetable entries manually</a>.
+            <i class="fas fa-info-circle me-2"></i>No timetable entries found.
+            {% if classes|length > 0 and non_break_time_slots|length > 0 %}
+                <a href="{% url 'timetable:timetable_generate' %}" class="alert-link">Generate a generic timetable</a> or 
+                <a href="{% url 'timetable:timetable_add' %}" class="alert-link">add timetable entries manually</a>.
+            {% else %}
+                {% if classes|length == 0 %}
+                    Please <a href="{% url 'core:class_list' %}" class="alert-link">create at least one class</a>
+                    {% if non_break_time_slots|length == 0 %} and {% else %} before creating timetables.{% endif %}
+                {% endif %}
+                {% if non_break_time_slots|length == 0 %}
+                    {% if classes|length == 0 %}also {% endif %}please <a href="{% url 'timetable:timeslot_list' %}" class="alert-link">create at least one time slot</a> before creating timetables.
+                {% endif %}
+            {% endif %}
         </div>
     {% endif %}
         </div>

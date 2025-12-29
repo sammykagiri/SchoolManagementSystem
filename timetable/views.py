@@ -131,6 +131,8 @@ def timetable_list(request):
     
     # Get all time slots (including breaks) for the school, ordered by start time
     all_time_slots = TimeSlot.objects.filter(school=school).order_by('start_time', 'period_number').distinct()
+    # Get non-break time slots for generate button check
+    non_break_time_slots = TimeSlot.objects.filter(school=school, is_break=False)
     
     # Day order for consistent display - filter to selected day if day filter is applied
     all_days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
@@ -318,6 +320,7 @@ def timetable_list(request):
         'day': day,
         'day_order': day_order,
         'all_time_slots': all_time_slots,
+        'non_break_time_slots': non_break_time_slots,
         'teacher_stats': teacher_stats,
         'teacher_stats_remaining': teacher_stats_remaining,
         'subject_stats': subject_stats,
@@ -454,6 +457,18 @@ def timetable_add(request):
     """Add a new timetable entry"""
     school = request.user.profile.school
     
+    # Check prerequisites
+    classes = SchoolClass.objects.filter(school=school, is_active=True)
+    time_slots = TimeSlot.objects.filter(school=school, is_break=False)
+    
+    if not classes.exists():
+        messages.error(request, 'No classes found. Please create at least one class before adding timetable entries.')
+        return redirect('timetable:timetable_list')
+    
+    if not time_slots.exists():
+        messages.error(request, 'No time slots found. Please create at least one time slot before adding timetable entries.')
+        return redirect('timetable:timetable_list')
+    
     if request.method == 'POST':
         school_class_id = request.POST.get('school_class', '').strip()
         subject_id = request.POST.get('subject', '').strip()
@@ -478,11 +493,11 @@ def timetable_add(request):
         if errors:
             for error in errors:
                 messages.error(request, error)
-            # Get all required data for form
-            classes = SchoolClass.objects.filter(school=school, is_active=True).order_by('name')
+            # Get all required data for form (classes and time_slots already defined above)
+            classes = classes.order_by('name')
             subjects = Subject.objects.filter(school=school, is_active=True).order_by('name')
             teachers = Teacher.objects.filter(school=school, is_active=True).order_by('first_name', 'last_name')
-            time_slots = TimeSlot.objects.filter(school=school, is_break=False).order_by('day', 'period_number')
+            time_slots = time_slots.order_by('day', 'period_number')
             return render(request, 'timetable/timetable_form.html', {
                 'classes': classes,
                 'subjects': subjects,
@@ -505,11 +520,11 @@ def timetable_add(request):
         messages.success(request, f'Timetable entry created successfully!')
         return redirect('timetable:timetable_list')
     
-    # GET request - show form
-    classes = SchoolClass.objects.filter(school=school, is_active=True).order_by('name')
+    # GET request - show form (classes and time_slots already defined above)
+    classes = classes.order_by('name')
     subjects = Subject.objects.filter(school=school, is_active=True).order_by('name')
     teachers = Teacher.objects.filter(school=school, is_active=True).order_by('first_name', 'last_name')
-    time_slots = TimeSlot.objects.filter(school=school, is_break=False).order_by('day', 'period_number')
+    time_slots = time_slots.order_by('day', 'period_number')
     
     # Get pre-filled values from query parameters
     prefill_class_id = request.GET.get('class_id', '')
@@ -617,6 +632,18 @@ def timetable_generate(request):
     """Generate generic timetable entries for selected classes and time slots"""
     school = request.user.profile.school
     
+    # Check prerequisites
+    classes = SchoolClass.objects.filter(school=school, is_active=True)
+    time_slots = TimeSlot.objects.filter(school=school, is_break=False)
+    
+    if not classes.exists():
+        messages.error(request, 'No classes found. Please create at least one class before generating timetables.')
+        return redirect('timetable:timetable_list')
+    
+    if not time_slots.exists():
+        messages.error(request, 'No time slots found. Please create at least one time slot before generating timetables.')
+        return redirect('timetable:timetable_list')
+    
     if request.method == 'POST':
         # Get selected classes
         all_classes = request.POST.get('all_classes') == 'on'
@@ -693,8 +720,8 @@ def timetable_generate(request):
         return redirect('timetable:timetable_list')
     
     # GET request - show form
-    classes = SchoolClass.objects.filter(school=school, is_active=True).order_by('name')
-    time_slots = TimeSlot.objects.filter(school=school, is_break=False).order_by('day', 'period_number')
+    classes = classes.order_by('name')
+    time_slots = time_slots.order_by('day', 'period_number')
     subjects = Subject.objects.filter(school=school, is_active=True).order_by('name')
     existing_count = Timetable.objects.filter(school=school).count()
     

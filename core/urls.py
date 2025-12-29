@@ -104,6 +104,7 @@ urlpatterns = [
     path('classes/add/', views.class_add, name='class_add'),
     path('classes/<int:class_id>/edit/', views.class_edit, name='class_edit'),
     path('classes/<int:class_id>/delete/', views.class_delete, name='class_delete'),
+    path('classes/bulk-delete/', views.class_bulk_delete, name='class_bulk_delete'),
     
     # Teachers
     path('teachers/', views.teacher_list, name='teacher_list'),

@@ -219,20 +219,19 @@ def student_list(request):
     page_number = request.GET.get('page')
     page_obj = paginator.get_page(page_number)
     
-    # Debug: Check user's school and available grades
+    # Get grades and classes for the school
     school = request.user.profile.school
-    print(f"User's school: {school.id} - {school.name}")
     grades = Grade.objects.filter(school=school)
-    print(f"Grades for school {school.id}: {list(grades.values('id', 'name'))}")
+    classes = SchoolClass.objects.filter(school=school, is_active=True)
     
-    # If no grades for this school, show all grades for debugging
-    if not grades.exists():
-        print("No grades found for user's school, showing all grades for debugging")
-        grades = Grade.objects.all()
+    # Check if both grades and classes exist (required for adding students)
+    can_add_student = grades.exists() and classes.exists()
     
     context = {
         'page_obj': page_obj,
         'grades': grades,
+        'classes': classes,
+        'can_add_student': can_add_student,
         'search_query': search_query,
         'grade_filter': grade_filter,
         'show_inactive': show_inactive,
@@ -276,6 +275,18 @@ def student_detail(request, student_id):
 def student_create(request):
     """Create new student using Django form"""
     school = request.user.profile.school
+    
+    # Check if grades and classes exist
+    grades = Grade.objects.filter(school=school)
+    classes = SchoolClass.objects.filter(school=school, is_active=True)
+    
+    if not grades.exists():
+        messages.error(request, 'No grades found. Please create at least one grade before adding students.')
+        return redirect('core:student_list')
+    
+    if not classes.exists():
+        messages.error(request, 'No classes found. Please create at least one class before adding students.')
+        return redirect('core:student_list')
     
     if request.method == 'POST':
         form = StudentForm(request.POST, request.FILES, school=school)
@@ -2291,6 +2302,11 @@ def class_list(request):
     grades = sorted(grades_queryset, key=lambda g: natural_sort_key(g.name))
     
     if request.method == 'POST':
+        # Check if grades exist
+        if not grades_queryset.exists():
+            messages.error(request, 'No grades found. Please create at least one grade before adding classes.')
+            return redirect('core:class_list')
+        
         name = request.POST.get('name', '').strip()
         grade_id = request.POST.get('grade')
         class_teacher_id = request.POST.get('class_teacher', '')
@@ -2331,6 +2347,11 @@ def class_generate(request):
     """Generate multiple classes generically based on grades and streams"""
     school = request.user.profile.school
     grades_queryset = Grade.objects.filter(school=school)
+    
+    # Check if grades exist
+    if not grades_queryset.exists():
+        messages.error(request, 'No grades found. Please create at least one grade before generating classes.')
+        return redirect('core:class_list')
     
     # Sort grades naturally (handles numeric sorting: Grade 1, Grade 2, ..., Grade 10)
     import re
@@ -2888,6 +2909,45 @@ def class_delete(request, class_id):
         messages.success(request, 'Class deleted successfully!')
         return redirect('core:class_list')
     return render(request, 'core/class_confirm_delete.html', {'school_class': school_class})
+
+
+@login_required
+@role_required('super_admin', 'school_admin', 'teacher')
+def class_bulk_delete(request):
+    """Bulk delete classes"""
+    school = request.user.profile.school
+    
+    if request.method == 'POST':
+        class_ids = request.POST.getlist('class_ids')
+        
+        if not class_ids:
+            messages.error(request, 'No classes selected for deletion.')
+            return redirect('core:class_list')
+        
+        # Verify all classes belong to the school
+        classes_to_delete = SchoolClass.objects.filter(
+            id__in=class_ids,
+            school=school
+        )
+        
+        deleted_count = classes_to_delete.count()
+        
+        if deleted_count == 0:
+            messages.error(request, 'No valid classes found to delete.')
+            return redirect('core:class_list')
+        
+        # Delete the classes
+        classes_to_delete.delete()
+        
+        if deleted_count == 1:
+            messages.success(request, f'{deleted_count} class deleted successfully!')
+        else:
+            messages.success(request, f'{deleted_count} classes deleted successfully!')
+        
+        return redirect('core:class_list')
+    
+    # GET request - redirect to class list
+    return redirect('core:class_list')
 
 
 # Teacher Management Views

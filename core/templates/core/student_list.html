@@ -4,7 +4,22 @@
 <div class="container py-4">
     <div class="d-flex justify-content-between align-items-center mb-4">
         <h2 class="mb-0">Students</h2>
-        <a href="{% url 'core:student_create' %}" class="btn btn-primary"><i class="fas fa-plus me-2"></i>Add Student</a>
+        {% if can_add_student %}
+            <a href="{% url 'core:student_create' %}" class="btn btn-primary"><i class="fas fa-plus me-2"></i>Add Student</a>
+        {% else %}
+            <button class="btn btn-primary" disabled title="Please create at least one grade and one class before adding students">
+                <i class="fas fa-plus me-2"></i>Add Student
+            </button>
+            {% if not grades.exists %}
+                <div class="alert alert-warning mt-2">
+                    <i class="fas fa-exclamation-triangle me-2"></i>No grades found. Please <a href="{% url 'core:grade_list' %}">create a grade</a> before adding students.
+                </div>
+            {% elif not classes.exists %}
+                <div class="alert alert-warning mt-2">
+                    <i class="fas fa-exclamation-triangle me-2"></i>No classes found. Please <a href="{% url 'core:class_list' %}">create a class</a> before adding students.
+                </div>
+            {% endif %}
+        {% endif %}
     </div>
     <form method="get" class="mb-3 row g-2" id="filterForm">
         <div class="col-md-3">

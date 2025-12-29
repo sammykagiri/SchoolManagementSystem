@@ -37,7 +37,7 @@
                         <li><a class="dropdown-item" href="{% url 'core:student_list' %}">
                             <i class="fas fa-list me-2"></i>Student List
                         </a></li>
-                        <li><a class="dropdown-item" href="{% url 'core:student_create' %}">
+                        <li><a class="dropdown-item" href="{% url 'core:student_create' %}" id="addStudentNavLink">
                             <i class="fas fa-plus me-2"></i>Add Student
                         </a></li>
                     </ul>
@@ -127,6 +127,10 @@
                     <ul class="dropdown-menu">
                         <li><a class="dropdown-item" href="{% url 'timetable:timetable_list' %}">
                             <i class="fas fa-calendar me-2"></i>Class Timetables
+                        </a></li>
+                        <li><hr class="dropdown-divider"></li>
+                        <li><a class="dropdown-item" href="{% url 'timetable:timeslot_list' %}">
+                            <i class="fas fa-clock me-2"></i>Time Slots
                         </a></li>
                     </ul>
                 </li>
