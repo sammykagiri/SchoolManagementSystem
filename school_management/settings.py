@@ -28,7 +28,29 @@ SECRET_KEY = config('SECRET_KEY', default='django-insecure-your-secret-key-here'
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = config('DEBUG', default=True, cast=bool)
 
-ALLOWED_HOSTS = config('ALLOWED_HOSTS', default='*' if DEBUG else '').split(',')
+# ALLOWED_HOSTS configuration
+# Django supports leading dot pattern (e.g., ".railway.app") to allow all subdomains
+if DEBUG:
+    ALLOWED_HOSTS = ['*']
+else:
+    # Get allowed hosts from environment
+    allowed_hosts_str = config('ALLOWED_HOSTS', default='')
+    if allowed_hosts_str:
+        # Support both comma-separated and wildcard patterns
+        hosts = []
+        for host in allowed_hosts_str.split(','):
+            host = host.strip().strip('"').strip("'")
+            if host.startswith('*.') or host.startswith('.'):
+                # Convert *.railway.app to .railway.app (Django's pattern)
+                if host.startswith('*.'):
+                    host = host[1:]  # Remove * but keep the dot
+                hosts.append(host)
+            elif host:
+                hosts.append(host)
+        ALLOWED_HOSTS = hosts if hosts else ['.railway.app', '.up.railway.app']
+    else:
+        # Fallback: allow all Railway domains using leading dot pattern
+        ALLOWED_HOSTS = ['.railway.app', '.up.railway.app']
 
 
 # Application definition
@@ -113,9 +135,31 @@ DATABASES = {
     )
 }
 
-# CSRF trusted origins - update with your Railway domain after deployment
+# CSRF trusted origins - CSRF_TRUSTED_ORIGINS doesn't support wildcards, needs exact domains
 csrf_origins = config('CSRF_TRUSTED_ORIGINS', default='')
-CSRF_TRUSTED_ORIGINS = csrf_origins.split(',') if csrf_origins else []
+if csrf_origins:
+    origins = []
+    for origin in csrf_origins.split(','):
+        origin = origin.strip().strip('"').strip("'")
+        # Remove wildcard patterns - CSRF doesn't support them
+        if origin.startswith('https://*.'):
+            # Can't use wildcards in CSRF_TRUSTED_ORIGINS, user needs to set specific domain
+            continue
+        elif origin and origin.startswith('http'):
+            origins.append(origin)
+    CSRF_TRUSTED_ORIGINS = origins if origins else []
+else:
+    # Try to get Railway domain automatically and add https://
+    railway_domain = config('RAILWAY_PUBLIC_DOMAIN', default='')
+    if railway_domain:
+        # Ensure it starts with https://
+        if not railway_domain.startswith('http'):
+            CSRF_TRUSTED_ORIGINS = [f'https://{railway_domain}']
+        else:
+            CSRF_TRUSTED_ORIGINS = [railway_domain]
+    else:
+        # Fallback: empty list (will need to be set manually with actual domain)
+        CSRF_TRUSTED_ORIGINS = []
 
 # Password validation
 # https://docs.djangoproject.com/en/5.2/ref/settings/#auth-password-validators

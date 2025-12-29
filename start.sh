@@ -15,6 +15,12 @@ if [ $? -ne 0 ]; then
 fi
 echo "Migrations completed successfully."
 
+echo "Creating superuser if not exists..."
+python manage.py create_superuser_if_not_exists
+if [ $? -ne 0 ]; then
+    echo "Superuser creation failed (this is OK if superuser already exists or password not set)!"
+fi
+
 echo "Collecting static files..."
 python manage.py collectstatic --noinput
 if [ $? -ne 0 ]; then

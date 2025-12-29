@@ -107,7 +107,24 @@ Railway will automatically deploy your application when you push to your connect
 
 ### 6. Create Superuser
 
-After deployment, you need to create a superuser to access the admin panel:
+The application automatically creates a superuser on startup if one doesn't exist. Set these environment variables in Railway:
+
+- `DJANGO_SUPERUSER_USERNAME` - Username for the superuser (default: `admin`)
+- `DJANGO_SUPERUSER_EMAIL` - Email for the superuser (default: `admin@example.com`)
+- `DJANGO_SUPERUSER_PASSWORD` - Password for the superuser (**required**)
+
+**Example:**
+```
+DJANGO_SUPERUSER_USERNAME=admin
+DJANGO_SUPERUSER_EMAIL=admin@yourschool.com
+DJANGO_SUPERUSER_PASSWORD=your-secure-password-here
+```
+
+**Important:** Make sure to set a strong password in production!
+
+**Alternative (Manual Creation):**
+
+If you prefer to create the superuser manually:
 
 1. Go to your service in Railway dashboard
 2. Click on the "Deployments" tab
@@ -118,8 +135,6 @@ After deployment, you need to create a superuser to access the admin panel:
 ```bash
 railway run python manage.py createsuperuser
 ```
-
-Or you can add this to your `start.sh` script temporarily to create a superuser automatically (not recommended for production).
 
 ### 7. Verify Deployment
 
