@@ -26,7 +26,7 @@ RUN pip install --no-cache-dir --upgrade pip && \
 COPY . .
 
 # Make start script executable
-RUN chmod +x start.sh test.sh
+RUN chmod +x start.sh
 
 # Expose port
 EXPOSE $PORT
