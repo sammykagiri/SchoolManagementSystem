@@ -2,16 +2,18 @@
 
 echo "Starting deployment process..."
 
+echo "Creating necessary directories..."
+mkdir -p static
+mkdir -p staticfiles
+mkdir -p media
+
 echo "Running migrations..."
-python manage.py migrate
+python manage.py migrate --noinput
 if [ $? -ne 0 ]; then
     echo "Migrations failed!"
     exit 1
 fi
 echo "Migrations completed successfully."
-
-echo "Creating staticfiles directory..."
-mkdir -p staticfiles
 
 echo "Collecting static files..."
 python manage.py collectstatic --noinput

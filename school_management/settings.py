@@ -158,11 +158,12 @@ SHORT_DATETIME_FORMAT = 'd-m-Y H:i'
 # https://docs.djangoproject.com/en/5.2/howto/static-files/
 
 STATIC_URL = '/static/'
-STATICFILES_DIRS = [
-    os.path.join(BASE_DIR, 'static'),
-]
 STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
 STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
+
+# Static files directories - create if they don't exist
+static_dirs = [os.path.join(BASE_DIR, 'static')]
+STATICFILES_DIRS = [d for d in static_dirs if os.path.exists(d)]
 
 # Media files (User uploaded files)
 MEDIA_URL = '/media/'
