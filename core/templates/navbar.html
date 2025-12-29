@@ -1,312 +1,489 @@
 {% load static %}
 {% load permissions %}
 
-<nav class="navbar navbar-expand-lg navbar-dark bg-primary">
-    <div class="container-fluid">
+<!-- Sidebar -->
+<aside id="sidebar" class="sidebar">
+    <div class="sidebar-header">
         {% if user.is_authenticated and user.profile.school and user.profile.school.logo %}
-            <div class="school-logo-container" style="display: inline-block; background-color: #ffffff; padding: 4px 8px; border-radius: 4px; margin-right: 10px; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);">
-                <img src="{{ user.profile.school.logo.url }}" alt="School Logo" style="max-height: 32px; display: block;">
+            <div class="school-logo-container mb-2">
+                <img src="{{ user.profile.school.logo.url }}" alt="School Logo" class="school-logo">
             </div>
         {% endif %}
-        <a class="navbar-brand" href="{% url 'core:dashboard' %}">
+        <a href="{% url 'core:dashboard' %}" class="sidebar-brand">
             {% if user.is_authenticated and user.profile.school %}
                 {{ user.profile.school.name|title }}
             {% else %}
-                School Management System
+                School Management
             {% endif %}
         </a>
-        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
-            <span class="navbar-toggler-icon"></span>
-        </button>
-        <div class="collapse navbar-collapse justify-content-center" id="navbarNav">
-            {% if user.is_authenticated and not user.profile.is_student and not user.profile.is_parent %}
-            <ul class="navbar-nav">
-                <!-- Dashboard -->
-                <li class="nav-item">
-                    <a class="nav-link {% if request.resolver_match.url_name == 'dashboard' %}active{% endif %}" href="{% url 'core:dashboard' %}">
-                        <i class="fas fa-tachometer-alt me-2"></i>Dashboard
-                    </a>
-                </li>
-                
-                <!-- Students (MVP Module 2: Student Registration and Profile) -->
-                <li class="nav-item dropdown">
-                    <a class="nav-link dropdown-toggle {% if request.resolver_match.url_name == 'student_list' or request.resolver_match.url_name == 'student_detail' or request.resolver_match.url_name == 'student_create' or request.resolver_match.url_name == 'student_update' %}active{% endif %}" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
-                        <i class="fas fa-users me-2"></i>Students
-                    </a>
-                    <ul class="dropdown-menu">
-                        <li><a class="dropdown-item" href="{% url 'core:student_list' %}">
-                            <i class="fas fa-list me-2"></i>Student List
-                        </a></li>
-                        <li><a class="dropdown-item" href="{% url 'core:student_create' %}" id="addStudentNavLink">
-                            <i class="fas fa-plus me-2"></i>Add Student
-                        </a></li>
-                    </ul>
-                </li>
-                
-                <!-- Teachers -->
-                <li class="nav-item dropdown">
-                    <a class="nav-link dropdown-toggle {% if request.resolver_match.url_name == 'teacher_list' or request.resolver_match.url_name == 'teacher_add' or request.resolver_match.url_name == 'teacher_edit' or request.resolver_match.url_name == 'teacher_detail' %}active{% endif %}" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
-                        <i class="fas fa-user-tie me-2"></i>Teachers
-                    </a>
-                    <ul class="dropdown-menu">
-                        <li><a class="dropdown-item" href="{% url 'core:teacher_list' %}">
-                            <i class="fas fa-list me-2"></i>Teacher List
-                        </a></li>
-                        <li><a class="dropdown-item" href="{% url 'core:teacher_add' %}">
-                            <i class="fas fa-plus me-2"></i>Add Teacher
-                        </a></li>
-                    </ul>
-                </li>
-                
-                <!-- Fees Management (MVP Module 3: Fees Management) -->
-                <li class="nav-item dropdown">
-                    <a class="nav-link dropdown-toggle {% if 'payments' in request.resolver_match.namespace or request.resolver_match.url_name == 'fee_structure_list' or request.resolver_match.url_name == 'generate_student_fees' %}active{% endif %}" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
-                        <i class="fas fa-money-bill-wave me-2"></i>Fees
-                    </a>
-                    <ul class="dropdown-menu">
-                        <li><a class="dropdown-item" href="{% url 'core:fee_structure_list' %}">
-                            <i class="fas fa-list-alt me-2"></i>Fee Structures
-                        </a></li>
-                        <li><a class="dropdown-item" href="{% url 'core:generate_student_fees' %}">
-                            <i class="fas fa-cogs me-2"></i>Generate Fees
-                        </a></li>
-                        <li><a class="dropdown-item" href="{% url 'payments:fee_summary' %}">
-                            <i class="fas fa-file-invoice-dollar me-2"></i>Fee Summary
-                        </a></li>
-                        <li><hr class="dropdown-divider"></li>
-                        <li><a class="dropdown-item" href="{% url 'payments:payment_list' %}">
-                            <i class="fas fa-credit-card me-2"></i>Payments
-                        </a></li>
-                        <li><a class="dropdown-item" href="{% url 'payments:receipt_list' %}">
-                            <i class="fas fa-receipt me-2"></i>Receipts
-                        </a></li>
-                        <li><a class="dropdown-item" href="{% url 'payments:reminder_list' %}">
-                            <i class="fas fa-bell me-2"></i>Reminders
-                        </a></li>
-                    </ul>
-                </li>
-                
-                <!-- Attendance Management (MVP Module 4: Attendance Management) -->
-                <li class="nav-item dropdown">
-                    <a class="nav-link dropdown-toggle {% if 'attendance' in request.resolver_match.namespace %}active{% endif %}" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
-                        <i class="fas fa-check-circle me-2"></i>Attendance
-                    </a>
-                    <ul class="dropdown-menu">
-                        <li><a class="dropdown-item" href="{% url 'attendance:attendance_list' %}">
-                            <i class="fas fa-list me-2"></i>Attendance Records
-                        </a></li>
-                        <li><a class="dropdown-item" href="{% url 'attendance:mark_attendance' %}">
-                            <i class="fas fa-edit me-2"></i>Mark Attendance
-                        </a></li>
-                        <li><a class="dropdown-item" href="{% url 'attendance:attendance_summary' %}">
-                            <i class="fas fa-chart-bar me-2"></i>Summary
-                        </a></li>
-                    </ul>
-                </li>
-                
-                <!-- Subjects -->
-                <li class="nav-item dropdown">
-                    <a class="nav-link dropdown-toggle {% if 'subject' in request.resolver_match.url_name or 'subject' in request.resolver_match.namespace %}active{% endif %}" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
-                        <i class="fas fa-book-open me-2"></i>Subjects
-                    </a>
-                    <ul class="dropdown-menu">
-                        <li><a class="dropdown-item" href="{% url 'timetable:subject_list' %}">
-                            <i class="fas fa-list me-2"></i>Subject List
-                        </a></li>
-                        <li><a class="dropdown-item" href="{% url 'timetable:subject_level_overview' %}">
-                            <i class="fas fa-layer-group me-2"></i>View by Level
-                        </a></li>
-                        <li><hr class="dropdown-divider"></li>
-                        <li><a class="dropdown-item" href="{% url 'timetable:subject_add' %}">
-                            <i class="fas fa-plus me-2"></i>Add Subject
-                        </a></li>
-                        <li><a class="dropdown-item" href="{% url 'timetable:subject_generate' %}">
-                            <i class="fas fa-magic me-2"></i>Generate CBC Subjects
-                        </a></li>
-                        <li><hr class="dropdown-divider"></li>
-                        <li><a class="dropdown-item" href="{% url 'timetable:subject_bulk_update_level' %}">
-                            <i class="fas fa-edit me-2"></i>Bulk Update Levels
-                        </a></li>
-                    </ul>
-                </li>
-                
-                <!-- Timetable Management (MVP Module 5: Time Table Management) -->
-                <li class="nav-item dropdown">
-                    <a class="nav-link dropdown-toggle {% if 'timetable' in request.resolver_match.namespace and request.resolver_match.url_name != 'subject_list' and request.resolver_match.url_name != 'subject_add' %}active{% endif %}" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
-                        <i class="fas fa-calendar-week me-2"></i>Timetable
-                    </a>
-                    <ul class="dropdown-menu">
-                        <li><a class="dropdown-item" href="{% url 'timetable:timetable_list' %}">
-                            <i class="fas fa-calendar me-2"></i>Class Timetables
-                        </a></li>
-                        <li><hr class="dropdown-divider"></li>
-                        <li><a class="dropdown-item" href="{% url 'timetable:timeslot_list' %}">
-                            <i class="fas fa-clock me-2"></i>Time Slots
-                        </a></li>
-                    </ul>
-                </li>
-                
-                <!-- Exams & Gradebook (MVP Module 6: Exam and Gradebook) -->
-                <li class="nav-item dropdown">
-                    <a class="nav-link dropdown-toggle {% if 'exams' in request.resolver_match.namespace %}active{% endif %}" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
-                        <i class="fas fa-clipboard-list me-2"></i>Exams
-                    </a>
-                    <ul class="dropdown-menu">
-                        <li><a class="dropdown-item" href="{% url 'exams:exam_list' %}">
-                            <i class="fas fa-file-alt me-2"></i>Exams
-                        </a></li>
-                        <li><a class="dropdown-item" href="{% url 'exams:gradebook_list' %}">
-                            <i class="fas fa-book me-2"></i>Gradebook
-                        </a></li>
-                        <li><a class="dropdown-item" href="{% url 'exams:gradebook_summary_list' %}">
-                            <i class="fas fa-chart-bar me-2"></i>Summary
-                        </a></li>
-                    </ul>
-                </li>
-                
-                <!-- Homework/Assignments (MVP Module 7: Homework/Assignment) -->
-                <li class="nav-item dropdown">
-                    <a class="nav-link dropdown-toggle {% if 'homework' in request.resolver_match.namespace %}active{% endif %}" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
-                        <i class="fas fa-book me-2"></i>Homework
-                    </a>
-                    <ul class="dropdown-menu">
-                        <li><a class="dropdown-item" href="{% url 'homework:assignment_list' %}">
-                            <i class="fas fa-list me-2"></i>Assignments
-                        </a></li>
-                        {% if user.profile.is_school_admin or user.profile.is_teacher %}
-                        <li><a class="dropdown-item" href="{% url 'homework:submission_list' %}">
-                            <i class="fas fa-check-circle me-2"></i>View Submissions
-                        </a></li>
-                        {% endif %}
-                    </ul>
-                </li>
-                
-                <!-- Communications (MVP Module 7: Communication and Notifications) -->
-                <li class="nav-item dropdown">
-                    <a class="nav-link dropdown-toggle {% if 'communications' in request.resolver_match.namespace %}active{% endif %}" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
-                        <i class="fas fa-envelope me-2"></i>Communications
-                    </a>
-                    <ul class="dropdown-menu">
-                        <li><a class="dropdown-item" href="{% url 'communications:dashboard' %}">
-                            <i class="fas fa-tachometer-alt me-2"></i>Dashboard
-                        </a></li>
-                        <li><hr class="dropdown-divider"></li>
-                        <li><a class="dropdown-item" href="{% url 'communications:template_list' %}">
-                            <i class="fas fa-file-alt me-2"></i>Templates
-                        </a></li>
-                        <li><a class="dropdown-item" href="{% url 'communications:email_list' %}">
-                            <i class="fas fa-envelope me-2"></i>Emails
-                        </a></li>
-                        <li><a class="dropdown-item" href="{% url 'communications:sms_list' %}">
-                            <i class="fas fa-sms me-2"></i>SMS Messages
-                        </a></li>
-                        <li><a class="dropdown-item" href="{% url 'communications:log_list' %}">
-                            <i class="fas fa-list me-2"></i>Communication Logs
-                        </a></li>
-                    </ul>
-                </li>
-                
-                <!-- Reports -->
-                <li class="nav-item dropdown">
-                    <a class="nav-link dropdown-toggle {% if request.resolver_match.url_name == 'financial_reports' or request.resolver_match.url_name == 'payment_collection_report' or request.resolver_match.url_name == 'outstanding_fees_report' or request.resolver_match.url_name == 'collection_summary_report' or request.resolver_match.url_name == 'payment_method_analysis' %}active{% endif %}" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
-                        <i class="fas fa-chart-line me-2"></i>Reports
-                    </a>
-                    <ul class="dropdown-menu">
-                        <li><a class="dropdown-item" href="{% url 'payments:financial_reports' %}">
-                            <i class="fas fa-file-invoice-dollar me-2"></i>Financial Reports
-                        </a></li>
-                    </ul>
-                </li>
-                
-                <!-- Settings/Configuration -->
-                <li class="nav-item dropdown">
-                    <a class="nav-link dropdown-toggle {% if request.resolver_match.url_name == 'term_list' or request.resolver_match.url_name == 'grade_list' or request.resolver_match.url_name == 'class_list' or request.resolver_match.url_name == 'user_list' or request.resolver_match.url_name == 'role_list' or request.resolver_match.url_name == 'transport_route_list' or request.resolver_match.url_name == 'fee_category_list' %}active{% endif %}" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
-                        <i class="fas fa-cog me-2"></i>Settings
-                    </a>
-                    <ul class="dropdown-menu">
-                        {% if user|has_permission:'view_term' %}
-                        <li><a class="dropdown-item" href="{% url 'core:term_list' %}">
-                            <i class="fas fa-calendar-alt me-2"></i>Terms
-                        </a></li>
-                        {% endif %}
-                        {% if user|has_permission:'view_grade' %}
-                        <li><a class="dropdown-item" href="{% url 'core:grade_list' %}">
-                            <i class="fas fa-graduation-cap me-2"></i>Grades
-                        </a></li>
-                        {% endif %}
-                        {% if user|has_permission:'view_class' %}
-                        <li><a class="dropdown-item" href="{% url 'core:class_list' %}">
-                            <i class="fas fa-chalkboard me-2"></i>Classes
-                        </a></li>
-                        {% endif %}
-                        {% if user.is_superuser or user.profile.is_school_admin or user.profile.is_accountant %}
-                        <li><hr class="dropdown-divider"></li>
-                        <li><a class="dropdown-item" href="{% url 'core:fee_category_list' %}">
-                            <i class="fas fa-tags me-2"></i>Fee Categories
-                        </a></li>
-                        <li><a class="dropdown-item" href="{% url 'core:transport_route_list' %}">
-                            <i class="fas fa-route me-2"></i>Transport Routes
-                        </a></li>
-                        {% endif %}
-                        {% if user.is_superuser or user.profile.is_school_admin %}
-                        <li><hr class="dropdown-divider"></li>
-                        <li><a class="dropdown-item" href="{% url 'core:user_list' %}">
-                            <i class="fas fa-users me-2"></i>User Management
-                        </a></li>
-                        <li><a class="dropdown-item" href="{% url 'core:role_list' %}">
-                            <i class="fas fa-user-tag me-2"></i>Role Management
-                        </a></li>
-                        {% endif %}
-                    </ul>
-                </li>
-                
-                {% if user.is_superuser %}
-                <!-- Super Admin: Manage Schools -->
-                <li class="nav-item">
-                    <a class="nav-link {% if request.resolver_match.url_name == 'school_admin_list' %}active{% endif %}" href="{% url 'core:school_admin_list' %}">
-                        <i class="fas fa-school me-2"></i>Manage Schools
-                    </a>
-                </li>
-                {% endif %}
-            </ul>
-            {% else %}
-            <ul class="navbar-nav">
-                <li class="nav-item">
-                    <span class="nav-link text-warning">
-                        <i class="fas fa-info-circle me-2"></i>Student/Parent features coming soon
-                    </span>
-                </li>
-            </ul>
-            {% endif %}
-        </div>
-        <ul class="navbar-nav ms-auto">
-            {% if user.is_authenticated %}
-            <li class="nav-item dropdown">
-                <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
-                    <i class="fas fa-user-circle"></i> {{ user.username }}
-                </a>
-                <ul class="dropdown-menu dropdown-menu-end">
-                    <li><a class="dropdown-item" href="#">Profile</a></li>
-                    <li><a class="dropdown-item" href="#" onclick="event.preventDefault(); document.getElementById('logout-form').submit();">Logout</a></li>
-                </ul>
-                <form id="logout-form" method="post" action="{% url 'logout' %}" style="display: none;">
-                    {% csrf_token %}
-                </form>
-            </li>
-            {% else %}
+    </div>
+    
+    <nav class="sidebar-nav flex-grow-1">
+        {% if user.is_authenticated and not user.profile.is_student and not user.profile.is_parent %}
+        <ul class="nav flex-column">
+            <!-- Dashboard -->
             <li class="nav-item">
-                <a class="nav-link" href="{% url 'login' %}"><i class="fas fa-sign-in-alt"></i> Login</a>
+                <a class="nav-link {% if request.resolver_match.url_name == 'dashboard' %}active{% endif %}" href="{% url 'core:dashboard' %}">
+                    <i class="fas fa-tachometer-alt me-2"></i>
+                    <span>Dashboard</span>
+                </a>
+            </li>
+            
+            <!-- Students -->
+            <li class="nav-item">
+                <a class="nav-link {% if request.resolver_match.url_name == 'student_list' or request.resolver_match.url_name == 'student_detail' or request.resolver_match.url_name == 'student_create' or request.resolver_match.url_name == 'student_update' %}active{% endif %}" 
+                   href="#" data-bs-toggle="collapse" data-bs-target="#studentsSubmenu" aria-expanded="false">
+                    <i class="fas fa-users me-2"></i>
+                    <span>Students</span>
+                    <i class="fas fa-chevron-down ms-auto"></i>
+                </a>
+                <ul class="collapse nav flex-column submenu" id="studentsSubmenu">
+                    <li class="nav-item">
+                        <a class="nav-link" href="{% url 'core:student_list' %}">
+                            <i class="fas fa-list me-2"></i>Student List
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{% url 'core:student_create' %}" id="addStudentNavLink">
+                            <i class="fas fa-plus me-2"></i>Add Student
+                        </a>
+                    </li>
+                </ul>
+            </li>
+            
+            <!-- Teachers -->
+            <li class="nav-item">
+                <a class="nav-link {% if request.resolver_match.url_name == 'teacher_list' or request.resolver_match.url_name == 'teacher_add' or request.resolver_match.url_name == 'teacher_edit' or request.resolver_match.url_name == 'teacher_detail' %}active{% endif %}" 
+                   href="#" data-bs-toggle="collapse" data-bs-target="#teachersSubmenu" aria-expanded="false">
+                    <i class="fas fa-user-tie me-2"></i>
+                    <span>Teachers</span>
+                    <i class="fas fa-chevron-down ms-auto"></i>
+                </a>
+                <ul class="collapse nav flex-column submenu" id="teachersSubmenu">
+                    <li class="nav-item">
+                        <a class="nav-link" href="{% url 'core:teacher_list' %}">
+                            <i class="fas fa-list me-2"></i>Teacher List
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{% url 'core:teacher_add' %}">
+                            <i class="fas fa-plus me-2"></i>Add Teacher
+                        </a>
+                    </li>
+                </ul>
+            </li>
+            
+            <!-- Fees -->
+            <li class="nav-item">
+                <a class="nav-link {% if 'payments' in request.resolver_match.namespace or request.resolver_match.url_name == 'fee_structure_list' or request.resolver_match.url_name == 'generate_student_fees' %}active{% endif %}" 
+                   href="#" data-bs-toggle="collapse" data-bs-target="#feesSubmenu" aria-expanded="false">
+                    <i class="fas fa-money-bill-wave me-2"></i>
+                    <span>Fees</span>
+                    <i class="fas fa-chevron-down ms-auto"></i>
+                </a>
+                <ul class="collapse nav flex-column submenu" id="feesSubmenu">
+                    <li class="nav-item">
+                        <a class="nav-link" href="{% url 'core:fee_structure_list' %}">
+                            <i class="fas fa-list-alt me-2"></i>Fee Structures
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{% url 'core:generate_student_fees' %}">
+                            <i class="fas fa-cogs me-2"></i>Generate Fees
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{% url 'payments:fee_summary' %}">
+                            <i class="fas fa-file-invoice-dollar me-2"></i>Fee Summary
+                        </a>
+                    </li>
+                    <li class="nav-item"><hr class="dropdown-divider my-2"></li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{% url 'payments:payment_list' %}">
+                            <i class="fas fa-credit-card me-2"></i>Payments
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{% url 'payments:receipt_list' %}">
+                            <i class="fas fa-receipt me-2"></i>Receipts
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{% url 'payments:reminder_list' %}">
+                            <i class="fas fa-bell me-2"></i>Reminders
+                        </a>
+                    </li>
+                </ul>
+            </li>
+            
+            <!-- Attendance -->
+            <li class="nav-item">
+                <a class="nav-link {% if 'attendance' in request.resolver_match.namespace %}active{% endif %}" 
+                   href="#" data-bs-toggle="collapse" data-bs-target="#attendanceSubmenu" aria-expanded="false">
+                    <i class="fas fa-check-circle me-2"></i>
+                    <span>Attendance</span>
+                    <i class="fas fa-chevron-down ms-auto"></i>
+                </a>
+                <ul class="collapse nav flex-column submenu" id="attendanceSubmenu">
+                    <li class="nav-item">
+                        <a class="nav-link" href="{% url 'attendance:attendance_list' %}">
+                            <i class="fas fa-list me-2"></i>Attendance Records
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{% url 'attendance:mark_attendance' %}">
+                            <i class="fas fa-edit me-2"></i>Mark Attendance
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{% url 'attendance:attendance_summary' %}">
+                            <i class="fas fa-chart-bar me-2"></i>Summary
+                        </a>
+                    </li>
+                </ul>
+            </li>
+            
+            <!-- Subjects -->
+            <li class="nav-item">
+                <a class="nav-link {% if 'subject' in request.resolver_match.url_name or 'subject' in request.resolver_match.namespace %}active{% endif %}" 
+                   href="#" data-bs-toggle="collapse" data-bs-target="#subjectsSubmenu" aria-expanded="false">
+                    <i class="fas fa-book-open me-2"></i>
+                    <span>Subjects</span>
+                    <i class="fas fa-chevron-down ms-auto"></i>
+                </a>
+                <ul class="collapse nav flex-column submenu" id="subjectsSubmenu">
+                    <li class="nav-item">
+                        <a class="nav-link" href="{% url 'timetable:subject_list' %}">
+                            <i class="fas fa-list me-2"></i>Subject List
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{% url 'timetable:subject_level_overview' %}">
+                            <i class="fas fa-layer-group me-2"></i>View by Level
+                        </a>
+                    </li>
+                    <li class="nav-item"><hr class="dropdown-divider my-2"></li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{% url 'timetable:subject_add' %}">
+                            <i class="fas fa-plus me-2"></i>Add Subject
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{% url 'timetable:subject_generate' %}">
+                            <i class="fas fa-magic me-2"></i>Generate CBC Subjects
+                        </a>
+                    </li>
+                    <li class="nav-item"><hr class="dropdown-divider my-2"></li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{% url 'timetable:subject_bulk_update_level' %}">
+                            <i class="fas fa-edit me-2"></i>Bulk Update Levels
+                        </a>
+                    </li>
+                </ul>
+            </li>
+            
+            <!-- Timetable -->
+            <li class="nav-item">
+                <a class="nav-link {% if 'timetable' in request.resolver_match.namespace and request.resolver_match.url_name != 'subject_list' and request.resolver_match.url_name != 'subject_add' %}active{% endif %}" 
+                   href="#" data-bs-toggle="collapse" data-bs-target="#timetableSubmenu" aria-expanded="false">
+                    <i class="fas fa-calendar-week me-2"></i>
+                    <span>Timetable</span>
+                    <i class="fas fa-chevron-down ms-auto"></i>
+                </a>
+                <ul class="collapse nav flex-column submenu" id="timetableSubmenu">
+                    <li class="nav-item">
+                        <a class="nav-link" href="{% url 'timetable:timetable_list' %}">
+                            <i class="fas fa-calendar me-2"></i>Class Timetables
+                        </a>
+                    </li>
+                    <li class="nav-item"><hr class="dropdown-divider my-2"></li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{% url 'timetable:timeslot_list' %}">
+                            <i class="fas fa-clock me-2"></i>Time Slots
+                        </a>
+                    </li>
+                </ul>
+            </li>
+            
+            <!-- Exams -->
+            <li class="nav-item">
+                <a class="nav-link {% if 'exams' in request.resolver_match.namespace %}active{% endif %}" 
+                   href="#" data-bs-toggle="collapse" data-bs-target="#examsSubmenu" aria-expanded="false">
+                    <i class="fas fa-clipboard-list me-2"></i>
+                    <span>Exams</span>
+                    <i class="fas fa-chevron-down ms-auto"></i>
+                </a>
+                <ul class="collapse nav flex-column submenu" id="examsSubmenu">
+                    <li class="nav-item">
+                        <a class="nav-link" href="{% url 'exams:exam_list' %}">
+                            <i class="fas fa-file-alt me-2"></i>Exams
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{% url 'exams:gradebook_list' %}">
+                            <i class="fas fa-book me-2"></i>Gradebook
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{% url 'exams:gradebook_summary_list' %}">
+                            <i class="fas fa-chart-bar me-2"></i>Summary
+                        </a>
+                    </li>
+                </ul>
+            </li>
+            
+            <!-- Homework -->
+            <li class="nav-item">
+                <a class="nav-link {% if 'homework' in request.resolver_match.namespace %}active{% endif %}" 
+                   href="#" data-bs-toggle="collapse" data-bs-target="#homeworkSubmenu" aria-expanded="false">
+                    <i class="fas fa-book me-2"></i>
+                    <span>Homework</span>
+                    <i class="fas fa-chevron-down ms-auto"></i>
+                </a>
+                <ul class="collapse nav flex-column submenu" id="homeworkSubmenu">
+                    <li class="nav-item">
+                        <a class="nav-link" href="{% url 'homework:assignment_list' %}">
+                            <i class="fas fa-list me-2"></i>Assignments
+                        </a>
+                    </li>
+                    {% if user.profile.is_school_admin or user.profile.is_teacher %}
+                    <li class="nav-item">
+                        <a class="nav-link" href="{% url 'homework:submission_list' %}">
+                            <i class="fas fa-check-circle me-2"></i>View Submissions
+                        </a>
+                    </li>
+                    {% endif %}
+                </ul>
+            </li>
+            
+            <!-- Communications -->
+            <li class="nav-item">
+                <a class="nav-link {% if 'communications' in request.resolver_match.namespace %}active{% endif %}" 
+                   href="#" data-bs-toggle="collapse" data-bs-target="#communicationsSubmenu" aria-expanded="false">
+                    <i class="fas fa-envelope me-2"></i>
+                    <span>Communications</span>
+                    <i class="fas fa-chevron-down ms-auto"></i>
+                </a>
+                <ul class="collapse nav flex-column submenu" id="communicationsSubmenu">
+                    <li class="nav-item">
+                        <a class="nav-link" href="{% url 'communications:dashboard' %}">
+                            <i class="fas fa-tachometer-alt me-2"></i>Dashboard
+                        </a>
+                    </li>
+                    <li class="nav-item"><hr class="dropdown-divider my-2"></li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{% url 'communications:template_list' %}">
+                            <i class="fas fa-file-alt me-2"></i>Templates
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{% url 'communications:email_list' %}">
+                            <i class="fas fa-envelope me-2"></i>Emails
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{% url 'communications:sms_list' %}">
+                            <i class="fas fa-sms me-2"></i>SMS Messages
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{% url 'communications:log_list' %}">
+                            <i class="fas fa-list me-2"></i>Communication Logs
+                        </a>
+                    </li>
+                </ul>
+            </li>
+            
+            <!-- Reports -->
+            <li class="nav-item">
+                <a class="nav-link {% if request.resolver_match.url_name == 'financial_reports' or request.resolver_match.url_name == 'payment_collection_report' or request.resolver_match.url_name == 'outstanding_fees_report' or request.resolver_match.url_name == 'collection_summary_report' or request.resolver_match.url_name == 'payment_method_analysis' %}active{% endif %}" 
+                   href="#" data-bs-toggle="collapse" data-bs-target="#reportsSubmenu" aria-expanded="false">
+                    <i class="fas fa-chart-line me-2"></i>
+                    <span>Reports</span>
+                    <i class="fas fa-chevron-down ms-auto"></i>
+                </a>
+                <ul class="collapse nav flex-column submenu" id="reportsSubmenu">
+                    <li class="nav-item">
+                        <a class="nav-link" href="{% url 'payments:financial_reports' %}">
+                            <i class="fas fa-file-invoice-dollar me-2"></i>Financial Reports
+                        </a>
+                    </li>
+                </ul>
+            </li>
+            
+            <!-- Settings -->
+            <li class="nav-item">
+                <a class="nav-link {% if request.resolver_match.url_name == 'term_list' or request.resolver_match.url_name == 'grade_list' or request.resolver_match.url_name == 'class_list' or request.resolver_match.url_name == 'user_list' or request.resolver_match.url_name == 'role_list' or request.resolver_match.url_name == 'transport_route_list' or request.resolver_match.url_name == 'fee_category_list' %}active{% endif %}" 
+                   href="#" data-bs-toggle="collapse" data-bs-target="#settingsSubmenu" aria-expanded="false">
+                    <i class="fas fa-cog me-2"></i>
+                    <span>Settings</span>
+                    <i class="fas fa-chevron-down ms-auto"></i>
+                </a>
+                <ul class="collapse nav flex-column submenu" id="settingsSubmenu">
+                    {% if user|has_permission:'view_term' %}
+                    <li class="nav-item">
+                        <a class="nav-link" href="{% url 'core:term_list' %}">
+                            <i class="fas fa-calendar-alt me-2"></i>Terms
+                        </a>
+                    </li>
+                    {% endif %}
+                    {% if user|has_permission:'view_grade' %}
+                    <li class="nav-item">
+                        <a class="nav-link" href="{% url 'core:grade_list' %}">
+                            <i class="fas fa-graduation-cap me-2"></i>Grades
+                        </a>
+                    </li>
+                    {% endif %}
+                    {% if user|has_permission:'view_class' %}
+                    <li class="nav-item">
+                        <a class="nav-link" href="{% url 'core:class_list' %}">
+                            <i class="fas fa-chalkboard me-2"></i>Classes
+                        </a>
+                    </li>
+                    {% endif %}
+                    {% if user.is_superuser or user.profile.is_school_admin or user.profile.is_accountant %}
+                    <li class="nav-item"><hr class="dropdown-divider my-2"></li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{% url 'core:fee_category_list' %}">
+                            <i class="fas fa-tags me-2"></i>Fee Categories
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{% url 'core:transport_route_list' %}">
+                            <i class="fas fa-route me-2"></i>Transport Routes
+                        </a>
+                    </li>
+                    {% endif %}
+                    {% if user.is_superuser or user.profile.is_school_admin %}
+                    <li class="nav-item"><hr class="dropdown-divider my-2"></li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{% url 'core:user_list' %}">
+                            <i class="fas fa-users me-2"></i>User Management
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{% url 'core:role_list' %}">
+                            <i class="fas fa-user-tag me-2"></i>Role Management
+                        </a>
+                    </li>
+                    {% endif %}
+                </ul>
+            </li>
+            
+            {% if user.is_superuser %}
+            <!-- Super Admin: Manage Schools -->
+            <li class="nav-item">
+                <a class="nav-link {% if request.resolver_match.url_name == 'school_admin_list' %}active{% endif %}" href="{% url 'core:school_admin_list' %}">
+                    <i class="fas fa-school me-2"></i>
+                    <span>Manage Schools</span>
+                </a>
             </li>
             {% endif %}
         </ul>
+        {% else %}
+        <ul class="nav flex-column">
+            <li class="nav-item">
+                <span class="nav-link text-warning">
+                    <i class="fas fa-info-circle me-2"></i>Student/Parent features coming soon
+                </span>
+            </li>
+        </ul>
+        {% endif %}
+    </nav>
+    
+    <!-- User Profile Section -->
+    {% if user.is_authenticated %}
+    <div class="sidebar-footer">
+        <div class="dropdown">
+            <a class="nav-link dropdown-toggle user-profile-link" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                <i class="fas fa-user-circle me-2"></i>
+                <span>{{ user.username }}</span>
+            </a>
+            <ul class="dropdown-menu dropdown-menu-end">
+                <li><a class="dropdown-item" href="#">Profile</a></li>
+                <li><hr class="dropdown-divider"></li>
+                <li><a class="dropdown-item" href="#" onclick="event.preventDefault(); document.getElementById('logout-form').submit();">Logout</a></li>
+            </ul>
+            <form id="logout-form" method="post" action="{% url 'logout' %}" style="display: none;">
+                {% csrf_token %}
+            </form>
+        </div>
     </div>
-</nav>
+    {% else %}
+    <div class="sidebar-footer">
+        <a class="nav-link" href="{% url 'login' %}">
+            <i class="fas fa-sign-in-alt me-2"></i>
+            <span>Login</span>
+        </a>
+    </div>
+    {% endif %}
+</aside>
+
+<!-- Mobile Toggle Button -->
+<button class="sidebar-toggle btn btn-primary" id="sidebarToggle" type="button">
+    <i class="fas fa-bars"></i>
+</button>
+
+<!-- Overlay for mobile -->
+<div class="sidebar-overlay" id="sidebarOverlay"></div>
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    var dropdownElementList = [].slice.call(document.querySelectorAll('.dropdown-toggle'));
-    var dropdownList = dropdownElementList.map(function (dropdownToggleEl) {
-        return new bootstrap.Dropdown(dropdownToggleEl);
+    const sidebar = document.getElementById('sidebar');
+    const sidebarToggle = document.getElementById('sidebarToggle');
+    const sidebarOverlay = document.getElementById('sidebarOverlay');
+    
+    // Toggle sidebar
+    if (sidebarToggle) {
+        sidebarToggle.addEventListener('click', function() {
+            sidebar.classList.toggle('active');
+            sidebarOverlay.classList.toggle('active');
+        });
+    }
+    
+    // Close sidebar when clicking overlay
+    if (sidebarOverlay) {
+        sidebarOverlay.addEventListener('click', function() {
+            sidebar.classList.remove('active');
+            sidebarOverlay.classList.remove('active');
+        });
+    }
+    
+    // Auto-expand active submenu
+    const activeNavLink = document.querySelector('.sidebar-nav .nav-link.active');
+    if (activeNavLink) {
+        const parentSubmenu = activeNavLink.closest('.submenu');
+        if (parentSubmenu) {
+            parentSubmenu.classList.add('show');
+            const parentLink = parentSubmenu.previousElementSibling;
+            if (parentLink) {
+                parentLink.setAttribute('aria-expanded', 'true');
+                // Also expand the parent collapse
+                const bsCollapse = new bootstrap.Collapse(parentSubmenu, {
+                    toggle: false
+                });
+                bsCollapse.show();
+            }
+        }
+    }
+    
+    // Handle submenu collapse/expand
+    const submenuToggles = document.querySelectorAll('[data-bs-toggle="collapse"]');
+    submenuToggles.forEach(toggle => {
+        toggle.addEventListener('click', function(e) {
+            const targetId = this.getAttribute('data-bs-target');
+            const target = document.querySelector(targetId);
+            const icon = this.querySelector('.fa-chevron-down');
+            
+            if (target) {
+                target.addEventListener('shown.bs.collapse', function() {
+                    if (icon) icon.classList.replace('fa-chevron-down', 'fa-chevron-up');
+                });
+                target.addEventListener('hidden.bs.collapse', function() {
+                    if (icon) icon.classList.replace('fa-chevron-up', 'fa-chevron-down');
+                });
+            }
+        });
     });
 });
 </script>
