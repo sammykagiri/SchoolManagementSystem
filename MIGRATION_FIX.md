@@ -20,14 +20,53 @@ The startup script now shows migration status. Check Railway logs to see:
 
 ### Step 2: Force Migrations to Run
 
-If migrations aren't running automatically, you can manually trigger them:
+If migrations aren't running automatically, you have several options:
 
-1. Go to Railway Dashboard → Your Service
-2. Click "Deployments" → Latest deployment
-3. Click "Open Shell" or use Railway CLI:
+#### Option A: Using Railway CLI (Recommended)
+
+1. Install Railway CLI (if not installed):
+   ```bash
+   npm i -g @railway/cli
+   ```
+   Or using other methods: https://docs.railway.app/develop/cli
+
+2. Login to Railway:
+   ```bash
+   railway login
+   ```
+
+3. Link to your project:
+   ```bash
+   railway link
+   ```
+
+4. Run migrations:
    ```bash
    railway run python manage.py migrate
    ```
+
+#### Option B: Add Temporary Migration Check to start.sh
+
+Add this temporarily to your `start.sh` before starting gunicorn to debug:
+
+```bash
+echo "Verifying migrations applied..."
+python manage.py migrate --run-syncdb  # This ensures all tables exist
+```
+
+#### Option C: Use Railway's Web Terminal (if available)
+
+Some Railway plans have a web terminal:
+1. Go to Railway Dashboard → Your Service
+2. Look for "Terminal" or "Shell" tab
+3. Run: `python manage.py migrate`
+
+#### Option D: Trigger Redeploy
+
+Sometimes a fresh deployment fixes migration issues:
+1. Go to Railway Dashboard → Your Service
+2. Click "Settings" → "Redeploy" or "Deploy"
+3. Watch the logs to ensure migrations run successfully
 
 ### Step 3: Check Database Connection
 
@@ -38,8 +77,14 @@ Ensure PostgreSQL is properly connected:
 
 ### Step 4: Verify All Migrations Are Applied
 
-In Railway shell, run:
+Using Railway CLI:
 ```bash
+railway run python manage.py showmigrations
+```
+
+Or add temporarily to `start.sh` to see in logs:
+```bash
+echo "Migration status:"
 python manage.py showmigrations
 ```
 
@@ -61,8 +106,15 @@ If the database is completely empty, you may need to:
 3. **Reset and rerun migrations:**
    If needed, you can reset the database (⚠️ THIS WILL DELETE ALL DATA):
    ```bash
-   # In Railway shell:
-   python manage.py migrate core zero  # Unapply core migrations
+   # Using Railway CLI:
+   railway run python manage.py migrate core zero  # Unapply core migrations
+   railway run python manage.py migrate  # Reapply all migrations
+   ```
+   
+   Or temporarily add to `start.sh` before gunicorn starts:
+   ```bash
+   echo "Resetting and rerunning migrations..."
+   python manage.py migrate core zero || true  # Unapply (ignore errors)
    python manage.py migrate  # Reapply all migrations
    ```
 

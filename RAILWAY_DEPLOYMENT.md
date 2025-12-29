@@ -124,17 +124,25 @@ DJANGO_SUPERUSER_PASSWORD=your-secure-password-here
 
 **Alternative (Manual Creation):**
 
-If you prefer to create the superuser manually:
+If you prefer to create the superuser manually, use Railway CLI:
 
-1. Go to your service in Railway dashboard
-2. Click on the "Deployments" tab
-3. Click on the latest deployment
-4. Go to "Logs" tab
-5. Click "Open Shell" or use Railway CLI:
+1. Install Railway CLI:
+   ```bash
+   npm i -g @railway/cli
+   ```
 
-```bash
-railway run python manage.py createsuperuser
-```
+2. Login and link to your project:
+   ```bash
+   railway login
+   railway link
+   ```
+
+3. Run createsuperuser:
+   ```bash
+   railway run python manage.py createsuperuser
+   ```
+
+**Note:** Railway's web interface doesn't have a built-in shell. You need to use the Railway CLI to run commands interactively.
 
 ### 7. Verify Deployment
 
