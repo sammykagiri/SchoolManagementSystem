@@ -157,6 +157,17 @@
             padding-left: 0;
         }
         
+        /* Keep submenus with active items always visible - override Bootstrap */
+        .sidebar-nav .submenu.show,
+        .sidebar-nav .submenu:has(.nav-link.active) {
+            display: block !important;
+        }
+        
+        /* Fallback for browsers without :has() support */
+        .sidebar-nav .submenu.show {
+            display: block !important;
+        }
+        
         .sidebar-nav .submenu .nav-link {
             padding-left: 3rem;
             font-size: 0.9rem;

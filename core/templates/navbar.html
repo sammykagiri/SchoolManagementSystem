@@ -39,12 +39,12 @@
                 </a>
                 <ul class="collapse nav flex-column submenu" id="studentsSubmenu">
                     <li class="nav-item">
-                        <a class="nav-link" href="{% url 'core:student_list' %}">
+                        <a class="nav-link {% if request.resolver_match.url_name == 'student_list' %}active{% endif %}" href="{% url 'core:student_list' %}">
                             <i class="fas fa-list me-2"></i>Student List
                         </a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link" href="{% url 'core:student_create' %}" id="addStudentNavLink">
+                        <a class="nav-link {% if request.resolver_match.url_name == 'student_create' or request.resolver_match.url_name == 'student_detail' or request.resolver_match.url_name == 'student_update' %}active{% endif %}" href="{% url 'core:student_create' %}" id="addStudentNavLink">
                             <i class="fas fa-plus me-2"></i>Add Student
                         </a>
                     </li>
@@ -74,12 +74,12 @@
                 </a>
                 <ul class="collapse nav flex-column submenu" id="teachersSubmenu">
                     <li class="nav-item">
-                        <a class="nav-link" href="{% url 'core:teacher_list' %}">
+                        <a class="nav-link {% if request.resolver_match.url_name == 'teacher_list' or request.resolver_match.url_name == 'teacher_detail' %}active{% endif %}" href="{% url 'core:teacher_list' %}">
                             <i class="fas fa-list me-2"></i>Teacher List
                         </a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link" href="{% url 'core:teacher_add' %}">
+                        <a class="nav-link {% if request.resolver_match.url_name == 'teacher_add' or request.resolver_match.url_name == 'teacher_edit' %}active{% endif %}" href="{% url 'core:teacher_add' %}">
                             <i class="fas fa-plus me-2"></i>Add Teacher
                         </a>
                     </li>
@@ -96,33 +96,33 @@
                 </a>
                 <ul class="collapse nav flex-column submenu" id="feesSubmenu">
                     <li class="nav-item">
-                        <a class="nav-link" href="{% url 'core:fee_structure_list' %}">
+                        <a class="nav-link {% if request.resolver_match.url_name == 'fee_structure_list' or request.resolver_match.url_name == 'fee_structure_create' or request.resolver_match.url_name == 'fee_structure_update' or request.resolver_match.url_name == 'fee_structure_delete' %}active{% endif %}" href="{% url 'core:fee_structure_list' %}">
                             <i class="fas fa-list-alt me-2"></i>Fee Structures
                         </a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link" href="{% url 'core:generate_student_fees' %}">
+                        <a class="nav-link {% if request.resolver_match.url_name == 'generate_student_fees' %}active{% endif %}" href="{% url 'core:generate_student_fees' %}">
                             <i class="fas fa-cogs me-2"></i>Generate Fees
                         </a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link" href="{% url 'payments:fee_summary' %}">
+                        <a class="nav-link {% if request.resolver_match.url_name == 'fee_summary' %}active{% endif %}" href="{% url 'payments:fee_summary' %}">
                             <i class="fas fa-file-invoice-dollar me-2"></i>Fee Summary
                         </a>
                     </li>
                     <li class="nav-item"><hr class="dropdown-divider my-2"></li>
                     <li class="nav-item">
-                        <a class="nav-link" href="{% url 'payments:payment_list' %}">
+                        <a class="nav-link {% if request.resolver_match.url_name == 'payment_list' or request.resolver_match.url_name == 'payment_detail' or request.resolver_match.url_name == 'payment_create' %}active{% endif %}" href="{% url 'payments:payment_list' %}">
                             <i class="fas fa-credit-card me-2"></i>Payments
                         </a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link" href="{% url 'payments:receipt_list' %}">
+                        <a class="nav-link {% if request.resolver_match.url_name == 'receipt_list' or request.resolver_match.url_name == 'receipt_detail' %}active{% endif %}" href="{% url 'payments:receipt_list' %}">
                             <i class="fas fa-receipt me-2"></i>Receipts
                         </a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link" href="{% url 'payments:reminder_list' %}">
+                        <a class="nav-link {% if request.resolver_match.url_name == 'reminder_list' or request.resolver_match.url_name == 'reminder_create' %}active{% endif %}" href="{% url 'payments:reminder_list' %}">
                             <i class="fas fa-bell me-2"></i>Reminders
                         </a>
                     </li>
@@ -139,17 +139,17 @@
                 </a>
                 <ul class="collapse nav flex-column submenu" id="attendanceSubmenu">
                     <li class="nav-item">
-                        <a class="nav-link" href="{% url 'attendance:attendance_list' %}">
+                        <a class="nav-link {% if request.resolver_match.url_name == 'attendance_list' or request.resolver_match.url_name == 'attendance_detail' %}active{% endif %}" href="{% url 'attendance:attendance_list' %}">
                             <i class="fas fa-list me-2"></i>Attendance Records
                         </a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link" href="{% url 'attendance:mark_attendance' %}">
+                        <a class="nav-link {% if request.resolver_match.url_name == 'mark_attendance' %}active{% endif %}" href="{% url 'attendance:mark_attendance' %}">
                             <i class="fas fa-edit me-2"></i>Mark Attendance
                         </a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link" href="{% url 'attendance:attendance_summary' %}">
+                        <a class="nav-link {% if request.resolver_match.url_name == 'attendance_summary' %}active{% endif %}" href="{% url 'attendance:attendance_summary' %}">
                             <i class="fas fa-chart-bar me-2"></i>Summary
                         </a>
                     </li>
@@ -166,29 +166,29 @@
                 </a>
                 <ul class="collapse nav flex-column submenu" id="subjectsSubmenu">
                     <li class="nav-item">
-                        <a class="nav-link" href="{% url 'timetable:subject_list' %}">
+                        <a class="nav-link {% if request.resolver_match.url_name == 'subject_list' or request.resolver_match.url_name == 'subject_detail' %}active{% endif %}" href="{% url 'timetable:subject_list' %}">
                             <i class="fas fa-list me-2"></i>Subject List
                         </a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link" href="{% url 'timetable:subject_level_overview' %}">
+                        <a class="nav-link {% if request.resolver_match.url_name == 'subject_level_overview' %}active{% endif %}" href="{% url 'timetable:subject_level_overview' %}">
                             <i class="fas fa-layer-group me-2"></i>View by Level
                         </a>
                     </li>
                     <li class="nav-item"><hr class="dropdown-divider my-2"></li>
                     <li class="nav-item">
-                        <a class="nav-link" href="{% url 'timetable:subject_add' %}">
+                        <a class="nav-link {% if request.resolver_match.url_name == 'subject_add' or request.resolver_match.url_name == 'subject_edit' %}active{% endif %}" href="{% url 'timetable:subject_add' %}">
                             <i class="fas fa-plus me-2"></i>Add Subject
                         </a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link" href="{% url 'timetable:subject_generate' %}">
+                        <a class="nav-link {% if request.resolver_match.url_name == 'subject_generate' %}active{% endif %}" href="{% url 'timetable:subject_generate' %}">
                             <i class="fas fa-magic me-2"></i>Generate CBC Subjects
                         </a>
                     </li>
                     <li class="nav-item"><hr class="dropdown-divider my-2"></li>
                     <li class="nav-item">
-                        <a class="nav-link" href="{% url 'timetable:subject_bulk_update_level' %}">
+                        <a class="nav-link {% if request.resolver_match.url_name == 'subject_bulk_update_level' %}active{% endif %}" href="{% url 'timetable:subject_bulk_update_level' %}">
                             <i class="fas fa-edit me-2"></i>Bulk Update Levels
                         </a>
                     </li>
@@ -205,13 +205,13 @@
                 </a>
                 <ul class="collapse nav flex-column submenu" id="timetableSubmenu">
                     <li class="nav-item">
-                        <a class="nav-link" href="{% url 'timetable:timetable_list' %}">
+                        <a class="nav-link {% if request.resolver_match.url_name == 'timetable_list' or request.resolver_match.url_name == 'timetable_detail' or request.resolver_match.url_name == 'timetable_create' or request.resolver_match.url_name == 'timetable_edit' %}active{% endif %}" href="{% url 'timetable:timetable_list' %}">
                             <i class="fas fa-calendar me-2"></i>Class Timetables
                         </a>
                     </li>
                     <li class="nav-item"><hr class="dropdown-divider my-2"></li>
                     <li class="nav-item">
-                        <a class="nav-link" href="{% url 'timetable:timeslot_list' %}">
+                        <a class="nav-link {% if request.resolver_match.url_name == 'timeslot_list' or request.resolver_match.url_name == 'timeslot_create' or request.resolver_match.url_name == 'timeslot_edit' %}active{% endif %}" href="{% url 'timetable:timeslot_list' %}">
                             <i class="fas fa-clock me-2"></i>Time Slots
                         </a>
                     </li>
@@ -228,17 +228,17 @@
                 </a>
                 <ul class="collapse nav flex-column submenu" id="examsSubmenu">
                     <li class="nav-item">
-                        <a class="nav-link" href="{% url 'exams:exam_list' %}">
+                        <a class="nav-link {% if request.resolver_match.url_name == 'exam_list' or request.resolver_match.url_name == 'exam_detail' or request.resolver_match.url_name == 'exam_create' or request.resolver_match.url_name == 'exam_edit' %}active{% endif %}" href="{% url 'exams:exam_list' %}">
                             <i class="fas fa-file-alt me-2"></i>Exams
                         </a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link" href="{% url 'exams:gradebook_list' %}">
+                        <a class="nav-link {% if request.resolver_match.url_name == 'gradebook_list' or request.resolver_match.url_name == 'gradebook_detail' %}active{% endif %}" href="{% url 'exams:gradebook_list' %}">
                             <i class="fas fa-book me-2"></i>Gradebook
                         </a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link" href="{% url 'exams:gradebook_summary_list' %}">
+                        <a class="nav-link {% if request.resolver_match.url_name == 'gradebook_summary_list' or request.resolver_match.url_name == 'gradebook_summary_detail' %}active{% endif %}" href="{% url 'exams:gradebook_summary_list' %}">
                             <i class="fas fa-chart-bar me-2"></i>Summary
                         </a>
                     </li>
@@ -255,13 +255,13 @@
                 </a>
                 <ul class="collapse nav flex-column submenu" id="homeworkSubmenu">
                     <li class="nav-item">
-                        <a class="nav-link" href="{% url 'homework:assignment_list' %}">
+                        <a class="nav-link {% if request.resolver_match.url_name == 'assignment_list' or request.resolver_match.url_name == 'assignment_detail' or request.resolver_match.url_name == 'assignment_create' or request.resolver_match.url_name == 'assignment_edit' %}active{% endif %}" href="{% url 'homework:assignment_list' %}">
                             <i class="fas fa-list me-2"></i>Assignments
                         </a>
                     </li>
                     {% if user.profile.is_school_admin or user.profile.is_teacher %}
                     <li class="nav-item">
-                        <a class="nav-link" href="{% url 'homework:submission_list' %}">
+                        <a class="nav-link {% if request.resolver_match.url_name == 'submission_list' or request.resolver_match.url_name == 'submission_detail' %}active{% endif %}" href="{% url 'homework:submission_list' %}">
                             <i class="fas fa-check-circle me-2"></i>View Submissions
                         </a>
                     </li>
@@ -279,28 +279,28 @@
                 </a>
                 <ul class="collapse nav flex-column submenu" id="communicationsSubmenu">
                     <li class="nav-item">
-                        <a class="nav-link" href="{% url 'communications:dashboard' %}">
+                        <a class="nav-link {% if request.resolver_match.url_name == 'dashboard' and 'communications' in request.resolver_match.namespace %}active{% endif %}" href="{% url 'communications:dashboard' %}">
                             <i class="fas fa-tachometer-alt me-2"></i>Dashboard
                         </a>
                     </li>
                     <li class="nav-item"><hr class="dropdown-divider my-2"></li>
                     <li class="nav-item">
-                        <a class="nav-link" href="{% url 'communications:template_list' %}">
+                        <a class="nav-link {% if request.resolver_match.url_name == 'template_list' or request.resolver_match.url_name == 'template_create' or request.resolver_match.url_name == 'template_edit' %}active{% endif %}" href="{% url 'communications:template_list' %}">
                             <i class="fas fa-file-alt me-2"></i>Templates
                         </a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link" href="{% url 'communications:email_list' %}">
+                        <a class="nav-link {% if request.resolver_match.url_name == 'email_list' or request.resolver_match.url_name == 'email_detail' or request.resolver_match.url_name == 'email_send' %}active{% endif %}" href="{% url 'communications:email_list' %}">
                             <i class="fas fa-envelope me-2"></i>Emails
                         </a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link" href="{% url 'communications:sms_list' %}">
+                        <a class="nav-link {% if request.resolver_match.url_name == 'sms_list' or request.resolver_match.url_name == 'sms_detail' or request.resolver_match.url_name == 'sms_send' %}active{% endif %}" href="{% url 'communications:sms_list' %}">
                             <i class="fas fa-sms me-2"></i>SMS Messages
                         </a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link" href="{% url 'communications:log_list' %}">
+                        <a class="nav-link {% if request.resolver_match.url_name == 'log_list' or request.resolver_match.url_name == 'log_detail' %}active{% endif %}" href="{% url 'communications:log_list' %}">
                             <i class="fas fa-list me-2"></i>Communication Logs
                         </a>
                     </li>
@@ -317,7 +317,7 @@
                 </a>
                 <ul class="collapse nav flex-column submenu" id="reportsSubmenu">
                     <li class="nav-item">
-                        <a class="nav-link" href="{% url 'payments:financial_reports' %}">
+                        <a class="nav-link {% if request.resolver_match.url_name == 'financial_reports' or request.resolver_match.url_name == 'payment_collection_report' or request.resolver_match.url_name == 'outstanding_fees_report' or request.resolver_match.url_name == 'collection_summary_report' or request.resolver_match.url_name == 'payment_method_analysis' %}active{% endif %}" href="{% url 'payments:financial_reports' %}">
                             <i class="fas fa-file-invoice-dollar me-2"></i>Financial Reports
                         </a>
                     </li>
@@ -335,21 +335,21 @@
                 <ul class="collapse nav flex-column submenu" id="settingsSubmenu">
                     {% if user|has_permission:'view_term' %}
                     <li class="nav-item">
-                        <a class="nav-link" href="{% url 'core:term_list' %}">
+                        <a class="nav-link {% if request.resolver_match.url_name == 'term_list' or request.resolver_match.url_name == 'term_create' or request.resolver_match.url_name == 'term_edit' %}active{% endif %}" href="{% url 'core:term_list' %}">
                             <i class="fas fa-calendar-alt me-2"></i>Terms
                         </a>
                     </li>
                     {% endif %}
                     {% if user|has_permission:'view_grade' %}
                     <li class="nav-item">
-                        <a class="nav-link" href="{% url 'core:grade_list' %}">
+                        <a class="nav-link {% if request.resolver_match.url_name == 'grade_list' or request.resolver_match.url_name == 'grade_create' or request.resolver_match.url_name == 'grade_edit' %}active{% endif %}" href="{% url 'core:grade_list' %}">
                             <i class="fas fa-graduation-cap me-2"></i>Grades
                         </a>
                     </li>
                     {% endif %}
                     {% if user|has_permission:'view_class' %}
                     <li class="nav-item">
-                        <a class="nav-link" href="{% url 'core:class_list' %}">
+                        <a class="nav-link {% if request.resolver_match.url_name == 'class_list' or request.resolver_match.url_name == 'class_create' or request.resolver_match.url_name == 'class_edit' %}active{% endif %}" href="{% url 'core:class_list' %}">
                             <i class="fas fa-chalkboard me-2"></i>Classes
                         </a>
                     </li>
@@ -357,12 +357,12 @@
                     {% if user.is_superuser or user.profile.is_school_admin or user.profile.is_accountant %}
                     <li class="nav-item"><hr class="dropdown-divider my-2"></li>
                     <li class="nav-item">
-                        <a class="nav-link" href="{% url 'core:fee_category_list' %}">
+                        <a class="nav-link {% if request.resolver_match.url_name == 'fee_category_list' or request.resolver_match.url_name == 'fee_category_create' or request.resolver_match.url_name == 'fee_category_edit' %}active{% endif %}" href="{% url 'core:fee_category_list' %}">
                             <i class="fas fa-tags me-2"></i>Fee Categories
                         </a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link" href="{% url 'core:transport_route_list' %}">
+                        <a class="nav-link {% if request.resolver_match.url_name == 'transport_route_list' or request.resolver_match.url_name == 'transport_route_create' or request.resolver_match.url_name == 'transport_route_edit' %}active{% endif %}" href="{% url 'core:transport_route_list' %}">
                             <i class="fas fa-route me-2"></i>Transport Routes
                         </a>
                     </li>
@@ -370,12 +370,12 @@
                     {% if user.is_superuser or user.profile.is_school_admin %}
                     <li class="nav-item"><hr class="dropdown-divider my-2"></li>
                     <li class="nav-item">
-                        <a class="nav-link" href="{% url 'core:user_list' %}">
+                        <a class="nav-link {% if request.resolver_match.url_name == 'user_list' or request.resolver_match.url_name == 'user_create' or request.resolver_match.url_name == 'user_edit' or request.resolver_match.url_name == 'profile' %}active{% endif %}" href="{% url 'core:user_list' %}">
                             <i class="fas fa-users me-2"></i>User Management
                         </a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link" href="{% url 'core:role_list' %}">
+                        <a class="nav-link {% if request.resolver_match.url_name == 'role_list' or request.resolver_match.url_name == 'role_create' or request.resolver_match.url_name == 'role_edit' %}active{% endif %}" href="{% url 'core:role_list' %}">
                             <i class="fas fa-user-tag me-2"></i>Role Management
                         </a>
                     </li>
@@ -445,10 +445,100 @@
 <div class="sidebar-overlay" id="sidebarOverlay"></div>
 
 <script>
+// Run immediately to prevent any collapse before page fully loads
+(function() {
+            // Expand submenus with active items immediately - use inline style as well
+    const activeNavLinks = document.querySelectorAll('.sidebar-nav .submenu .nav-link.active');
+    activeNavLinks.forEach(activeNavLink => {
+        const parentSubmenu = activeNavLink.closest('.submenu');
+        if (parentSubmenu) {
+            // Add both collapse and show classes for Bootstrap, plus inline style
+            parentSubmenu.classList.add('collapse', 'show');
+            parentSubmenu.style.display = 'block'; // Force display
+            const parentLink = parentSubmenu.previousElementSibling;
+            if (parentLink && parentLink.classList.contains('nav-link')) {
+                parentLink.classList.add('active');
+                parentLink.setAttribute('aria-expanded', 'true');
+                const icon = parentLink.querySelector('.fa-chevron-down, .fa-chevron-up');
+                if (icon) {
+                    icon.classList.remove('fa-chevron-down');
+                    icon.classList.add('fa-chevron-up');
+                }
+            }
+        }
+    });
+    
+    // Also handle parent links that are already active
+    const activeParentLinks = document.querySelectorAll('.sidebar-nav > ul > .nav-item > .nav-link.active[data-bs-toggle="collapse"]');
+    activeParentLinks.forEach(parentLink => {
+        const targetId = parentLink.getAttribute('data-bs-target');
+        if (targetId) {
+            const target = document.querySelector(targetId);
+            if (target) {
+                target.classList.add('collapse', 'show');
+                target.style.display = 'block';
+                parentLink.setAttribute('aria-expanded', 'true');
+            }
+        }
+    });
+})();
+
 document.addEventListener('DOMContentLoaded', function() {
     const sidebar = document.getElementById('sidebar');
     const sidebarToggle = document.getElementById('sidebarToggle');
     const sidebarOverlay = document.getElementById('sidebarOverlay');
+    
+    // Function to ensure active submenus stay expanded
+    function ensureActiveSubmenusExpanded() {
+        const activeNavLinks = document.querySelectorAll('.sidebar-nav .submenu .nav-link.active');
+        activeNavLinks.forEach(activeNavLink => {
+            const parentSubmenu = activeNavLink.closest('.submenu');
+            if (parentSubmenu) {
+                parentSubmenu.classList.add('collapse', 'show');
+                parentSubmenu.style.display = 'block';
+                const parentLink = parentSubmenu.previousElementSibling;
+                if (parentLink && parentLink.classList.contains('nav-link')) {
+                    parentLink.classList.add('active');
+                    parentLink.setAttribute('aria-expanded', 'true');
+                    const icon = parentLink.querySelector('.fa-chevron-down, .fa-chevron-up');
+                    if (icon) {
+                        icon.classList.remove('fa-chevron-down');
+                        icon.classList.add('fa-chevron-up');
+                    }
+                }
+            }
+        });
+    }
+    
+    // Run immediately
+    ensureActiveSubmenusExpanded();
+    
+    // Use MutationObserver to watch for class changes and re-apply if needed
+    const observer = new MutationObserver(function(mutations) {
+        mutations.forEach(function(mutation) {
+            if (mutation.type === 'attributes' && mutation.attributeName === 'class') {
+                const target = mutation.target;
+                if (target.classList.contains('submenu')) {
+                    const hasActive = target.querySelector('.nav-link.active') !== null;
+                    if (hasActive && !target.classList.contains('show')) {
+                        target.classList.add('show');
+                        target.style.display = 'block';
+                    }
+                }
+            }
+        });
+        ensureActiveSubmenusExpanded();
+    });
+    
+    // Observe all submenus
+    const submenus = document.querySelectorAll('.sidebar-nav .submenu');
+    submenus.forEach(submenu => {
+        observer.observe(submenu, {
+            attributes: true,
+            attributeFilter: ['class'],
+            subtree: true
+        });
+    });
     
     // Toggle sidebar
     if (sidebarToggle) {
@@ -466,42 +556,176 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
     
-    // Auto-expand active submenu
-    const activeNavLink = document.querySelector('.sidebar-nav .nav-link.active');
-    if (activeNavLink) {
-        const parentSubmenu = activeNavLink.closest('.submenu');
-        if (parentSubmenu) {
-            parentSubmenu.classList.add('show');
-            const parentLink = parentSubmenu.previousElementSibling;
-            if (parentLink) {
-                parentLink.setAttribute('aria-expanded', 'true');
-                // Also expand the parent collapse
-                const bsCollapse = new bootstrap.Collapse(parentSubmenu, {
-                    toggle: false
-                });
-                bsCollapse.show();
+    // Function to expand submenu and mark parent as active
+    function expandSubmenu(submenu, parentLink, forceExpand = false) {
+        if (submenu && parentLink) {
+            // Ensure collapse class is present for Bootstrap
+            submenu.classList.add('collapse');
+            submenu.classList.add('show');
+            submenu.style.display = 'block'; // Force display with inline style
+            parentLink.classList.add('active');
+            parentLink.setAttribute('aria-expanded', 'true');
+            
+            const icon = parentLink.querySelector('.fa-chevron-down, .fa-chevron-up');
+            if (icon) {
+                icon.classList.remove('fa-chevron-down');
+                icon.classList.add('fa-chevron-up');
+            }
+            
+            // Initialize or get Bootstrap Collapse instance and show it
+            if (typeof bootstrap !== 'undefined' && bootstrap.Collapse) {
+                try {
+                    let bsCollapse = bootstrap.Collapse.getInstance(submenu);
+                    if (!bsCollapse) {
+                        bsCollapse = new bootstrap.Collapse(submenu, {
+                            toggle: false
+                        });
+                    }
+                    // Force show - this ensures Bootstrap knows it should be shown
+                    if (forceExpand || submenu.querySelector('.nav-link.active')) {
+                        bsCollapse.show();
+                    }
+                } catch(e) {
+                    // Fallback: just use classes and inline styles
+                }
             }
         }
     }
     
-    // Handle submenu collapse/expand
-    const submenuToggles = document.querySelectorAll('[data-bs-toggle="collapse"]');
-    submenuToggles.forEach(toggle => {
-        toggle.addEventListener('click', function(e) {
-            const targetId = this.getAttribute('data-bs-target');
-            const target = document.querySelector(targetId);
-            const icon = this.querySelector('.fa-chevron-down');
-            
-            if (target) {
-                target.addEventListener('shown.bs.collapse', function() {
-                    if (icon) icon.classList.replace('fa-chevron-down', 'fa-chevron-up');
-                });
-                target.addEventListener('hidden.bs.collapse', function() {
-                    if (icon) icon.classList.replace('fa-chevron-up', 'fa-chevron-down');
-                });
+    // Auto-expand active submenu and mark parent as active - run this after a small delay to ensure Bootstrap is initialized
+    setTimeout(function() {
+        const activeNavLinks = document.querySelectorAll('.sidebar-nav .submenu .nav-link.active');
+        activeNavLinks.forEach(activeNavLink => {
+            const parentSubmenu = activeNavLink.closest('.submenu');
+            if (parentSubmenu) {
+                const parentLink = parentSubmenu.previousElementSibling;
+                if (parentLink && parentLink.classList.contains('nav-link')) {
+                    expandSubmenu(parentSubmenu, parentLink, true);
+                }
             }
         });
+        
+        // Also expand submenus when parent menu items are already marked as active
+        const activeParentLinks = document.querySelectorAll('.sidebar-nav > ul > .nav-item > .nav-link.active[data-bs-toggle="collapse"]');
+        activeParentLinks.forEach(parentLink => {
+            const targetId = parentLink.getAttribute('data-bs-target');
+            const target = document.querySelector(targetId);
+            if (target) {
+                expandSubmenu(target, parentLink, true);
+            }
         });
+    }, 50); // Small delay to ensure DOM and Bootstrap are ready
+    
+    // Prevent submenu links from triggering collapse - stop event propagation
+    const submenuLinks = document.querySelectorAll('.sidebar-nav .submenu .nav-link');
+    submenuLinks.forEach(link => {
+        link.addEventListener('click', function(e) {
+            // Stop event propagation to parent collapse toggles
+            e.stopPropagation();
+            // Ensure parent submenu stays expanded
+            const parentSubmenu = this.closest('.submenu');
+            if (parentSubmenu) {
+                parentSubmenu.classList.add('show');
+                const parentLink = parentSubmenu.previousElementSibling;
+                if (parentLink) {
+                    parentLink.setAttribute('aria-expanded', 'true');
+                }
+            }
+        });
+    });
+    
+    // Handle submenu collapse/expand (only for toggle buttons, not submenu links)
+    const submenuToggles = document.querySelectorAll('.sidebar-nav > ul > .nav-item > .nav-link[data-bs-toggle="collapse"]');
+    submenuToggles.forEach(toggle => {
+        const targetId = toggle.getAttribute('data-bs-target');
+        const target = document.querySelector(targetId);
+        const icon = toggle.querySelector('.fa-chevron-down, .fa-chevron-up');
+        
+        if (target) {
+            // Check if this submenu has active items - if so, ensure it's expanded
+            const hasActiveItem = target.querySelector('.nav-link.active') !== null;
+            if (hasActiveItem) {
+                target.classList.add('collapse', 'show');
+                target.style.display = 'block';
+                toggle.setAttribute('aria-expanded', 'true');
+                if (icon) {
+                    icon.classList.remove('fa-chevron-down');
+                    icon.classList.add('fa-chevron-up');
+                }
+                // Use Bootstrap to show it properly
+                if (typeof bootstrap !== 'undefined' && bootstrap.Collapse) {
+                    try {
+                        let bsCollapse = bootstrap.Collapse.getInstance(target);
+                        if (!bsCollapse) {
+                            bsCollapse = new bootstrap.Collapse(target, { toggle: false });
+                        }
+                        bsCollapse.show();
+                    } catch(e) {}
+                }
+            }
+            
+            // Set up event listeners once
+            target.addEventListener('shown.bs.collapse', function() {
+                if (icon) {
+                    icon.classList.remove('fa-chevron-down');
+                    icon.classList.add('fa-chevron-up');
+                }
+            });
+            
+            // Prevent collapse if submenu contains active items - this is critical
+            target.addEventListener('hide.bs.collapse', function(e) {
+                const hasActive = target.querySelector('.nav-link.active') !== null;
+                if (hasActive) {
+                    e.preventDefault();
+                    e.stopImmediatePropagation();
+                    e.stopPropagation();
+                    // Force display to stay and restore classes
+                    target.style.display = 'block';
+                    target.classList.add('collapse', 'show');
+                    toggle.setAttribute('aria-expanded', 'true');
+                    // Try to show via Bootstrap instance
+                    if (typeof bootstrap !== 'undefined' && bootstrap.Collapse) {
+                        try {
+                            let bsCollapse = bootstrap.Collapse.getInstance(target);
+                            if (bsCollapse) {
+                                bsCollapse.show();
+                            }
+                        } catch(err) {}
+                    }
+                    return false;
+                }
+            }, true); // Use capture phase to catch early
+            
+            target.addEventListener('hidden.bs.collapse', function() {
+                // Only update icon if no active items
+                const hasActive = target.querySelector('.nav-link.active') !== null;
+                if (!hasActive && icon) {
+                    icon.classList.remove('fa-chevron-up');
+                    icon.classList.add('fa-chevron-down');
+                } else if (hasActive) {
+                    // If it somehow got hidden but has active, restore it
+                    target.classList.add('collapse', 'show');
+                    target.style.display = 'block';
+                    toggle.setAttribute('aria-expanded', 'true');
+                }
+            });
+            
+            // Intercept toggle click to prevent collapse when active items exist
+            toggle.addEventListener('click', function(e) {
+                const hasActive = target.querySelector('.nav-link.active') !== null;
+                // If submenu is currently shown and has active item, prevent toggle (collapse)
+                if (target.classList.contains('show') && hasActive) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    e.stopImmediatePropagation();
+                    // Ensure it stays open
+                    target.classList.add('collapse', 'show');
+                    target.style.display = 'block';
+                    toggle.setAttribute('aria-expanded', 'true');
+                    return false;
+                }
+            }, true); // Use capture phase to intercept before Bootstrap handles it
+        }
     });
     
     // Initialize Bootstrap dropdown for user profile
