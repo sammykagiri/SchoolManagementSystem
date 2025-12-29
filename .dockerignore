@@ -1,0 +1,63 @@
+# Git
+.git
+.gitignore
+.gitattributes
+
+# Python
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.so
+*.egg
+*.egg-info
+dist
+build
+venv/
+env/
+ENV/
+
+# Django
+*.log
+*.pot
+*.sqlite3
+db.sqlite3
+/media
+/staticfiles
+
+# IDE
+.vscode
+.idea
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Documentation
+*.md
+!README.md
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# Test files
+*.test
+test.sh
+.pytest_cache
+.coverage
+htmlcov/
+
+# Railway
+railway.json
+Procfile
+
+# Other
+*.bak
+*.tmp
+
