@@ -24,7 +24,7 @@ echo "Checking migration status..."
 python manage.py showmigrations --list 2>&1 | grep -E "\[" | head -40 || echo "Could not show migrations"
 
 echo "Running migrations..."
-python manage.py migrate --noinput
+python fix_remote_migration && python manage.py migrate --noinput
 if [ $? -ne 0 ]; then
     echo "ERROR: Migrations failed! Check the errors above."
     exit 1
