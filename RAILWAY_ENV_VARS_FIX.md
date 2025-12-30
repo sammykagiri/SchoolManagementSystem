@@ -69,3 +69,4 @@ CSRF_TRUSTED_ORIGINS=https://school-management-production.up.railway.app
 
 The code has been updated to automatically convert `*.railway.app` to `.railway.app` for ALLOWED_HOSTS, but for CSRF_TRUSTED_ORIGINS, you **must** provide the exact domain - there's no workaround for this.
 
+

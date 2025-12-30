@@ -7,3 +7,4 @@ ls -la
 echo "Environment variables:"
 env | grep -E "DATABASE|STATIC|DJANGO|PORT"
 
+
