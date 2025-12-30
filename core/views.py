@@ -114,6 +114,18 @@ def dashboard(request):
         request.user.refresh_from_db()
     
     school = request.user.profile.school
+    
+    # If user doesn't have a school assigned and is not superadmin, redirect
+    # (This should be caught by decorator, but handle it here as well for safety)
+    if not school:
+        if is_superadmin_user(request.user):
+            # Superadmin without school - redirect to manage schools
+            messages.info(request, 'Please assign yourself to a school or manage schools.')
+            return redirect('core:school_admin_list')
+        else:
+            messages.error(request, 'You must be assigned to a school to access the dashboard.')
+            return redirect('core:dashboard')
+    
     dashboard_data = DashboardService.get_dashboard_data(school, request.user)
     
     # Extract fee statistics for template

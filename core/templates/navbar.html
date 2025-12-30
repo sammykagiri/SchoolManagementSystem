@@ -20,6 +20,8 @@
     
     <nav class="sidebar-nav flex-grow-1">
         {% if user.is_authenticated and user.profile and not user.profile.is_student and not user.profile.is_parent %}
+        {% comment %}Check if user has school assigned - show all menus only if user has school{% endcomment %}
+        {% if user.profile.school %}
         <ul class="nav flex-column">
             <!-- Dashboard -->
             <li class="nav-item">
@@ -383,7 +385,7 @@
                 </ul>
             </li>
             
-            {% if user.is_superuser %}
+            {% if user.is_superuser or user.profile.is_super_admin %}
             <!-- Super Admin: Manage Schools -->
             <li class="nav-item">
                 <a class="nav-link {% if request.resolver_match.url_name == 'school_admin_list' %}active{% endif %}" href="{% url 'core:school_admin_list' %}">
@@ -393,6 +395,26 @@
             </li>
             {% endif %}
         </ul>
+        {% else %}
+        {% comment %}User without school assignment - show only Manage Schools for superadmin, warning for others{% endcomment %}
+        <ul class="nav flex-column">
+            {% if user.is_superuser or user.profile.is_super_admin %}
+            <!-- Super Admin: Manage Schools (even without school assignment) -->
+            <li class="nav-item">
+                <a class="nav-link {% if request.resolver_match.url_name == 'school_admin_list' %}active{% endif %}" href="{% url 'core:school_admin_list' %}">
+                    <i class="fas fa-school me-2"></i>
+                    <span>Manage Schools</span>
+                </a>
+            </li>
+            {% else %}
+            <li class="nav-item">
+                <span class="nav-link text-warning">
+                    <i class="fas fa-exclamation-triangle me-2"></i>You must be assigned to a school to access menus. Please contact administrator.
+                </span>
+            </li>
+            {% endif %}
+        </ul>
+        {% endif %}
         {% else %}
         <ul class="nav flex-column">
             <li class="nav-item">
