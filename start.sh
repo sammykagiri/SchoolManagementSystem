@@ -54,6 +54,12 @@ if 'core_userprofile' not in tables:
     exit(1)
 " || echo "WARNING: Could not verify tables (non-critical)"
 
+echo "Creating permissions..."
+python manage.py create_permissions || echo "Permission creation skipped or failed (this is OK if permissions already exist)"
+
+echo "Creating roles..."
+python manage.py create_roles || echo "Role creation skipped or failed (this is OK if roles already exist)"
+
 echo "Creating superuser if not exists..."
 python manage.py create_superuser_if_not_exists || echo "Superuser creation skipped or failed (this is OK if superuser already exists or password not set)"
 
