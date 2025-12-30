@@ -23,8 +23,15 @@ fi
 echo "Checking migration status..."
 python manage.py showmigrations --list 2>&1 | grep -E "\[" | head -40 || echo "Could not show migrations"
 
+echo "Fixing migration history if needed (idempotent - safe to run multiple times)..."
+if [ -f "fix_remote_migration.py" ]; then
+    python fix_remote_migration.py || echo "Migration fix skipped or not needed (this is OK)"
+else
+    echo "fix_remote_migration.py not found, skipping migration fix (this is OK for new setups)"
+fi
+
 echo "Running migrations..."
-python fix_remote_migration && python manage.py migrate --noinput
+python manage.py migrate --noinput
 if [ $? -ne 0 ]; then
     echo "ERROR: Migrations failed! Check the errors above."
     exit 1
