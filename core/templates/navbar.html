@@ -562,19 +562,49 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     });
     
-    // Toggle sidebar
-    if (sidebarToggle) {
-        sidebarToggle.addEventListener('click', function() {
+    // Toggle sidebar - use both click and touchend for better mobile support
+    if (sidebarToggle && sidebar && sidebarOverlay) {
+        function toggleSidebar(e) {
+            if (e) {
+                e.preventDefault();
+                e.stopPropagation();
+            }
             sidebar.classList.toggle('active');
             sidebarOverlay.classList.toggle('active');
+            return false;
+        }
+        
+        // Handle click (desktop and some mobile browsers)
+        sidebarToggle.addEventListener('click', toggleSidebar);
+        
+        // Handle touch events (mobile)
+        sidebarToggle.addEventListener('touchend', function(e) {
+            e.preventDefault();
+            toggleSidebar(e);
+        });
+        
+        // Prevent double-firing on touch devices
+        let touchStartTime = 0;
+        sidebarToggle.addEventListener('touchstart', function(e) {
+            touchStartTime = Date.now();
         });
     }
     
     // Close sidebar when clicking overlay
-    if (sidebarOverlay) {
-        sidebarOverlay.addEventListener('click', function() {
+    if (sidebarOverlay && sidebar) {
+        function closeSidebar(e) {
+            if (e) {
+                e.preventDefault();
+                e.stopPropagation();
+            }
             sidebar.classList.remove('active');
             sidebarOverlay.classList.remove('active');
+        }
+        
+        sidebarOverlay.addEventListener('click', closeSidebar);
+        sidebarOverlay.addEventListener('touchend', function(e) {
+            e.preventDefault();
+            closeSidebar(e);
         });
     }
     

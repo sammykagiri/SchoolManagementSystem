@@ -289,15 +289,16 @@
         /* Mobile Styles */
         @media (max-width: 768px) {
             body {
-                padding-left: 0;
+                padding-left: 0 !important;
             }
             
             .sidebar {
-                transform: translateX(-100%);
+                transform: translateX(-100%) !important;
+                transition: transform 0.3s ease !important;
             }
             
             .sidebar.active {
-                transform: translateX(0);
+                transform: translateX(0) !important;
             }
             
             .sidebar-toggle {
