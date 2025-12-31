@@ -225,17 +225,22 @@ if USE_S3:
     # Railway endpoint is typically: https://storage.railway.app
     AWS_S3_ENDPOINT_URL = config('AWS_S3_ENDPOINT_URL', default='')
     
+    # Set location for media files
+    AWS_LOCATION = 'media'
+    
     if AWS_S3_ENDPOINT_URL:
         # Use custom endpoint (e.g., Railway Object Storage)
-        # django-storages will use AWS_S3_ENDPOINT_URL to configure boto3
         # For Railway, the endpoint is: https://storage.railway.app
         endpoint_url = AWS_S3_ENDPOINT_URL.rstrip('/')
         # Media URL construction for Railway/custom endpoints
         MEDIA_URL = f'{endpoint_url}/{AWS_STORAGE_BUCKET_NAME}/media/'
+        # Use custom storage backend for Railway
+        DEFAULT_FILE_STORAGE = 'core.storage_backends.RailwayStorage'
     else:
         # Use standard AWS S3 endpoint
         AWS_S3_CUSTOM_DOMAIN = f'{AWS_STORAGE_BUCKET_NAME}.s3.{AWS_S3_REGION_NAME}.amazonaws.com'
         MEDIA_URL = f'https://{AWS_S3_CUSTOM_DOMAIN}/media/'
+        DEFAULT_FILE_STORAGE = 'storages.backends.s3boto3.S3Boto3Storage'
     
     AWS_S3_OBJECT_PARAMETERS = {
         'CacheControl': 'max-age=86400',
@@ -244,9 +249,6 @@ if USE_S3:
     AWS_S3_FILE_OVERWRITE = False
     AWS_QUERYSTRING_AUTH = False
     
-    # Use S3-compatible storage for media files
-    # django-storages will automatically use AWS_S3_ENDPOINT_URL if set
-    DEFAULT_FILE_STORAGE = 'storages.backends.s3boto3.S3Boto3Storage'
     MEDIA_ROOT = ''  # Not used with S3
 else:
     # Local storage (development)
