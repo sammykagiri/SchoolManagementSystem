@@ -459,7 +459,7 @@
 </aside>
 
 <!-- Mobile Toggle Button -->
-<button class="sidebar-toggle btn btn-primary" id="sidebarToggle" type="button" aria-label="Toggle navigation menu">
+<button class="sidebar-toggle" id="sidebarToggle" type="button" aria-label="Toggle navigation menu">
     <i class="fas fa-bars"></i>
 </button>
 
@@ -509,6 +509,11 @@ document.addEventListener('DOMContentLoaded', function() {
     const sidebar = document.getElementById('sidebar');
     const sidebarToggle = document.getElementById('sidebarToggle');
     const sidebarOverlay = document.getElementById('sidebarOverlay');
+    
+    // Debug: Verify elements exist
+    if (!sidebar) console.warn('Sidebar element not found');
+    if (!sidebarToggle) console.warn('Sidebar toggle button not found');
+    if (!sidebarOverlay) console.warn('Sidebar overlay not found');
     
     // Function to ensure active submenus stay expanded
     function ensureActiveSubmenusExpanded() {
@@ -599,68 +604,62 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
     
-    // Initialize sidebar toggle button (mobile only)
+    // ========================================
+    // MOBILE SIDEBAR TOGGLE - FIXED VERSION
+    // ========================================
+    // Initialize sidebar toggle button with simplified event handling
     if (sidebarToggle && sidebar && sidebarOverlay) {
-        // Use a single unified handler that works for both click and touch
-        // This prevents double-firing on mobile devices
-        let touchHandled = false;
-        
-        // Handle touch events (mobile)
-        sidebarToggle.addEventListener('touchstart', function(e) {
-            touchHandled = false;
-        }, { passive: true });
-        
-        sidebarToggle.addEventListener('touchend', function(e) {
-            if (!touchHandled) {
-                e.preventDefault();
-                e.stopPropagation();
-                touchHandled = true;
-                toggleSidebar();
-            }
-        }, { passive: false });
-        
-        // Handle click events (fallback for desktop or if touch fails)
+        // Simple click handler - works on all devices
         sidebarToggle.addEventListener('click', function(e) {
-            // Only handle if touch wasn't already handled
-            if (!touchHandled) {
-                e.preventDefault();
-                e.stopPropagation();
-                toggleSidebar();
+            e.preventDefault();
+            e.stopPropagation();
+            e.stopImmediatePropagation();
+            toggleSidebar();
+        }, true); // Use capture phase to ensure it fires first
+        
+        // Touch handler for mobile devices
+        sidebarToggle.addEventListener('touchend', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            toggleSidebar();
+        }, true);
+        
+        // Ensure button is visible and clickable on mobile
+        function updateButtonVisibility() {
+            if (window.innerWidth <= 767) {
+                sidebarToggle.style.display = 'flex';
+                sidebarToggle.style.visibility = 'visible';
+                sidebarToggle.style.opacity = '1';
+                sidebarToggle.style.pointerEvents = 'auto';
+                sidebarToggle.style.zIndex = '1002';
+            } else {
+                sidebarToggle.style.display = 'none';
             }
-            // Reset touch handled flag after a short delay
-            setTimeout(function() {
-                touchHandled = false;
-            }, 300);
+        }
+        
+        // Set initial visibility
+        updateButtonVisibility();
+        window.addEventListener('resize', updateButtonVisibility);
+        
+    } else {
+        console.error('Sidebar toggle initialization failed - missing elements:', {
+            sidebar: !!sidebar,
+            sidebarToggle: !!sidebarToggle,
+            sidebarOverlay: !!sidebarOverlay
         });
     }
     
     // Close sidebar when clicking/tapping overlay
     if (sidebarOverlay && sidebar) {
-        let overlayTouchHandled = false;
+        function handleOverlayClose(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            closeSidebar();
+            return false;
+        }
         
-        sidebarOverlay.addEventListener('touchstart', function(e) {
-            overlayTouchHandled = false;
-        }, { passive: true });
-        
-        sidebarOverlay.addEventListener('touchend', function(e) {
-            if (!overlayTouchHandled) {
-                e.preventDefault();
-                e.stopPropagation();
-                overlayTouchHandled = true;
-                closeSidebar();
-            }
-        }, { passive: false });
-        
-        sidebarOverlay.addEventListener('click', function(e) {
-            if (!overlayTouchHandled) {
-                e.preventDefault();
-                e.stopPropagation();
-                closeSidebar();
-            }
-            setTimeout(function() {
-                overlayTouchHandled = false;
-            }, 300);
-        });
+        sidebarOverlay.addEventListener('click', handleOverlayClose, false);
+        sidebarOverlay.addEventListener('touchstart', handleOverlayClose, false);
     }
     
     // Close sidebar when clicking menu items (mobile only)
