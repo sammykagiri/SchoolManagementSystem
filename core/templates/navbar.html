@@ -466,6 +466,72 @@
 <!-- Overlay for mobile -->
 <div class="sidebar-overlay" id="sidebarOverlay"></div>
 
+<!-- Mobile Sidebar Toggle - Simple, Immediate Script -->
+<script>
+(function() {
+    // Simple mobile sidebar toggle - runs immediately
+    function setupMobileSidebar() {
+        var btn = document.getElementById('sidebarToggle');
+        var sidebar = document.getElementById('sidebar');
+        var overlay = document.getElementById('sidebarOverlay');
+        
+        if (!btn || !sidebar || !overlay) {
+            // Retry if elements aren't ready yet
+            setTimeout(setupMobileSidebar, 50);
+            return;
+        }
+        
+        // Simple toggle function
+        function toggle() {
+            if (sidebar.classList.contains('active')) {
+                sidebar.classList.remove('active');
+                overlay.classList.remove('active');
+                document.body.classList.remove('sidebar-open');
+            } else {
+                sidebar.classList.add('active');
+                overlay.classList.add('active');
+                document.body.classList.add('sidebar-open');
+            }
+        }
+        
+        // Make it globally available
+        window.toggleMobileSidebar = toggle;
+        
+        // Direct event assignment - most reliable
+        btn.onclick = function(e) {
+            e.preventDefault();
+            toggle();
+        };
+        
+        btn.ontouchstart = function(e) {
+            e.preventDefault();
+            toggle();
+        };
+        
+        // Overlay close
+        overlay.onclick = function() {
+            sidebar.classList.remove('active');
+            overlay.classList.remove('active');
+            document.body.classList.remove('sidebar-open');
+        };
+        
+        // Show button on mobile
+        if (window.innerWidth <= 767) {
+            btn.style.display = 'flex';
+        }
+    }
+    
+    // Run immediately, don't wait for anything
+    if (document.body) {
+        setupMobileSidebar();
+    } else {
+        document.addEventListener('DOMContentLoaded', setupMobileSidebar);
+    }
+    // Also try immediately in case body exists
+    setTimeout(setupMobileSidebar, 0);
+})();
+</script>
+
 <script>
 // Run immediately to prevent any collapse before page fully loads
 (function() {
