@@ -562,51 +562,133 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     });
     
-    // Toggle sidebar - use both click and touchend for better mobile support
-    if (sidebarToggle && sidebar && sidebarOverlay) {
-        function toggleSidebar(e) {
-            if (e) {
-                e.preventDefault();
-                e.stopPropagation();
+    // ========================================
+    // MOBILE SIDEBAR TOGGLE FUNCTIONALITY
+    // ========================================
+    // This code handles the mobile off-canvas sidebar
+    // It ensures the sidebar opens/closes properly on mobile devices
+    
+    // Function to open sidebar
+    function openSidebar() {
+        if (sidebar) {
+            sidebar.classList.add('active');
+            if (sidebarOverlay) {
+                sidebarOverlay.classList.add('active');
             }
-            sidebar.classList.toggle('active');
-            sidebarOverlay.classList.toggle('active');
-            return false;
+            document.body.classList.add('sidebar-open');
         }
-        
-        // Handle click (desktop and some mobile browsers)
-        sidebarToggle.addEventListener('click', toggleSidebar);
+    }
+    
+    // Function to close sidebar
+    function closeSidebar() {
+        if (sidebar) {
+            sidebar.classList.remove('active');
+            if (sidebarOverlay) {
+                sidebarOverlay.classList.remove('active');
+            }
+            document.body.classList.remove('sidebar-open');
+        }
+    }
+    
+    // Function to toggle sidebar
+    function toggleSidebar() {
+        if (sidebar && sidebar.classList.contains('active')) {
+            closeSidebar();
+        } else {
+            openSidebar();
+        }
+    }
+    
+    // Initialize sidebar toggle button (mobile only)
+    if (sidebarToggle && sidebar && sidebarOverlay) {
+        // Use a single unified handler that works for both click and touch
+        // This prevents double-firing on mobile devices
+        let touchHandled = false;
         
         // Handle touch events (mobile)
-        sidebarToggle.addEventListener('touchend', function(e) {
-            e.preventDefault();
-            toggleSidebar(e);
-        });
-        
-        // Prevent double-firing on touch devices
-        let touchStartTime = 0;
         sidebarToggle.addEventListener('touchstart', function(e) {
-            touchStartTime = Date.now();
+            touchHandled = false;
+        }, { passive: true });
+        
+        sidebarToggle.addEventListener('touchend', function(e) {
+            if (!touchHandled) {
+                e.preventDefault();
+                e.stopPropagation();
+                touchHandled = true;
+                toggleSidebar();
+            }
+        }, { passive: false });
+        
+        // Handle click events (fallback for desktop or if touch fails)
+        sidebarToggle.addEventListener('click', function(e) {
+            // Only handle if touch wasn't already handled
+            if (!touchHandled) {
+                e.preventDefault();
+                e.stopPropagation();
+                toggleSidebar();
+            }
+            // Reset touch handled flag after a short delay
+            setTimeout(function() {
+                touchHandled = false;
+            }, 300);
         });
     }
     
-    // Close sidebar when clicking overlay
+    // Close sidebar when clicking/tapping overlay
     if (sidebarOverlay && sidebar) {
-        function closeSidebar(e) {
-            if (e) {
+        let overlayTouchHandled = false;
+        
+        sidebarOverlay.addEventListener('touchstart', function(e) {
+            overlayTouchHandled = false;
+        }, { passive: true });
+        
+        sidebarOverlay.addEventListener('touchend', function(e) {
+            if (!overlayTouchHandled) {
                 e.preventDefault();
                 e.stopPropagation();
+                overlayTouchHandled = true;
+                closeSidebar();
             }
-            sidebar.classList.remove('active');
-            sidebarOverlay.classList.remove('active');
-        }
+        }, { passive: false });
         
-        sidebarOverlay.addEventListener('click', closeSidebar);
-        sidebarOverlay.addEventListener('touchend', function(e) {
-            e.preventDefault();
-            closeSidebar(e);
+        sidebarOverlay.addEventListener('click', function(e) {
+            if (!overlayTouchHandled) {
+                e.preventDefault();
+                e.stopPropagation();
+                closeSidebar();
+            }
+            setTimeout(function() {
+                overlayTouchHandled = false;
+            }, 300);
         });
     }
+    
+    // Close sidebar when clicking menu items (mobile only)
+    // Uses event delegation for reliability - works even if menu items are loaded dynamically
+    if (sidebar) {
+        sidebar.addEventListener('click', function(e) {
+            // Check if clicked element is a nav link (but not a collapse toggle)
+            const clickedLink = e.target.closest('.nav-link:not([data-bs-toggle="collapse"])');
+            if (clickedLink && window.innerWidth <= 767) {
+                // Small delay to allow navigation to start
+                setTimeout(function() {
+                    closeSidebar();
+                }, 100);
+            }
+        });
+    }
+    
+    // Handle window resize - ensure sidebar is closed on mobile when resizing
+    window.addEventListener('resize', function() {
+        if (window.innerWidth > 767 && sidebar) {
+            // Desktop view - ensure sidebar is visible
+            sidebar.classList.remove('active');
+            if (sidebarOverlay) {
+                sidebarOverlay.classList.remove('active');
+            }
+            document.body.classList.remove('sidebar-open');
+        }
+    });
     
     // Function to expand submenu and mark parent as active
     function expandSubmenu(submenu, parentLink, forceExpand = false) {
