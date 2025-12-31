@@ -115,3 +115,4 @@ If after committing migrations you still see errors:
 3. If needed, the updated `start.sh` will create migrations automatically as a fallback
 
 
+

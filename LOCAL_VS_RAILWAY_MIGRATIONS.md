@@ -119,3 +119,4 @@ If you really need to run migrations from your local machine against Railway's d
 The error you're seeing is **normal and expected**. Migrations run automatically on Railway during deployment, so you don't need to run them manually. Just check the Railway logs to confirm they're running successfully!
 
 
+
