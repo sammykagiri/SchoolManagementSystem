@@ -215,22 +215,38 @@ STATICFILES_DIRS = [d for d in static_dirs if os.path.exists(d)]
 USE_S3 = config('USE_S3', default=False, cast=bool)
 
 if USE_S3:
-    # AWS S3 Configuration for media files
+    # AWS S3-Compatible Storage Configuration (works with Railway Object Storage)
     AWS_ACCESS_KEY_ID = config('AWS_ACCESS_KEY_ID', default='')
     AWS_SECRET_ACCESS_KEY = config('AWS_SECRET_ACCESS_KEY', default='')
     AWS_STORAGE_BUCKET_NAME = config('AWS_STORAGE_BUCKET_NAME', default='')
     AWS_S3_REGION_NAME = config('AWS_S3_REGION_NAME', default='us-east-1')
-    AWS_S3_CUSTOM_DOMAIN = f'{AWS_STORAGE_BUCKET_NAME}.s3.amazonaws.com'
+    
+    # Check if using Railway or other S3-compatible storage with custom endpoint
+    # Railway endpoint is typically: https://storage.railway.app
+    AWS_S3_ENDPOINT_URL = config('AWS_S3_ENDPOINT_URL', default='')
+    
+    if AWS_S3_ENDPOINT_URL:
+        # Use custom endpoint (e.g., Railway Object Storage)
+        # django-storages will use AWS_S3_ENDPOINT_URL to configure boto3
+        # For Railway, the endpoint is: https://storage.railway.app
+        endpoint_url = AWS_S3_ENDPOINT_URL.rstrip('/')
+        # Media URL construction for Railway/custom endpoints
+        MEDIA_URL = f'{endpoint_url}/{AWS_STORAGE_BUCKET_NAME}/media/'
+    else:
+        # Use standard AWS S3 endpoint
+        AWS_S3_CUSTOM_DOMAIN = f'{AWS_STORAGE_BUCKET_NAME}.s3.{AWS_S3_REGION_NAME}.amazonaws.com'
+        MEDIA_URL = f'https://{AWS_S3_CUSTOM_DOMAIN}/media/'
+    
     AWS_S3_OBJECT_PARAMETERS = {
         'CacheControl': 'max-age=86400',
     }
-    AWS_DEFAULT_ACL = 'public-read'
+    AWS_DEFAULT_ACL = 'public-read'  # Make files publicly accessible (needed for logos/images)
     AWS_S3_FILE_OVERWRITE = False
     AWS_QUERYSTRING_AUTH = False
     
-    # Use S3 for media files
+    # Use S3-compatible storage for media files
+    # django-storages will automatically use AWS_S3_ENDPOINT_URL if set
     DEFAULT_FILE_STORAGE = 'storages.backends.s3boto3.S3Boto3Storage'
-    MEDIA_URL = f'https://{AWS_S3_CUSTOM_DOMAIN}/media/'
     MEDIA_ROOT = ''  # Not used with S3
 else:
     # Local storage (development)
