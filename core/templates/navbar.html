@@ -459,7 +459,7 @@
 </aside>
 
 <!-- Mobile Toggle Button -->
-<button class="sidebar-toggle" id="sidebarToggle" type="button" aria-label="Toggle navigation menu">
+<button class="sidebar-toggle" id="sidebarToggle" type="button" aria-label="Toggle navigation menu" onclick="window.toggleMobileSidebar && window.toggleMobileSidebar(); return false;">
     <i class="fas fa-bars"></i>
 </button>
 
@@ -604,27 +604,28 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
     
+    // Make toggle function globally available for inline onclick
+    window.toggleMobileSidebar = toggleSidebar;
+    
     // ========================================
-    // MOBILE SIDEBAR TOGGLE - FIXED VERSION
+    // MOBILE SIDEBAR TOGGLE INITIALIZATION
     // ========================================
-    // Initialize sidebar toggle button with simplified event handling
+    // Initialize sidebar toggle button - using both inline onclick and addEventListener
     if (sidebarToggle && sidebar && sidebarOverlay) {
-        // Simple click handler - works on all devices
+        // Also add event listener as backup (inline onclick is primary)
         sidebarToggle.addEventListener('click', function(e) {
             e.preventDefault();
             e.stopPropagation();
-            e.stopImmediatePropagation();
             toggleSidebar();
-        }, true); // Use capture phase to ensure it fires first
+        });
         
-        // Touch handler for mobile devices
+        // Touch handler for mobile
         sidebarToggle.addEventListener('touchend', function(e) {
             e.preventDefault();
-            e.stopPropagation();
             toggleSidebar();
-        }, true);
+        });
         
-        // Ensure button is visible and clickable on mobile
+        // Ensure button is visible on mobile
         function updateButtonVisibility() {
             if (window.innerWidth <= 767) {
                 sidebarToggle.style.display = 'flex';
@@ -642,24 +643,20 @@ document.addEventListener('DOMContentLoaded', function() {
         window.addEventListener('resize', updateButtonVisibility);
         
     } else {
-        console.error('Sidebar toggle initialization failed - missing elements:', {
-            sidebar: !!sidebar,
-            sidebarToggle: !!sidebarToggle,
-            sidebarOverlay: !!sidebarOverlay
-        });
+        console.error('Sidebar toggle initialization failed - missing elements');
     }
     
     // Close sidebar when clicking/tapping overlay
     if (sidebarOverlay && sidebar) {
-        function handleOverlayClose(e) {
+        sidebarOverlay.addEventListener('click', function(e) {
             e.preventDefault();
             e.stopPropagation();
             closeSidebar();
-            return false;
-        }
-        
-        sidebarOverlay.addEventListener('click', handleOverlayClose, false);
-        sidebarOverlay.addEventListener('touchstart', handleOverlayClose, false);
+        });
+        sidebarOverlay.addEventListener('touchstart', function(e) {
+            e.preventDefault();
+            closeSidebar();
+        });
     }
     
     // Close sidebar when clicking menu items (mobile only)
