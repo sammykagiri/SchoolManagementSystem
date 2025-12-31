@@ -23,6 +23,7 @@
     
     <!-- DataTables CSS -->
     <link href="https://cdn.datatables.net/1.13.7/css/dataTables.bootstrap5.min.css" rel="stylesheet">
+    <link href="https://cdn.datatables.net/responsive/2.5.0/css/responsive.bootstrap5.min.css" rel="stylesheet">
 
     <!-- jQuery (needed in head for some modules) -->
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
@@ -341,6 +342,105 @@
             body.sidebar-open {
                 overflow: hidden;
             }
+            
+            /* Mobile-specific improvements */
+            main {
+                padding-top: 0.5rem;
+                padding-bottom: 1rem;
+            }
+            
+            /* Container spacing on mobile */
+            .container {
+                padding-left: 0.75rem;
+                padding-right: 0.75rem;
+            }
+            
+            /* Card spacing on mobile */
+            .card {
+                margin-bottom: 1rem;
+            }
+            
+            .card-body {
+                padding: 1rem;
+            }
+            
+            /* Button improvements for mobile */
+            .btn {
+                padding: 0.5rem 1rem;
+                font-size: 0.9rem;
+                min-height: 44px; /* Minimum touch target size */
+            }
+            
+            .btn-sm {
+                min-height: 38px;
+                padding: 0.375rem 0.75rem;
+            }
+            
+            /* Form improvements for mobile */
+            .form-control, .form-select {
+                font-size: 16px; /* Prevents zoom on iOS */
+                padding: 0.5rem 0.75rem;
+            }
+            
+            /* Table improvements - ensure all tables are scrollable */
+            .table-responsive {
+                -webkit-overflow-scrolling: touch;
+                border: 1px solid #dee2e6;
+            }
+            
+            /* Reduce font sizes slightly on mobile */
+            h1 {
+                font-size: 1.75rem;
+            }
+            
+            h2 {
+                font-size: 1.5rem;
+            }
+            
+            h3 {
+                font-size: 1.25rem;
+            }
+            
+            h4 {
+                font-size: 1.1rem;
+            }
+            
+            /* Alert improvements */
+            .alert {
+                padding: 0.75rem 1rem;
+                font-size: 0.9rem;
+            }
+            
+            /* Footer */
+            .footer {
+                padding: 1rem 0;
+                font-size: 0.85rem;
+            }
+            
+            /* Modal improvements */
+            .modal-dialog {
+                margin: 0.5rem;
+            }
+            
+            .modal-content {
+                border-radius: 0.5rem;
+            }
+            
+            /* Dropdown improvements */
+            .dropdown-menu {
+                font-size: 0.9rem;
+            }
+            
+            /* Prevent horizontal scroll */
+            .row {
+                margin-left: -0.5rem;
+                margin-right: -0.5rem;
+            }
+            
+            .row > * {
+                padding-left: 0.5rem;
+                padding-right: 0.5rem;
+            }
         }
         
         /* Desktop Styles - Sidebar always visible */
@@ -484,7 +584,7 @@
     
     <main>
         {% if messages %}
-        <div class="container mt-3">
+        <div class="container-fluid px-3 px-md-4 mt-3">
             {% for message in messages %}
             <div class="alert alert-{% if message.tags == 'error' %}danger{% else %}{{ message.tags }}{% endif %} alert-dismissible fade show" role="alert">
                 {{ message }}
@@ -510,6 +610,8 @@
     <!-- DataTables JS -->
     <script src="https://cdn.datatables.net/1.13.7/js/jquery.dataTables.min.js"></script>
     <script src="https://cdn.datatables.net/1.13.7/js/dataTables.bootstrap5.min.js"></script>
+    <script src="https://cdn.datatables.net/responsive/2.5.0/js/dataTables.responsive.min.js"></script>
+    <script src="https://cdn.datatables.net/responsive/2.5.0/js/responsive.bootstrap5.min.js"></script>
     
     <!-- Select2 JS -->
     <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
@@ -537,7 +639,33 @@
         $(document).ready(function() {
             $('.select2').select2({
                 theme: 'bootstrap-5',
-                width: '100%'
+                width: '100%',
+                // Mobile-friendly dropdown
+                dropdownParent: $('body'),
+                // Close on mobile after selection
+                closeOnSelect: true
+            });
+        });
+        
+        // Make all DataTables responsive by default (mobile-friendly)
+        $(document).ready(function() {
+            // Configure DataTables defaults for mobile responsiveness
+            $.extend(true, $.fn.dataTable.defaults, {
+                responsive: true,
+                scrollX: true,
+                scrollCollapse: true,
+                pageLength: 25,
+                lengthMenu: [[10, 25, 50, 100, -1], [10, 25, 50, 100, "All"]],
+                language: {
+                    lengthMenu: "Show _MENU_ entries",
+                    info: "Showing _START_ to _END_ of _TOTAL_ entries",
+                    infoEmpty: "No entries available",
+                    infoFiltered: "(filtered from _MAX_ total entries)",
+                    search: "Search:",
+                    zeroRecords: "No matching records found"
+                },
+                // Mobile-specific improvements
+                dom: '<"row"<"col-sm-12 col-md-6"l><"col-sm-12 col-md-6"f>>rt<"row"<"col-sm-12 col-md-5"i><"col-sm-12 col-md-7"p>>'
             });
         });
     </script>
