@@ -37,10 +37,26 @@ class Command(BaseCommand):
         self.stdout.write("Storage Backend:")
         self.stdout.write(f"  Class: {default_storage.__class__.__name__}")
         self.stdout.write(f"  Module: {default_storage.__class__.__module__}")
+        
+        # Try to import and instantiate the configured storage backend
+        configured_storage = getattr(settings, 'DEFAULT_FILE_STORAGE', None)
+        if configured_storage:
+            try:
+                from django.utils.module_loading import import_string
+                StorageClass = import_string(configured_storage)
+                test_instance = StorageClass()
+                self.stdout.write(f"  Configured storage class: {configured_storage}")
+                self.stdout.write(f"  Can import: YES")
+                if hasattr(test_instance, 'bucket_name'):
+                    self.stdout.write(f"  Bucket: {test_instance.bucket_name}")
+            except Exception as e:
+                self.stdout.write(self.style.ERROR(f"  ERROR importing {configured_storage}: {e}"))
+                self.stdout.write(self.style.WARNING("  Django fell back to FileSystemStorage"))
+        
         if hasattr(default_storage, 'bucket_name'):
-            self.stdout.write(f"  Bucket: {default_storage.bucket_name}")
+            self.stdout.write(f"  Current bucket: {default_storage.bucket_name}")
         if hasattr(default_storage, 'location'):
-            self.stdout.write(f"  Location: {default_storage.location}")
+            self.stdout.write(f"  Current location: {default_storage.location}")
         self.stdout.write("")
         
         self.stdout.write("=" * 60)
