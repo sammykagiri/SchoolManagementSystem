@@ -16,35 +16,34 @@ class RailwayStorage(S3Boto3Storage):
         self.location = getattr(settings, 'AWS_LOCATION', 'media')
         super().__init__(*args, **kwargs)
     
+    def get_connection(self):
+        """Get boto3 connection with Railway endpoint"""
+        import boto3
+        from botocore.config import Config
+        
+        # Get endpoint URL from settings
+        endpoint_url = getattr(settings, 'AWS_S3_ENDPOINT_URL', None)
+        
+        # Get credentials from settings
+        access_key = getattr(settings, 'AWS_ACCESS_KEY_ID', None)
+        secret_key = getattr(settings, 'AWS_SECRET_ACCESS_KEY', None)
+        region_name = getattr(settings, 'AWS_S3_REGION_NAME', 'us-east-1')
+        
+        # Create S3 client with custom endpoint
+        return boto3.client(
+            's3',
+            aws_access_key_id=access_key,
+            aws_secret_access_key=secret_key,
+            endpoint_url=endpoint_url.rstrip('/') if endpoint_url else None,
+            region_name=region_name,
+            config=Config(signature_version='s3v4') if endpoint_url else None
+        )
+    
     @property
     def connection(self):
         """Override connection property to use Railway endpoint"""
         if not hasattr(self, '_connection') or self._connection is None:
-            import boto3
-            from botocore.config import Config
-            
-            # Get endpoint URL from settings
-            endpoint_url = getattr(settings, 'AWS_S3_ENDPOINT_URL', None)
-            
-            # Get credentials
-            access_key = getattr(settings, 'AWS_ACCESS_KEY_ID', None)
-            secret_key = getattr(settings, 'AWS_SECRET_ACCESS_KEY', None)
-            region_name = getattr(settings, 'AWS_S3_REGION_NAME', 'us-east-1')
-            
-            # Create S3 client with custom endpoint if provided
-            if endpoint_url:
-                self._connection = boto3.client(
-                    's3',
-                    aws_access_key_id=access_key,
-                    aws_secret_access_key=secret_key,
-                    endpoint_url=endpoint_url.rstrip('/'),
-                    region_name=region_name,
-                    config=Config(signature_version='s3v4')
-                )
-            else:
-                # Fallback to parent's connection method
-                return super().connection
-        
+            self._connection = self.get_connection()
         return self._connection
     
     def url(self, name):
@@ -77,34 +76,7 @@ class RailwayStorage(S3Boto3Storage):
     
     def _save(self, name, content):
         """
-        Override _save to ensure files are uploaded with public-read ACL
-        The parent class should handle ACL automatically via AWS_DEFAULT_ACL,
-        but we ensure it's set correctly
+        Override _save - parent class should handle ACL via AWS_DEFAULT_ACL setting
         """
         # Parent's _save will use AWS_DEFAULT_ACL from settings
-        name = super()._save(name, content)
-        
-        # Double-check ACL is set (parent should handle this, but ensure it)
-        acl = getattr(settings, 'AWS_DEFAULT_ACL', 'public-read')
-        if acl:
-            try:
-                # Build the full key path
-                if self.location:
-                    key = f"{self.location}/{name}".lstrip('/')
-                else:
-                    key = name.lstrip('/')
-                
-                # Set ACL after upload
-                self.connection.put_object_acl(
-                    Bucket=self.bucket_name,
-                    Key=key,
-                    ACL=acl
-                )
-            except Exception as e:
-                # If setting ACL fails, log but don't fail the upload
-                import logging
-                logger = logging.getLogger(__name__)
-                logger.warning(f"Failed to set ACL for {key}: {e}")
-        
-        return name
-
+        return super()._save(name, content)
