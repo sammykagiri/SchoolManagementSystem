@@ -212,48 +212,41 @@ STATICFILES_DIRS = [d for d in static_dirs if os.path.exists(d)]
 
 # Media files (User uploaded files)
 # Use AWS S3 for production, local storage for development
+
 USE_S3 = config('USE_S3', default=False, cast=bool)
 
 if USE_S3:
-    # AWS S3-Compatible Storage Configuration (works with Railway Object Storage)
-    AWS_ACCESS_KEY_ID = config('AWS_ACCESS_KEY_ID', default='')
-    AWS_SECRET_ACCESS_KEY = config('AWS_SECRET_ACCESS_KEY', default='')
-    AWS_STORAGE_BUCKET_NAME = config('AWS_STORAGE_BUCKET_NAME', default='')
-    AWS_S3_REGION_NAME = config('AWS_S3_REGION_NAME', default='us-east-1')
-    
-    # Check if using Railway or other S3-compatible storage with custom endpoint
-    # Railway endpoint is typically: https://storage.railway.app
-    AWS_S3_ENDPOINT_URL = config('AWS_S3_ENDPOINT_URL', default='')
-    
-    # Set location for media files
-    AWS_LOCATION = 'media'
-    
-    if AWS_S3_ENDPOINT_URL:
-        # Use custom endpoint (e.g., Railway Object Storage)
-        # For Railway, the endpoint is: https://storage.railway.app
-        endpoint_url = AWS_S3_ENDPOINT_URL.rstrip('/')
-        # Media URL construction for Railway/custom endpoints
-        MEDIA_URL = f'{endpoint_url}/{AWS_STORAGE_BUCKET_NAME}/media/'
-        # Use custom storage backend for Railway
-        DEFAULT_FILE_STORAGE = 'core.storage_backends.RailwayStorage'
-    else:
-        # Use standard AWS S3 endpoint
-        AWS_S3_CUSTOM_DOMAIN = f'{AWS_STORAGE_BUCKET_NAME}.s3.{AWS_S3_REGION_NAME}.amazonaws.com'
-        MEDIA_URL = f'https://{AWS_S3_CUSTOM_DOMAIN}/media/'
-        DEFAULT_FILE_STORAGE = 'storages.backends.s3boto3.S3Boto3Storage'
-    
-    AWS_S3_OBJECT_PARAMETERS = {
-        'CacheControl': 'max-age=86400',
-    }
-    AWS_DEFAULT_ACL = 'public-read'  # Make files publicly accessible (needed for logos/images)
-    AWS_S3_FILE_OVERWRITE = False
+    if "storages" not in INSTALLED_APPS:
+        INSTALLED_APPS.append("storages")
+
+    # Use custom RailwayStorage backend for Railway Object Storage
+    DEFAULT_FILE_STORAGE = "core.storage_backends.RailwayStorage"
+
+    AWS_ACCESS_KEY_ID = config("AWS_ACCESS_KEY_ID")
+    AWS_SECRET_ACCESS_KEY = config("AWS_SECRET_ACCESS_KEY")
+    AWS_STORAGE_BUCKET_NAME = config("AWS_STORAGE_BUCKET_NAME")
+
+    AWS_S3_ENDPOINT_URL = config("AWS_S3_ENDPOINT_URL")
+    # Railway may provide "auto" as region - convert to valid region code if needed
+    region = config('AWS_S3_REGION_NAME', default='us-east-1')
+    if region.lower() == 'auto':
+        region = 'us-east-1'  # Default fallback for Railway's "auto" region
+    AWS_S3_REGION_NAME = region
+
+    AWS_DEFAULT_ACL = "public-read"
     AWS_QUERYSTRING_AUTH = False
-    
-    MEDIA_ROOT = ''  # Not used with S3
+
+    AWS_S3_FILE_OVERWRITE = False
+
+    AWS_S3_OBJECT_PARAMETERS = {
+        "CacheControl": "max-age=86400",
+    }
+
+    # DO NOT set MEDIA_URL, MEDIA_ROOT, or AWS_LOCATION
+
 else:
-    # Local storage (development)
-    MEDIA_URL = '/media/'
-    MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
+    MEDIA_URL = "/media/"
+    MEDIA_ROOT = os.path.join(BASE_DIR, "media")
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
