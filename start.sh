@@ -63,6 +63,9 @@ python manage.py create_roles || echo "Role creation skipped or failed (this is 
 echo "Creating superuser if not exists..."
 python manage.py create_superuser_if_not_exists || echo "Superuser creation skipped or failed (this is OK if superuser already exists or password not set)"
 
+echo "Checking storage configuration..."
+python manage.py check_storage || echo "Storage check completed"
+
 echo "Collecting static files..."
 python manage.py collectstatic --noinput
 if [ $? -ne 0 ]; then
