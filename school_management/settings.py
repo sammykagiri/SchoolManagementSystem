@@ -252,7 +252,10 @@ if USE_S3:
         "CacheControl": "max-age=86400",
     }
 
-    # DO NOT set MEDIA_URL, MEDIA_ROOT, or AWS_LOCATION
+    # Explicitly unset MEDIA_URL and MEDIA_ROOT when using S3
+    # Django will use the storage backend's url() method instead
+    MEDIA_URL = None
+    MEDIA_ROOT = None
 
 else:
     MEDIA_URL = "/media/"
