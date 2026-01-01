@@ -23,46 +23,41 @@ class RailwayStorage(S3Boto3Storage):
     
     def url(self, name):
         """
-        Override url method to generate correct Railway storage URL
-        Railway storage URLs follow: https://storage.railway.app/bucket-name/path/to/file
+        Override url method to generate presigned URLs for Railway storage
+        Railway buckets are private by default, so we use presigned URLs for public access
         """
-        endpoint_url = getattr(settings, 'AWS_S3_ENDPOINT_URL', None)
-        bucket_name = getattr(settings, 'AWS_STORAGE_BUCKET_NAME', '')
+        # Build the file key
+        file_key = self._normalize_name(name)
         
-        if endpoint_url and bucket_name:
-            endpoint_url = endpoint_url.rstrip('/')
-            location = getattr(self, 'location', 'media')
-            file_path = f"{location}/{name}".lstrip('/') if location else name.lstrip('/')
-            return f"{endpoint_url}/{bucket_name}/{file_path}"
-        
-        return super().url(name)
+        # Generate presigned URL (expires in 1 year = 31536000 seconds)
+        # This allows direct access to the file without making the bucket public
+        try:
+            url = self.connection.generate_presigned_url(
+                'get_object',
+                Params={
+                    'Bucket': self.bucket_name,
+                    'Key': file_key,
+                },
+                ExpiresIn=31536000  # 1 year expiration
+            )
+            return url
+        except Exception as e:
+            # Fallback to direct URL if presigned URL generation fails
+            logger.warning(f"Failed to generate presigned URL for {name}: {e}")
+            endpoint_url = getattr(settings, 'AWS_S3_ENDPOINT_URL', None)
+            bucket_name = getattr(settings, 'AWS_STORAGE_BUCKET_NAME', '')
+            
+            if endpoint_url and bucket_name:
+                endpoint_url = endpoint_url.rstrip('/')
+                location = getattr(self, 'location', 'media')
+                file_path = f"{location}/{name}".lstrip('/') if location else name.lstrip('/')
+                return f"{endpoint_url}/{bucket_name}/{file_path}"
+            
+            return super().url(name)
     
     def _save(self, name, content):
         """
-        Override _save to ensure files are uploaded with public-read ACL
+        Override _save - parent class handles upload correctly
+        Note: Railway buckets are private, so we use presigned URLs in url() method
         """
-        # Call parent's _save method first - this handles the actual upload
-        name = super()._save(name, content)
-        
-        # Ensure ACL is set to public-read for Railway
-        # The parent's _save may have already set ACL, but we ensure it's correct
-        try:
-            acl = getattr(settings, 'AWS_DEFAULT_ACL', 'public-read')
-            if acl:
-                # Get the file key - django-storages stores relative to location
-                # name from parent is relative to location (e.g., 'school_logos/file.png')
-                # We need the full key path for S3
-                file_key = self._normalize_name(name)  # This handles location prefix
-                
-                # Set ACL after upload
-                self.connection.put_object_acl(
-                    Bucket=self.bucket_name,
-                    Key=file_key,
-                    ACL=acl
-                )
-                logger.debug(f"ACL set to {acl} for {file_key}")
-        except Exception as e:
-            # Log but don't fail the upload - ACL might already be set by parent
-            logger.warning(f"Failed to set ACL for {name}: {e}")
-        
-        return name
+        return super()._save(name, content)
