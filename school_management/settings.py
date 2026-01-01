@@ -217,8 +217,11 @@ STATICFILES_DIRS = [d for d in static_dirs if os.path.exists(d)]
 # Check USE_S3 environment variable - handle various formats (True, "True", true, 1, etc.)
 use_s3_raw = config('USE_S3', default='False')
 # Normalize the value - handle string "True"/"False", boolean, or numeric
+# Remove quotes if present (Railway might set it as "True")
 if isinstance(use_s3_raw, str):
-    USE_S3 = use_s3_raw.lower().strip() in ('true', '1', 'yes', 'on')
+    # Strip whitespace and quotes (both single and double)
+    use_s3_clean = use_s3_raw.strip().strip('"').strip("'").lower()
+    USE_S3 = use_s3_clean in ('true', '1', 'yes', 'on')
 else:
     USE_S3 = bool(use_s3_raw)
 
