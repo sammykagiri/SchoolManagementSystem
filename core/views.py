@@ -1,7 +1,8 @@
 from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
-from django.http import JsonResponse
+from django.http import JsonResponse, HttpResponse, Http404
+from django.core.files.storage import default_storage
 from django.core.paginator import Paginator
 from django.db.models import Q, Sum
 from django.db import models
@@ -2883,6 +2884,46 @@ def student_statement_email(request, student_id):
     
     return redirect('core:student_statement', student_id=student_id)
 
+
+def serve_media_file(request, path):
+    """
+    Serve media files from Railway storage (S3-compatible)
+    This view proxies files from private Railway buckets to make them publicly accessible
+    """
+    from django.conf import settings
+    
+    # Only serve files when using S3 storage
+    if not getattr(settings, 'USE_S3', False):
+        raise Http404("Media file not found")
+    
+    try:
+        # Open the file from storage
+        file = default_storage.open(path)
+        
+        # Determine content type from file extension
+        import mimetypes
+        content_type, _ = mimetypes.guess_type(path)
+        if content_type is None:
+            content_type = 'application/octet-stream'
+        
+        # Read file content
+        file_content = file.read()
+        file.close()
+        
+        # Create response with appropriate headers
+        response = HttpResponse(file_content, content_type=content_type)
+        
+        # Set cache headers (1 day)
+        response['Cache-Control'] = 'public, max-age=86400'
+        
+        return response
+    except Exception as e:
+        # Log error and return 404
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.error(f"Error serving media file {path}: {e}")
+        raise Http404("Media file not found")
+
 @login_required
 @role_required('super_admin', 'school_admin', 'teacher')
 def class_add(request):
@@ -3824,3 +3865,43 @@ def student_statement_email(request, student_id):
         messages.error(request, f'Error sending email: {str(e)}')
     
     return redirect('core:student_statement', student_id=student_id)
+
+
+def serve_media_file(request, path):
+    """
+    Serve media files from Railway storage (S3-compatible)
+    This view proxies files from private Railway buckets to make them publicly accessible
+    """
+    from django.conf import settings
+    
+    # Only serve files when using S3 storage
+    if not getattr(settings, 'USE_S3', False):
+        raise Http404("Media file not found")
+    
+    try:
+        # Open the file from storage
+        file = default_storage.open(path)
+        
+        # Determine content type from file extension
+        import mimetypes
+        content_type, _ = mimetypes.guess_type(path)
+        if content_type is None:
+            content_type = 'application/octet-stream'
+        
+        # Read file content
+        file_content = file.read()
+        file.close()
+        
+        # Create response with appropriate headers
+        response = HttpResponse(file_content, content_type=content_type)
+        
+        # Set cache headers (1 day)
+        response['Cache-Control'] = 'public, max-age=86400'
+        
+        return response
+    except Exception as e:
+        # Log error and return 404
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.error(f"Error serving media file {path}: {e}")
+        raise Http404("Media file not found")

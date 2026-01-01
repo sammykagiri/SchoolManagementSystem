@@ -39,14 +39,17 @@ urlpatterns = [
     path('accounts/reset/done/', auth_views.PasswordResetCompleteView.as_view(template_name='auth/password_reset_complete.html'), name='password_reset_complete'),
 ]
 
-# Serve media files in development (when using local storage)
-# When using S3 (USE_S3=True), MEDIA_URL will be None and files are served from S3
-if settings.DEBUG and getattr(settings, 'MEDIA_URL', None) and getattr(settings, 'MEDIA_ROOT', None):
+# Serve media files
+if getattr(settings, 'USE_S3', False):
+    # When using S3 (Railway storage), serve files through Django view
+    urlpatterns += [
+        re_path(r'^media/(?P<path>.*)$', core_views.serve_media_file, name='serve_media'),
+    ]
+elif settings.DEBUG and getattr(settings, 'MEDIA_URL', None) and getattr(settings, 'MEDIA_ROOT', None):
     # In development with local storage, use Django's static file serving
     urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
-elif not getattr(settings, 'USE_S3', False) and getattr(settings, 'MEDIA_ROOT', None):
+elif getattr(settings, 'MEDIA_ROOT', None):
     # In production with local storage, serve media files using a view
     urlpatterns += [
         re_path(r'^media/(?P<path>.*)$', serve, {'document_root': settings.MEDIA_ROOT}),
     ]
-# When USE_S3=True, files are served directly from S3, no URL pattern needed
