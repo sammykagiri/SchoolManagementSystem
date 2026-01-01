@@ -29,7 +29,10 @@ class Command(BaseCommand):
         
         self.stdout.write("Django Settings:")
         self.stdout.write(f"  USE_S3: {getattr(settings, 'USE_S3', 'NOT SET')}")
-        self.stdout.write(f"  DEFAULT_FILE_STORAGE: {getattr(settings, 'DEFAULT_FILE_STORAGE', 'NOT SET')}")
+        # Django 5.2+ uses STORAGES instead of DEFAULT_FILE_STORAGE
+        storages = getattr(settings, 'STORAGES', {})
+        default_storage_backend = storages.get('default', {}).get('BACKEND', 'NOT SET') if storages else getattr(settings, 'DEFAULT_FILE_STORAGE', 'NOT SET')
+        self.stdout.write(f"  Default Storage Backend: {default_storage_backend}")
         self.stdout.write(f"  MEDIA_URL: {getattr(settings, 'MEDIA_URL', 'NOT SET')}")
         self.stdout.write(f"  MEDIA_ROOT: {getattr(settings, 'MEDIA_ROOT', 'NOT SET')}")
         self.stdout.write("")
@@ -39,7 +42,8 @@ class Command(BaseCommand):
         self.stdout.write(f"  Module: {default_storage.__class__.__module__}")
         
         # Try to import and instantiate the configured storage backend
-        configured_storage = getattr(settings, 'DEFAULT_FILE_STORAGE', None)
+        storages = getattr(settings, 'STORAGES', {})
+        configured_storage = storages.get('default', {}).get('BACKEND') if storages else getattr(settings, 'DEFAULT_FILE_STORAGE', None)
         if configured_storage:
             try:
                 from django.utils.module_loading import import_string
@@ -55,8 +59,11 @@ class Command(BaseCommand):
         
         if hasattr(default_storage, 'bucket_name'):
             self.stdout.write(f"  Current bucket: {default_storage.bucket_name}")
-        if hasattr(default_storage, 'location'):
-            self.stdout.write(f"  Current location: {default_storage.location}")
+        try:
+            if hasattr(default_storage, 'location'):
+                self.stdout.write(f"  Current location: {default_storage.location}")
+        except (TypeError, AttributeError):
+            pass  # location might fail if MEDIA_ROOT is None
         self.stdout.write("")
         
         self.stdout.write("=" * 60)

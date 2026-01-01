@@ -229,9 +229,6 @@ if USE_S3:
     if "storages" not in INSTALLED_APPS:
         INSTALLED_APPS.append("storages")
 
-    # Use custom RailwayStorage backend for Railway Object Storage
-    DEFAULT_FILE_STORAGE = "core.storage_backends.RailwayStorage"
-
     AWS_ACCESS_KEY_ID = config("AWS_ACCESS_KEY_ID", default='')
     AWS_SECRET_ACCESS_KEY = config("AWS_SECRET_ACCESS_KEY", default='')
     AWS_STORAGE_BUCKET_NAME = config("AWS_STORAGE_BUCKET_NAME", default='')
@@ -252,6 +249,16 @@ if USE_S3:
         "CacheControl": "max-age=86400",
     }
 
+    # Django 5.2+ uses STORAGES setting (DEFAULT_FILE_STORAGE was removed in 5.1)
+    STORAGES = {
+        'default': {
+            'BACKEND': 'core.storage_backends.RailwayStorage',
+        },
+        'staticfiles': {
+            'BACKEND': 'whitenoise.storage.CompressedManifestStaticFilesStorage',
+        },
+    }
+
     # Explicitly unset MEDIA_URL and MEDIA_ROOT when using S3
     # Django will use the storage backend's url() method instead
     MEDIA_URL = None
@@ -260,6 +267,16 @@ if USE_S3:
 else:
     MEDIA_URL = "/media/"
     MEDIA_ROOT = os.path.join(BASE_DIR, "media")
+    # Django 5.2+ uses STORAGES setting
+    # When not using S3, Django defaults to FileSystemStorage, but we can be explicit
+    STORAGES = {
+        'default': {
+            'BACKEND': 'django.core.files.storage.FileSystemStorage',
+        },
+        'staticfiles': {
+            'BACKEND': 'whitenoise.storage.CompressedManifestStaticFilesStorage',
+        },
+    }
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
