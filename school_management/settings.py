@@ -213,7 +213,14 @@ STATICFILES_DIRS = [d for d in static_dirs if os.path.exists(d)]
 # Media files (User uploaded files)
 # Use AWS S3 for production, local storage for development
 
-USE_S3 = config('USE_S3', default=False, cast=bool)
+# S3 Storage Configuration
+# Check USE_S3 environment variable - handle various formats (True, "True", true, 1, etc.)
+use_s3_raw = config('USE_S3', default='False')
+# Normalize the value - handle string "True"/"False", boolean, or numeric
+if isinstance(use_s3_raw, str):
+    USE_S3 = use_s3_raw.lower().strip() in ('true', '1', 'yes', 'on')
+else:
+    USE_S3 = bool(use_s3_raw)
 
 if USE_S3:
     if "storages" not in INSTALLED_APPS:
@@ -222,14 +229,14 @@ if USE_S3:
     # Use custom RailwayStorage backend for Railway Object Storage
     DEFAULT_FILE_STORAGE = "core.storage_backends.RailwayStorage"
 
-    AWS_ACCESS_KEY_ID = config("AWS_ACCESS_KEY_ID")
-    AWS_SECRET_ACCESS_KEY = config("AWS_SECRET_ACCESS_KEY")
-    AWS_STORAGE_BUCKET_NAME = config("AWS_STORAGE_BUCKET_NAME")
+    AWS_ACCESS_KEY_ID = config("AWS_ACCESS_KEY_ID", default='')
+    AWS_SECRET_ACCESS_KEY = config("AWS_SECRET_ACCESS_KEY", default='')
+    AWS_STORAGE_BUCKET_NAME = config("AWS_STORAGE_BUCKET_NAME", default='')
 
-    AWS_S3_ENDPOINT_URL = config("AWS_S3_ENDPOINT_URL")
+    AWS_S3_ENDPOINT_URL = config("AWS_S3_ENDPOINT_URL", default='')
     # Railway may provide "auto" as region - convert to valid region code if needed
     region = config('AWS_S3_REGION_NAME', default='us-east-1')
-    if region.lower() == 'auto':
+    if isinstance(region, str) and region.lower() == 'auto':
         region = 'us-east-1'  # Default fallback for Railway's "auto" region
     AWS_S3_REGION_NAME = region
 
