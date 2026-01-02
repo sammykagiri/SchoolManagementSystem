@@ -481,19 +481,12 @@
             return;
         }
         
-        // Flag to prevent double-toggling on touch devices
-        var touchHandled = false;
-        var toggleInProgress = false;
+        // Flag to prevent overlay from closing sidebar immediately after opening
         var sidebarJustOpened = false;
+        var touchHandled = false;
         
         // Simple toggle function
         function toggle() {
-            // Prevent double-toggling
-            if (toggleInProgress) {
-                return;
-            }
-            toggleInProgress = true;
-            
             if (sidebar.classList.contains('active')) {
                 sidebar.classList.remove('active');
                 overlay.classList.remove('active');
@@ -504,71 +497,56 @@
                 overlay.classList.add('active');
                 document.body.classList.add('sidebar-open');
                 sidebarJustOpened = true;
-                // Reset flag after sidebar animation completes
+                // Reset flag after sidebar animation completes (prevents immediate closure)
                 setTimeout(function() {
                     sidebarJustOpened = false;
-                }, 350);
+                }, 400);
             }
-            
-            // Reset flag after a short delay
-            setTimeout(function() {
-                toggleInProgress = false;
-            }, 300);
         }
         
         // Make it globally available
         window.toggleMobileSidebar = toggle;
         
-        // Handle touch events (mobile)
-        btn.addEventListener('touchend', function(e) {
+        // Direct event assignment - most reliable (as per hamburger fix5)
+        btn.onclick = function(e) {
             e.preventDefault();
-            e.stopPropagation();
-            if (!touchHandled) {
-                touchHandled = true;
-                toggle();
-                // Reset touch flag after click event would have fired
-                setTimeout(function() {
-                    touchHandled = false;
-                }, 400);
-            }
-        }, { passive: false });
-        
-        // Handle click events (desktop and fallback)
-        btn.addEventListener('click', function(e) {
-            // If touch was already handled, prevent click from firing
+            // Prevent click if touch was already handled
             if (touchHandled) {
-                e.preventDefault();
-                e.stopPropagation();
+                touchHandled = false;
                 return false;
             }
-            e.preventDefault();
-            e.stopPropagation();
             toggle();
-        });
+        };
         
-        // Overlay close - use touchend for mobile
-        // Prevent closing if sidebar just opened (to avoid immediate closure)
-        overlay.addEventListener('touchend', function(e) {
+        btn.ontouchstart = function(e) {
+            e.preventDefault();
+            touchHandled = true;
+            toggle();
+            // Reset touch flag after click would have fired
+            setTimeout(function() {
+                touchHandled = false;
+            }, 300);
+        };
+        
+        // Overlay close - prevent closing if sidebar just opened
+        overlay.onclick = function(e) {
+            if (sidebarJustOpened) {
+                return;
+            }
+            sidebar.classList.remove('active');
+            overlay.classList.remove('active');
+            document.body.classList.remove('sidebar-open');
+        };
+        
+        overlay.ontouchstart = function(e) {
             if (sidebarJustOpened) {
                 return;
             }
             e.preventDefault();
-            e.stopPropagation();
             sidebar.classList.remove('active');
             overlay.classList.remove('active');
             document.body.classList.remove('sidebar-open');
-        }, { passive: false });
-        
-        overlay.addEventListener('click', function(e) {
-            if (sidebarJustOpened) {
-                return;
-            }
-            e.preventDefault();
-            e.stopPropagation();
-            sidebar.classList.remove('active');
-            overlay.classList.remove('active');
-            document.body.classList.remove('sidebar-open');
-        });
+        };
         
         // Show button on mobile
         if (window.innerWidth <= 767) {
