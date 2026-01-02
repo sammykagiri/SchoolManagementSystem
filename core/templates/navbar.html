@@ -429,31 +429,42 @@
     <!-- User Profile Section -->
     {% if user.is_authenticated %}
     <div class="sidebar-footer">
-        <div class="dropdown" style="position: relative;">
-            <a class="nav-link dropdown-toggle user-profile-link" href="#" role="button" id="userProfileDropdown" data-bs-toggle="dropdown" aria-expanded="false">
-                <i class="fas fa-user-circle me-2"></i>
-                <span>{{ user.username }}</span>
-            </a>
-            <ul class="dropdown-menu" aria-labelledby="userProfileDropdown">
-                <li><a class="dropdown-item" href="{% url 'core:profile' %}">
-                    <i class="fas fa-user me-2"></i>Profile
-                </a></li>
-                <li><hr class="dropdown-divider"></li>
-                <li><a class="dropdown-item" href="#" onclick="event.preventDefault(); document.getElementById('logout-form').submit();">
-                    <i class="fas fa-sign-out-alt me-2"></i>Logout
-                </a></li>
-            </ul>
-            <form id="logout-form" method="post" action="{% url 'logout' %}" style="display: none;">
-                {% csrf_token %}
-            </form>
-        </div>
+        <ul class="nav flex-column">
+            <li class="nav-item">
+                <a class="nav-link user-profile-link" href="#" data-bs-toggle="collapse" data-bs-target="#userProfileSubmenu" aria-expanded="false">
+                    <i class="fas fa-user-circle me-2"></i>
+                    <span>{{ user.username }}</span>
+                    <i class="fas fa-chevron-down ms-auto"></i>
+                </a>
+                <ul class="collapse nav flex-column submenu" id="userProfileSubmenu">
+                    <li class="nav-item">
+                        <a class="nav-link {% if request.resolver_match.url_name == 'profile' %}active{% endif %}" href="{% url 'core:profile' %}">
+                            <i class="fas fa-user me-2"></i>Profile
+                        </a>
+                    </li>
+                    <li class="nav-item"><hr class="dropdown-divider my-2"></li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="#" onclick="event.preventDefault(); document.getElementById('logout-form').submit();">
+                            <i class="fas fa-sign-out-alt me-2"></i>Logout
+                        </a>
+                    </li>
+                </ul>
+                <form id="logout-form" method="post" action="{% url 'logout' %}" style="display: none;">
+                    {% csrf_token %}
+                </form>
+            </li>
+        </ul>
     </div>
     {% else %}
     <div class="sidebar-footer">
-        <a class="nav-link" href="{% url 'login' %}">
-            <i class="fas fa-sign-in-alt me-2"></i>
-            <span>Login</span>
-        </a>
+        <ul class="nav flex-column">
+            <li class="nav-item">
+                <a class="nav-link" href="{% url 'login' %}">
+                    <i class="fas fa-sign-in-alt me-2"></i>
+                    <span>Login</span>
+                </a>
+            </li>
+        </ul>
     </div>
     {% endif %}
 </aside>
@@ -910,22 +921,7 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
     
-    // Initialize Bootstrap dropdown for user profile
-    const userProfileDropdown = document.getElementById('userProfileDropdown');
-    if (userProfileDropdown) {
-        const dropdown = new bootstrap.Dropdown(userProfileDropdown, {
-            boundary: 'viewport',
-            popperConfig: {
-                modifiers: [
-                    {
-                        name: 'preventOverflow',
-                        options: {
-                            boundary: document.getElementById('sidebar')
-                        }
-                    }
-                ]
-            }
-        });
-    }
+    // User profile submenu is now handled the same way as other nav items with submenus
+    // No special initialization needed - it uses Bootstrap collapse like other submenus
 }); // Close DOMContentLoaded event listener
 </script>

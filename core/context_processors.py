@@ -24,3 +24,4 @@ def user_profile_optimized(request):
     
     return context
 
+
