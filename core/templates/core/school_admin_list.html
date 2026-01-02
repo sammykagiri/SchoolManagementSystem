@@ -47,7 +47,7 @@
                     <h5 class="mb-0">Assign User to School</h5>
                 </div>
                 <div class="card-body">
-                    <form method="post" novalidate>
+                    <form method="post" novalidate id="assignUserForm">
                         {% csrf_token %}
                         <div class="mb-3">
                             <label for="user_id" class="form-label">User</label>

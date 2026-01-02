@@ -2239,6 +2239,7 @@ def school_add(request):
 def school_admin_list(request):
     """List all schools and allow admin to edit or assign users to schools"""
     from django.contrib.auth.models import User
+    from django.shortcuts import redirect
     schools = School.objects.all()
     users = User.objects.all().select_related('profile')
     if request.method == 'POST':
@@ -2252,6 +2253,8 @@ def school_admin_list(request):
                 user.profile.school = school
                 user.profile.save()
                 messages.success(request, f'User {user.username} assigned to {school.name}.')
+                # Redirect to reload the page and show updated data
+                return redirect('core:school_admin_list')
             except Exception as e:
                 messages.error(request, f'Error: {e}')
     context = {'schools': schools, 'users': users}
