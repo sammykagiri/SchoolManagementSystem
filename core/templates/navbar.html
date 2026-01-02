@@ -640,31 +640,40 @@ document.addEventListener('DOMContentLoaded', function() {
     ensureActiveSubmenusExpanded();
     
     // Use MutationObserver to watch for class changes and re-apply if needed
+    // Optimized with debouncing to prevent performance issues
+    let mutationTimeout;
     const observer = new MutationObserver(function(mutations) {
-        mutations.forEach(function(mutation) {
-            if (mutation.type === 'attributes' && mutation.attributeName === 'class') {
-                const target = mutation.target;
-                if (target.classList.contains('submenu')) {
-                    const hasActive = target.querySelector('.nav-link.active') !== null;
-                    if (hasActive && !target.classList.contains('show')) {
-                        target.classList.add('show');
-                        target.style.display = 'block';
+        // Debounce to avoid excessive function calls
+        clearTimeout(mutationTimeout);
+        mutationTimeout = setTimeout(function() {
+            mutations.forEach(function(mutation) {
+                if (mutation.type === 'attributes' && mutation.attributeName === 'class') {
+                    const target = mutation.target;
+                    if (target.classList.contains('submenu')) {
+                        const hasActive = target.querySelector('.nav-link.active') !== null;
+                        if (hasActive && !target.classList.contains('show')) {
+                            target.classList.add('show');
+                            target.style.display = 'block';
+                        }
                     }
                 }
-            }
-        });
-        ensureActiveSubmenusExpanded();
+            });
+            ensureActiveSubmenusExpanded();
+        }, 50); // Debounce by 50ms
     });
     
-    // Observe all submenus
+    // Observe all submenus - but only watch for class attribute changes
     const submenus = document.querySelectorAll('.sidebar-nav .submenu');
-    submenus.forEach(submenu => {
-        observer.observe(submenu, {
-            attributes: true,
-            attributeFilter: ['class'],
-            subtree: true
+    if (submenus.length > 0) {
+        submenus.forEach(submenu => {
+            observer.observe(submenu, {
+                attributes: true,
+                attributeFilter: ['class'], // Only watch class changes
+                childList: false, // Don't watch for child changes
+                subtree: false // Don't watch subtree to improve performance
+            });
         });
-    });
+    }
     
     // ========================================
     // MOBILE SIDEBAR TOGGLE FUNCTIONALITY
