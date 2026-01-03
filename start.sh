@@ -7,8 +7,8 @@ mkdir -p static
 mkdir -p staticfiles
 mkdir -p media
 
-#echo "Checking database connection..."
-#python manage.py check --database default 2>&1 || echo "Database check completed (warnings OK)"
+echo "Checking database connection..."
+python manage.py check --database default 2>&1 || echo "Database check completed (warnings OK)"
 
 #echo "Checking if migrations need to be created..."
 #python manage.py makemigrations --check --dry-run > /dev/null 2>&1

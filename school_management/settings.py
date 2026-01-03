@@ -117,7 +117,7 @@ WSGI_APPLICATION = 'school_management.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
 
-DATABASES = {
+"""DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
         'NAME': config('DB_NAME', default='school_mgt_db_dev'),
@@ -127,7 +127,13 @@ DATABASES = {
         'PORT': config('DB_PORT', default='5432'),
     }
 }
+"""
 
+DATABASES = {
+    'default': dj_database_url.config(
+        default=f"postgresql://{config('DB_USER')}:{config('DB_PASSWORD')}@{config('DB_HOST')}:{config('DB_PORT')}/{config('DB_NAME')}"
+    )
+}
 
 SECRET_KEY = config('SECRET_KEY')
 
