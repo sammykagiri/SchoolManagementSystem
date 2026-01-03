@@ -589,6 +589,7 @@ class ParentRegistrationForm(UserCreationForm):
                     email=self.cleaned_data.get('email', ''),
                     address=self.cleaned_data.get('address', ''),
                     preferred_contact_method=self.cleaned_data.get('preferred_contact_method', 'phone'),
+                    photo=self.cleaned_data.get('photo'),
                     is_active=True
                 )
                 
@@ -664,7 +665,7 @@ class ParentEditForm(forms.ModelForm):
     
     class Meta:
         model = Parent
-        fields = ('phone', 'address', 'preferred_contact_method', 'is_active', 'students')
+        fields = ('phone', 'address', 'preferred_contact_method', 'photo', 'is_active', 'students')
     
     def __init__(self, *args, **kwargs):
         school = kwargs.pop('school', None)

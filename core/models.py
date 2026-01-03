@@ -167,6 +167,8 @@ class Parent(models.Model):
         ],
         default='phone'
     )
+    # Photo
+    photo = models.ImageField(upload_to='parent_photos/', blank=True, null=True, help_text='Parent photo')
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

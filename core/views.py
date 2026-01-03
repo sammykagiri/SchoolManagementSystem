@@ -2347,7 +2347,7 @@ def parent_edit(request, parent_id):
     if request.method == 'POST':
         print(f"=== PARENT EDIT POST REQUEST ===")
         print(f"POST data keys: {list(request.POST.keys())}")
-        form = ParentEditForm(request.POST, instance=parent, school=school)
+        form = ParentEditForm(request.POST, request.FILES, instance=parent, school=school)
         if form.is_valid():
             print(f"Form is VALID")
             try:
@@ -2444,7 +2444,7 @@ def parent_register(request):
             }
             return render(request, 'core/parent_register.html', context)
         
-        form = ParentRegistrationForm(request.POST, school=school)
+        form = ParentRegistrationForm(request.POST, request.FILES, school=school)
         if form.is_valid():
             try:
                 parent = form.save(commit=True, school=school)

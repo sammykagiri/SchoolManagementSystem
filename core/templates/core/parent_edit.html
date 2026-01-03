@@ -63,7 +63,7 @@
             </h3>
         </div>
         <div class="form-body">
-            <form method="post" novalidate>
+            <form method="post" enctype="multipart/form-data" novalidate>
                 {% csrf_token %}
                 
                 {% if form.non_field_errors %}
@@ -135,6 +135,29 @@
                                 </div>
                             {% endif %}
                         </div>
+                    </div>
+                </div>
+                
+                <!-- Photo Upload -->
+                <div class="form-section">
+                    <h5 class="form-section-title"><i class="fas fa-camera me-2"></i>Photo (Optional)</h5>
+                    <div class="mb-3">
+                        <label for="id_photo" class="form-label">Parent Photo</label>
+                        {% if parent.photo %}
+                            <div class="mb-2">
+                                <img src="{{ parent.photo.url }}" alt="Current photo" class="img-thumbnail" style="max-width: 200px; max-height: 200px;">
+                                <div class="form-text">Current photo</div>
+                            </div>
+                        {% endif %}
+                        <input type="file" name="photo" id="id_photo" class="form-control" accept="image/*">
+                        <div class="form-text">Upload a new photo to replace the current one (optional)</div>
+                        {% if form.photo.errors %}
+                            <div class="text-danger small">
+                                {% for error in form.photo.errors %}
+                                    <div>{{ error }}</div>
+                                {% endfor %}
+                            </div>
+                        {% endif %}
                     </div>
                 </div>
                 
