@@ -1833,9 +1833,11 @@ document.addEventListener('DOMContentLoaded', function() {
             badge.remove();
         }
         
-        // Trigger form change check if it exists
+        // Trigger form change check after a brief delay to ensure hidden inputs are updated
         if (typeof checkFormChanges === 'function') {
-            checkFormChanges();
+            setTimeout(function() {
+                checkFormChanges();
+            }, 0);
         }
     }
     
@@ -1863,9 +1865,11 @@ document.addEventListener('DOMContentLoaded', function() {
         updateParentHiddenInput();
         disableParentDropdownItem(value);
         
-        // Trigger form change check if it exists
+        // Trigger form change check after a brief delay to ensure hidden inputs are updated
         if (typeof checkFormChanges === 'function') {
-            checkFormChanges();
+            setTimeout(function() {
+                checkFormChanges();
+            }, 0);
         }
     }
     

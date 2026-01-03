@@ -366,21 +366,82 @@ class ParentRegistrationForm(UserCreationForm):
         required=False,
         help_text='Preferred method of contact'
     )
+    # Custom widget to filter out empty strings
+    class FilteredCheckboxSelectMultiple(forms.CheckboxSelectMultiple):
+        def value_from_datadict(self, data, files, name):
+            """Filter out empty strings from the data"""
+            values = super().value_from_datadict(data, files, name)
+            if values is None:
+                return []
+            # Filter out empty strings, None, and whitespace-only values
+            filtered = [v for v in values if v is not None and str(v).strip() != '']
+            return filtered if filtered else []
+    
     students = forms.ModelMultipleChoiceField(
         queryset=Student.objects.none(),
         required=False,
-        widget=forms.CheckboxSelectMultiple(),
-        help_text='Select students to link to this parent account (optional - can be done later)'
+        widget=FilteredCheckboxSelectMultiple(),
+        help_text='Select students to link to this parent account (optional - can be done later)',
+        error_messages={
+            'invalid_choice': 'Select a valid student.',
+            'list': 'Select a valid list of students.',
+            'invalid': 'Select a valid student.',
+        }
     )
     
     class Meta:
         model = User
-        fields = ('username', 'email', 'first_name', 'last_name', 'password1', 'password2', 
-                 'phone', 'address', 'preferred_contact_method', 'students')
+        fields = ('username', 'email', 'first_name', 'last_name', 'password1', 'password2')
+    
+    # Note: phone, address, preferred_contact_method, and students are not User model fields
+    # They are handled separately in the save() method
     
     def __init__(self, *args, **kwargs):
         school = kwargs.pop('school', None)
         super().__init__(*args, **kwargs)
+        
+        # Store school for later use in to_python wrapper
+        form_school = school
+        
+        # Override the students field's to_python to handle empty strings
+        original_to_python = self.fields['students'].to_python
+        def to_python_wrapper(value):
+            # Handle empty strings and None
+            if not value or value == '' or (isinstance(value, list) and len(value) == 1 and value[0] == ''):
+                return []
+            # Filter out empty strings from list
+            if isinstance(value, list):
+                value = [v for v in value if v and v.strip() and v != '']
+                if not value:
+                    return []
+            
+            # Ensure queryset is set before validation
+            if not self.fields['students'].queryset.exists() and form_school:
+                self.fields['students'].queryset = Student.objects.filter(
+                    school=form_school,
+                    is_active=True
+                ).order_by('first_name', 'last_name')
+            
+            try:
+                return original_to_python(value)
+            except (ValidationError, ValueError) as e:
+                # If validation fails, try to get students directly by ID
+                if isinstance(value, list) and value and form_school:
+                    try:
+                        student_ids = [int(v) for v in value if str(v).isdigit()]
+                        if student_ids:
+                            students = Student.objects.filter(
+                                id__in=student_ids,
+                                school=form_school,
+                                is_active=True
+                            )
+                            if students.exists():
+                                return list(students)
+                    except (ValueError, TypeError):
+                        pass
+                # If all else fails, return empty list
+                return []
+        self.fields['students'].to_python = to_python_wrapper
         
         if school:
             # Filter students by school
@@ -400,6 +461,115 @@ class ParentRegistrationForm(UserCreationForm):
         if email and User.objects.filter(email=email).exists():
             raise ValidationError('A user with this email already exists.')
         return email
+    
+    def clean_students(self):
+        """Clean and validate students field - handle empty strings and invalid values"""
+        # First, check if we have raw data with empty strings
+        if hasattr(self, 'data') and self.data:
+            raw_students = self.data.getlist('students', [])
+            # Filter out empty strings, None, and whitespace-only values
+            raw_students = [s for s in raw_students if s is not None and str(s).strip() != '']
+            
+            # If no valid student IDs after filtering, return empty list
+            if not raw_students:
+                # Explicitly set cleaned_data to empty list to avoid validation errors
+                return []
+        
+        # Try to get cleaned data (this will validate the IDs if any were provided)
+        # If cleaned_data doesn't have 'students' yet, it means validation hasn't run
+        # In that case, we need to handle it manually
+        if 'students' not in self.cleaned_data:
+            # Check raw data again
+            if hasattr(self, 'data') and self.data:
+                raw_students = self.data.getlist('students', [])
+                raw_students = [s for s in raw_students if s is not None and str(s).strip() != '']
+                if not raw_students:
+                    return []
+                
+                # Try to get students directly by ID
+                school = getattr(self, 'school', None)
+                if not school and hasattr(self, 'data') and self.data:
+                    school_id = self.data.get('school')
+                    if school_id:
+                        try:
+                            school = School.objects.get(id=school_id)
+                        except (School.DoesNotExist, ValueError):
+                            pass
+                
+                if school:
+                    try:
+                        student_ids = []
+                        for s in raw_students:
+                            try:
+                                sid = int(s)
+                                student_ids.append(sid)
+                            except (ValueError, TypeError):
+                                continue
+                        
+                        if student_ids:
+                            students = Student.objects.filter(
+                                id__in=student_ids,
+                                school=school,
+                                is_active=True
+                            )
+                            if students.exists():
+                                return list(students)
+                    except Exception:
+                        pass
+                return []
+        
+        # If we have cleaned_data with students, use it
+        try:
+            if 'students' in self.cleaned_data:
+                students = self.cleaned_data['students']
+                # Filter out any invalid entries and ensure all are valid Student instances
+                if students:
+                    valid_students = []
+                    for student in students:
+                        if student and isinstance(student, Student):
+                            valid_students.append(student)
+                    if valid_students:
+                        return valid_students
+        except (ValidationError, ValueError, KeyError):
+            # If validation fails, try raw data fallback
+            pass
+        
+        # Fallback: Try to get from raw data if cleaned_data is empty or missing
+        if hasattr(self, 'data') and self.data:
+            raw_students = self.data.getlist('students', [])
+            raw_students = [s for s in raw_students if s is not None and str(s).strip() != '']
+            if raw_students:
+                school = getattr(self, 'school', None)
+                if not school and hasattr(self, 'data') and self.data:
+                    school_id = self.data.get('school')
+                    if school_id:
+                        try:
+                            school = School.objects.get(id=school_id)
+                        except (School.DoesNotExist, ValueError):
+                            pass
+                
+                if school:
+                    try:
+                        student_ids = []
+                        for s in raw_students:
+                            try:
+                                sid = int(s)
+                                student_ids.append(sid)
+                            except (ValueError, TypeError):
+                                continue
+                        
+                        if student_ids:
+                            students = Student.objects.filter(
+                                id__in=student_ids,
+                                school=school,
+                                is_active=True
+                            )
+                            if students.exists():
+                                return list(students)
+                    except Exception:
+                        pass
+        
+        return []
     
     def save(self, commit=True, school=None):
         user = super().save(commit=False)
@@ -422,8 +592,44 @@ class ParentRegistrationForm(UserCreationForm):
                     is_active=True
                 )
                 
-                # Link selected students
-                students = self.cleaned_data.get('students', [])
+                # Link selected students - always check raw form data first (more reliable)
+                students = []
+                if hasattr(self, 'data') and self.data:
+                    raw_students = self.data.getlist('students', [])
+                    # Filter out empty strings, None, and whitespace-only values
+                    raw_students = [s for s in raw_students if s is not None and str(s).strip() != '']
+                    
+                    if raw_students and school:
+                        try:
+                            # Convert to integers and filter
+                            student_ids = []
+                            for sid in raw_students:
+                                try:
+                                    student_id = int(sid)
+                                    student_ids.append(student_id)
+                                except (ValueError, TypeError):
+                                    continue
+                            
+                            if student_ids:
+                                # Fetch students from database
+                                fetched_students = Student.objects.filter(
+                                    id__in=student_ids,
+                                    school=school,
+                                    is_active=True
+                                )
+                                if fetched_students.exists():
+                                    students = list(fetched_students)
+                        except Exception as e:
+                            # Log error but don't fail the save
+                            import logging
+                            logger = logging.getLogger(__name__)
+                            logger.error(f'Error linking students to parent during registration: {e}')
+                
+                # Fallback to cleaned_data if raw data didn't work (shouldn't happen, but just in case)
+                if not students:
+                    students = self.cleaned_data.get('students', [])
+                
+                # Set the students (even if empty list)
                 if students:
                     parent.children.set(students)
                 
@@ -451,7 +657,7 @@ class ParentEditForm(forms.ModelForm):
     students = forms.ModelMultipleChoiceField(
         queryset=Student.objects.none(),
         required=False,
-        widget=forms.CheckboxSelectMultiple(),
+        widget=ParentRegistrationForm.FilteredCheckboxSelectMultiple(),
         help_text='Select students to link to this parent account'
     )
     is_active = forms.BooleanField(required=False, help_text='Active status')
@@ -487,6 +693,59 @@ class ParentEditForm(forms.ModelForm):
         else:
             self.user = None
         
+        # Store school for later use
+        self.school = school
+        
+        # Override the students field's to_python to handle empty strings (same as ParentRegistrationForm)
+        form_school = school
+        original_to_python = self.fields['students'].to_python
+        def to_python_wrapper(value):
+            # Handle None, empty strings, and empty lists
+            if value is None:
+                return []
+            if value == '':
+                return []
+            if isinstance(value, list):
+                # Filter out empty strings, None, and whitespace-only values
+                filtered = [v for v in value if v is not None and str(v).strip() != '']
+                if not filtered:
+                    return []
+                value = filtered
+            
+            # Ensure queryset is set before validation
+            if not self.fields['students'].queryset.exists() and form_school:
+                self.fields['students'].queryset = Student.objects.filter(
+                    school=form_school,
+                    is_active=True
+                ).order_by('first_name', 'last_name')
+            
+            try:
+                return original_to_python(value)
+            except (ValidationError, ValueError) as e:
+                # If validation fails, try to get students directly by ID
+                if isinstance(value, list) and value and form_school:
+                    try:
+                        student_ids = []
+                        for v in value:
+                            try:
+                                sid = int(v)
+                                student_ids.append(sid)
+                            except (ValueError, TypeError):
+                                pass
+                        if student_ids:
+                            students = Student.objects.filter(
+                                id__in=student_ids,
+                                school=form_school,
+                                is_active=True
+                            )
+                            if students.exists():
+                                return list(students)
+                    except (ValueError, TypeError):
+                        pass
+                # If all else fails, return empty list
+                return []
+        self.fields['students'].to_python = to_python_wrapper
+        
         if school:
             # Filter students by school
             self.fields['students'].queryset = Student.objects.filter(
@@ -505,6 +764,104 @@ class ParentEditForm(forms.ModelForm):
         if email and self.user and User.objects.filter(email=email).exclude(id=self.user.id).exists():
             raise ValidationError('A user with this email already exists.')
         return email
+    
+    def clean_students(self):
+        """Clean and validate students field - handle empty strings and invalid values"""
+        # First, check if we have raw data with empty strings
+        if hasattr(self, 'data') and self.data:
+            raw_students = self.data.getlist('students', [])
+            # Filter out empty strings, None, and whitespace-only values
+            raw_students = [s for s in raw_students if s is not None and str(s).strip() != '']
+            
+            # If no valid student IDs after filtering, return empty list
+            if not raw_students:
+                return []
+        
+        # Try to get cleaned data (this will validate the IDs if any were provided)
+        if 'students' not in self.cleaned_data:
+            # Check raw data again
+            if hasattr(self, 'data') and self.data:
+                raw_students = self.data.getlist('students', [])
+                raw_students = [s for s in raw_students if s is not None and str(s).strip() != '']
+                if not raw_students:
+                    return []
+                
+                # Try to get students directly by ID
+                school = getattr(self, 'school', None)
+                if school:
+                    try:
+                        student_ids = []
+                        for s in raw_students:
+                            try:
+                                sid = int(s)
+                                student_ids.append(sid)
+                            except (ValueError, TypeError):
+                                continue
+                        
+                        if student_ids:
+                            students = Student.objects.filter(
+                                id__in=student_ids,
+                                school=school,
+                                is_active=True
+                            )
+                            if students.exists():
+                                return list(students)
+                    except Exception:
+                        pass
+                return []
+        
+        # If we have cleaned_data with students, use it
+        try:
+            if 'students' in self.cleaned_data:
+                students = self.cleaned_data['students']
+                # Filter out any invalid entries and ensure all are valid Student instances
+                if students:
+                    valid_students = []
+                    for student in students:
+                        if student and isinstance(student, Student):
+                            valid_students.append(student)
+                    if valid_students:
+                        return valid_students
+        except (ValidationError, ValueError, KeyError):
+            # If validation fails, try raw data fallback
+            pass
+        
+        # Fallback: Try to get from raw data if cleaned_data is empty or missing
+        if hasattr(self, 'data') and self.data:
+            raw_students = self.data.getlist('students', [])
+            raw_students = [s for s in raw_students if s is not None and str(s).strip() != '']
+            if raw_students:
+                school = getattr(self, 'school', None)
+                if not school and hasattr(self, 'data') and self.data:
+                    school_id = self.data.get('school')
+                    if school_id:
+                        try:
+                            school = School.objects.get(id=school_id)
+                        except (School.DoesNotExist, ValueError):
+                            pass
+                
+                if school:
+                    try:
+                        student_ids = []
+                        for s in raw_students:
+                            try:
+                                sid = int(s)
+                                student_ids.append(sid)
+                            except (ValueError, TypeError):
+                                continue
+                        
+                        if student_ids:
+                            students = Student.objects.filter(
+                                id__in=student_ids,
+                                school=school,
+                                is_active=True
+                            )
+                            if students.exists():
+                                return list(students)
+                    except Exception:
+                        pass
+        
+        return []
     
     def save(self, commit=True):
         parent = super().save(commit=False)
@@ -530,8 +887,86 @@ class ParentEditForm(forms.ModelForm):
         if commit:
             parent.save()
             
-            # Update linked students
-            students = self.cleaned_data.get('students', [])
+            # Update linked students - always check raw form data first (more reliable)
+            students = []
+            
+            # Check if we have form data (from POST request)
+            # Try multiple sources: _post_data (from view), self.data (form's data), or cleaned_data
+            post_data = None
+            if hasattr(self, '_post_data') and self._post_data:
+                post_data = self._post_data
+            elif hasattr(self, 'data') and self.data is not None:
+                post_data = self.data
+            
+            if post_data:
+                try:
+                    # Try getlist first (for QueryDict)
+                    if hasattr(post_data, 'getlist'):
+                        raw_students = post_data.getlist('students', [])
+                    else:
+                        # Fallback for regular dict
+                        raw_students = post_data.get('students', [])
+                        if not isinstance(raw_students, list):
+                            raw_students = [raw_students] if raw_students else []
+                    
+                    # Filter out empty strings, None, and whitespace-only values
+                    raw_students = [s for s in raw_students if s is not None and str(s).strip() != '']
+                    
+                    if raw_students:
+                        # Get school from instance or form
+                        school = getattr(self, 'school', None)
+                        if not school and hasattr(parent, 'school'):
+                            school = parent.school
+                        
+                        if school:
+                            try:
+                                # Convert to integers and filter
+                                student_ids = []
+                                for sid in raw_students:
+                                    try:
+                                        student_id = int(sid)
+                                        student_ids.append(student_id)
+                                    except (ValueError, TypeError):
+                                        continue
+                                
+                                if student_ids:
+                                    # Fetch students from database
+                                    fetched_students = Student.objects.filter(
+                                        id__in=student_ids,
+                                        school=school,
+                                        is_active=True
+                                    )
+                                    if fetched_students.exists():
+                                        students = list(fetched_students)
+                                        # Log for debugging
+                                        import logging
+                                        logger = logging.getLogger(__name__)
+                                        logger.info(f'Linking {len(students)} students to parent {parent.id}')
+                            except Exception as e:
+                                # Log error but don't fail the save
+                                import logging
+                                logger = logging.getLogger(__name__)
+                                logger.error(f'Error linking students to parent: {e}')
+                except (AttributeError, KeyError) as e:
+                    # If getlist fails, try alternative method
+                    import logging
+                    logger = logging.getLogger(__name__)
+                    logger.warning(f'Could not get students from form data: {e}')
+            
+            # Fallback to cleaned_data if raw data didn't work
+            if not students:
+                students = self.cleaned_data.get('students', [])
+                if students:
+                    import logging
+                    logger = logging.getLogger(__name__)
+                    logger.info(f'Using cleaned_data: {len(students)} students for parent {parent.id}')
+            
+            # Set the students (even if empty list, to clear existing links)
             parent.children.set(students)
+            
+            # Log final state for debugging
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.info(f'Parent {parent.id} now has {parent.children.count()} linked students')
         
         return parent

@@ -117,7 +117,7 @@ WSGI_APPLICATION = 'school_management.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
 
-"""DATABASES = {
+DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
         'NAME': config('DB_NAME', default='school_mgt_db_dev'),
@@ -127,16 +127,16 @@ WSGI_APPLICATION = 'school_management.wsgi.application'
         'PORT': config('DB_PORT', default='5432'),
     }
 }
-"""
+
 
 SECRET_KEY = config('SECRET_KEY')
 
 # Database configuration - Railway provides DATABASE_URL automatically
-DATABASES = {
+"""DATABASES = {
     'default': dj_database_url.config(
         default=config('DATABASE_URL', default='sqlite:///db.sqlite3')
     )
-}
+}"""
 
 # CSRF trusted origins - CSRF_TRUSTED_ORIGINS doesn't support wildcards, needs exact domains
 csrf_origins = config('CSRF_TRUSTED_ORIGINS', default='')
@@ -361,3 +361,11 @@ MESSAGE_TAGS = {
     messages.WARNING: 'warning',
     messages.ERROR: 'danger',
 }
+
+# M-Pesa API Settings
+MPESA_CONSUMER_KEY = config('MPESA_CONSUMER_KEY', default='')
+MPESA_CONSUMER_SECRET = config('MPESA_CONSUMER_SECRET', default='')
+MPESA_PASSKEY = config('MPESA_PASSKEY', default='')
+MPESA_SHORTCODE = config('MPESA_SHORTCODE', default='')
+MPESA_CALLBACK_URL = config('MPESA_CALLBACK_URL', default='https://your-domain.com/core/api/mpesa/callback/')
+MPESA_ENVIRONMENT = config('MPESA_ENVIRONMENT', default='sandbox')  # 'sandbox' or 'production'

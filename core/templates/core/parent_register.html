@@ -287,7 +287,7 @@
                                 {% endfor %}
                             </ul>
                         </div>
-                        <input type="hidden" name="students" id="id_students" value="">
+                        <!-- Hidden input will be created dynamically by JavaScript - no static input needed -->
                     </div>
                         {% if form.students.help_text %}
                             <div class="form-text">{{ form.students.help_text }}</div>
@@ -349,14 +349,21 @@ document.addEventListener('DOMContentLoaded', function() {
             input.remove();
         });
         
-        // Create new hidden inputs for each selected student
-        selectedStudentValues.forEach(value => {
-            const hiddenInput = document.createElement('input');
-            hiddenInput.type = 'hidden';
-            hiddenInput.name = 'students';
-            hiddenInput.value = value;
-            parentForm.appendChild(hiddenInput);
-        });
+        // Only create hidden inputs if there are selected students
+        // Don't create any input if no students are selected (empty list is fine)
+        if (selectedStudentValues.size > 0) {
+            selectedStudentValues.forEach(value => {
+                // Only add if value is not empty
+                if (value && value.toString().trim() !== '') {
+                    const hiddenInput = document.createElement('input');
+                    hiddenInput.type = 'hidden';
+                    hiddenInput.name = 'students';
+                    hiddenInput.value = value.toString().trim();
+                    parentForm.appendChild(hiddenInput);
+                }
+            });
+        }
+        // If no students selected, don't create any input - Django will treat it as empty list
     }
     
     // Function to re-enable dropdown item

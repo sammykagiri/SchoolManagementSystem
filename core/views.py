@@ -2,6 +2,7 @@ from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.http import JsonResponse, HttpResponse, Http404
+from django.views.decorators.csrf import csrf_exempt
 from django.core.files.storage import default_storage
 from django.core.paginator import Paginator
 from django.db.models import Q, Sum
@@ -12,7 +13,7 @@ from django.core.mail import send_mail
 from django.conf import settings
 import json
 from datetime import datetime
-from decimal import Decimal
+from decimal import Decimal, InvalidOperation
 from .models import (
     School, Grade, Term, FeeCategory, TransportRoute, Student, FeeStructure, StudentFee, SchoolClass,
     AcademicYear, Section, StudentClassEnrollment, PromotionLog
@@ -2344,13 +2345,54 @@ def parent_edit(request, parent_id):
     )
     
     if request.method == 'POST':
+        print(f"=== PARENT EDIT POST REQUEST ===")
+        print(f"POST data keys: {list(request.POST.keys())}")
         form = ParentEditForm(request.POST, instance=parent, school=school)
         if form.is_valid():
+            print(f"Form is VALID")
             try:
-                form.save()
+                parent = form.save()
+                
+                # Handle student linking directly in the view (more reliable)
+                raw_students = request.POST.getlist('students', [])
+                print(f"DEBUG: POST students={raw_students}")
+                # Filter out empty strings, None, and whitespace-only values
+                raw_students = [s for s in raw_students if s is not None and str(s).strip() != '']
+                print(f"DEBUG: Filtered students={raw_students}")
+                
+                if raw_students:
+                    try:
+                        # Convert to integers and filter
+                        student_ids = []
+                        for sid in raw_students:
+                            try:
+                                student_id = int(sid)
+                                student_ids.append(student_id)
+                            except (ValueError, TypeError):
+                                continue
+                        
+                        if student_ids:
+                            # Fetch students from database
+                            students = Student.objects.filter(
+                                id__in=student_ids,
+                                school=school,
+                                is_active=True
+                            )
+                            if students.exists():
+                                parent.children.set(students)
+                                parent.refresh_from_db()
+                    except Exception as e:
+                        import logging
+                        logger = logging.getLogger(__name__)
+                        logger.error(f'Error linking students to parent: {e}', exc_info=True)
+                # Don't clear existing links if no students in POST - preserve existing relationships
+                
                 messages.success(request, f'Parent {parent.full_name} updated successfully.')
                 return redirect('core:parent_detail', parent_id=parent.id)
             except Exception as e:
+                import logging
+                logger = logging.getLogger(__name__)
+                logger.error(f'Error updating parent: {str(e)}', exc_info=True)
                 messages.error(request, f'Error updating parent: {str(e)}')
         else:
             messages.error(request, 'Please correct the errors below.')
@@ -2406,9 +2448,43 @@ def parent_register(request):
         if form.is_valid():
             try:
                 parent = form.save(commit=True, school=school)
+                
+                # Handle student linking directly in the view (more reliable)
+                raw_students = request.POST.getlist('students', [])
+                # Filter out empty strings, None, and whitespace-only values
+                raw_students = [s for s in raw_students if s is not None and str(s).strip() != '']
+                
+                if raw_students:
+                    try:
+                        # Convert to integers and filter
+                        student_ids = []
+                        for sid in raw_students:
+                            try:
+                                student_id = int(sid)
+                                student_ids.append(student_id)
+                            except (ValueError, TypeError):
+                                continue
+                        
+                        if student_ids:
+                            # Fetch students from database
+                            students = Student.objects.filter(
+                                id__in=student_ids,
+                                school=school,
+                                is_active=True
+                            )
+                            if students.exists():
+                                parent.children.set(students)
+                    except Exception as e:
+                        import logging
+                        logger = logging.getLogger(__name__)
+                        logger.error(f'Error linking students to parent during registration: {e}', exc_info=True)
+                
                 messages.success(request, f'Parent account created successfully for {parent.user.get_full_name() or parent.user.username}.')
                 return redirect('core:parent_register')
             except Exception as e:
+                import logging
+                logger = logging.getLogger(__name__)
+                logger.error(f'Error creating parent account: {str(e)}', exc_info=True)
                 messages.error(request, f'Error creating parent account: {str(e)}')
         else:
             messages.error(request, 'Please correct the errors below.')
@@ -4074,3 +4150,625 @@ def serve_media_file(request, path):
         logger = logging.getLogger(__name__)
         logger.error(f"Error serving media file {path}: {e}")
         raise Http404("Media file not found")
+# Parent Portal Views - To be added to core/views.py
+
+from django.shortcuts import render, get_object_or_404, redirect
+from django.contrib.auth.decorators import login_required
+from django.contrib import messages
+from django.http import JsonResponse
+from django.db.models import Sum
+from decimal import Decimal, InvalidOperation
+from .models import Parent, Student, StudentFee
+from .decorators import role_required
+from payments.models import Payment
+
+
+@login_required
+@role_required('parent', 'super_admin', 'school_admin')
+def parent_portal_dashboard(request):
+    """Parent portal dashboard showing overview of children and fees"""
+    parent = None
+    is_superuser_view = False
+    
+    try:
+        parent = Parent.objects.get(user=request.user)
+    except Parent.DoesNotExist:
+        # Allow superusers to access even without a Parent profile
+        if request.user.is_superuser:
+            is_superuser_view = True
+            # For superusers, show aggregated data for all parents (or redirect to parent list)
+            # For now, redirect to parent list so they can select a parent to view
+            messages.info(request, 'As a superuser, you can view individual parent portals from the parent list.')
+            return redirect('core:parent_list')
+        else:
+            messages.error(request, 'Parent profile not found. Please contact administrator.')
+            return redirect('core:dashboard')
+    
+    # Get all children linked to this parent
+    children = parent.children.all().select_related('grade', 'school_class', 'school_class__class_teacher').order_by('first_name', 'last_name')
+    
+    # Calculate fee statistics for all children
+    all_student_fees = StudentFee.objects.filter(
+        student__in=children,
+        student__is_active=True
+    ).select_related('fee_category', 'term', 'student')
+    
+    total_charged = all_student_fees.aggregate(total=Sum('amount_charged'))['total'] or Decimal('0.00')
+    total_paid = all_student_fees.aggregate(total=Sum('amount_paid'))['total'] or Decimal('0.00')
+    total_balance = total_charged - total_paid
+    
+    # Get overdue fees
+    from django.utils import timezone
+    overdue_fees = all_student_fees.filter(
+        due_date__lt=timezone.now().date(),
+        is_paid=False
+    ).order_by('due_date')
+    
+    # Get recent payments
+    recent_payments = Payment.objects.filter(
+        student__in=children
+    ).select_related('student', 'student_fee').order_by('-created_at')[:10]
+    
+    context = {
+        'parent': parent,
+        'children': children,
+        'total_charged': total_charged,
+        'total_paid': total_paid,
+        'total_balance': total_balance,
+        'overdue_fees': overdue_fees,
+        'recent_payments': recent_payments,
+        'is_superuser_view': is_superuser_view,
+    }
+    
+    return render(request, 'core/parent_portal/dashboard.html', context)
+
+
+@login_required
+@role_required('parent', 'super_admin', 'school_admin')
+def parent_portal_student_fees(request, student_id):
+    """View fee details for a specific child"""
+    parent = None
+    try:
+        parent = Parent.objects.get(user=request.user)
+    except Parent.DoesNotExist:
+        # Allow superusers to access even without a Parent profile
+        if not request.user.is_superuser:
+            messages.error(request, 'Parent profile not found.')
+            return redirect('core:parent_portal_dashboard')
+    
+    # Get student - for superusers, allow viewing any student; for parents, verify ownership
+    if request.user.is_superuser and not parent:
+        student = get_object_or_404(
+            Student.objects.select_related('grade', 'school_class', 'school_class__class_teacher'),
+            student_id=student_id
+        )
+    else:
+        # Verify the student belongs to this parent
+        student = get_object_or_404(
+            Student.objects.select_related('grade', 'school_class', 'school_class__class_teacher'),
+            student_id=student_id,
+            parents=parent
+        )
+    
+    # Get all fees for this student
+    student_fees = StudentFee.objects.filter(
+        student=student
+    ).select_related('fee_category', 'term').order_by('-term__academic_year', '-term__term_number')
+    
+    # Calculate totals
+    total_charged = student_fees.aggregate(total=Sum('amount_charged'))['total'] or Decimal('0.00')
+    total_paid = student_fees.aggregate(total=Sum('amount_paid'))['total'] or Decimal('0.00')
+    total_balance = total_charged - total_paid
+    
+    # Get payments for this student
+    payments = Payment.objects.filter(
+        student=student
+    ).select_related('student_fee').order_by('-created_at')
+    
+    context = {
+        'parent': parent,
+        'student': student,
+        'student_fees': student_fees,
+        'total_charged': total_charged,
+        'total_paid': total_paid,
+        'total_balance': total_balance,
+        'payments': payments,
+    }
+    
+    return render(request, 'core/parent_portal/student_fees.html', context)
+
+
+@login_required
+@role_required('parent', 'super_admin', 'school_admin')
+def parent_portal_student_statement(request, student_id):
+    """View fee statement for a specific child (parent portal version)"""
+    parent = None
+    try:
+        parent = Parent.objects.get(user=request.user)
+    except Parent.DoesNotExist:
+        # Allow superusers to access even without a Parent profile
+        if not request.user.is_superuser:
+            messages.error(request, 'Parent profile not found.')
+            return redirect('core:parent_portal_dashboard')
+    
+    # Get student - for superusers, allow viewing any student; for parents, verify ownership
+    if request.user.is_superuser and not parent:
+        student = get_object_or_404(
+            Student.objects.select_related('grade', 'school_class', 'school_class__class_teacher', 'school'),
+            student_id=student_id
+        )
+        school = student.school
+    else:
+        # Verify the student belongs to this parent
+        student = get_object_or_404(
+            Student.objects.select_related('grade', 'school_class', 'school_class__class_teacher', 'school'),
+            student_id=student_id,
+            parents=parent
+        )
+        school = student.school
+    
+    # Get date filters
+    from datetime import datetime
+    from django.utils import timezone
+    start_date = request.GET.get('start_date')
+    end_date = request.GET.get('end_date')
+    
+    if start_date:
+        try:
+            start_date = datetime.strptime(start_date, '%Y-%m-%d').date()
+        except ValueError:
+            start_date = None
+    if end_date:
+        try:
+            end_date = datetime.strptime(end_date, '%Y-%m-%d').date()
+        except ValueError:
+            end_date = None
+    
+    # Get all student fees (debits)
+    student_fees = StudentFee.objects.filter(
+        school=school,
+        student=student
+    ).select_related('term', 'fee_category').order_by('term__academic_year', 'term__term_number', 'fee_category__name')
+    
+    # Get all payments (credits)
+    payments = Payment.objects.filter(
+        school=school,
+        student=student,
+        status='completed'
+    ).select_related('student_fee__term', 'student_fee__fee_category').order_by('payment_date')
+    
+    # Calculate opening balance (all fees and payments before start_date)
+    opening_balance = Decimal('0.00')
+    if start_date:
+        opening_fees = StudentFee.objects.filter(
+            school=school,
+            student=student,
+            term__start_date__lt=start_date
+        ).aggregate(total=Sum('amount_charged'))['total'] or Decimal('0.00')
+        
+        opening_payments = Payment.objects.filter(
+            school=school,
+            student=student,
+            status='completed',
+            payment_date__date__lt=start_date
+        ).aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
+        
+        opening_balance = opening_fees - opening_payments
+    
+    # Filter by date range if provided
+    transactions = []
+    
+    # Add fee transactions (debits)
+    for fee in student_fees:
+        if start_date and fee.term.start_date < start_date:
+            continue
+        if end_date and fee.term.start_date > end_date:
+            continue
+        
+        transactions.append({
+            'date': fee.term.start_date,
+            'description': f"{fee.fee_category.name} - {fee.term.academic_year} Term {fee.term.term_number}",
+            'reference': f"Fee-{fee.id}",
+            'debit': fee.amount_charged,
+            'credit': Decimal('0.00'),
+            'type': 'fee'
+        })
+    
+    # Add payment transactions (credits)
+    for payment in payments:
+        payment_date = payment.payment_date.date() if hasattr(payment.payment_date, 'date') else payment.payment_date
+        if start_date and payment_date < start_date:
+            continue
+        if end_date and payment_date > end_date:
+            continue
+        
+        transactions.append({
+            'date': payment_date,
+            'description': f"Payment - {payment.student_fee.fee_category.name}",
+            'reference': payment.reference_number or str(payment.payment_id),
+            'debit': Decimal('0.00'),
+            'credit': payment.amount,
+            'type': 'payment',
+            'payment_method': payment.get_payment_method_display()
+        })
+    
+    # Sort transactions by date
+    transactions.sort(key=lambda x: x['date'])
+    
+    # Calculate running balance
+    running_balance = opening_balance
+    for transaction in transactions:
+        running_balance += transaction['debit'] - transaction['credit']
+        transaction['balance'] = running_balance
+    
+    # Calculate totals
+    total_debits = sum(t['debit'] for t in transactions)
+    total_credits = sum(t['credit'] for t in transactions)
+    closing_balance = opening_balance + total_debits - total_credits
+    
+    context = {
+        'parent': parent,
+        'student': student,
+        'school': school,
+        'transactions': transactions,
+        'opening_balance': opening_balance,
+        'total_debits': total_debits,
+        'total_credits': total_credits,
+        'closing_balance': closing_balance,
+        'closing_balance_abs': abs(closing_balance),
+        'start_date': start_date,
+        'end_date': end_date,
+        'statement_date': timezone.now().date(),
+    }
+    
+    return render(request, 'core/parent_portal/student_statement.html', context)
+
+
+@login_required
+@role_required('parent', 'super_admin', 'school_admin')
+def parent_portal_student_performance(request, student_id):
+    """View student performance/academic records"""
+    try:
+        parent = Parent.objects.get(user=request.user)
+    except Parent.DoesNotExist:
+        messages.error(request, 'Parent profile not found.')
+        return redirect('core:parent_portal_dashboard')
+    
+    # Verify the student belongs to this parent
+    student = get_object_or_404(
+        Student.objects.select_related('grade', 'school_class'),
+        student_id=student_id,
+        parents=parent
+    )
+    
+    # TODO: Add academic records/performance data when that module is implemented
+    # For now, just show basic student info
+    
+    context = {
+        'parent': parent,
+        'student': student,
+    }
+    
+    return render(request, 'core/parent_portal/student_performance.html', context)
+
+
+@login_required
+@role_required('parent', 'super_admin', 'school_admin')
+def parent_portal_profile(request):
+    """Parent profile management with verification for phone/email updates"""
+    try:
+        parent = Parent.objects.select_related('user', 'school').get(user=request.user)
+    except Parent.DoesNotExist:
+        # Superusers don't need a parent profile to access - redirect to dashboard
+        if request.user.is_superuser:
+            messages.info(request, 'As a superuser, you can manage parent profiles from the parent list.')
+            return redirect('core:parent_list')
+        messages.error(request, 'Parent profile not found.')
+        return redirect('core:parent_portal_dashboard')
+    
+    if request.method == 'POST':
+        # Handle profile update
+        phone = request.POST.get('phone', '').strip()
+        email = request.POST.get('email', '').strip()
+        address = request.POST.get('address', '').strip()
+        preferred_contact_method = request.POST.get('preferred_contact_method', 'phone')
+        
+        # Check if phone or email changed (requires verification)
+        phone_changed = phone != parent.phone
+        email_changed = email != (parent.email or parent.user.email)
+        
+        # If phone or email changed, check if verification code was provided
+        verification_code = request.POST.get('verification_code', '').strip()
+        verification_type = request.POST.get('verification_type', '')
+        
+        if phone_changed or email_changed:
+            if not verification_code:
+                # Request verification code
+                from core.verification_service import VerificationService
+                
+                if phone_changed:
+                    verification = VerificationService.create_verification(
+                        parent=parent,
+                        verification_type='phone',
+                        new_value=phone
+                    )
+                    if VerificationService.send_verification_code(verification):
+                        messages.info(request, f'Verification code sent to {phone}. Please enter the code to update your phone number.')
+                    else:
+                        messages.error(request, 'Failed to send verification code. Please try again.')
+                
+                if email_changed:
+                    verification = VerificationService.create_verification(
+                        parent=parent,
+                        verification_type='email',
+                        new_value=email
+                    )
+                    if VerificationService.send_verification_code(verification):
+                        messages.info(request, f'Verification code sent to {email}. Please check your email and enter the code to update your email address.')
+                    else:
+                        messages.error(request, 'Failed to send verification code. Please try again.')
+                
+                # Don't update yet, wait for verification
+                context = {
+                    'parent': parent,
+                    'pending_phone': phone if phone_changed else parent.phone,
+                    'pending_email': email if email_changed else (parent.email or parent.user.email),
+                    'phone_changed': phone_changed,
+                    'email_changed': email_changed,
+                }
+                return render(request, 'core/parent_portal/profile.html', context)
+            else:
+                # Verify the code
+                from core.verification_service import VerificationService
+                success, message = VerificationService.verify_code(
+                    parent=parent,
+                    verification_type=verification_type,
+                    code=verification_code
+                )
+                
+                if success:
+                    messages.success(request, message)
+                    # Update other fields
+                    parent.address = address
+                    parent.preferred_contact_method = preferred_contact_method
+                    parent.save()
+                else:
+                    messages.error(request, message)
+                    context = {
+                        'parent': parent,
+                        'pending_phone': phone if phone_changed else parent.phone,
+                        'pending_email': email if email_changed else (parent.email or parent.user.email),
+                        'phone_changed': phone_changed,
+                        'email_changed': email_changed,
+                    }
+                    return render(request, 'core/parent_portal/profile.html', context)
+        else:
+            # No phone/email change, just update other fields
+            parent.address = address
+            parent.preferred_contact_method = preferred_contact_method
+            parent.save()
+            messages.success(request, 'Profile updated successfully.')
+        
+        return redirect('core:parent_portal_profile')
+    
+    context = {
+        'parent': parent,
+    }
+    
+    return render(request, 'core/parent_portal/profile.html', context)
+
+
+@login_required
+@role_required('parent', 'super_admin', 'school_admin')
+def parent_portal_payment_initiate(request, student_id, fee_id):
+    """Initiate M-Pesa payment for a student fee or total balance (fee_id=0)"""
+    try:
+        parent = Parent.objects.get(user=request.user)
+    except Parent.DoesNotExist:
+        if not request.user.is_superuser:
+            return JsonResponse({'error': 'Parent profile not found.'}, status=403)
+        parent = None
+    
+    # Verify the student belongs to this parent (or allow superuser)
+    if request.user.is_superuser and not parent:
+        student = get_object_or_404(Student, student_id=student_id)
+    else:
+        student = get_object_or_404(Student, student_id=student_id, parents=parent)
+    
+    # Handle total balance payment (fee_id=0) or specific fee payment
+    if fee_id == 0:
+        # Calculate total balance
+        from django.db.models import Sum
+        student_fees = StudentFee.objects.filter(student=student)
+        total_charged = student_fees.aggregate(total=Sum('amount_charged'))['total'] or Decimal('0.00')
+        total_paid = student_fees.aggregate(total=Sum('amount_paid'))['total'] or Decimal('0.00')
+        total_balance = total_charged - total_paid
+        
+        if total_balance <= 0:
+            return JsonResponse({'error': 'No balance to pay.'}, status=400)
+        
+        # For total balance, we'll use the first unpaid fee as reference (or create a virtual fee object)
+        # Create a virtual student_fee object for template compatibility
+        class VirtualStudentFee:
+            def __init__(self, student, total_balance):
+                self.student = student
+                self.amount_charged = total_charged
+                self.amount_paid = total_paid
+                self.balance = total_balance
+                self.fee_category = type('obj', (object,), {'name': 'Total Balance'})()
+                self.term = type('obj', (object,), {'academic_year': 'All Terms', 'term_number': ''})()
+        
+        student_fee = VirtualStudentFee(student, total_balance)
+        is_total_balance = True
+    else:
+        # Get the specific fee
+        student_fee = get_object_or_404(StudentFee, id=fee_id, student=student)
+        
+        if student_fee.balance <= 0:
+            return JsonResponse({'error': 'No balance to pay.'}, status=400)
+        is_total_balance = False
+    
+    if request.method == 'POST':
+        phone_number = request.POST.get('phone_number', '').strip()
+        amount = request.POST.get('amount', '').strip()
+        
+        if not phone_number:
+            return JsonResponse({'error': 'Phone number is required.'}, status=400)
+        
+        try:
+            amount = Decimal(amount)
+            if amount <= 0 or amount > student_fee.balance:
+                return JsonResponse({'error': 'Invalid amount.'}, status=400)
+        except (ValueError, InvalidOperation):
+            return JsonResponse({'error': 'Invalid amount format.'}, status=400)
+        
+        # Initiate M-Pesa STK Push
+        try:
+            from core.mpesa_service import MpesaService
+            mpesa = MpesaService()
+            
+            # Generate account reference
+            if is_total_balance:
+                account_reference = f"TOTAL-{student.student_id}"
+                transaction_desc = f"Total balance payment for {student.full_name}"
+            else:
+                account_reference = f"FEE-{student_fee.id}-{student.student_id}"
+                transaction_desc = f"Fee payment for {student.full_name} - {student_fee.fee_category.name}"
+            
+            result = mpesa.initiate_stk_push(
+                phone_number=phone_number,
+                amount=amount,
+                account_reference=account_reference,
+                transaction_desc=transaction_desc
+            )
+            
+            if result.get('success'):
+                # Store payment initiation record (you may want to create a PaymentInitiation model)
+                # For now, just return success
+                return JsonResponse({
+                    'success': True,
+                    'message': result.get('customer_message', 'Payment request sent. Please check your phone for M-Pesa prompt.'),
+                    'checkout_request_id': result.get('checkout_request_id'),
+                    'merchant_request_id': result.get('merchant_request_id')
+                })
+            else:
+                return JsonResponse({
+                    'success': False,
+                    'message': result.get('error', 'Failed to initiate payment. Please try again.')
+                }, status=400)
+                
+        except Exception as e:
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.error(f'Error initiating M-Pesa payment: {str(e)}')
+            return JsonResponse({
+                'success': False,
+                'message': 'An error occurred while initiating payment. Please contact the school.'
+            }, status=500)
+    
+    context = {
+        'parent': parent,
+        'student': student,
+        'student_fee': student_fee,
+        'is_total_balance': is_total_balance,
+    }
+    
+    return render(request, 'core/parent_portal/payment_initiate.html', context)
+
+
+@csrf_exempt
+def mpesa_callback(request):
+    """Handle M-Pesa STK Push callback"""
+    if request.method != 'POST':
+        return JsonResponse({'error': 'Method not allowed'}, status=405)
+    
+    try:
+        import json
+        data = json.loads(request.body)
+        
+        # Log the callback for debugging
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.info(f'M-Pesa callback received: {data}')
+        
+        # Extract callback data
+        body = data.get('Body', {})
+        stk_callback = body.get('stkCallback', {})
+        
+        merchant_request_id = stk_callback.get('MerchantRequestID')
+        checkout_request_id = stk_callback.get('CheckoutRequestID')
+        result_code = stk_callback.get('ResultCode')
+        result_desc = stk_callback.get('ResultDesc')
+        
+        # Extract payment details if successful
+        if result_code == 0:
+            callback_metadata = stk_callback.get('CallbackMetadata', {})
+            items = callback_metadata.get('Item', [])
+            
+            # Extract payment details
+            amount = None
+            mpesa_receipt_number = None
+            transaction_date = None
+            phone_number = None
+            
+            for item in items:
+                name = item.get('Name')
+                value = item.get('Value')
+                
+                if name == 'Amount':
+                    amount = value
+                elif name == 'MpesaReceiptNumber':
+                    mpesa_receipt_number = value
+                elif name == 'TransactionDate':
+                    transaction_date = value
+                elif name == 'PhoneNumber':
+                    phone_number = value
+            
+            # Parse account reference to get fee ID
+            # Format: FEE-{fee_id}-{student_id}
+            account_reference = None
+            for item in items:
+                if item.get('Name') == 'AccountReference':
+                    account_reference = item.get('Value')
+                    break
+            
+            if account_reference and account_reference.startswith('FEE-'):
+                try:
+                    # Extract fee ID from reference (FEE-{fee_id}-{student_id})
+                    parts = account_reference.split('-')
+                    if len(parts) >= 2:
+                        fee_id = int(parts[1])
+                        student_fee = StudentFee.objects.get(id=fee_id)
+                        
+                        # Create payment record
+                        from payments.models import Payment
+                        payment = Payment.objects.create(
+                            student=student_fee.student,
+                            student_fee=student_fee,
+                            amount=Decimal(str(amount)) / 100,  # M-Pesa returns amount in cents
+                            payment_method='mpesa',
+                            status='completed',
+                            reference_number=mpesa_receipt_number,
+                            payment_date=timezone.now(),
+                            notes=f'M-Pesa payment via parent portal. Phone: {phone_number}'
+                        )
+                        
+                        # Update student fee
+                        student_fee.amount_paid += payment.amount
+                        if student_fee.amount_paid >= student_fee.amount_charged:
+                            student_fee.is_paid = True
+                        student_fee.save()
+                        
+                        logger.info(f'Payment processed successfully: {payment.id} for fee {fee_id}')
+                except Exception as e:
+                    logger.error(f'Error processing payment from callback: {str(e)}')
+        
+        # Always return success to M-Pesa (they will retry if we return error)
+        return JsonResponse({'ResultCode': 0, 'ResultDesc': 'Success'})
+        
+    except Exception as e:
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.error(f'Error processing M-Pesa callback: {str(e)}')
+        return JsonResponse({'ResultCode': 0, 'ResultDesc': 'Success'})  # Return success to prevent retries
+

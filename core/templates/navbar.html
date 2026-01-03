@@ -5,11 +5,11 @@
 <aside id="sidebar" class="sidebar">
     <div class="sidebar-header">
         {% if user.is_authenticated and user.profile.school and user.profile.school.logo %}
-            <a href="{% url 'core:dashboard' %}" class="school-logo-container mb-2" style="display: block; text-decoration: none; cursor: pointer;">
+            <a href="{% if user.profile.is_parent %}{% url 'core:parent_portal_dashboard' %}{% else %}{% url 'core:dashboard' %}{% endif %}" class="school-logo-container mb-2" style="display: block; text-decoration: none; cursor: pointer;">
                 <img src="{{ user.profile.school.logo.url }}" alt="School Logo" class="school-logo">
             </a>
         {% endif %}
-        <a href="{% url 'core:dashboard' %}" class="sidebar-brand">
+        <a href="{% if user.profile.is_parent %}{% url 'core:parent_portal_dashboard' %}{% else %}{% url 'core:dashboard' %}{% endif %}" class="sidebar-brand">
             {% if user.is_authenticated and user.profile.school %}
                 {{ user.profile.school.name|title }}
             {% else %}
@@ -437,11 +437,32 @@
             {% endif %}
         </ul>
         {% endif %}
+        {% elif user.is_authenticated and user.is_superuser or user.profile and user.profile.is_parent %}
+        {% comment %}Parent Portal Menu (for parents and superusers){% endcomment %}
+        <ul class="nav flex-column">
+            <!-- Parent Portal Dashboard -->
+            <li class="nav-item">
+                <a class="nav-link {% if request.resolver_match.url_name == 'parent_portal_dashboard' %}active{% endif %}" href="{% url 'core:parent_portal_dashboard' %}">
+                    <i class="fas fa-home me-2"></i>
+                    <span>{% if user.is_superuser %}Parent Portal{% else %}Dashboard{% endif %}</span>
+                </a>
+            </li>
+            
+            {% if user.profile and user.profile.is_parent %}
+            <!-- My Profile (only for actual parents, not superusers) -->
+            <li class="nav-item">
+                <a class="nav-link {% if request.resolver_match.url_name == 'parent_portal_profile' %}active{% endif %}" href="{% url 'core:parent_portal_profile' %}">
+                    <i class="fas fa-user-edit me-2"></i>
+                    <span>My Profile</span>
+                </a>
+            </li>
+            {% endif %}
+        </ul>
         {% else %}
         <ul class="nav flex-column">
             <li class="nav-item">
                 <span class="nav-link text-warning">
-                    <i class="fas fa-info-circle me-2"></i>Student/Parent features coming soon
+                    <i class="fas fa-info-circle me-2"></i>Student features coming soon
                 </span>
             </li>
         </ul>

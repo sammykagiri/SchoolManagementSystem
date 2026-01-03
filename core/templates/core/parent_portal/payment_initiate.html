@@ -1,0 +1,187 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load currency date_format %}
+
+{% block title %}Make Payment - {{ student.full_name }}{% endblock %}
+
+{% block extra_css %}
+<style>
+    .payment-card {
+        max-width: 600px;
+        margin: 0 auto;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <div>
+                    <h2><i class="fas fa-credit-card me-2"></i>Make Payment</h2>
+                    <p class="text-muted mb-0">{{ student.full_name }} - {{ student_fee.fee_category.name }}</p>
+                </div>
+                <a href="{% url 'core:parent_portal_student_fees' student.student_id %}" class="btn btn-secondary">
+                    <i class="fas fa-arrow-left me-2"></i>Back to Fees
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-12">
+            <div class="card payment-card">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0"><i class="fas fa-mobile-alt me-2"></i>M-Pesa Payment</h5>
+                </div>
+                <div class="card-body">
+                    <!-- Fee Information -->
+                    <div class="alert alert-info">
+                        <h6><i class="fas fa-info-circle me-2"></i>Payment Details</h6>
+                        <table class="table table-borderless mb-0">
+                            {% if is_total_balance %}
+                            <tr>
+                                <th width="40%">Payment Type:</th>
+                                <td><strong>Total Balance Payment</strong></td>
+                            </tr>
+                            {% else %}
+                            <tr>
+                                <th width="40%">Fee Category:</th>
+                                <td>{{ student_fee.fee_category.name }}</td>
+                            </tr>
+                            <tr>
+                                <th>Term:</th>
+                                <td>{{ student_fee.term.academic_year }} - Term {{ student_fee.term.term_number }}</td>
+                            </tr>
+                            {% endif %}
+                            <tr>
+                                <th>Total Amount:</th>
+                                <td><strong>KES {{ student_fee.amount_charged|floatformat:2 }}</strong></td>
+                            </tr>
+                            <tr>
+                                <th>Amount Paid:</th>
+                                <td>KES {{ student_fee.amount_paid|floatformat:2 }}</td>
+                            </tr>
+                            <tr>
+                                <th>Balance:</th>
+                                <td><strong class="text-danger">KES {{ student_fee.balance|floatformat:2 }}</strong></td>
+                            </tr>
+                        </table>
+                    </div>
+
+                    <!-- Payment Form -->
+                    <form method="post" id="paymentForm">
+                        {% csrf_token %}
+                        
+                        <div class="mb-3">
+                            <label for="phone_number" class="form-label">M-Pesa Phone Number <span class="text-danger">*</span></label>
+                            <input type="tel" name="phone_number" id="phone_number" class="form-control" 
+                                   placeholder="254712345678" required 
+                                   pattern="^254[0-9]{9}$" 
+                                   title="Enter phone number in format: 254712345678">
+                            <div class="form-text">
+                                <i class="fas fa-info-circle me-1"></i>
+                                Enter your M-Pesa registered phone number (format: 254712345678)
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="amount" class="form-label">Amount to Pay (KES) <span class="text-danger">*</span></label>
+                            <input type="number" name="amount" id="amount" class="form-control" 
+                                   value="{{ student_fee.balance }}" 
+                                   min="1" 
+                                   max="{{ student_fee.balance }}" 
+                                   step="0.01" 
+                                   required>
+                            <div class="form-text">
+                                Maximum amount: KES {{ student_fee.balance|floatformat:2 }}
+                            </div>
+                        </div>
+
+                        <div class="alert alert-warning">
+                            <i class="fas fa-exclamation-triangle me-2"></i>
+                            <strong>Note:</strong> You will receive an M-Pesa prompt on your phone. Please enter your M-Pesa PIN to complete the payment.
+                        </div>
+
+                        <div class="d-flex justify-content-between">
+                            <a href="{% url 'core:parent_portal_student_fees' student.student_id %}" class="btn btn-secondary">Cancel</a>
+                            <button type="submit" class="btn btn-primary" id="submitBtn">
+                                <i class="fas fa-paper-plane me-2"></i>Initiate Payment
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const paymentForm = document.getElementById('paymentForm');
+    const submitBtn = document.getElementById('submitBtn');
+    
+    if (paymentForm) {
+        paymentForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            // Disable submit button
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Processing...';
+            
+            // Format phone number
+            const phoneInput = document.getElementById('phone_number');
+            let phoneNumber = phoneInput.value.trim();
+            
+            // Remove any spaces or dashes
+            phoneNumber = phoneNumber.replace(/[\s-]/g, '');
+            
+            // If starts with 0, replace with 254
+            if (phoneNumber.startsWith('0')) {
+                phoneNumber = '254' + phoneNumber.substring(1);
+            }
+            
+            // If doesn't start with 254, add it
+            if (!phoneNumber.startsWith('254')) {
+                phoneNumber = '254' + phoneNumber;
+            }
+            
+            phoneInput.value = phoneNumber;
+            
+            // Submit form via AJAX
+            const formData = new FormData(paymentForm);
+            
+            fetch(paymentForm.action, {
+                method: 'POST',
+                body: formData,
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    alert('Payment initiated successfully! Please check your phone for the M-Pesa prompt.');
+                    window.location.href = '{% url "core:parent_portal_student_fees" student.student_id %}';
+                } else {
+                    alert(data.message || 'Payment initiation failed. Please try again.');
+                    submitBtn.disabled = false;
+                    submitBtn.innerHTML = '<i class="fas fa-paper-plane me-2"></i>Initiate Payment';
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('An error occurred. Please try again.');
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = '<i class="fas fa-paper-plane me-2"></i>Initiate Payment';
+            });
+        });
+    }
+});
+</script>
+{% endblock %}
+

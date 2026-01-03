@@ -40,6 +40,17 @@ urlpatterns = [
     path('parents/<int:parent_id>/edit/', views.parent_edit, name='parent_edit'),
     path('parents/register/', views.parent_register, name='parent_register'),
     
+    # Parent Portal
+    path('portal/', views.parent_portal_dashboard, name='parent_portal_dashboard'),
+    path('portal/student/<str:student_id>/fees/', views.parent_portal_student_fees, name='parent_portal_student_fees'),
+    path('portal/student/<str:student_id>/statement/', views.parent_portal_student_statement, name='parent_portal_student_statement'),
+    path('portal/student/<str:student_id>/performance/', views.parent_portal_student_performance, name='parent_portal_student_performance'),
+    path('portal/profile/', views.parent_portal_profile, name='parent_portal_profile'),
+    path('portal/payment/<str:student_id>/<int:fee_id>/', views.parent_portal_payment_initiate, name='parent_portal_payment_initiate'),
+    
+    # M-Pesa Callback (no authentication required)
+    path('api/mpesa/callback/', views.mpesa_callback, name='mpesa_callback'),
+    
     # Grades
     path('grades/', views.grade_list, name='grade_list'),
     path('grades/generate/', views.grade_generate, name='grade_generate'),

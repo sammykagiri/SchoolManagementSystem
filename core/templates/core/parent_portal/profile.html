@@ -1,0 +1,171 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}My Profile - Parent Portal{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center">
+                <h2><i class="fas fa-user-edit me-2"></i>My Profile</h2>
+                <a href="{% url 'core:parent_portal_dashboard' %}" class="btn btn-secondary">
+                    <i class="fas fa-arrow-left me-2"></i>Back to Dashboard
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-edit me-2"></i>Update Profile</h5>
+                </div>
+                <div class="card-body">
+                    {% if messages %}
+                        {% for message in messages %}
+                            <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                                {{ message }}
+                                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                            </div>
+                        {% endfor %}
+                    {% endif %}
+
+                    <form method="post" novalidate>
+                        {% csrf_token %}
+                        
+                        <div class="mb-3">
+                            <label class="form-label">Username</label>
+                            <input type="text" class="form-control" value="{{ parent.user.username }}" disabled>
+                            <div class="form-text">Username cannot be changed</div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Full Name</label>
+                            <input type="text" class="form-control" value="{{ parent.user.get_full_name }}" disabled>
+                            <div class="form-text">Name changes require administrator approval</div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="phone" class="form-label">Phone Number <span class="text-danger">*</span></label>
+                            <input type="tel" name="phone" id="phone" class="form-control" 
+                                   value="{% if pending_phone %}{{ pending_phone }}{% else %}{{ parent.phone }}{% endif %}" required>
+                            <div class="form-text">
+                                <i class="fas fa-info-circle me-1"></i>
+                                Changing your phone number will require verification via SMS.
+                            </div>
+                            {% if phone_changed %}
+                            <div class="alert alert-warning mt-2">
+                                <i class="fas fa-exclamation-triangle me-2"></i>
+                                Phone number changed. Verification code has been sent.
+                            </div>
+                            {% endif %}
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="email" class="form-label">Email Address <span class="text-danger">*</span></label>
+                            <input type="email" name="email" id="email" class="form-control" 
+                                   value="{% if pending_email %}{{ pending_email }}{% else %}{% if parent.email %}{{ parent.email }}{% else %}{{ parent.user.email }}{% endif %}{% endif %}" required>
+                            <div class="form-text">
+                                <i class="fas fa-info-circle me-1"></i>
+                                Changing your email address will require verification via email.
+                            </div>
+                            {% if email_changed %}
+                            <div class="alert alert-warning mt-2">
+                                <i class="fas fa-exclamation-triangle me-2"></i>
+                                Email address changed. Verification code has been sent.
+                            </div>
+                            {% endif %}
+                        </div>
+
+                        {% if phone_changed or email_changed %}
+                        <div class="mb-3">
+                            <label for="verification_code" class="form-label">Verification Code <span class="text-danger">*</span></label>
+                            <div class="input-group">
+                                <input type="text" name="verification_code" id="verification_code" class="form-control" 
+                                       placeholder="Enter verification code" required maxlength="6">
+                                <input type="hidden" name="verification_type" value="{% if phone_changed %}phone{% else %}email{% endif %}">
+                            </div>
+                            <div class="form-text">
+                                <i class="fas fa-info-circle me-1"></i>
+                                Enter the verification code sent to {% if phone_changed %}your phone{% else %}your email{% endif %}.
+                            </div>
+                        </div>
+                        {% endif %}
+
+                        <div class="mb-3">
+                            <label for="address" class="form-label">Address</label>
+                            <textarea name="address" id="address" class="form-control" rows="3">{{ parent.address }}</textarea>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="preferred_contact_method" class="form-label">Preferred Contact Method</label>
+                            <select name="preferred_contact_method" id="preferred_contact_method" class="form-select">
+                                <option value="phone" {% if parent.preferred_contact_method == 'phone' %}selected{% endif %}>Phone</option>
+                                <option value="sms" {% if parent.preferred_contact_method == 'sms' %}selected{% endif %}>SMS</option>
+                                <option value="email" {% if parent.preferred_contact_method == 'email' %}selected{% endif %}>Email</option>
+                            </select>
+                        </div>
+
+                        <div class="d-flex justify-content-between">
+                            <a href="{% url 'core:parent_portal_dashboard' %}" class="btn btn-secondary">Cancel</a>
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-save me-2"></i>Update Profile
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-info-circle me-2"></i>Account Information</h5>
+                </div>
+                <div class="card-body">
+                    <table class="table table-borderless">
+                        <tr>
+                            <th>School:</th>
+                            <td>{{ parent.school.name }}</td>
+                        </tr>
+                        <tr>
+                            <th>Account Status:</th>
+                            <td>
+                                <span class="badge bg-{% if parent.is_active %}success{% else %}secondary{% endif %}">
+                                    {% if parent.is_active %}Active{% else %}Inactive{% endif %}
+                                </span>
+                            </td>
+                        </tr>
+                        <tr>
+                            <th>Linked Students:</th>
+                            <td>{{ parent.children.count }}</td>
+                        </tr>
+                        <tr>
+                            <th>Member Since:</th>
+                            <td>{{ parent.created_at|date:"M d, Y" }}</td>
+                        </tr>
+                    </table>
+                </div>
+            </div>
+
+            <div class="card mt-3">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-shield-alt me-2"></i>Security</h5>
+                </div>
+                <div class="card-body">
+                    <p class="text-muted small">
+                        <i class="fas fa-lock me-1"></i>
+                        For security reasons, phone and email changes require verification to ensure you have access to the new contact information.
+                    </p>
+                    <a href="{% url 'core:change_password' %}" class="btn btn-outline-primary btn-sm w-100">
+                        <i class="fas fa-key me-1"></i>Change Password
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+

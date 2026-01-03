@@ -182,6 +182,37 @@ class Parent(models.Model):
         return self.user.get_full_name() or self.user.username
 
 
+class ParentVerification(models.Model):
+    """Model to store verification codes for parent phone/email updates"""
+    parent = models.ForeignKey(Parent, on_delete=models.CASCADE, related_name='verifications')
+    verification_type = models.CharField(
+        max_length=20,
+        choices=[
+            ('phone', 'Phone'),
+            ('email', 'Email'),
+        ]
+    )
+    verification_code = models.CharField(max_length=10)
+    new_value = models.CharField(max_length=255, help_text='New phone number or email address')
+    is_verified = models.BooleanField(default=False)
+    expires_at = models.DateTimeField()
+    created_at = models.DateTimeField(auto_now_add=True)
+    verified_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['parent', 'verification_code', 'is_verified']),
+        ]
+
+    def __str__(self):
+        return f"{self.parent.full_name} - {self.verification_type} - {self.verification_code}"
+
+    def is_expired(self):
+        from django.utils import timezone
+        return timezone.now() > self.expires_at
+
+
 class Student(models.Model):
     school = models.ForeignKey(School, on_delete=models.CASCADE, related_name='students')
     GENDER_CHOICES = [
