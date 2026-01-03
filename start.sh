@@ -7,28 +7,28 @@ mkdir -p static
 mkdir -p staticfiles
 mkdir -p media
 
-echo "Checking database connection..."
-python manage.py check --database default 2>&1 || echo "Database check completed (warnings OK)"
+#echo "Checking database connection..."
+#python manage.py check --database default 2>&1 || echo "Database check completed (warnings OK)"
 
-echo "Checking if migrations need to be created..."
-python manage.py makemigrations --check --dry-run > /dev/null 2>&1
-if [ $? -ne 0 ]; then
-    echo "Creating migrations for apps with model changes..."
-    python manage.py makemigrations --noinput
-    if [ $? -ne 0 ]; then
-        echo "WARNING: makemigrations had issues, continuing anyway..."
-    fi
-fi
+#echo "Checking if migrations need to be created..."
+#python manage.py makemigrations --check --dry-run > /dev/null 2>&1
+#if [ $? -ne 0 ]; then
+#    echo "Creating migrations for apps with model changes..."
+#    python manage.py makemigrations --noinput
+#    if [ $? -ne 0 ]; then
+#        echo "WARNING: makemigrations had issues, continuing anyway..."
+#    fi
+#fi
 
-echo "Checking migration status..."
-python manage.py showmigrations --list 2>&1 | grep -E "\[" | head -40 || echo "Could not show migrations"
+#echo "Checking migration status..."
+#python manage.py showmigrations --list 2>&1 | grep -E "\[" | head -40 || echo "Could not show migrations"
 
-echo "Fixing migration history if needed (idempotent - safe to run multiple times)..."
-if [ -f "fix_remote_migration.py" ]; then
-    python fix_remote_migration.py || echo "Migration fix skipped or not needed (this is OK)"
-else
-    echo "fix_remote_migration.py not found, skipping migration fix (this is OK for new setups)"
-fi
+#echo "Fixing migration history if needed (idempotent - safe to run multiple times)..."
+#if [ -f "fix_remote_migration.py" ]; then
+#    python fix_remote_migration.py || echo "Migration fix skipped or not needed (this is OK)"
+#else
+#    echo "fix_remote_migration.py not found, skipping migration fix (this is OK for new setups)"
+#fi
 
 echo "Running migrations..."
 python manage.py migrate --noinput
