@@ -129,11 +129,21 @@ WSGI_APPLICATION = 'school_management.wsgi.application'
 }
 """
 
-DATABASES = {
-    'default': dj_database_url.config(
-        default=f"postgresql://{config('DB_USER')}:{config('DB_PASSWORD')}@{config('DB_HOST')}:{config('DB_PORT')}/{config('DB_NAME')}"
-    )
-}
+# Database configuration
+# First try to use DATABASE_URL (Railway provides this automatically)
+# If not available, construct from individual DB_* variables with defaults
+database_url = config('DATABASE_URL', default=None)
+if database_url:
+    DATABASES = {
+        'default': dj_database_url.config(default=database_url)
+    }
+else:
+    # Fallback: construct from individual variables with defaults
+    DATABASES = {
+        'default': dj_database_url.config(
+            default=f"postgresql://{config('DB_USER', default='postgres')}:{config('DB_PASSWORD', default='postgres')}@{config('DB_HOST', default='localhost')}:{config('DB_PORT', default='5432')}/{config('DB_NAME', default='school_mgt_db_dev')}"
+        )
+    }
 
 SECRET_KEY = config('SECRET_KEY')
 
