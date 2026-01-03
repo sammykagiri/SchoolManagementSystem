@@ -34,6 +34,12 @@ urlpatterns = [
     path('students/<str:student_id>/statement/pdf/', views.student_statement_pdf, name='student_statement_pdf'),
     path('students/<str:student_id>/statement/email/', views.student_statement_email, name='student_statement_email'),
     
+    # Parents
+    path('parents/', views.parent_list, name='parent_list'),
+    path('parents/<int:parent_id>/', views.parent_detail, name='parent_detail'),
+    path('parents/<int:parent_id>/edit/', views.parent_edit, name='parent_edit'),
+    path('parents/register/', views.parent_register, name='parent_register'),
+    
     # Grades
     path('grades/', views.grade_list, name='grade_list'),
     path('grades/generate/', views.grade_generate, name='grade_generate'),
@@ -129,6 +135,7 @@ urlpatterns = [
     path('promotion/preview/', views.promotion_preview, name='promotion_preview'),
     path('promotion/confirm/', views.promotion_confirm, name='promotion_confirm'),
     path('promotion/history/', views.promotion_history, name='promotion_history'),
+    
 ]
 
 urlpatterns += router.urls

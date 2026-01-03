@@ -1,0 +1,427 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Edit Parent | School Management System{% endblock %}
+
+{% block extra_css %}
+<style>
+    .parent-form-container {
+        max-width: 900px;
+        margin: 0 auto;
+        padding: 15px;
+    }
+    .form-card {
+        border-radius: 8px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        overflow: hidden;
+    }
+    .form-header {
+        background-color: #0d6efd;
+        color: white;
+        padding: 15px;
+    }
+    .form-body {
+        padding: 20px;
+    }
+    .form-section {
+        background-color: #f8f9fc;
+        padding: 15px;
+        border-radius: 4px;
+        margin-bottom: 20px;
+    }
+    .form-section-title {
+        border-bottom: 1px solid #e3e6f0;
+        padding-bottom: 8px;
+        margin-bottom: 15px;
+        font-size: 1.1rem;
+        font-weight: 600;
+    }
+    .multi-select-wrapper {
+        margin-bottom: 15px;
+    }
+    .selected-items {
+        min-height: 40px;
+        padding: 8px;
+        border: 1px solid #dee2e6;
+        border-radius: 4px;
+        background-color: #f8f9fa;
+    }
+    .student-item.disabled {
+        opacity: 0.5;
+        pointer-events: none;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="parent-form-container">
+    <div class="card form-card">
+        <div class="form-header">
+            <h3 class="mb-0">
+                <i class="fas fa-user-edit me-2"></i>
+                Edit Parent/Guardian
+            </h3>
+        </div>
+        <div class="form-body">
+            <form method="post" novalidate>
+                {% csrf_token %}
+                
+                {% if form.non_field_errors %}
+                    <div class="alert alert-danger">
+                        {% for error in form.non_field_errors %}
+                            {{ error }}
+                        {% endfor %}
+                    </div>
+                {% endif %}
+                
+                <div class="alert alert-info">
+                    <i class="fas fa-info-circle me-2"></i>
+                    Editing parent for: <strong>{{ school.name }}</strong>
+                </div>
+                
+                <!-- User Account Information -->
+                <div class="form-section">
+                    <h5 class="form-section-title"><i class="fas fa-user me-2"></i>Account Information</h5>
+                    
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="{{ form.username.id_for_label }}" class="form-label">Username</label>
+                            <input type="text" class="form-control" value="{{ parent.user.username }}" disabled>
+                            <div class="form-text">Username cannot be changed</div>
+                        </div>
+                        
+                        <div class="col-md-6 mb-3">
+                            <label for="{{ form.email.id_for_label }}" class="form-label">Email <span class="text-danger">*</span></label>
+                            <input type="email" name="email" 
+                                   class="form-control {% if form.email.errors %}is-invalid{% endif %}" 
+                                   id="{{ form.email.id_for_label }}" 
+                                   value="{% if form.email.value %}{{ form.email.value }}{% else %}{{ parent.user.email }}{% endif %}" 
+                                   required>
+                            {% if form.email.errors %}
+                                <div class="invalid-feedback">
+                                    {{ form.email.errors.0 }}
+                                </div>
+                            {% elif form.email.help_text %}
+                                <small class="form-text text-muted">{{ form.email.help_text }}</small>
+                            {% endif %}
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="{{ form.first_name.id_for_label }}" class="form-label">First Name <span class="text-danger">*</span></label>
+                            <input type="text" name="first_name" 
+                                   class="form-control {% if form.first_name.errors %}is-invalid{% endif %}" 
+                                   id="{{ form.first_name.id_for_label }}" 
+                                   value="{% if form.first_name.value %}{{ form.first_name.value }}{% else %}{{ parent.user.first_name }}{% endif %}" 
+                                   required>
+                            {% if form.first_name.errors %}
+                                <div class="invalid-feedback">
+                                    {{ form.first_name.errors.0 }}
+                                </div>
+                            {% endif %}
+                        </div>
+                        
+                        <div class="col-md-6 mb-3">
+                            <label for="{{ form.last_name.id_for_label }}" class="form-label">Last Name <span class="text-danger">*</span></label>
+                            <input type="text" name="last_name" 
+                                   class="form-control {% if form.last_name.errors %}is-invalid{% endif %}" 
+                                   id="{{ form.last_name.id_for_label }}" 
+                                   value="{% if form.last_name.value %}{{ form.last_name.value }}{% else %}{{ parent.user.last_name }}{% endif %}" 
+                                   required>
+                            {% if form.last_name.errors %}
+                                <div class="invalid-feedback">
+                                    {{ form.last_name.errors.0 }}
+                                </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Contact Information -->
+                <div class="form-section">
+                    <h5 class="form-section-title"><i class="fas fa-address-card me-2"></i>Contact Information</h5>
+                    
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="{{ form.phone.id_for_label }}" class="form-label">Phone Number</label>
+                            <input type="text" name="{{ form.phone.name }}" 
+                                   class="form-control {% if form.phone.errors %}is-invalid{% endif %}" 
+                                   id="{{ form.phone.id_for_label }}" 
+                                   value="{% if form.phone.value %}{{ form.phone.value }}{% else %}{{ parent.phone }}{% endif %}">
+                            {% if form.phone.errors %}
+                                <div class="invalid-feedback">
+                                    {{ form.phone.errors.0 }}
+                                </div>
+                            {% elif form.phone.help_text %}
+                                <small class="form-text text-muted">{{ form.phone.help_text }}</small>
+                            {% endif %}
+                        </div>
+                        
+                        <div class="col-md-6 mb-3">
+                            <label for="{{ form.preferred_contact_method.id_for_label }}" class="form-label">Preferred Contact Method</label>
+                            <select name="{{ form.preferred_contact_method.name }}" 
+                                    class="form-select {% if form.preferred_contact_method.errors %}is-invalid{% endif %}" 
+                                    id="{{ form.preferred_contact_method.id_for_label }}">
+                                {% for value, label in form.preferred_contact_method.field.choices %}
+                                <option value="{{ value }}" {% if form.preferred_contact_method.value == value or not form.preferred_contact_method.value and parent.preferred_contact_method == value %}selected{% endif %}>{{ label }}</option>
+                                {% endfor %}
+                            </select>
+                            {% if form.preferred_contact_method.errors %}
+                                <div class="invalid-feedback">
+                                    {{ form.preferred_contact_method.errors.0 }}
+                                </div>
+                            {% elif form.preferred_contact_method.help_text %}
+                                <small class="form-text text-muted">{{ form.preferred_contact_method.help_text }}</small>
+                            {% endif %}
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="{{ form.address.id_for_label }}" class="form-label">Address</label>
+                        <textarea name="{{ form.address.name }}" 
+                                  class="form-control {% if form.address.errors %}is-invalid{% endif %}" 
+                                  id="{{ form.address.id_for_label }}" 
+                                  rows="3">{% if form.address.value %}{{ form.address.value }}{% else %}{{ parent.address }}{% endif %}</textarea>
+                        {% if form.address.errors %}
+                            <div class="invalid-feedback">
+                                {{ form.address.errors.0 }}
+                            </div>
+                        {% elif form.address.help_text %}
+                            <small class="form-text text-muted">{{ form.address.help_text }}</small>
+                        {% endif %}
+                    </div>
+                    
+                    <div class="mb-3">
+                        <div class="form-check form-switch">
+                            <input class="form-check-input" type="checkbox" name="{{ form.is_active.name }}" 
+                                   id="{{ form.is_active.id_for_label }}" 
+                                   {% if form.is_active.value or not form.is_active.value and parent.is_active %}checked{% endif %}>
+                            <label class="form-check-label" for="{{ form.is_active.id_for_label }}">
+                                Active Status
+                            </label>
+                        </div>
+                        {% if form.is_active.help_text %}
+                            <small class="form-text text-muted">{{ form.is_active.help_text }}</small>
+                        {% endif %}
+                    </div>
+                </div>
+                
+                <!-- Link Students -->
+                <div class="form-section">
+                    <h5 class="form-section-title"><i class="fas fa-users me-2"></i>Linked Students</h5>
+                    <p class="text-muted">Select students to link to this parent account.</p>
+                    
+                    {% with students_queryset=form.students.field.queryset %}
+                        {% if students_queryset|length > 0 %}
+                        <div class="multi-select-wrapper">
+                            <div class="selected-items mb-2" id="selected-students">
+                                {% if parent %}
+                                    {% for student in parent.children.all %}
+                                        <span class="badge bg-primary me-1 mb-1" data-value="{{ student.id }}">
+                                            {{ student.full_name }} ({{ student.student_id }})
+                                            <button type="button" class="btn-close btn-close-white ms-1" style="font-size: 0.7em;" aria-label="Remove"></button>
+                                        </span>
+                                    {% endfor %}
+                                {% else %}
+                                    {% for student in form.students.value %}
+                                        {% for student_obj in students_queryset %}
+                                            {% if student_obj.id|stringformat:"s" == student|stringformat:"s" %}
+                                                <span class="badge bg-primary me-1 mb-1" data-value="{{ student_obj.id }}">
+                                                    {{ student_obj.full_name }} ({{ student_obj.student_id }})
+                                                    <button type="button" class="btn-close btn-close-white ms-1" style="font-size: 0.7em;" aria-label="Remove"></button>
+                                                </span>
+                                            {% endif %}
+                                        {% endfor %}
+                                    {% endfor %}
+                                {% endif %}
+                            </div>
+                            <div class="dropdown">
+                                <button class="btn btn-outline-secondary dropdown-toggle w-100" type="button" id="studentDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+                                    Select Students
+                                </button>
+                                <ul class="dropdown-menu w-100" aria-labelledby="studentDropdown" id="studentDropdownMenu">
+                                    {% for student in students_queryset %}
+                                        <li>
+                                            <a class="dropdown-item student-item" href="#" data-value="{{ student.id }}" data-text="{{ student.full_name }} ({{ student.student_id }})">
+                                                {{ student.full_name }} ({{ student.student_id }})
+                                                {% if student.grade %}
+                                                    - Grade: {{ student.grade.name }}
+                                                {% endif %}
+                                            </a>
+                                        </li>
+                                    {% endfor %}
+                                </ul>
+                            </div>
+                            <input type="hidden" name="students" id="id_students" value="">
+                        </div>
+                        {% if form.students.help_text %}
+                            <div class="form-text">{{ form.students.help_text }}</div>
+                        {% endif %}
+                        {% if form.students.errors %}
+                            <div class="text-danger small mt-2">
+                                {% for error in form.students.errors %}
+                                    <div>{{ error }}</div>
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+                        {% else %}
+                        <div class="alert alert-warning">
+                            <i class="fas fa-exclamation-triangle me-2"></i>
+                            No active students found for this school.
+                        </div>
+                        {% endif %}
+                    {% endwith %}
+                </div>
+                
+                <div class="d-flex justify-content-between mt-4">
+                    <a href="{% url 'core:parent_detail' parent.id %}" class="btn btn-secondary">
+                        <i class="fas fa-times me-2"></i>Cancel
+                    </a>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-save me-2"></i>Update Parent
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const parentForm = document.querySelector('form');
+    const selectedStudentsContainer = document.getElementById('selected-students');
+    const studentDropdownItems = document.querySelectorAll('.student-item');
+    const selectedStudentValues = new Set();
+    
+    // Initialize with existing selections
+    {% if parent %}
+        {% for student in parent.children.all %}
+            selectedStudentValues.add('{{ student.id }}');
+        {% endfor %}
+    {% else %}
+        {% for student in form.students.value %}
+            selectedStudentValues.add('{{ student }}');
+        {% endfor %}
+    {% endif %}
+    
+    // Function to update hidden inputs (Django expects multiple inputs with same name for many-to-many)
+    function updateStudentHiddenInput() {
+        // Remove all existing student hidden inputs (including the main one)
+        const existingInputs = parentForm.querySelectorAll('input[name="students"]');
+        existingInputs.forEach(input => {
+            input.remove();
+        });
+        
+        // Create new hidden inputs for each selected student
+        selectedStudentValues.forEach(value => {
+            const hiddenInput = document.createElement('input');
+            hiddenInput.type = 'hidden';
+            hiddenInput.name = 'students';
+            hiddenInput.value = value;
+            parentForm.appendChild(hiddenInput);
+        });
+    }
+    
+    // Function to re-enable dropdown item
+    function enableStudentDropdownItem(value) {
+        studentDropdownItems.forEach(item => {
+            if (item.getAttribute('data-value') === value) {
+                item.classList.remove('disabled');
+                item.style.pointerEvents = '';
+                item.style.opacity = '';
+            }
+        });
+    }
+    
+    // Function to disable dropdown item
+    function disableStudentDropdownItem(value) {
+        studentDropdownItems.forEach(item => {
+            if (item.getAttribute('data-value') === value) {
+                item.classList.add('disabled');
+                item.style.pointerEvents = 'none';
+                item.style.opacity = '0.5';
+            }
+        });
+    }
+    
+    // Function to remove selected student
+    function removeSelectedStudent(value) {
+        selectedStudentValues.delete(value);
+        updateStudentHiddenInput();
+        enableStudentDropdownItem(value);
+        
+        // Remove the badge from DOM
+        const badge = selectedStudentsContainer.querySelector(`[data-value="${value}"]`);
+        if (badge) {
+            badge.remove();
+        }
+    }
+    
+    // Function to add selected student
+    function addSelectedStudent(value, text) {
+        if (selectedStudentValues.has(value)) {
+            return; // Already selected
+        }
+        
+        selectedStudentValues.add(value);
+        const badge = document.createElement('span');
+        badge.className = 'badge bg-primary me-1 mb-1';
+        badge.setAttribute('data-value', value);
+        badge.innerHTML = text + ' <button type="button" class="btn-close btn-close-white ms-1" style="font-size: 0.7em;" aria-label="Remove"></button>';
+        
+        // Add remove functionality
+        const removeBtn = badge.querySelector('.btn-close');
+        removeBtn.addEventListener('click', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            removeSelectedStudent(value);
+        });
+        
+        selectedStudentsContainer.appendChild(badge);
+        updateStudentHiddenInput();
+        disableStudentDropdownItem(value);
+    }
+    
+    // Handle remove buttons for existing badges
+    const existingStudentBadges = selectedStudentsContainer.querySelectorAll('.badge[data-value]');
+    existingStudentBadges.forEach(badge => {
+        const removeBtn = badge.querySelector('.btn-close');
+        if (removeBtn) {
+            removeBtn.addEventListener('click', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                const value = badge.getAttribute('data-value');
+                removeSelectedStudent(value);
+            });
+        }
+    });
+    
+    // Handle dropdown item clicks
+    studentDropdownItems.forEach(item => {
+        item.addEventListener('click', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            const value = this.getAttribute('data-value');
+            const text = this.getAttribute('data-text');
+            
+            if (!selectedStudentValues.has(value)) {
+                addSelectedStudent(value, text);
+            }
+        });
+        
+        // Check if already selected and disable
+        const value = item.getAttribute('data-value');
+        if (selectedStudentValues.has(value)) {
+            disableStudentDropdownItem(value);
+        }
+    });
+    
+    // Update hidden input on page load
+    updateStudentHiddenInput();
+});
+</script>
+{% endblock %}
+

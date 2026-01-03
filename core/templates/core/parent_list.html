@@ -1,0 +1,163 @@
+{% extends 'base.html' %}
+{% block title %}Parents | School Management System{% endblock %}
+{% block content %}
+<div class="container py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2 class="mb-0">Parents/Guardians</h2>
+    </div>
+    <form method="get" class="mb-3 row g-2" id="filterForm">
+        <div class="col-md-6">
+            <input type="text" name="search" id="searchInput" class="form-control" placeholder="Search by name, email, phone..." value="{{ search_query }}">
+        </div>
+        <div class="col-md-2">
+            <div class="form-check form-switch d-flex align-items-center h-100">
+                <input class="form-check-input" type="checkbox" id="showInactive" {% if show_inactive %}checked{% endif %}>
+                <label class="form-check-label ms-2" for="showInactive">Show Inactive</label>
+            </div>
+        </div>
+        <div class="col-md-4 d-flex justify-content-end gap-2">
+            <a href="{% url 'core:parent_list' %}" class="btn btn-outline-secondary">
+                <i class="fas fa-times"></i> Clear Filters
+            </a>
+            <a href="{% url 'core:parent_register' %}" class="btn btn-primary">
+                <i class="fas fa-plus"></i> Add Parent
+            </a>
+        </div>
+        <input type="hidden" name="show_inactive" id="showInactiveHidden" value="{% if show_inactive %}true{% else %}false{% endif %}">
+    </form>
+    <div class="card">
+        <div class="card-body p-0">
+            <table class="table table-hover mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>Name</th>
+                        <th>Username</th>
+                        <th>Email</th>
+                        <th>Phone</th>
+                        <th>Children</th>
+                        <th>Preferred Contact</th>
+                        <th>Status</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for parent in page_obj %}
+                    <tr class="{% if not parent.is_active %}table-secondary opacity-75{% endif %}">
+                        <td>
+                            <strong>{{ parent.full_name }}</strong>
+                        </td>
+                        <td>{{ parent.user.username }}</td>
+                        <td>
+                            {% if parent.email %}
+                                <a href="mailto:{{ parent.email }}">{{ parent.email }}</a>
+                            {% elif parent.user.email %}
+                                <a href="mailto:{{ parent.user.email }}">{{ parent.user.email }}</a>
+                            {% else %}
+                                <span class="text-muted">-</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if parent.phone %}
+                                <a href="tel:{{ parent.phone }}">{{ parent.phone }}</a>
+                            {% else %}
+                                <span class="text-muted">-</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if parent.children.exists %}
+                                <span class="badge bg-info">{{ parent.children.count }} student{{ parent.children.count|pluralize }}</span>
+                            {% else %}
+                                <span class="text-muted">No students linked</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <span class="badge bg-secondary">{{ parent.get_preferred_contact_method_display }}</span>
+                        </td>
+                        <td>
+                            {% if parent.is_active %}
+                                <span class="badge bg-success">Active</span>
+                            {% else %}
+                                <span class="badge bg-secondary">Inactive</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <a href="{% url 'core:parent_detail' parent.id %}" class="btn btn-sm btn-outline-info me-1">View</a>
+                            <a href="{% url 'core:parent_edit' parent.id %}" class="btn btn-sm btn-outline-primary">Edit</a>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr><td colspan="8" class="text-center text-muted">No parents found.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    <div class="mt-3">
+        <nav aria-label="Page navigation">
+            <ul class="pagination justify-content-center">
+                {% if page_obj.has_previous %}
+                    <li class="page-item"><a class="page-link" href="?page={{ page_obj.previous_page_number }}&search={{ search_query }}{% if show_inactive %}&show_inactive=true{% endif %}">Previous</a></li>
+                {% else %}
+                    <li class="page-item disabled"><span class="page-link">Previous</span></li>
+                {% endif %}
+                <li class="page-item disabled"><span class="page-link">Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span></li>
+                {% if page_obj.has_next %}
+                    <li class="page-item"><a class="page-link" href="?page={{ page_obj.next_page_number }}&search={{ search_query }}{% if show_inactive %}&show_inactive=true{% endif %}">Next</a></li>
+                {% else %}
+                    <li class="page-item disabled"><span class="page-link">Next</span></li>
+                {% endif %}
+            </ul>
+        </nav>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const searchInput = document.getElementById('searchInput');
+    const showInactiveCheckbox = document.getElementById('showInactive');
+    const showInactiveHidden = document.getElementById('showInactiveHidden');
+    const filterForm = document.getElementById('filterForm');
+    const submitForm = () => {
+        if (typeof filterForm.requestSubmit === 'function') {
+            filterForm.requestSubmit();
+        } else {
+            filterForm.submit();
+        }
+    };
+    
+    // Handle show inactive checkbox toggle
+    if (showInactiveCheckbox) {
+        showInactiveCheckbox.addEventListener('change', function() {
+            showInactiveHidden.value = this.checked ? 'true' : 'false';
+            submitForm();
+        });
+    }
+    
+    // Debounced auto-submit while typing
+    let typingTimer;
+    const DEBOUNCE_DELAY = 400; // ms
+    
+    searchInput.addEventListener('input', function() {
+        clearTimeout(typingTimer);
+        typingTimer = setTimeout(submitForm, DEBOUNCE_DELAY);
+    });
+    
+    // Immediate submit on Enter key
+    searchInput.addEventListener('keydown', function(e) {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            clearTimeout(typingTimer);
+            submitForm();
+        }
+    });
+    
+    // Keep focus in search box after reloads
+    if (searchInput) {
+        const valueLength = searchInput.value.length;
+        searchInput.focus();
+        searchInput.setSelectionRange(valueLength, valueLength);
+    }
+});
+</script>
+{% endblock %}
+

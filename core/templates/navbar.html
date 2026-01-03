@@ -66,6 +66,28 @@
                 </ul>
             </li>
             
+            <!-- Parents -->
+            <li class="nav-item">
+                <a class="nav-link {% if request.resolver_match.url_name == 'parent_list' or request.resolver_match.url_name == 'parent_detail' or request.resolver_match.url_name == 'parent_register' %}active{% endif %}" 
+                   href="#" data-bs-toggle="collapse" data-bs-target="#parentsSubmenu" aria-expanded="false">
+                    <i class="fas fa-user-friends me-2"></i>
+                    <span>Parents</span>
+                    <i class="fas fa-chevron-down ms-auto"></i>
+                </a>
+                <ul class="collapse nav flex-column submenu" id="parentsSubmenu">
+                    <li class="nav-item">
+                        <a class="nav-link {% if request.resolver_match.url_name == 'parent_list' %}active{% endif %}" href="{% url 'core:parent_list' %}">
+                            <i class="fas fa-list me-2"></i>Parent List
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {% if request.resolver_match.url_name == 'parent_register' %}active{% endif %}" href="{% url 'core:parent_register' %}">
+                            <i class="fas fa-plus me-2"></i>Add Parent
+                        </a>
+                    </li>
+                </ul>
+            </li>
+            
             <!-- Teachers -->
             <li class="nav-item">
                 <a class="nav-link {% if request.resolver_match.url_name == 'teacher_list' or request.resolver_match.url_name == 'teacher_add' or request.resolver_match.url_name == 'teacher_edit' or request.resolver_match.url_name == 'teacher_detail' %}active{% endif %}" 

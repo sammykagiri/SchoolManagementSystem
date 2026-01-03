@@ -1,0 +1,115 @@
+{% extends 'base.html' %}
+{% block title %}Parent Details | School Management System{% endblock %}
+{% block content %}
+<div class="container py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2 class="mb-0">Parent/Guardian Details</h2>
+        <a href="{% url 'core:parent_list' %}" class="btn btn-outline-secondary">
+            <i class="fas fa-arrow-left"></i> Back to Parents
+        </a>
+    </div>
+    
+    <div class="row">
+        <div class="col-md-6">
+            <div class="card mb-4">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0"><i class="fas fa-user me-2"></i>Parent Information</h5>
+                </div>
+                <div class="card-body">
+                    <table class="table table-borderless">
+                        <tr>
+                            <th width="40%">Name:</th>
+                            <td><strong>{{ parent.full_name }}</strong></td>
+                        </tr>
+                        <tr>
+                            <th>Username:</th>
+                            <td>{{ parent.user.username }}</td>
+                        </tr>
+                        <tr>
+                            <th>Email:</th>
+                            <td>
+                                {% if parent.email %}
+                                    <a href="mailto:{{ parent.email }}">{{ parent.email }}</a>
+                                {% elif parent.user.email %}
+                                    <a href="mailto:{{ parent.user.email }}">{{ parent.user.email }}</a>
+                                {% else %}
+                                    <span class="text-muted">Not provided</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        <tr>
+                            <th>Phone:</th>
+                            <td>
+                                {% if parent.phone %}
+                                    <a href="tel:{{ parent.phone }}">{{ parent.phone }}</a>
+                                {% else %}
+                                    <span class="text-muted">Not provided</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        <tr>
+                            <th>Address:</th>
+                            <td>{{ parent.address|default:"Not provided" }}</td>
+                        </tr>
+                        <tr>
+                            <th>Preferred Contact:</th>
+                            <td>
+                                <span class="badge bg-secondary">{{ parent.get_preferred_contact_method_display }}</span>
+                            </td>
+                        </tr>
+                        <tr>
+                            <th>Status:</th>
+                            <td>
+                                {% if parent.is_active %}
+                                    <span class="badge bg-success">Active</span>
+                                {% else %}
+                                    <span class="badge bg-secondary">Inactive</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        <tr>
+                            <th>School:</th>
+                            <td>{{ parent.school.name }}</td>
+                        </tr>
+                    </table>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-6">
+            <div class="card mb-4">
+                <div class="card-header bg-info text-white">
+                    <h5 class="mb-0"><i class="fas fa-users me-2"></i>Linked Students ({{ children.count }})</h5>
+                </div>
+                <div class="card-body">
+                    {% if children.exists %}
+                        <div class="list-group">
+                            {% for child in children %}
+                            <a href="{% url 'core:student_detail' child.student_id %}" class="list-group-item list-group-item-action">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <div>
+                                        <h6 class="mb-1">{{ child.full_name }}</h6>
+                                        <small class="text-muted">
+                                            ID: {{ child.student_id }} | 
+                                            Grade: {{ child.grade.name }}
+                                            {% if child.school_class %} | Class: {{ child.school_class.name }}{% endif %}
+                                        </small>
+                                    </div>
+                                    <i class="fas fa-chevron-right text-muted"></i>
+                                </div>
+                            </a>
+                            {% endfor %}
+                        </div>
+                    {% else %}
+                        <div class="alert alert-warning mb-0">
+                            <i class="fas fa-exclamation-triangle me-2"></i>
+                            No students are currently linked to this parent account.
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+

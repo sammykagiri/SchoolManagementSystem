@@ -3,7 +3,7 @@ from django.contrib.auth.forms import UserCreationForm
 from django.contrib.auth.models import User
 from django.core.exceptions import ValidationError
 from django.db.models import Q
-from .models import Student, Grade, TransportRoute, Role, UserProfile, School, SchoolClass, FeeCategory
+from .models import Student, Grade, TransportRoute, Role, UserProfile, School, SchoolClass, FeeCategory, Parent
 
 
 class StudentForm(forms.ModelForm):
@@ -24,7 +24,7 @@ class StudentForm(forms.ModelForm):
             'address': forms.Textarea(attrs={'rows': 3}),
             'uses_transport': forms.CheckboxInput(),
             'photo': forms.FileInput(attrs={'accept': 'image/*', 'class': 'form-control'}),
-            'parents': forms.CheckboxSelectMultiple(),
+            'parents': forms.CheckboxSelectMultiple(attrs={'style': 'display: none;'}),  # Hidden - handled by custom UI
             'school_class': forms.Select(attrs={'class': 'form-select'}),
             'optional_fee_categories': forms.CheckboxSelectMultiple(),
             'upi': forms.TextInput(attrs={
@@ -98,8 +98,12 @@ class StudentForm(forms.ModelForm):
         self.fields['date_of_birth'].required = True
         self.fields['grade'].required = True
         self.fields['admission_date'].required = True
-        self.fields['parent_name'].required = True
-        self.fields['parent_phone'].required = True
+        
+        # Make parent fields optional (since we're using linked parent accounts)
+        self.fields['parent_name'].required = False
+        self.fields['parent_phone'].required = False
+        self.fields['parent_email'].required = False
+        self.fields['address'].required = False
         
         # Add help text
         if 'upi' in self.fields:
@@ -343,3 +347,191 @@ class UserProfileForm(forms.ModelForm):
                     raise ValidationError("You do not have permission to assign the super_admin role.")
         
         return roles
+
+
+class ParentRegistrationForm(UserCreationForm):
+    """Form for parent/guardian registration"""
+    email = forms.EmailField(required=True, help_text='Required. Enter a valid email address.')
+    first_name = forms.CharField(required=True, max_length=150)
+    last_name = forms.CharField(required=True, max_length=150)
+    phone = forms.CharField(max_length=15, required=False, help_text='Contact phone number')
+    address = forms.CharField(widget=forms.Textarea(attrs={'rows': 3}), required=False, help_text='Address')
+    preferred_contact_method = forms.ChoiceField(
+        choices=[
+            ('phone', 'Phone'),
+            ('sms', 'SMS'),
+            ('email', 'Email'),
+        ],
+        initial='phone',
+        required=False,
+        help_text='Preferred method of contact'
+    )
+    students = forms.ModelMultipleChoiceField(
+        queryset=Student.objects.none(),
+        required=False,
+        widget=forms.CheckboxSelectMultiple(),
+        help_text='Select students to link to this parent account (optional - can be done later)'
+    )
+    
+    class Meta:
+        model = User
+        fields = ('username', 'email', 'first_name', 'last_name', 'password1', 'password2', 
+                 'phone', 'address', 'preferred_contact_method', 'students')
+    
+    def __init__(self, *args, **kwargs):
+        school = kwargs.pop('school', None)
+        super().__init__(*args, **kwargs)
+        
+        if school:
+            # Filter students by school
+            self.fields['students'].queryset = Student.objects.filter(
+                school=school, 
+                is_active=True
+            ).order_by('first_name', 'last_name')
+        else:
+            self.fields['students'].queryset = Student.objects.none()
+        
+        # Make fields more user-friendly
+        self.fields['username'].help_text = 'Required. 150 characters or fewer. Letters, digits and @/./+/-/_ only.'
+        self.fields['password1'].help_text = 'Your password must contain at least 8 characters.'
+    
+    def clean_email(self):
+        email = self.cleaned_data.get('email')
+        if email and User.objects.filter(email=email).exists():
+            raise ValidationError('A user with this email already exists.')
+        return email
+    
+    def save(self, commit=True, school=None):
+        user = super().save(commit=False)
+        user.email = self.cleaned_data['email']
+        user.first_name = self.cleaned_data['first_name']
+        user.last_name = self.cleaned_data['last_name']
+        
+        if commit:
+            user.save()
+            
+            # Create Parent profile
+            if school:
+                parent = Parent.objects.create(
+                    user=user,
+                    school=school,
+                    phone=self.cleaned_data.get('phone', ''),
+                    email=self.cleaned_data.get('email', ''),
+                    address=self.cleaned_data.get('address', ''),
+                    preferred_contact_method=self.cleaned_data.get('preferred_contact_method', 'phone'),
+                    is_active=True
+                )
+                
+                # Link selected students
+                students = self.cleaned_data.get('students', [])
+                if students:
+                    parent.children.set(students)
+                
+                return parent
+        
+        return user
+
+
+class ParentEditForm(forms.ModelForm):
+    """Form for editing parent/guardian information"""
+    email = forms.EmailField(required=True, help_text='Required. Enter a valid email address.')
+    first_name = forms.CharField(required=True, max_length=150)
+    last_name = forms.CharField(required=True, max_length=150)
+    phone = forms.CharField(max_length=15, required=False, help_text='Contact phone number')
+    address = forms.CharField(widget=forms.Textarea(attrs={'rows': 3}), required=False, help_text='Address')
+    preferred_contact_method = forms.ChoiceField(
+        choices=[
+            ('phone', 'Phone'),
+            ('sms', 'SMS'),
+            ('email', 'Email'),
+        ],
+        required=False,
+        help_text='Preferred method of contact'
+    )
+    students = forms.ModelMultipleChoiceField(
+        queryset=Student.objects.none(),
+        required=False,
+        widget=forms.CheckboxSelectMultiple(),
+        help_text='Select students to link to this parent account'
+    )
+    is_active = forms.BooleanField(required=False, help_text='Active status')
+    
+    class Meta:
+        model = Parent
+        fields = ('phone', 'address', 'preferred_contact_method', 'is_active', 'students')
+    
+    def __init__(self, *args, **kwargs):
+        school = kwargs.pop('school', None)
+        instance = kwargs.get('instance')
+        super().__init__(*args, **kwargs)
+        
+        # Get the user from the parent instance
+        if instance and instance.user:
+            self.user = instance.user
+            # Initialize user fields
+            self.fields['email'] = forms.EmailField(
+                required=True,
+                initial=instance.user.email,
+                help_text='Required. Enter a valid email address.'
+            )
+            self.fields['first_name'] = forms.CharField(
+                required=True,
+                max_length=150,
+                initial=instance.user.first_name
+            )
+            self.fields['last_name'] = forms.CharField(
+                required=True,
+                max_length=150,
+                initial=instance.user.last_name
+            )
+        else:
+            self.user = None
+        
+        if school:
+            # Filter students by school
+            self.fields['students'].queryset = Student.objects.filter(
+                school=school, 
+                is_active=True
+            ).order_by('first_name', 'last_name')
+            
+            # Set initial students if editing
+            if instance:
+                self.fields['students'].initial = instance.children.all()
+        else:
+            self.fields['students'].queryset = Student.objects.none()
+    
+    def clean_email(self):
+        email = self.cleaned_data.get('email')
+        if email and self.user and User.objects.filter(email=email).exclude(id=self.user.id).exists():
+            raise ValidationError('A user with this email already exists.')
+        return email
+    
+    def save(self, commit=True):
+        parent = super().save(commit=False)
+        
+        # Update user information
+        if self.user:
+            self.user.email = self.cleaned_data.get('email', self.user.email)
+            self.user.first_name = self.cleaned_data.get('first_name', self.user.first_name)
+            self.user.last_name = self.cleaned_data.get('last_name', self.user.last_name)
+            if commit:
+                self.user.save()
+        
+        # Update parent email if provided
+        if 'email' in self.cleaned_data:
+            parent.email = self.cleaned_data['email']
+        
+        # Handle is_active checkbox (if not checked, it won't be in POST data)
+        if 'is_active' in self.cleaned_data:
+            parent.is_active = self.cleaned_data['is_active']
+        else:
+            parent.is_active = False
+        
+        if commit:
+            parent.save()
+            
+            # Update linked students
+            students = self.cleaned_data.get('students', [])
+            parent.children.set(students)
+        
+        return parent

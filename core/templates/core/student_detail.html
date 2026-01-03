@@ -167,20 +167,12 @@
                                     <h5>Contact Information:</h5>
                             <table class="table table-borderless">
                                 <tr>
-                                    <th width="30%">Parent Name:</th>
-                                    <td>{{ student.parent_name }}</td>
-                                </tr>
-                                <tr>
-                                    <th>Parent Phone:</th>
-                                    <td>{{ student.parent_phone }}</td>
-                                </tr>
-                                <tr>
-                                    <th>Parent Email:</th>
-                                    <td>{{ student.parent_email }}</td>
-                                </tr>
-                                <tr>
-                                    <th>Address:</th>
+                                    <th width="30%">Address:</th>
                                     <td>{{ student.address|default:"Not provided" }}</td>
+                                </tr>
+                                <tr>
+                                    <th>UPI/NEMIS:</th>
+                                    <td>{{ student.upi|default:"Not provided" }}</td>
                                 </tr>
                                     </table>
                                 </div>
@@ -212,31 +204,146 @@
                         </div>
                     </div>
 
-                    <!-- Linked Parents -->
+                    <!-- Class Teacher Information -->
+                    {% if student.school_class and student.school_class.class_teacher %}
                     <div class="row mt-4">
                         <div class="col-12">
-                            <h5>Linked Parent Accounts:</h5>
+                            <h5><i class="fas fa-chalkboard-teacher me-2"></i>Class Teacher Information:</h5>
+                            <div class="card bg-light">
+                                <div class="card-body">
+                                    <div class="row">
+                                        <div class="col-md-8">
+                                            <table class="table table-borderless mb-0">
+                                                <tr>
+                                                    <th width="25%">Name:</th>
+                                                    <td><strong>{{ student.school_class.class_teacher.full_name }}</strong></td>
+                                                </tr>
+                                                <tr>
+                                                    <th>Employee ID:</th>
+                                                    <td>{{ student.school_class.class_teacher.employee_id }}</td>
+                                                </tr>
+                                                {% if student.school_class.class_teacher.email %}
+                                                <tr>
+                                                    <th>Email:</th>
+                                                    <td>
+                                                        <a href="mailto:{{ student.school_class.class_teacher.email }}">{{ student.school_class.class_teacher.email }}</a>
+                                                    </td>
+                                                </tr>
+                                                {% endif %}
+                                                {% if student.school_class.class_teacher.phone %}
+                                                <tr>
+                                                    <th>Phone:</th>
+                                                    <td>
+                                                        <a href="tel:{{ student.school_class.class_teacher.phone }}">{{ student.school_class.class_teacher.phone }}</a>
+                                                    </td>
+                                                </tr>
+                                                {% endif %}
+                                                {% if student.school_class.class_teacher.qualification %}
+                                                <tr>
+                                                    <th>Qualification:</th>
+                                                    <td>{{ student.school_class.class_teacher.qualification }}</td>
+                                                </tr>
+                                                {% endif %}
+                                                {% if student.school_class.class_teacher.specialization %}
+                                                <tr>
+                                                    <th>Specialization:</th>
+                                                    <td>{{ student.school_class.class_teacher.specialization }}</td>
+                                                </tr>
+                                                {% endif %}
+                                            </table>
+                                        </div>
+                                        <div class="col-md-4 text-end">
+                                            <div class="d-flex flex-column gap-2">
+                                                {% if student.school_class.class_teacher.email %}
+                                                <a href="mailto:{{ student.school_class.class_teacher.email }}" class="btn btn-primary">
+                                                    <i class="fas fa-envelope me-2"></i>Send Email
+                                                </a>
+                                                {% endif %}
+                                                {% if student.school_class.class_teacher.phone %}
+                                                <a href="tel:{{ student.school_class.class_teacher.phone }}" class="btn btn-success">
+                                                    <i class="fas fa-phone me-2"></i>Call
+                                                </a>
+                                                {% endif %}
+                                                <a href="{% url 'core:teacher_detail' student.school_class.class_teacher.id %}" class="btn btn-outline-info">
+                                                    <i class="fas fa-user-tie me-2"></i>View Profile
+                                                </a>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+
+                    <!-- Linked Parent Accounts -->
+                    <div class="row mt-4">
+                        <div class="col-12">
+                            <h5><i class="fas fa-users-cog me-2"></i>Linked Parent/Guardian Accounts:</h5>
                             <div class="table-responsive">
                                 <table class="table table-striped">
                                     <thead>
                                         <tr>
                                             <th>Name</th>
+                                            <th>Username</th>
                                             <th>Email</th>
                                             <th>Phone</th>
                                             <th>Preferred Contact</th>
+                                            <th>Status</th>
+                                            <th>Actions</th>
                                         </tr>
                                     </thead>
                                     <tbody>
                                         {% for parent in student.parents.all %}
                                         <tr>
-                                            <td>{{ parent.full_name }}</td>
-                                            <td>{{ parent.email|default:parent.user.email|default:"Not provided" }}</td>
-                                            <td>{{ parent.phone|default:"Not provided" }}</td>
-                                            <td>{{ parent.get_preferred_contact_method_display }}</td>
+                                            <td><strong>{{ parent.full_name }}</strong></td>
+                                            <td>{{ parent.user.username }}</td>
+                                            <td>
+                                                {% if parent.email %}
+                                                    <a href="mailto:{{ parent.email }}">{{ parent.email }}</a>
+                                                {% elif parent.user.email %}
+                                                    <a href="mailto:{{ parent.user.email }}">{{ parent.user.email }}</a>
+                                                {% else %}
+                                                    <span class="text-muted">Not provided</span>
+                                                {% endif %}
+                                            </td>
+                                            <td>
+                                                {% if parent.phone %}
+                                                    <a href="tel:{{ parent.phone }}">{{ parent.phone }}</a>
+                                                {% else %}
+                                                    <span class="text-muted">Not provided</span>
+                                                {% endif %}
+                                            </td>
+                                            <td>
+                                                <span class="badge bg-secondary">{{ parent.get_preferred_contact_method_display }}</span>
+                                            </td>
+                                            <td>
+                                                <span class="badge bg-{% if parent.is_active %}success{% else %}secondary{% endif %}">
+                                                    {% if parent.is_active %}Active{% else %}Inactive{% endif %}
+                                                </span>
+                                            </td>
+                                            <td>
+                                                <div class="btn-group btn-group-sm" role="group">
+                                                    <a href="{% url 'core:parent_detail' parent.id %}" class="btn btn-outline-info" title="View Details">
+                                                        <i class="fas fa-eye"></i>
+                                                    </a>
+                                                    {% if parent.email or parent.user.email %}
+                                                    <a href="mailto:{{ parent.email|default:parent.user.email }}" class="btn btn-outline-primary" title="Send Email">
+                                                        <i class="fas fa-envelope"></i>
+                                                    </a>
+                                                    {% endif %}
+                                                    {% if parent.phone %}
+                                                    <a href="tel:{{ parent.phone }}" class="btn btn-outline-success" title="Call">
+                                                        <i class="fas fa-phone"></i>
+                                                    </a>
+                                                    {% endif %}
+                                                </div>
+                                            </td>
                                         </tr>
                                         {% empty %}
                                         <tr>
-                                            <td colspan="4" class="text-muted text-center">
+                                            <td colspan="7" class="text-muted text-center py-4">
+                                                <i class="fas fa-info-circle me-2"></i>
                                                 No linked parent accounts. You can link parents when editing the student profile.
                                             </td>
                                         </tr>

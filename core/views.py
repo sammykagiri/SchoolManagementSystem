@@ -24,8 +24,8 @@ from .serializers import (
     SchoolSerializer, GradeSerializer, TermSerializer, FeeCategorySerializer,
     TransportRouteSerializer, StudentSerializer, FeeStructureSerializer, StudentFeeSerializer, SchoolClassSerializer
 )
-from .forms import StudentForm, UserForm, UserEditForm, UserProfileForm
-from .models import Role, Permission
+from .forms import StudentForm, UserForm, UserEditForm, UserProfileForm, ParentRegistrationForm, ParentEditForm
+from .models import Role, Permission, Parent
 from django.contrib.auth.models import User
 import json
 from django.contrib.admin.views.decorators import staff_member_required
@@ -350,6 +350,9 @@ def student_create(request):
                 student.student_id = student_id
                 student.save()
                 
+                # Save many-to-many relationships (parents, optional_fee_categories)
+                form.save_m2m()
+                
                 messages.success(request, f'Student {student.full_name} created successfully.')
                 return redirect('core:student_detail', student_id=student.student_id)
                 
@@ -409,6 +412,9 @@ def student_update(request, student_id):
                 
                 # Save the student
                 form.save()
+                
+                # Save many-to-many relationships (parents, optional_fee_categories)
+                form.save_m2m()
 
                 # Refresh student from database to get updated transport_route
                 student.refresh_from_db()
@@ -2259,6 +2265,166 @@ def school_admin_list(request):
                 messages.error(request, f'Error: {e}')
     context = {'schools': schools, 'users': users}
     return render(request, 'core/school_admin_list.html', context)
+
+
+@login_required
+@role_required('super_admin', 'school_admin', 'teacher', 'accountant')
+def parent_list(request):
+    """List all parents/guardians"""
+    school = request.user.profile.school
+    parents = Parent.objects.filter(
+        school=school
+    ).select_related('user').prefetch_related('children')
+    
+    # Filter by active status (default: show active only)
+    show_inactive = request.GET.get('show_inactive', 'false').lower() == 'true'
+    if not show_inactive:
+        parents = parents.filter(is_active=True)
+    
+    # Search functionality
+    search_query = request.GET.get('search', '')
+    if search_query:
+        parents = parents.filter(
+            Q(user__username__icontains=search_query) |
+            Q(user__first_name__icontains=search_query) |
+            Q(user__last_name__icontains=search_query) |
+            Q(user__email__icontains=search_query) |
+            Q(phone__icontains=search_query) |
+            Q(email__icontains=search_query)
+        )
+    
+    # Order by active status first, then by name
+    parents = parents.order_by('-is_active', 'user__first_name', 'user__last_name')
+    
+    # Pagination
+    paginator = Paginator(parents, 20)
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+    
+    context = {
+        'page_obj': page_obj,
+        'search_query': search_query,
+        'show_inactive': show_inactive,
+    }
+    
+    return render(request, 'core/parent_list.html', context)
+
+
+@login_required
+@role_required('super_admin', 'school_admin', 'teacher', 'accountant')
+def parent_detail(request, parent_id):
+    """View parent/guardian details"""
+    school = request.user.profile.school
+    parent = get_object_or_404(
+        Parent.objects.select_related('user', 'school').prefetch_related('children__grade', 'children__school_class'),
+        id=parent_id,
+        school=school
+    )
+    
+    # Get all children linked to this parent
+    children = parent.children.all().select_related('grade', 'school_class').order_by('first_name', 'last_name')
+    
+    context = {
+        'parent': parent,
+        'children': children,
+    }
+    
+    return render(request, 'core/parent_detail.html', context)
+
+
+@login_required
+@role_required('super_admin', 'school_admin')
+def parent_edit(request, parent_id):
+    """Edit parent/guardian information"""
+    school = request.user.profile.school
+    parent = get_object_or_404(
+        Parent.objects.select_related('user', 'school'),
+        id=parent_id,
+        school=school
+    )
+    
+    if request.method == 'POST':
+        form = ParentEditForm(request.POST, instance=parent, school=school)
+        if form.is_valid():
+            try:
+                form.save()
+                messages.success(request, f'Parent {parent.full_name} updated successfully.')
+                return redirect('core:parent_detail', parent_id=parent.id)
+            except Exception as e:
+                messages.error(request, f'Error updating parent: {str(e)}')
+        else:
+            messages.error(request, 'Please correct the errors below.')
+    else:
+        form = ParentEditForm(instance=parent, school=school)
+    
+    context = {
+        'form': form,
+        'parent': parent,
+        'school': school,
+    }
+    return render(request, 'core/parent_edit.html', context)
+
+
+@login_required
+@role_required('super_admin', 'school_admin')
+def parent_register(request):
+    """Register a new parent/guardian and optionally link to students"""
+    # Determine the school
+    school = None
+    if hasattr(request.user, 'profile') and request.user.profile.school:
+        school = request.user.profile.school
+    
+    if request.method == 'POST':
+        # For superusers, get school from POST data
+        if request.user.is_superuser and not school:
+            school_id = request.POST.get('school')
+            if school_id:
+                school = get_object_or_404(School, id=school_id)
+            else:
+                messages.error(request, 'Please select a school.')
+                form = ParentRegistrationForm(school=None)
+                context = {
+                    'form': form,
+                    'school': None,
+                    'schools': School.objects.all(),
+                    'is_superuser': True
+                }
+                return render(request, 'core/parent_register.html', context)
+        
+        if not school:
+            messages.error(request, 'School is required for parent registration.')
+            form = ParentRegistrationForm(school=None)
+            context = {
+                'form': form,
+                'school': None,
+                'schools': School.objects.all() if request.user.is_superuser else [],
+                'is_superuser': request.user.is_superuser
+            }
+            return render(request, 'core/parent_register.html', context)
+        
+        form = ParentRegistrationForm(request.POST, school=school)
+        if form.is_valid():
+            try:
+                parent = form.save(commit=True, school=school)
+                messages.success(request, f'Parent account created successfully for {parent.user.get_full_name() or parent.user.username}.')
+                return redirect('core:parent_register')
+            except Exception as e:
+                messages.error(request, f'Error creating parent account: {str(e)}')
+        else:
+            messages.error(request, 'Please correct the errors below.')
+    else:
+        form = ParentRegistrationForm(school=school)
+    
+    # Get all schools for superuser selection
+    schools = School.objects.all() if request.user.is_superuser else []
+    
+    context = {
+        'form': form,
+        'school': school,
+        'schools': schools,
+        'is_superuser': request.user.is_superuser
+    }
+    return render(request, 'core/parent_register.html', context)
 
 
 @staff_member_required

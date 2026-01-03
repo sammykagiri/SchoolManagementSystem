@@ -225,59 +225,8 @@
                                 {% endif %}
                             </div>
                             
-                            <!-- Parent Name -->
-                            <div class="col-md-4">
-                                <label for="{{ form.parent_name.id_for_label }}" class="form-label">
-                                    {{ form.parent_name.label }}
-                                    {% if form.parent_name.field.required %}<span class="text-danger">*</span>{% endif %}
-                                </label>
-                                {{ form.parent_name }}
-                                {% if form.parent_name.errors %}
-                                    <div class="text-danger small">
-                                        {% for error in form.parent_name.errors %}
-                                            <div>{{ error }}</div>
-                                        {% endfor %}
-                                    </div>
-                                {% endif %}
-                            </div>
-                            
-                            <!-- Parent Phone -->
-                            <div class="col-md-4">
-                                <label for="{{ form.parent_phone.id_for_label }}" class="form-label">
-                                    {{ form.parent_phone.label }}
-                                    {% if form.parent_phone.field.required %}<span class="text-danger">*</span>{% endif %}
-                                </label>
-                                {{ form.parent_phone }}
-                                {% if form.parent_phone.errors %}
-                                    <div class="text-danger small">
-                                        {% for error in form.parent_phone.errors %}
-                                            <div>{{ error }}</div>
-                                        {% endfor %}
-                                    </div>
-                                {% endif %}
-                            </div>
-                            
-                            <!-- Parent Email -->
-                            <div class="col-md-4">
-                                <label for="{{ form.parent_email.id_for_label }}" class="form-label">
-                                    {{ form.parent_email.label }}
-                                    {% if form.parent_email.field.required %}<span class="text-danger">*</span>{% endif %}
-                                </label>
-                                {{ form.parent_email }}
-                                {% if form.parent_email.help_text %}
-                                    <div class="form-text">{{ form.parent_email.help_text }}</div>
-                                {% endif %}
-                                {% if form.parent_email.errors %}
-                                    <div class="text-danger small">
-                                        {% for error in form.parent_email.errors %}
-                                            <div>{{ error }}</div>
-                                        {% endfor %}
-                                    </div>
-                                {% endif %}
-                            </div>
-                            
                             <!-- Address -->
-                            <div class="col-md-8">
+                            <div class="col-md-6">
                                 <label for="{{ form.address.id_for_label }}" class="form-label">
                                     {{ form.address.label }}
                                     {% if form.address.field.required %}<span class="text-danger">*</span>{% endif %}
@@ -381,12 +330,52 @@
                             </div>
                             {% endif %}
 
-                            <!-- Linked Parents -->
-                            <div class="col-md-6">
-                                <label for="{{ form.parents.id_for_label }}" class="form-label">
-                                    Linked Parent Accounts
+                            <!-- Linked Parents/Guardians -->
+                            <div class="col-12">
+                                <label for="id_parents" class="form-label">
+                                    Linked Parent/Guardian Accounts
                                 </label>
-                                {{ form.parents }}
+                                <div class="multi-select-wrapper">
+                                    <div class="selected-items mb-2" id="selected-parents">
+                                        {% if student %}
+                                            {% for parent in student.parents.all %}
+                                                <span class="badge bg-primary me-1 mb-1" data-value="{{ parent.id }}">
+                                                    {{ parent.full_name }} ({{ parent.user.username }})
+                                                    <button type="button" class="btn-close btn-close-white ms-1" style="font-size: 0.7em;" aria-label="Remove"></button>
+                                                </span>
+                                            {% endfor %}
+                                        {% else %}
+                                            {% for parent in form.parents.value %}
+                                                {% for parent_obj in form.parents.field.queryset %}
+                                                    {% if parent_obj.id|stringformat:"s" == parent|stringformat:"s" %}
+                                                        <span class="badge bg-primary me-1 mb-1" data-value="{{ parent_obj.id }}">
+                                                            {{ parent_obj.full_name }} ({{ parent_obj.user.username }})
+                                                            <button type="button" class="btn-close btn-close-white ms-1" style="font-size: 0.7em;" aria-label="Remove"></button>
+                                                        </span>
+                                                    {% endif %}
+                                                {% endfor %}
+                                            {% endfor %}
+                                        {% endif %}
+                                    </div>
+                                    <div class="dropdown">
+                                        <button class="btn btn-outline-secondary dropdown-toggle w-100" type="button" id="parentDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+                                            Select Parents/Guardians
+                                        </button>
+                                        <ul class="dropdown-menu w-100" aria-labelledby="parentDropdown" id="parentDropdownMenu">
+                                            {% for parent in form.parents.field.queryset %}
+                                                <li>
+                                                    <a class="dropdown-item parent-item" href="#" data-value="{{ parent.id }}" data-text="{{ parent.full_name }} ({{ parent.user.username }})">
+                                                        {{ parent.full_name }} ({{ parent.user.username }})
+                                                        {% if parent.phone %}
+                                                            - {{ parent.phone }}
+                                                        {% endif %}
+                                                    </a>
+                                                </li>
+                                            {% endfor %}
+                                        </ul>
+                                    </div>
+                                    <input type="hidden" name="parents" id="id_parents" value="">
+                                </div>
                                 {% if form.parents.help_text %}
                                     <div class="form-text">{{ form.parents.help_text }}</div>
                                 {% endif %}
@@ -690,12 +679,25 @@
 {% block extra_js %}
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    // Track form changes to enable/disable submit button (only for updates, not new students)
-    {% if student %}
+    // Declare variables in outer scope for accessibility
     const studentForm = document.getElementById('studentForm');
     const submitButton = document.getElementById('submitStudentForm');
     let checkFormChanges = null; // Declare in outer scope
+    let initialParentIds = []; // Store initial parent IDs (will be set after parent selection code initializes)
     
+    // Function to get current parent IDs from hidden inputs (for form change detection)
+    // This function needs to be accessible to both form change detection and parent selection code
+    function getCurrentParentIds() {
+        if (!studentForm) return [];
+        const parentInputs = studentForm.querySelectorAll('input[name="parents"]');
+        return Array.from(parentInputs)
+            .map(input => input.value)
+            .filter(value => value) // Filter out empty values
+            .sort();
+    }
+    
+    // Track form changes to enable/disable submit button (only for updates, not new students)
+    {% if student %}
     if (studentForm && submitButton) {
         // Store initial form values
         const initialFormData = new FormData(studentForm);
@@ -776,6 +778,12 @@ document.addEventListener('DOMContentLoaded', function() {
                 if (JSON.stringify(initialOptionalFees) !== JSON.stringify(currentOptionalFees)) {
                     hasChanges = true;
                 }
+            }
+            
+            // Check for parent changes (many-to-many field)
+            const currentParentIds = getCurrentParentIds();
+            if (JSON.stringify(initialParentIds) !== JSON.stringify(currentParentIds)) {
+                hasChanges = true;
             }
             
             // Enable/disable submit button based on changes
@@ -1753,6 +1761,158 @@ document.addEventListener('DOMContentLoaded', function() {
                 modalShownForRouteChange = false;
             }
         });
+    }
+    {% endif %}
+    
+    // Parent/Guardian selection handling (similar to teacher specialization)
+    const selectedParentsContainer = document.getElementById('selected-parents');
+    const parentHiddenInput = document.getElementById('id_parents');
+    const parentDropdownItems = document.querySelectorAll('.parent-item');
+    const selectedParentValues = new Set();
+    
+    // Initialize with existing selections
+    {% if student %}
+        {% for parent in student.parents.all %}
+            selectedParentValues.add('{{ parent.id }}');
+        {% endfor %}
+    {% else %}
+        {% for parent in form.parents.value %}
+            selectedParentValues.add('{{ parent }}');
+        {% endfor %}
+    {% endif %}
+    
+    // Function to update hidden inputs (Django expects multiple inputs with same name for many-to-many)
+    function updateParentHiddenInput() {
+        // Remove all existing parent hidden inputs (including the main one)
+        const existingInputs = studentForm.querySelectorAll('input[name="parents"]');
+        existingInputs.forEach(input => {
+            input.remove();
+        });
+        
+        // Create new hidden inputs for each selected parent
+        selectedParentValues.forEach(value => {
+            const hiddenInput = document.createElement('input');
+            hiddenInput.type = 'hidden';
+            hiddenInput.name = 'parents';
+            hiddenInput.value = value;
+            studentForm.appendChild(hiddenInput);
+        });
+    }
+    
+    // Function to re-enable dropdown item
+    function enableParentDropdownItem(value) {
+        parentDropdownItems.forEach(item => {
+            if (item.getAttribute('data-value') === value) {
+                item.classList.remove('disabled');
+                item.style.pointerEvents = '';
+                item.style.opacity = '';
+            }
+        });
+    }
+    
+    // Function to disable dropdown item
+    function disableParentDropdownItem(value) {
+        parentDropdownItems.forEach(item => {
+            if (item.getAttribute('data-value') === value) {
+                item.classList.add('disabled');
+                item.style.pointerEvents = 'none';
+                item.style.opacity = '0.5';
+            }
+        });
+    }
+    
+    // Function to remove selected parent
+    function removeSelectedParent(value) {
+        selectedParentValues.delete(value);
+        updateParentHiddenInput();
+        enableParentDropdownItem(value);
+        
+        // Remove the badge from DOM
+        const badge = selectedParentsContainer.querySelector(`[data-value="${value}"]`);
+        if (badge) {
+            badge.remove();
+        }
+        
+        // Trigger form change check if it exists
+        if (typeof checkFormChanges === 'function') {
+            checkFormChanges();
+        }
+    }
+    
+    // Function to add selected parent
+    function addSelectedParent(value, text) {
+        if (selectedParentValues.has(value)) {
+            return; // Already selected
+        }
+        
+        selectedParentValues.add(value);
+        const badge = document.createElement('span');
+        badge.className = 'badge bg-primary me-1 mb-1';
+        badge.setAttribute('data-value', value);
+        badge.innerHTML = text + ' <button type="button" class="btn-close btn-close-white ms-1" style="font-size: 0.7em;" aria-label="Remove"></button>';
+        
+        // Add remove functionality
+        const removeBtn = badge.querySelector('.btn-close');
+        removeBtn.addEventListener('click', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            removeSelectedParent(value);
+        });
+        
+        selectedParentsContainer.appendChild(badge);
+        updateParentHiddenInput();
+        disableParentDropdownItem(value);
+        
+        // Trigger form change check if it exists
+        if (typeof checkFormChanges === 'function') {
+            checkFormChanges();
+        }
+    }
+    
+    // Handle remove buttons for existing badges
+    const existingParentBadges = selectedParentsContainer.querySelectorAll('.badge[data-value]');
+    existingParentBadges.forEach(badge => {
+        const removeBtn = badge.querySelector('.btn-close');
+        if (removeBtn) {
+            removeBtn.addEventListener('click', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                const value = badge.getAttribute('data-value');
+                removeSelectedParent(value);
+            });
+        }
+    });
+    
+    // Handle dropdown item clicks
+    parentDropdownItems.forEach(item => {
+        item.addEventListener('click', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            const value = this.getAttribute('data-value');
+            const text = this.getAttribute('data-text');
+            
+            if (!selectedParentValues.has(value)) {
+                addSelectedParent(value, text);
+            }
+        });
+        
+        // Check if already selected and disable
+        const value = item.getAttribute('data-value');
+        if (selectedParentValues.has(value)) {
+            disableParentDropdownItem(value);
+        }
+    });
+    
+    // Update hidden input on page load
+    updateParentHiddenInput();
+    
+    // Initialize initial parent IDs after hidden inputs are created (for form change detection)
+    {% if student %}
+    // Set initial parent IDs after the hidden inputs are created
+    initialParentIds = getCurrentParentIds();
+    // Re-run form change check to ensure button state is correct
+    if (typeof checkFormChanges === 'function') {
+        checkFormChanges();
     }
     {% endif %}
 });
