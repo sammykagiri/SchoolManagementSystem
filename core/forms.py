@@ -400,6 +400,9 @@ class ParentRegistrationForm(UserCreationForm):
         school = kwargs.pop('school', None)
         super().__init__(*args, **kwargs)
         
+        # Store school in form instance for use in clean methods
+        self.school = school
+        
         # Store school for later use in to_python wrapper
         form_school = school
         
@@ -453,14 +456,154 @@ class ParentRegistrationForm(UserCreationForm):
             self.fields['students'].queryset = Student.objects.none()
         
         # Make fields more user-friendly
-        self.fields['username'].help_text = 'Required. 150 characters or fewer. Letters, digits and @/./+/-/_ only.'
+        if school:
+            school_id = school.name.lower().replace(' ', '_').replace('-', '_')[:20]
+            import re
+            school_id = re.sub(r'[^a-z0-9_]', '', school_id)
+            self.fields['username'].help_text = f'Required. Your username will be automatically formatted as "username@{school_id}" to ensure uniqueness across schools.'
+        else:
+            self.fields['username'].help_text = 'Required. 150 characters or fewer. Letters, digits and @/./+/-/_ only.'
         self.fields['password1'].help_text = 'Your password must contain at least 8 characters.'
     
     def clean_email(self):
         email = self.cleaned_data.get('email')
-        if email and User.objects.filter(email=email).exists():
-            raise ValidationError('A user with this email already exists.')
+        if not email:
+            return email
+        
+        # Check if email exists for a parent in the same school
+        if self.school:
+            # Debug: Log the school being checked
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.info(f'clean_email - Checking for email: {email} in school: {self.school.name} (ID: {self.school.id})')
+            
+            # Check if a parent with this email (via User.email) already exists in this school
+            # We check by User.email since that's what the form uses
+            existing_parent = Parent.objects.filter(
+                school=self.school,
+                user__email=email
+            ).first()
+            
+            if existing_parent:
+                logger.warning(f'clean_email - Found existing parent with email {email} in school {self.school.name} (ID: {self.school.id})')
+                raise ValidationError('A parent with this email already exists in this school.')
+            
+            # Also check Parent.email field as a fallback (in case it was set differently)
+            # But only if it's not the same as user__email to avoid duplicate checks
+            existing_parent_by_parent_email = Parent.objects.filter(
+                school=self.school,
+                email=email
+            ).exclude(user__email=email).first()
+            
+            if existing_parent_by_parent_email:
+                logger.warning(f'clean_email - Found existing parent with email {email} in Parent.email field for school {self.school.name} (ID: {self.school.id})')
+                raise ValidationError('A parent with this email already exists in this school.')
+            
+            # If a User with this email exists and is a parent in a different school,
+            # we'll handle it in the save() method by updating their school assignment
+            # So we allow the form to proceed here
+        else:
+            # If no school is set, log a warning
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.warning('clean_email - No school set in form, skipping school-specific validation')
+        
         return email
+    
+    def clean_username(self):
+        username = self.cleaned_data.get('username')
+        if not username:
+            return username
+        
+        # Get school from form instance or POST data
+        school = self.school
+        if not school and hasattr(self, 'data') and self.data:
+            school_id = self.data.get('school')
+            if school_id:
+                try:
+                    school = School.objects.get(id=school_id)
+                except (School.DoesNotExist, ValueError):
+                    pass
+        
+        if school:
+            # Generate unique username by appending school identifier
+            # Use school name (cleaned and formatted)
+            import re
+            import logging
+            logger = logging.getLogger(__name__)
+            
+            # Create school identifier from school name
+            # Convert to lowercase, replace spaces/hyphens with underscores, remove special chars
+            school_identifier = school.name.lower().strip()
+            school_identifier = school_identifier.replace(' ', '_').replace('-', '_')
+            # Remove special characters that aren't allowed in usernames (keep only a-z, 0-9, _)
+            school_identifier = re.sub(r'[^a-z0-9_]', '', school_identifier)
+            # Limit length to reasonable size (20 chars should be enough for most school names)
+            if len(school_identifier) > 20:
+                school_identifier = school_identifier[:20]
+            
+            # Ensure school_identifier is not empty
+            if not school_identifier:
+                school_identifier = 'school'
+            
+            # Get base username (strip whitespace and remove @ if user already added it)
+            base_username = username.strip()
+            # Remove any existing @school suffix if user mistakenly added it
+            if '@' in base_username:
+                base_username = base_username.split('@')[0].strip()
+            
+            # Create final username with school suffix
+            final_username = f"{base_username}@{school_identifier}"
+            
+            # Ensure username doesn't exceed 150 characters (Django's limit)
+            if len(final_username) > 150:
+                # Truncate base username if needed
+                max_base_len = 150 - len(f"@{school_identifier}") - 1
+                if max_base_len > 0:
+                    base_username = base_username[:max_base_len]
+                    final_username = f"{base_username}@{school_identifier}"
+                else:
+                    # If school identifier is too long, truncate it
+                    max_school_len = 150 - len(base_username) - 1
+                    school_identifier = school_identifier[:max_school_len] if max_school_len > 0 else 'school'
+                    final_username = f"{base_username}@{school_identifier}"
+            
+            logger.info(f'clean_username - Formatting username: "{username}" -> "{final_username}" for school: {school.name} (ID: {school.id})')
+            
+            # Check if this username already exists globally
+            if User.objects.filter(username=final_username).exists():
+                # If it exists, check if it's for a parent in the same school
+                existing_user = User.objects.get(username=final_username)
+                if hasattr(existing_user, 'parent_profile'):
+                    existing_parent = existing_user.parent_profile
+                    if existing_parent.school == school:
+                        raise ValidationError('This username is already taken in this school.')
+                    # If it's a different school, append a number to make it unique
+                    counter = 1
+                    while User.objects.filter(username=final_username).exists():
+                        counter += 1
+                        new_username = f"{base_username}{counter}@{school_identifier}"
+                        if len(new_username) > 150:
+                            max_base_len = 150 - len(f"{counter}@{school_identifier}") - 1
+                            if max_base_len > 0:
+                                base_username = base_username[:max_base_len]
+                            new_username = f"{base_username}{counter}@{school_identifier}"
+                        final_username = new_username
+                        if counter > 100:  # Safety limit to prevent infinite loop
+                            raise ValidationError('Unable to generate a unique username. Please try a different base username.')
+            
+            # Update cleaned_data with the final username
+            self.cleaned_data['username'] = final_username
+            logger.info(f'clean_username - Final username: "{final_username}"')
+            return final_username
+        else:
+            # If no school, use standard validation (for superuser creating without school)
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.warning('clean_username - No school set, using username without school suffix')
+            if User.objects.filter(username=username).exists():
+                raise ValidationError('A user with this username already exists.')
+            return username
     
     def clean_students(self):
         """Clean and validate students field - handle empty strings and invalid values"""
@@ -572,69 +715,137 @@ class ParentRegistrationForm(UserCreationForm):
         return []
     
     def save(self, commit=True, school=None):
-        user = super().save(commit=False)
-        user.email = self.cleaned_data['email']
-        user.first_name = self.cleaned_data['first_name']
-        user.last_name = self.cleaned_data['last_name']
+        email = self.cleaned_data.get('email')
         
-        if commit:
-            user.save()
+        # Validate school is provided
+        if not school:
+            raise ValidationError('School is required to create a parent account.')
+        
+        # Log the school being used
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.info(f'ParentRegistrationForm.save - Using school: {school.name} (ID: {school.id})')
+        
+        # Check if a User with this email already exists
+        existing_user = User.objects.filter(email=email).first()
+        
+        if existing_user:
+            # User already exists - check if they're already a parent
+            if hasattr(existing_user, 'parent_profile'):
+                existing_parent = existing_user.parent_profile
+                # If parent exists in the same school, we can't create another (would violate unique_together)
+                if existing_parent.school == school:
+                    raise ValidationError('A parent with this email already exists in this school.')
+                # If parent exists in a different school, update their school assignment
+                # This handles the case where a parent was assigned to the wrong school
+                existing_parent.school = school
+                # Update parent details if provided
+                if self.cleaned_data.get('phone'):
+                    existing_parent.phone = self.cleaned_data.get('phone', '')
+                if self.cleaned_data.get('address'):
+                    existing_parent.address = self.cleaned_data.get('address', '')
+                if self.cleaned_data.get('preferred_contact_method'):
+                    existing_parent.preferred_contact_method = self.cleaned_data.get('preferred_contact_method', 'phone')
+                if self.cleaned_data.get('photo'):
+                    existing_parent.photo = self.cleaned_data.get('photo')
+                existing_parent.save()
+                parent = existing_parent
+                user = existing_user
+            else:
+                # User exists but is not a parent - create Parent profile
+                user = existing_user
+                # Update user details if provided
+                if self.cleaned_data.get('first_name'):
+                    user.first_name = self.cleaned_data.get('first_name', user.first_name)
+                if self.cleaned_data.get('last_name'):
+                    user.last_name = self.cleaned_data.get('last_name', user.last_name)
+                user.save()
+                
+                if commit and school:
+                    logger.info(f'ParentRegistrationForm.save - Creating Parent profile for user {user.username} in school {school.name} (ID: {school.id})')
+                    parent = Parent.objects.create(
+                        user=user,
+                        school=school,
+                        phone=self.cleaned_data.get('phone', ''),
+                        email=self.cleaned_data.get('email', ''),
+                        address=self.cleaned_data.get('address', ''),
+                        preferred_contact_method=self.cleaned_data.get('preferred_contact_method', 'phone'),
+                        photo=self.cleaned_data.get('photo'),
+                        is_active=True
+                    )
+                    logger.info(f'ParentRegistrationForm.save - Created Parent profile ID: {parent.id} for school: {parent.school.name} (ID: {parent.school.id})')
+                else:
+                    return user
+        else:
+            # New user - create User and Parent
+            user = super().save(commit=False)
+            user.email = self.cleaned_data['email']
+            user.first_name = self.cleaned_data['first_name']
+            user.last_name = self.cleaned_data['last_name']
             
-            # Create Parent profile
-            if school:
-                parent = Parent.objects.create(
-                    user=user,
-                    school=school,
-                    phone=self.cleaned_data.get('phone', ''),
-                    email=self.cleaned_data.get('email', ''),
-                    address=self.cleaned_data.get('address', ''),
-                    preferred_contact_method=self.cleaned_data.get('preferred_contact_method', 'phone'),
-                    photo=self.cleaned_data.get('photo'),
-                    is_active=True
-                )
+            if commit:
+                user.save()
                 
-                # Link selected students - always check raw form data first (more reliable)
-                students = []
-                if hasattr(self, 'data') and self.data:
-                    raw_students = self.data.getlist('students', [])
-                    # Filter out empty strings, None, and whitespace-only values
-                    raw_students = [s for s in raw_students if s is not None and str(s).strip() != '']
-                    
-                    if raw_students and school:
-                        try:
-                            # Convert to integers and filter
-                            student_ids = []
-                            for sid in raw_students:
-                                try:
-                                    student_id = int(sid)
-                                    student_ids.append(student_id)
-                                except (ValueError, TypeError):
-                                    continue
-                            
-                            if student_ids:
-                                # Fetch students from database
-                                fetched_students = Student.objects.filter(
-                                    id__in=student_ids,
-                                    school=school,
-                                    is_active=True
-                                )
-                                if fetched_students.exists():
-                                    students = list(fetched_students)
-                        except Exception as e:
-                            # Log error but don't fail the save
-                            import logging
-                            logger = logging.getLogger(__name__)
-                            logger.error(f'Error linking students to parent during registration: {e}')
+                # Create Parent profile
+                if school:
+                    logger.info(f'ParentRegistrationForm.save - Creating new User and Parent profile in school {school.name} (ID: {school.id})')
+                    parent = Parent.objects.create(
+                        user=user,
+                        school=school,
+                        phone=self.cleaned_data.get('phone', ''),
+                        email=self.cleaned_data.get('email', ''),
+                        address=self.cleaned_data.get('address', ''),
+                        preferred_contact_method=self.cleaned_data.get('preferred_contact_method', 'phone'),
+                        photo=self.cleaned_data.get('photo'),
+                        is_active=True
+                    )
+                    logger.info(f'ParentRegistrationForm.save - Created new Parent profile ID: {parent.id} for school: {parent.school.name} (ID: {parent.school.id})')
+                else:
+                    return user
+        
+        if commit and school:
+            # Link selected students - always check raw form data first (more reliable)
+            students = []
+            if hasattr(self, 'data') and self.data:
+                raw_students = self.data.getlist('students', [])
+                # Filter out empty strings, None, and whitespace-only values
+                raw_students = [s for s in raw_students if s is not None and str(s).strip() != '']
                 
-                # Fallback to cleaned_data if raw data didn't work (shouldn't happen, but just in case)
-                if not students:
-                    students = self.cleaned_data.get('students', [])
-                
-                # Set the students (even if empty list)
-                if students:
-                    parent.children.set(students)
-                
-                return parent
+                if raw_students and school:
+                    try:
+                        # Convert to integers and filter
+                        student_ids = []
+                        for sid in raw_students:
+                            try:
+                                student_id = int(sid)
+                                student_ids.append(student_id)
+                            except (ValueError, TypeError):
+                                continue
+                        
+                        if student_ids:
+                            # Fetch students from database
+                            fetched_students = Student.objects.filter(
+                                id__in=student_ids,
+                                school=school,
+                                is_active=True
+                            )
+                            if fetched_students.exists():
+                                students = list(fetched_students)
+                    except Exception as e:
+                        # Log error but don't fail the save
+                        import logging
+                        logger = logging.getLogger(__name__)
+                        logger.error(f'Error linking students to parent during registration: {e}')
+            
+            # Fallback to cleaned_data if raw data didn't work (shouldn't happen, but just in case)
+            if not students:
+                students = self.cleaned_data.get('students', [])
+            
+            # Set the students (even if empty list)
+            if students:
+                parent.children.set(students)
+            
+            return parent
         
         return user
 

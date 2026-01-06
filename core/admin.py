@@ -1,6 +1,6 @@
 from django.contrib import admin
 from .models import (
-    Grade, Term, FeeCategory, TransportRoute, Student, FeeStructure, StudentFee, 
+    Grade, Term, FeeCategory, FeeCategoryType, TransportRoute, Student, FeeStructure, StudentFee, 
     SchoolClass, Role, Permission, UserProfile, Parent,
     AcademicYear, Section, StudentClassEnrollment, PromotionLog
 )
@@ -21,12 +21,20 @@ class TermAdmin(admin.ModelAdmin):
     ordering = ['-academic_year', '-term_number']
 
 
+@admin.register(FeeCategoryType)
+class FeeCategoryTypeAdmin(admin.ModelAdmin):
+    list_display = ['name', 'code', 'is_active', 'school', 'created_at']
+    list_filter = ['is_active', 'school']
+    search_fields = ['name', 'code', 'description']
+    ordering = ['name']
+
+
 @admin.register(FeeCategory)
 class FeeCategoryAdmin(admin.ModelAdmin):
     list_display = ['name', 'category_type', 'is_optional', 'created_at']
     list_filter = ['category_type', 'is_optional']
     search_fields = ['name', 'description']
-    ordering = ['category_type', 'name']
+    ordering = ['category_type__name', 'name']
 
 
 @admin.register(TransportRoute)
@@ -76,7 +84,7 @@ class StudentAdmin(admin.ModelAdmin):
 @admin.register(FeeStructure)
 class FeeStructureAdmin(admin.ModelAdmin):
     list_display = ['grade', 'term', 'fee_category', 'amount', 'is_active']
-    list_filter = ['grade', 'term', 'fee_category__category_type', 'is_active']
+    list_filter = ['grade', 'term', 'fee_category__category_type__name', 'is_active']
     search_fields = ['grade__name', 'term__name', 'fee_category__name']
     ordering = ['grade', 'term', 'fee_category']
 

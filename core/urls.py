@@ -21,8 +21,10 @@ router.register(r'api/student-fees', StudentFeeViewSet, basename='api-studentfee
 router.register(r'api/classes', SchoolClassViewSet, basename='api-class')
 
 urlpatterns = [
+    # Root - redirects based on user role
+    path('', views.root_redirect, name='root'),
     # Dashboard
-    path('', views.dashboard, name='dashboard'),
+    path('dashboard/', views.dashboard, name='dashboard'),
     
     # Students
     path('students/', views.student_list, name='student_list'),
@@ -76,6 +78,12 @@ urlpatterns = [
     path('fee-categories/add/', views.fee_category_add, name='fee_category_add'),
     path('fee-categories/<int:category_id>/edit/', views.fee_category_edit, name='fee_category_edit'),
     path('fee-categories/<int:category_id>/delete/', views.fee_category_delete, name='fee_category_delete'),
+    
+    # Fee Category Types
+    path('fee-category-types/', views.fee_category_type_list, name='fee_category_type_list'),
+    path('fee-category-types/add/', views.fee_category_type_add, name='fee_category_type_add'),
+    path('fee-category-types/<int:type_id>/edit/', views.fee_category_type_edit, name='fee_category_type_edit'),
+    path('fee-category-types/<int:type_id>/delete/', views.fee_category_type_delete, name='fee_category_type_delete'),
     
     # Transport Routes
     path('transport-routes/', views.transport_route_list, name='transport_route_list'),

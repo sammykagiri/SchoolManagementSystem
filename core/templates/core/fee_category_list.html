@@ -36,7 +36,7 @@
                             <tr>
                                 <td><strong>{{ category.name }}</strong></td>
                                 <td>
-                                    <span class="badge bg-secondary">{{ category.get_category_type_display }}</span>
+                                    <span class="badge bg-secondary">{{ category.category_type.name }}</span>
                                 </td>
                                 <td>
                                     {% if category.is_optional %}

@@ -112,13 +112,25 @@
             
             <!-- Fees -->
             <li class="nav-item">
-                <a class="nav-link {% if 'payments' in request.resolver_match.namespace or request.resolver_match.url_name == 'fee_structure_list' or request.resolver_match.url_name == 'generate_student_fees' %}active{% endif %}" 
+                <a class="nav-link {% if 'payments' in request.resolver_match.namespace or request.resolver_match.url_name == 'fee_structure_list' or request.resolver_match.url_name == 'generate_student_fees' or request.resolver_match.url_name == 'fee_category_list' or request.resolver_match.url_name == 'fee_category_type_list' %}active{% endif %}" 
                    href="#" data-bs-toggle="collapse" data-bs-target="#feesSubmenu" aria-expanded="false">
                     <i class="fas fa-money-bill-wave me-2"></i>
                     <span>Fees</span>
                     <i class="fas fa-chevron-down ms-auto"></i>
                 </a>
                 <ul class="collapse nav flex-column submenu" id="feesSubmenu">
+                    {% if user.is_superuser or user.profile.is_school_admin or user.profile.is_accountant %}
+                    <li class="nav-item">
+                        <a class="nav-link {% if request.resolver_match.url_name == 'fee_category_type_list' or request.resolver_match.url_name == 'fee_category_type_add' or request.resolver_match.url_name == 'fee_category_type_edit' %}active{% endif %}" href="{% url 'core:fee_category_type_list' %}">
+                            <i class="fas fa-tag me-2"></i>Category Types
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {% if request.resolver_match.url_name == 'fee_category_list' or request.resolver_match.url_name == 'fee_category_create' or request.resolver_match.url_name == 'fee_category_edit' %}active{% endif %}" href="{% url 'core:fee_category_list' %}">
+                            <i class="fas fa-tags me-2"></i>Fee Categories
+                        </a>
+                    </li>
+                    {% endif %}
                     <li class="nav-item">
                         <a class="nav-link {% if request.resolver_match.url_name == 'fee_structure_list' or request.resolver_match.url_name == 'fee_structure_create' or request.resolver_match.url_name == 'fee_structure_update' or request.resolver_match.url_name == 'fee_structure_delete' %}active{% endif %}" href="{% url 'core:fee_structure_list' %}">
                             <i class="fas fa-list-alt me-2"></i>Fee Structures
@@ -350,7 +362,7 @@
             
             <!-- Settings -->
             <li class="nav-item">
-                <a class="nav-link {% if request.resolver_match.url_name == 'term_list' or request.resolver_match.url_name == 'grade_list' or request.resolver_match.url_name == 'class_list' or request.resolver_match.url_name == 'user_list' or request.resolver_match.url_name == 'role_list' or request.resolver_match.url_name == 'transport_route_list' or request.resolver_match.url_name == 'fee_category_list' %}active{% endif %}" 
+                <a class="nav-link {% if request.resolver_match.url_name == 'term_list' or request.resolver_match.url_name == 'grade_list' or request.resolver_match.url_name == 'class_list' or request.resolver_match.url_name == 'user_list' or request.resolver_match.url_name == 'role_list' or request.resolver_match.url_name == 'transport_route_list' %}active{% endif %}" 
                    href="#" data-bs-toggle="collapse" data-bs-target="#settingsSubmenu" aria-expanded="false">
                     <i class="fas fa-cog me-2"></i>
                     <span>Settings</span>
@@ -380,11 +392,6 @@
                     {% endif %}
                     {% if user.is_superuser or user.profile.is_school_admin or user.profile.is_accountant %}
                     <li class="nav-item"><hr class="dropdown-divider my-2"></li>
-                    <li class="nav-item">
-                        <a class="nav-link {% if request.resolver_match.url_name == 'fee_category_list' or request.resolver_match.url_name == 'fee_category_create' or request.resolver_match.url_name == 'fee_category_edit' %}active{% endif %}" href="{% url 'core:fee_category_list' %}">
-                            <i class="fas fa-tags me-2"></i>Fee Categories
-                        </a>
-                    </li>
                     <li class="nav-item">
                         <a class="nav-link {% if request.resolver_match.url_name == 'transport_route_list' or request.resolver_match.url_name == 'transport_route_create' or request.resolver_match.url_name == 'transport_route_edit' %}active{% endif %}" href="{% url 'core:transport_route_list' %}">
                             <i class="fas fa-route me-2"></i>Transport Routes

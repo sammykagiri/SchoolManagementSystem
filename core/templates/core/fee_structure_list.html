@@ -224,7 +224,7 @@
                                 <div>
                                     <strong>{{ category.name }}</strong>
                                     <br>
-                                    <small class="text-muted">{{ category.get_category_type_display }}{% if category.is_optional %} • Optional{% endif %}</small>
+                                    <small class="text-muted">{{ category.category_type.name }}{% if category.is_optional %} • Optional{% endif %}</small>
                                 </div>
                             </div>
                             {% endfor %}

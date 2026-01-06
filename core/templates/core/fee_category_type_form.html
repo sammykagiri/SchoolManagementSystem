@@ -1,0 +1,102 @@
+{% extends 'base.html' %}
+
+{% block title %}{% if category_type %}Edit{% else %}Add{% endif %} Fee Category Type | School Management System{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <h4 class="mb-0">
+                        <i class="fas fa-tag me-2"></i>{% if category_type %}Edit{% else %}Add{% endif %} Fee Category Type
+                    </h4>
+                </div>
+                <div class="card-body">
+                    {% if messages %}
+                        {% for message in messages %}
+                            <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                                {{ message }}
+                                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                            </div>
+                        {% endfor %}
+                    {% endif %}
+                    
+                    <form method="post" novalidate>
+                        {% csrf_token %}
+                        <div class="mb-3">
+                            <label for="id_name" class="form-label">Type Name <span class="text-danger">*</span></label>
+                            <input type="text" 
+                                   name="name" 
+                                   id="id_name" 
+                                   class="form-control" 
+                                   value="{% if category_type %}{{ category_type.name }}{% elif post.name %}{{ post.name }}{% endif %}"
+                                   placeholder="e.g., Tuition, Transport, Meals"
+                                   required>
+                            <div class="form-text">Enter a descriptive name for this category type</div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="id_code" class="form-label">Type Code <span class="text-danger">*</span></label>
+                            <input type="text" 
+                                   name="code" 
+                                   id="id_code" 
+                                   class="form-control" 
+                                   value="{% if category_type %}{{ category_type.code }}{% elif post.code %}{{ post.code }}{% endif %}"
+                                   placeholder="e.g., tuition, transport, meals"
+                                   pattern="[a-z0-9_-]+"
+                                   required>
+                            <div class="form-text">Enter a short code (lowercase, no spaces). This code is used internally and must be unique.</div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="id_description" class="form-label">Description</label>
+                            <textarea name="description" 
+                                      id="id_description" 
+                                      class="form-control" 
+                                      rows="3"
+                                      placeholder="Optional description for this category type">{% if category_type %}{{ category_type.description }}{% elif post.description %}{{ post.description }}{% endif %}</textarea>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <div class="form-check form-switch">
+                                <input type="checkbox" 
+                                       name="is_active" 
+                                       id="id_is_active" 
+                                       class="form-check-input" 
+                                       {% if category_type and category_type.is_active %}checked{% elif post.is_active %}checked{% elif not category_type %}checked{% endif %}>
+                                <label class="form-check-label" for="id_is_active">
+                                    Active
+                                </label>
+                            </div>
+                            <div class="form-text">Only active category types can be used when creating fee categories</div>
+                        </div>
+                        
+                        <div class="d-flex justify-content-end gap-2">
+                            <a href="{% url 'core:fee_category_type_list' %}" class="btn btn-secondary">
+                                <i class="fas fa-times me-2"></i>Cancel
+                            </a>
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-save me-2"></i>{% if category_type %}Update{% else %}Create{% endif %} Type
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const codeInput = document.getElementById('id_code');
+    if (codeInput) {
+        codeInput.addEventListener('input', function() {
+            // Convert to lowercase and replace spaces/special chars with underscores
+            this.value = this.value.toLowerCase().replace(/[^a-z0-9_-]/g, '_');
+        });
+    }
+});
+</script>
+{% endblock %}
+

@@ -157,3 +157,4 @@ School Management System
             logger.error(f'Error verifying code: {str(e)}')
             return False, 'An error occurred during verification.'
 
+

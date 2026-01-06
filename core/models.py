@@ -76,18 +76,31 @@ class Term(models.Model):
         ordering = ['-academic_year', 'term_number']
 
 
+class FeeCategoryType(models.Model):
+    """Model for managing fee category types dynamically"""
+    school = models.ForeignKey(School, on_delete=models.CASCADE, related_name='fee_category_types')
+    name = models.CharField(max_length=100, help_text='Name of the fee category type (e.g., Tuition, Transport)')
+    code = models.CharField(max_length=50, help_text='Short code for the type (e.g., tuition, transport)')
+    description = models.TextField(blank=True, help_text='Optional description for this category type')
+    is_active = models.BooleanField(default=True, help_text='Whether this category type is active and can be used')
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return self.name
+
+    class Meta:
+        verbose_name = "Fee Category Type"
+        verbose_name_plural = "Fee Category Types"
+        ordering = ['name']
+        unique_together = ['school', 'code']
+
+
 class FeeCategory(models.Model):
     school = models.ForeignKey(School, on_delete=models.CASCADE, related_name='fee_categories')
-    CATEGORY_CHOICES = [
-        ('tuition', 'Tuition'),
-        ('transport', 'Transport'),
-        ('meals', 'Meals'),
-        ('activities', 'Activities'),
-        ('other', 'Other'),
-    ]
     
     name = models.CharField(max_length=100)
-    category_type = models.CharField(max_length=20, choices=CATEGORY_CHOICES)
+    category_type = models.ForeignKey(FeeCategoryType, on_delete=models.PROTECT, related_name='fee_categories')
     description = models.TextField(blank=True)
     is_optional = models.BooleanField(default=False, help_text='If checked, this fee is optional and students can opt in/out')
     apply_by_default = models.BooleanField(default=False, help_text='If checked, optional fees will be selected by default when adding/editing students')
@@ -99,7 +112,7 @@ class FeeCategory(models.Model):
 
     class Meta:
         verbose_name_plural = "Fee Categories"
-        ordering = ['category_type', 'name']
+        ordering = ['category_type__name', 'name']
         unique_together = ['school', 'name', 'category_type']
 
 

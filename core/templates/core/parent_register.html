@@ -106,13 +106,16 @@
                                    class="form-control {% if form.username.errors %}is-invalid{% endif %}" 
                                    id="{{ form.username.id_for_label }}" 
                                    value="{{ form.username.value|default:'' }}" 
+                                   placeholder="Enter your preferred username"
                                    required>
                             {% if form.username.errors %}
                                 <div class="invalid-feedback">
                                     {{ form.username.errors.0 }}
                                 </div>
                             {% elif form.username.help_text %}
-                                <small class="form-text text-muted">{{ form.username.help_text }}</small>
+                                <small class="form-text text-muted">
+                                    <i class="fas fa-info-circle me-1"></i>{{ form.username.help_text }}
+                                </small>
                             {% endif %}
                         </div>
                         
@@ -122,13 +125,19 @@
                                    class="form-control {% if form.email.errors %}is-invalid{% endif %}" 
                                    id="{{ form.email.id_for_label }}" 
                                    value="{{ form.email.value|default:'' }}" 
+                                   placeholder="your.email@example.com"
                                    required>
                             {% if form.email.errors %}
                                 <div class="invalid-feedback">
                                     {{ form.email.errors.0 }}
                                 </div>
                             {% elif form.email.help_text %}
-                                <small class="form-text text-muted">{{ form.email.help_text }}</small>
+                                <small class="form-text text-muted">
+                                    <i class="fas fa-info-circle me-1"></i>{{ form.email.help_text }}
+                                    {% if school %}
+                                    <br><small class="text-muted">Note: The same email can be used across different schools.</small>
+                                    {% endif %}
+                                </small>
                             {% endif %}
                         </div>
                     </div>

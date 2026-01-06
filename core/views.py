@@ -11,11 +11,12 @@ from django.utils import timezone
 from django.template.loader import render_to_string
 from django.core.mail import send_mail
 from django.conf import settings
+from django.core.exceptions import ValidationError
 import json
 from datetime import datetime
 from decimal import Decimal, InvalidOperation
 from .models import (
-    School, Grade, Term, FeeCategory, TransportRoute, Student, FeeStructure, StudentFee, SchoolClass,
+    School, Grade, Term, FeeCategory, FeeCategoryType, TransportRoute, Student, FeeStructure, StudentFee, SchoolClass,
     AcademicYear, Section, StudentClassEnrollment, PromotionLog
 )
 from payments.models import Payment
@@ -71,14 +72,154 @@ from django.contrib.auth.views import LoginView
 
 
 class CustomLoginView(LoginView):
-    """Custom login view that redirects authenticated users"""
+    """Custom login view that redirects authenticated users based on their role"""
     template_name = 'auth/login.html'
     
     def dispatch(self, request, *args, **kwargs):
-        # If user is already authenticated, redirect to dashboard
+        # If user is already authenticated, redirect appropriately
         if request.user.is_authenticated:
-            return redirect('core:dashboard')
+            return self.get_success_url_redirect(request)
         return super().dispatch(request, *args, **kwargs)
+    
+    def get_success_url(self):
+        """Determine where to redirect after successful login - default to dashboard"""
+        user = self.request.user
+        
+        # Default: redirect to dashboard (as per LOGIN_REDIRECT_URL setting)
+        # Parents can access portal by navigating to /portal/ explicitly
+        
+        # Check if user has a profile with roles
+        if hasattr(user, 'profile'):
+            profile = user.profile
+            user_roles = profile.roles_list
+            if not user_roles and profile.role:
+                user_roles = [profile.role]
+            
+            # Check if user has dashboard access roles
+            dashboard_roles = ['super_admin', 'school_admin', 'teacher', 'accountant']
+            if any(role in user_roles for role in dashboard_roles):
+                if profile.school:
+                    from django.urls import reverse
+                    return reverse('core:dashboard')
+                else:
+                    # User with dashboard role but no school
+                    if user.is_superuser or 'super_admin' in user_roles:
+                        from django.urls import reverse
+                        return reverse('core:school_admin_list')
+                    else:
+                        messages.error(self.request, 'You must be assigned to a school to access the dashboard. Please contact administrator.')
+                        from django.urls import reverse
+                        return reverse('login')
+            else:
+                # User has profile but no valid roles - check if they're a parent
+                if hasattr(user, 'parent_profile'):
+                    parent = user.parent_profile
+                    if parent.school:
+                        # Parent with school - redirect to dashboard (they can navigate to portal if needed)
+                        from django.urls import reverse
+                        return reverse('core:dashboard')
+                    else:
+                        messages.error(self.request, 'Your parent account is not assigned to a school. Please contact administrator.')
+                        from django.urls import reverse
+                        return reverse('login')
+                else:
+                    # User has profile but no valid roles and not a parent
+                    messages.error(self.request, 'Your account does not have the necessary permissions. Please contact administrator.')
+                    from django.urls import reverse
+                    return reverse('login')
+        else:
+            # User has no profile - check if they're a parent
+            if hasattr(user, 'parent_profile'):
+                parent = user.parent_profile
+                if parent.school:
+                    # Parent with school - redirect to dashboard
+                    from django.urls import reverse
+                    return reverse('core:dashboard')
+                else:
+                    messages.error(self.request, 'Your parent account is not assigned to a school. Please contact administrator.')
+                    from django.urls import reverse
+                    return reverse('login')
+            elif user.is_superuser:
+                from django.urls import reverse
+                return reverse('core:school_admin_list')
+            else:
+                messages.error(self.request, 'Your account is not properly configured. Please contact administrator.')
+                from django.urls import reverse
+                return reverse('login')
+    
+    def get_success_url_redirect(self, request):
+        """Helper method to redirect authenticated users"""
+        url = self.get_success_url()
+        return redirect(url)
+
+
+def root_redirect(request):
+    """Root URL handler that redirects users to dashboard by default"""
+    if not request.user.is_authenticated:
+        return redirect('login')
+    
+    # Default: redirect to dashboard
+    # Parents can access portal by navigating to /portal/ explicitly
+    
+    # Check if username suggests this should be a parent account (has @school format)
+    # but doesn't have a parent profile - this handles incomplete registrations
+    if '@' in request.user.username and not hasattr(request.user, 'parent_profile'):
+        # Username format suggests parent, but no parent profile exists
+        messages.error(
+            request, 
+            'Your account was created but the parent profile was not completed. '
+            'Please contact an administrator to complete your parent account setup.'
+        )
+        return redirect('login')
+    
+    # Check if user has a profile with roles
+    if hasattr(request.user, 'profile'):
+        profile = request.user.profile
+        user_roles = profile.roles_list
+        if not user_roles and profile.role:
+            user_roles = [profile.role]
+        
+        # Check if user has dashboard access roles
+        dashboard_roles = ['super_admin', 'school_admin', 'teacher', 'accountant']
+        if any(role in user_roles for role in dashboard_roles):
+            if profile.school:
+                return redirect('core:dashboard')
+            else:
+                # User with dashboard role but no school
+                if request.user.is_superuser or 'super_admin' in user_roles:
+                    return redirect('core:school_admin_list')
+                else:
+                    messages.error(request, 'You must be assigned to a school to access the dashboard. Please contact administrator.')
+                    return redirect('login')
+        else:
+            # User has profile but no valid roles - check if parent
+            if hasattr(request.user, 'parent_profile'):
+                parent = request.user.parent_profile
+                if parent.school:
+                    # Parent with school - redirect to dashboard (they can navigate to portal if needed)
+                    return redirect('core:dashboard')
+                else:
+                    messages.error(request, 'Your parent account is not assigned to a school. Please contact administrator.')
+                    return redirect('login')
+            else:
+                # User has profile but no valid roles and not a parent
+                messages.error(request, 'Your account does not have the necessary permissions. Please contact administrator.')
+                return redirect('login')
+    else:
+        # User has no profile - check if parent
+        if hasattr(request.user, 'parent_profile'):
+            parent = request.user.parent_profile
+            if parent.school:
+                # Parent with school - redirect to dashboard
+                return redirect('core:dashboard')
+            else:
+                messages.error(request, 'Your parent account is not assigned to a school. Please contact administrator.')
+                return redirect('login')
+        elif request.user.is_superuser:
+            return redirect('core:school_admin_list')
+        else:
+            messages.error(request, 'Your account is not properly configured. Please contact administrator.')
+            return redirect('login')
 
 
 def is_superadmin_user(user):
@@ -125,8 +266,13 @@ def dashboard(request):
             messages.info(request, 'Please assign yourself to a school or manage schools.')
             return redirect('core:school_admin_list')
         else:
-            messages.error(request, 'You must be assigned to a school to access the dashboard.')
-            return redirect('core:dashboard')
+            # Check if user is a parent - redirect to parent portal instead
+            if hasattr(request.user, 'parent_profile'):
+                messages.error(request, 'You must be assigned to a school to access the dashboard.')
+                return redirect('core:parent_portal_dashboard')
+            # For other users without school, redirect to login to avoid loop
+            messages.error(request, 'You must be assigned to a school to access the dashboard. Please contact administrator.')
+            return redirect('login')
     
     dashboard_data = DashboardService.get_dashboard_data(school, request.user)
     
@@ -426,10 +572,14 @@ def student_update(request, student_id):
                     # Process fees - if terms are selected, it means modal was shown, which only happens on route change
                     logger.debug(f"Processing transport fees for {len(apply_to_terms)} term(s)")
                     # Get transport category
-                    transport_category = FeeCategory.objects.filter(
-                        school=school,
-                        category_type='transport'
-                    ).first()
+                    try:
+                        transport_type = FeeCategoryType.objects.get(school=school, code='transport')
+                        transport_category = FeeCategory.objects.filter(
+                            school=school,
+                            category_type=transport_type
+                        ).first()
+                    except FeeCategoryType.DoesNotExist:
+                        transport_category = None
                     
                     if transport_category:
                         updated_count = 0
@@ -1293,11 +1443,10 @@ def fee_structure_delete(request, fee_structure_id):
 def fee_category_list(request):
     """List and manage fee categories"""
     school = request.user.profile.school
-    fee_categories = FeeCategory.objects.filter(school=school).order_by('category_type', 'name')
+    fee_categories = FeeCategory.objects.filter(school=school).select_related('category_type').order_by('category_type__name', 'name')
     
     context = {
         'fee_categories': fee_categories,
-        'category_choices': FeeCategory.CATEGORY_CHOICES,
     }
     return render(request, 'core/fee_category_list.html', context)
 
@@ -1310,15 +1459,22 @@ def fee_category_add(request):
     
     if request.method == 'POST':
         name = request.POST.get('name', '').strip()
-        category_type = request.POST.get('category_type', '').strip()
+        category_type_id = request.POST.get('category_type', '').strip()
         description = request.POST.get('description', '').strip()
         is_optional = bool(request.POST.get('is_optional'))
+        apply_by_default = bool(request.POST.get('apply_by_default'))
         
         errors = []
         if not name:
             errors.append('Fee category name is required.')
-        if not category_type:
+        if not category_type_id:
             errors.append('Category type is required.')
+        
+        try:
+            category_type = FeeCategoryType.objects.get(id=category_type_id, school=school)
+        except FeeCategoryType.DoesNotExist:
+            errors.append('Invalid category type selected.')
+            category_type = None
         
         # Check for duplicates
         if name and category_type:
@@ -1328,10 +1484,11 @@ def fee_category_add(request):
         if errors:
             for error in errors:
                 messages.error(request, error)
+            category_types = FeeCategoryType.objects.filter(school=school, is_active=True).order_by('name')
             return render(request, 'core/fee_category_form.html', {
                 'category': None,
                 'post': request.POST,
-                'category_choices': FeeCategory.CATEGORY_CHOICES,
+                'category_types': category_types,
             })
         
         try:
@@ -1347,16 +1504,18 @@ def fee_category_add(request):
             return redirect('core:fee_category_list')
         except Exception as e:
             messages.error(request, f'Error creating fee category: {str(e)}')
+            category_types = FeeCategoryType.objects.filter(school=school, is_active=True).order_by('name')
             return render(request, 'core/fee_category_form.html', {
                 'category': None,
                 'post': request.POST,
-                'category_choices': FeeCategory.CATEGORY_CHOICES,
+                'category_types': category_types,
             })
     
+    category_types = FeeCategoryType.objects.filter(school=school, is_active=True).order_by('name')
     return render(request, 'core/fee_category_form.html', {
         'category': None,
         'post': {},
-        'category_choices': FeeCategory.CATEGORY_CHOICES,
+        'category_types': category_types,
     })
 
 
@@ -1369,7 +1528,7 @@ def fee_category_edit(request, category_id):
     
     if request.method == 'POST':
         name = request.POST.get('name', '').strip()
-        category_type = request.POST.get('category_type', '').strip()
+        category_type_id = request.POST.get('category_type', '').strip()
         description = request.POST.get('description', '').strip()
         is_optional = bool(request.POST.get('is_optional'))
         apply_by_default = bool(request.POST.get('apply_by_default'))
@@ -1377,8 +1536,14 @@ def fee_category_edit(request, category_id):
         errors = []
         if not name:
             errors.append('Fee category name is required.')
-        if not category_type:
+        if not category_type_id:
             errors.append('Category type is required.')
+        
+        try:
+            category_type = FeeCategoryType.objects.get(id=category_type_id, school=school)
+        except FeeCategoryType.DoesNotExist:
+            errors.append('Invalid category type selected.')
+            category_type = None
         
         # Check for duplicates (excluding current category)
         if name and category_type:
@@ -1388,10 +1553,11 @@ def fee_category_edit(request, category_id):
         if errors:
             for error in errors:
                 messages.error(request, error)
+            category_types = FeeCategoryType.objects.filter(school=school, is_active=True).order_by('name')
             return render(request, 'core/fee_category_form.html', {
                 'category': category,
                 'post': request.POST,
-                'category_choices': FeeCategory.CATEGORY_CHOICES,
+                'category_types': category_types,
             })
         
         try:
@@ -1405,16 +1571,18 @@ def fee_category_edit(request, category_id):
             return redirect('core:fee_category_list')
         except Exception as e:
             messages.error(request, f'Error updating fee category: {str(e)}')
+            category_types = FeeCategoryType.objects.filter(school=school, is_active=True).order_by('name')
             return render(request, 'core/fee_category_form.html', {
                 'category': category,
                 'post': request.POST,
-                'category_choices': FeeCategory.CATEGORY_CHOICES,
+                'category_types': category_types,
             })
     
+    category_types = FeeCategoryType.objects.filter(school=school, is_active=True).order_by('name')
     return render(request, 'core/fee_category_form.html', {
         'category': category,
         'post': {},
-        'category_choices': FeeCategory.CATEGORY_CHOICES,
+        'category_types': category_types,
     })
 
 
@@ -1426,7 +1594,7 @@ def fee_category_delete(request, category_id):
     category = get_object_or_404(FeeCategory, id=category_id, school=school)
     
     if request.method == 'POST':
-        is_transport = category.category_type == 'transport'
+        is_transport = category.category_type.code == 'transport'
         
         # For transport categories, allow deletion (they're managed via routes now)
         # But clean up related fee structures and warn about student fees
@@ -1469,6 +1637,160 @@ def fee_category_delete(request, category_id):
         'category': category,
     }
     return render(request, 'core/fee_category_confirm_delete.html', context)
+
+
+@login_required
+@role_required('super_admin', 'school_admin', 'accountant')
+def fee_category_type_list(request):
+    """List and manage fee category types"""
+    school = request.user.profile.school
+    category_types = FeeCategoryType.objects.filter(school=school).order_by('name')
+    
+    context = {
+        'category_types': category_types,
+    }
+    return render(request, 'core/fee_category_type_list.html', context)
+
+
+@login_required
+@role_required('super_admin', 'school_admin', 'accountant')
+def fee_category_type_add(request):
+    """Add a new fee category type"""
+    school = request.user.profile.school
+    
+    if request.method == 'POST':
+        name = request.POST.get('name', '').strip()
+        code = request.POST.get('code', '').strip().lower()
+        description = request.POST.get('description', '').strip()
+        is_active = bool(request.POST.get('is_active'))
+        
+        errors = []
+        if not name:
+            errors.append('Category type name is required.')
+        if not code:
+            errors.append('Category type code is required.')
+        
+        # Check for duplicates
+        if name and code:
+            if FeeCategoryType.objects.filter(school=school, code=code).exists():
+                errors.append('A fee category type with this code already exists.')
+        
+        if errors:
+            for error in errors:
+                messages.error(request, error)
+            return render(request, 'core/fee_category_type_form.html', {
+                'category_type': None,
+                'post': request.POST,
+            })
+        
+        try:
+            FeeCategoryType.objects.create(
+                school=school,
+                name=name,
+                code=code,
+                description=description,
+                is_active=is_active
+            )
+            messages.success(request, 'Fee category type created successfully!')
+            return redirect('core:fee_category_type_list')
+        except Exception as e:
+            messages.error(request, f'Error creating fee category type: {str(e)}')
+            return render(request, 'core/fee_category_type_form.html', {
+                'category_type': None,
+                'post': request.POST,
+            })
+    
+    return render(request, 'core/fee_category_type_form.html', {
+        'category_type': None,
+        'post': {},
+    })
+
+
+@login_required
+@role_required('super_admin', 'school_admin', 'accountant')
+def fee_category_type_edit(request, type_id):
+    """Edit an existing fee category type"""
+    school = request.user.profile.school
+    category_type = get_object_or_404(FeeCategoryType, id=type_id, school=school)
+    
+    if request.method == 'POST':
+        name = request.POST.get('name', '').strip()
+        code = request.POST.get('code', '').strip().lower()
+        description = request.POST.get('description', '').strip()
+        is_active = bool(request.POST.get('is_active'))
+        
+        errors = []
+        if not name:
+            errors.append('Category type name is required.')
+        if not code:
+            errors.append('Category type code is required.')
+        
+        # Check for duplicates (excluding current type)
+        if name and code:
+            if FeeCategoryType.objects.filter(school=school, code=code).exclude(id=type_id).exists():
+                errors.append('A fee category type with this code already exists.')
+        
+        if errors:
+            for error in errors:
+                messages.error(request, error)
+            return render(request, 'core/fee_category_type_form.html', {
+                'category_type': category_type,
+                'post': request.POST,
+            })
+        
+        try:
+            category_type.name = name
+            category_type.code = code
+            category_type.description = description
+            category_type.is_active = is_active
+            category_type.save()
+            messages.success(request, 'Fee category type updated successfully!')
+            return redirect('core:fee_category_type_list')
+        except Exception as e:
+            messages.error(request, f'Error updating fee category type: {str(e)}')
+            return render(request, 'core/fee_category_type_form.html', {
+                'category_type': category_type,
+                'post': request.POST,
+            })
+    
+    return render(request, 'core/fee_category_type_form.html', {
+        'category_type': category_type,
+        'post': {},
+    })
+
+
+@login_required
+@role_required('super_admin', 'school_admin', 'accountant')
+def fee_category_type_delete(request, type_id):
+    """Delete a fee category type"""
+    school = request.user.profile.school
+    category_type = get_object_or_404(FeeCategoryType, id=type_id, school=school)
+    
+    if request.method == 'POST':
+        # Check if category type is used in fee categories
+        fee_categories_count = FeeCategory.objects.filter(category_type=category_type).count()
+        if fee_categories_count > 0:
+            messages.error(
+                request, 
+                f'Cannot delete "{category_type.name}" because it is used in {fee_categories_count} fee category(ies). '
+                'Please update or delete these fee categories first.'
+            )
+            return redirect('core:fee_category_type_list')
+        
+        try:
+            category_type.delete()
+            messages.success(request, 'Fee category type deleted successfully!')
+        except Exception as e:
+            messages.error(request, f'Error deleting fee category type: {str(e)}')
+        
+        return redirect('core:fee_category_type_list')
+    
+    # Show confirmation page
+    context = {
+        'category_type': category_type,
+        'fee_categories_count': FeeCategory.objects.filter(category_type=category_type).count(),
+    }
+    return render(request, 'core/fee_category_type_confirm_delete.html', context)
 
 
 @login_required
@@ -1539,7 +1861,11 @@ def generate_student_fees(request):
     terms = Term.objects.filter(school=school).order_by('-academic_year', '-term_number')
     grades = Grade.objects.filter(school=school).order_by('name')
     # Exclude transport categories - transport fees are route-based
-    fee_categories = FeeCategory.objects.filter(school=school).exclude(category_type='transport').order_by('category_type', 'name')
+    try:
+        transport_type = FeeCategoryType.objects.get(school=school, code='transport')
+        fee_categories = FeeCategory.objects.filter(school=school).exclude(category_type=transport_type).select_related('category_type').order_by('category_type__name', 'name')
+    except FeeCategoryType.DoesNotExist:
+        fee_categories = FeeCategory.objects.filter(school=school).select_related('category_type').order_by('category_type__name', 'name')
     
     # Get existing fee structures for display (will be loaded via JavaScript when term is selected)
     # We'll pass this as JSON for JavaScript to use
@@ -1584,11 +1910,19 @@ def get_previous_term_fees(request):
     term = get_object_or_404(Term, id=term_id, school=school)
     
     # Get fee structures for this term (exclude transport - it's route-based)
-    fee_structures = FeeStructure.objects.filter(
-        school=school,
-        term=term,
-        is_active=True
-    ).exclude(fee_category__category_type='transport').select_related('grade', 'fee_category')
+    try:
+        transport_type = FeeCategoryType.objects.get(school=school, code='transport')
+        fee_structures = FeeStructure.objects.filter(
+            school=school,
+            term=term,
+            is_active=True
+        ).exclude(fee_category__category_type=transport_type).select_related('grade', 'fee_category', 'fee_category__category_type')
+    except FeeCategoryType.DoesNotExist:
+        fee_structures = FeeStructure.objects.filter(
+            school=school,
+            term=term,
+            is_active=True
+        ).select_related('grade', 'fee_category', 'fee_category__category_type')
     
     # Format as {grade_id}_{category_id: amount}
     data = {}
@@ -1616,11 +1950,19 @@ def generate_student_fees_from_structures(request):
         term = get_object_or_404(Term, id=term_id, school=school)
         
         # Get fee structures for this term (exclude transport - it's route-based)
-        fee_structures = FeeStructure.objects.filter(
-            school=school,
-            term=term,
-            is_active=True
-        ).exclude(fee_category__category_type='transport').select_related('grade', 'fee_category')
+        try:
+            transport_type = FeeCategoryType.objects.get(school=school, code='transport')
+            fee_structures = FeeStructure.objects.filter(
+                school=school,
+                term=term,
+                is_active=True
+            ).exclude(fee_category__category_type=transport_type).select_related('grade', 'fee_category', 'fee_category__category_type')
+        except FeeCategoryType.DoesNotExist:
+            fee_structures = FeeStructure.objects.filter(
+                school=school,
+                term=term,
+                is_active=True
+            ).select_related('grade', 'fee_category', 'fee_category__category_type')
         
         # Filter by grade if specified
         if grade_id:
@@ -1635,10 +1977,14 @@ def generate_student_fees_from_structures(request):
         skipped_count = 0
         
         # Get transport category for transport fees
-        transport_category = FeeCategory.objects.filter(
-            school=school,
-            category_type='transport'
-        ).first()
+        try:
+            transport_type = FeeCategoryType.objects.get(school=school, code='transport')
+            transport_category = FeeCategory.objects.filter(
+                school=school,
+                category_type=transport_type
+            ).first()
+        except FeeCategoryType.DoesNotExist:
+            transport_category = None
         
         deleted_count = 0
         
@@ -2411,10 +2757,26 @@ def parent_edit(request, parent_id):
 @role_required('super_admin', 'school_admin')
 def parent_register(request):
     """Register a new parent/guardian and optionally link to students"""
-    # Determine the school
+    # Determine the school - ALWAYS get it from the admin's profile (for non-superusers)
     school = None
-    if hasattr(request.user, 'profile') and request.user.profile.school:
-        school = request.user.profile.school
+    if hasattr(request.user, 'profile'):
+        profile_school = request.user.profile.school
+        # Refresh from DB to ensure we have the latest school assignment
+        if profile_school:
+            try:
+                school = School.objects.get(id=profile_school.id)
+                # Verify the school is correctly set
+                if not school:
+                    messages.error(request, 'Your account is not assigned to a school. Please contact administrator.')
+                    return redirect('core:dashboard')
+            except School.DoesNotExist:
+                messages.error(request, 'Your assigned school no longer exists. Please contact administrator.')
+                return redirect('core:dashboard')
+        else:
+            # Admin has profile but no school assigned
+            if not request.user.is_superuser:
+                messages.error(request, 'Your account is not assigned to a school. Please contact administrator.')
+                return redirect('core:dashboard')
     
     if request.method == 'POST':
         # For superusers, get school from POST data
@@ -2444,9 +2806,37 @@ def parent_register(request):
             }
             return render(request, 'core/parent_register.html', context)
         
+        # CRITICAL: For non-superusers, always use the admin's school, ignore any POST data
+        if not request.user.is_superuser and hasattr(request.user, 'profile') and request.user.profile.school:
+            admin_school = request.user.profile.school
+            # Refresh from DB to ensure we have the latest
+            admin_school = School.objects.get(id=admin_school.id)
+            if school.id != admin_school.id:
+                import logging
+                logger = logging.getLogger(__name__)
+                logger.warning(f'Parent registration - School mismatch prevented! Admin school: {admin_school.name} (ID: {admin_school.id}), attempted school: {school.name} (ID: {school.id}). Using admin school.')
+                messages.warning(request, f'Using your assigned school: {admin_school.name}. Parents must be registered in the same school as the administrator.')
+            school = admin_school  # Always use admin's school for non-superusers
+        
+        # Debug: Log the school being used
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.info(f'Parent registration - Using school: {school.name} (ID: {school.id}) for admin user: {request.user.username} (Admin Profile school: {request.user.profile.school.name if hasattr(request.user, "profile") and request.user.profile.school else "None"})')
+        
         form = ParentRegistrationForm(request.POST, request.FILES, school=school)
         if form.is_valid():
             try:
+                # Check if parent already exists with this email in a different school
+                email = form.cleaned_data.get('email', '')
+                existing_user = User.objects.filter(email=email).first()
+                parent_updated = False
+                
+                if existing_user and hasattr(existing_user, 'parent_profile'):
+                    existing_parent = existing_user.parent_profile
+                    if existing_parent.school != school:
+                        # Parent exists in different school - will be updated by form.save()
+                        parent_updated = True
+                
                 parent = form.save(commit=True, school=school)
                 
                 # Handle student linking directly in the view (more reliable)
@@ -2479,13 +2869,38 @@ def parent_register(request):
                         logger = logging.getLogger(__name__)
                         logger.error(f'Error linking students to parent during registration: {e}', exc_info=True)
                 
-                messages.success(request, f'Parent account created successfully for {parent.user.get_full_name() or parent.user.username}.')
+                if parent_updated:
+                    messages.success(request, f'Parent account updated and assigned to {school.name}. The parent "{parent.user.get_full_name() or parent.user.username}" was previously in another school and has been moved to this school.')
+                else:
+                    messages.success(request, f'Parent account created successfully for {parent.user.get_full_name() or parent.user.username}.')
                 return redirect('core:parent_register')
             except Exception as e:
                 import logging
                 logger = logging.getLogger(__name__)
                 logger.error(f'Error creating parent account: {str(e)}', exc_info=True)
-                messages.error(request, f'Error creating parent account: {str(e)}')
+                
+                # Check if it's a validation error from the form
+                if isinstance(e, ValidationError):
+                    messages.error(request, str(e))
+                # Check if it's a unique constraint error for email
+                elif 'email' in str(e).lower() and ('unique' in str(e).lower() or 'duplicate' in str(e).lower()):
+                    email = form.cleaned_data.get('email', '')
+                    existing_user = User.objects.filter(email=email).first()
+                    if existing_user and hasattr(existing_user, 'parent_profile'):
+                        existing_parent = existing_user.parent_profile
+                        if existing_parent.school == school:
+                            messages.error(request, f'A parent with this email already exists in this school.')
+                        else:
+                            # This shouldn't happen now since we handle it in form.save(), but just in case
+                            messages.error(
+                                request, 
+                                f'A user with email "{email}" already exists for a parent in another school ({existing_parent.school.name}). '
+                                'The system will attempt to update the parent\'s school assignment.'
+                            )
+                    else:
+                        messages.error(request, f'A user with this email already exists. Please use a different email address.')
+                else:
+                    messages.error(request, f'Error creating parent account: {str(e)}')
         else:
             messages.error(request, 'Please correct the errors below.')
     else:
@@ -4181,8 +4596,22 @@ def parent_portal_dashboard(request):
             messages.info(request, 'As a superuser, you can view individual parent portals from the parent list.')
             return redirect('core:parent_list')
         else:
-            messages.error(request, 'Parent profile not found. Please contact administrator.')
-            return redirect('core:dashboard')
+            # User doesn't have parent profile and is not superuser
+            # Check if they have other roles and redirect appropriately
+            if hasattr(request.user, 'profile'):
+                user_roles = request.user.profile.roles_list
+                if not user_roles and request.user.profile.role:
+                    user_roles = [request.user.profile.role]
+                
+                # If user has dashboard access roles, redirect there
+                dashboard_roles = ['super_admin', 'school_admin', 'teacher', 'accountant']
+                if any(role in user_roles for role in dashboard_roles):
+                    messages.error(request, 'Parent profile not found. You have been redirected to the main dashboard.')
+                    return redirect('core:dashboard')
+            
+            # If no valid roles, redirect to login to avoid loop
+            messages.error(request, 'Parent profile not found and you do not have access to other areas. Please contact administrator.')
+            return redirect('login')
     
     # Get all children linked to this parent
     children = parent.children.all().select_related('grade', 'school_class', 'school_class__class_teacher').order_by('first_name', 'last_name')

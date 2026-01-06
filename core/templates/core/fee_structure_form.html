@@ -52,7 +52,7 @@
                                 <option value="">Select Fee Category</option>
                                 {% for category in fee_categories %}
                                     <option value="{{ category.id }}" {% if fee_structure and fee_structure.fee_category.id == category.id %}selected{% endif %}>
-                                        {{ category.name }} ({{ category.get_category_type_display }})
+                                        {{ category.name }} ({{ category.category_type.name }})
                                     </option>
                                 {% endfor %}
                             </select>

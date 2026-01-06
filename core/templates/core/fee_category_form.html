@@ -40,14 +40,17 @@
                             <label for="id_category_type" class="form-label">Category Type <span class="text-danger">*</span></label>
                             <select name="category_type" id="id_category_type" class="form-select" required>
                                 <option value="">Select Type</option>
-                                {% for value, label in category_choices %}
-                                    <option value="{{ value }}" 
-                                            {% if category and category.category_type == value %}selected{% elif post.category_type == value %}selected{% endif %}>
-                                        {{ label }}
+                                {% for type in category_types %}
+                                    <option value="{{ type.id }}" 
+                                            {% if category and category.category_type.id == type.id %}selected{% elif post.category_type == type.id|stringformat:"s" %}selected{% endif %}>
+                                        {{ type.name }}
                                     </option>
                                 {% endfor %}
                             </select>
-                            <div class="form-text">Select the type of fee category</div>
+                            <div class="form-text">
+                                Select the type of fee category. 
+                                <a href="{% url 'core:fee_category_type_list' %}" target="_blank">Manage category types</a>
+                            </div>
                         </div>
                         
                         <div class="mb-3">
