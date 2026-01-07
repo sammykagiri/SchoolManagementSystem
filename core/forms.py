@@ -838,42 +838,65 @@ class ParentRegistrationForm(UserCreationForm):
             
             # Link selected students - always check raw form data first (more reliable)
             students = []
-            if hasattr(self, 'data') and self.data:
-                raw_students = self.data.getlist('students', [])
-                # Filter out empty strings, None, and whitespace-only values
-                raw_students = [s for s in raw_students if s is not None and str(s).strip() != '']
-                
-                if raw_students and school:
-                    try:
-                        # Convert to integers and filter
-                        student_ids = []
-                        for sid in raw_students:
-                            try:
-                                student_id = int(sid)
-                                student_ids.append(student_id)
-                            except (ValueError, TypeError):
-                                continue
-                        
-                        if student_ids:
-                            # Fetch students from database
-                            fetched_students = Student.objects.filter(
-                                id__in=student_ids,
-                                school=school,
-                                is_active=True
-                            )
-                            if fetched_students.exists():
-                                students = list(fetched_students)
-                    except Exception as e:
-                        # Log error but don't fail the save
-                        logger.error(f'Error linking students to parent during registration: {e}')
+            
+            # Check if we have form data (from POST request)
+            # Try multiple sources: _post_data (from view), self.data (form's data), or cleaned_data
+            post_data = None
+            if hasattr(self, '_post_data') and self._post_data:
+                post_data = self._post_data
+            elif hasattr(self, 'data') and self.data is not None:
+                post_data = self.data
+            
+            if post_data:
+                try:
+                    # Try getlist first (for QueryDict)
+                    if hasattr(post_data, 'getlist'):
+                        raw_students = post_data.getlist('students', [])
+                    else:
+                        # Fallback for regular dict
+                        raw_students = post_data.get('students', [])
+                        if not isinstance(raw_students, list):
+                            raw_students = [raw_students] if raw_students else []
+                    
+                    # Filter out empty strings, None, and whitespace-only values
+                    raw_students = [s for s in raw_students if s is not None and str(s).strip() != '']
+                    
+                    if raw_students and school:
+                        try:
+                            # Convert to integers and filter
+                            student_ids = []
+                            for sid in raw_students:
+                                try:
+                                    student_id = int(sid)
+                                    student_ids.append(student_id)
+                                except (ValueError, TypeError):
+                                    continue
+                            
+                            if student_ids:
+                                # Fetch students from database
+                                fetched_students = Student.objects.filter(
+                                    id__in=student_ids,
+                                    school=school,
+                                    is_active=True
+                                )
+                                if fetched_students.exists():
+                                    students = list(fetched_students)
+                        except Exception as e:
+                            # Log error but don't fail the save
+                            logger.error(f'Error linking students to parent during registration: {e}')
+                except (AttributeError, KeyError) as e:
+                    # If getlist fails, try alternative method
+                    logger.warning(f'Could not get students from form data: {e}')
             
             # Fallback to cleaned_data if raw data didn't work (shouldn't happen, but just in case)
             if not students:
                 students = self.cleaned_data.get('students', [])
             
-            # Set the students (even if empty list)
+            # Set the students - only set if we have students to avoid clearing on registration
+            # For registration, if no students selected, don't set (preserves empty state)
             if students:
                 parent.children.set(students)
+                logger.info(f'Linked {len(students)} students to parent {parent.id} during registration')
             
             return parent
         
@@ -1003,8 +1026,52 @@ class ParentEditForm(forms.ModelForm):
     
     def clean_email(self):
         email = self.cleaned_data.get('email')
-        if email and self.user and User.objects.filter(email=email).exclude(id=self.user.id).exists():
-            raise ValidationError('A user with this email already exists.')
+        if not email:
+            return email
+        
+        # Get the current parent instance
+        instance = getattr(self, 'instance', None)
+        current_parent = None
+        if instance and instance.pk:
+            current_parent = instance
+        
+        # Check if email is being changed
+        if self.user and email == self.user.email:
+            # Email not changed - no need to validate
+            return email
+        
+        # Email is being changed - check if it conflicts with another parent in the same school
+        school = getattr(self, 'school', None)
+        if not school and current_parent:
+            school = current_parent.school
+        
+        if school:
+            # Check if another parent in the same school has this email
+            existing_parent = Parent.objects.filter(
+                school=school,
+                user__email=email
+            ).exclude(pk=current_parent.pk if current_parent else None).first()
+            
+            if existing_parent:
+                raise ValidationError('A parent with this email already exists in this school.')
+            
+            # Also check Parent.email field as fallback
+            existing_parent_by_email = Parent.objects.filter(
+                school=school,
+                email=email
+            ).exclude(pk=current_parent.pk if current_parent else None).exclude(user__email=email).first()
+            
+            if existing_parent_by_email:
+                raise ValidationError('A parent with this email already exists in this school.')
+        else:
+            # No school context - check if any user (not just parent) has this email
+            if self.user:
+                if User.objects.filter(email=email).exclude(id=self.user.id).exists():
+                    raise ValidationError('A user with this email already exists.')
+            else:
+                if User.objects.filter(email=email).exists():
+                    raise ValidationError('A user with this email already exists.')
+        
         return email
     
     def clean_students(self):
@@ -1131,6 +1198,7 @@ class ParentEditForm(forms.ModelForm):
             
             # Update linked students - always check raw form data first (more reliable)
             students = []
+            students_field_present = False  # Track if students field was in POST data
             
             # Check if we have form data (from POST request)
             # Try multiple sources: _post_data (from view), self.data (form's data), or cleaned_data
@@ -1142,11 +1210,15 @@ class ParentEditForm(forms.ModelForm):
             
             if post_data:
                 try:
-                    # Try getlist first (for QueryDict)
+                    # Check if 'students' field was present in POST data
+                    # For QueryDict, check if key exists (even if empty list)
                     if hasattr(post_data, 'getlist'):
+                        # QueryDict: check if key exists
+                        students_field_present = 'students' in post_data
                         raw_students = post_data.getlist('students', [])
                     else:
-                        # Fallback for regular dict
+                        # Regular dict: check if key exists
+                        students_field_present = 'students' in post_data
                         raw_students = post_data.get('students', [])
                         if not isinstance(raw_students, list):
                             raw_students = [raw_students] if raw_students else []
@@ -1154,7 +1226,14 @@ class ParentEditForm(forms.ModelForm):
                     # Filter out empty strings, None, and whitespace-only values
                     raw_students = [s for s in raw_students if s is not None and str(s).strip() != '']
                     
-                    if raw_students:
+                    # If field was present but all values were empty/whitespace, user explicitly cleared all students
+                    if students_field_present and len(raw_students) == 0:
+                        # Field was in POST but empty - user explicitly cleared all links
+                        students = []
+                        import logging
+                        logger = logging.getLogger(__name__)
+                        logger.info(f'Students field was in POST but empty - clearing all links for parent {parent.id}')
+                    elif raw_students:
                         # Get school from instance or form
                         school = getattr(self, 'school', None)
                         if not school and hasattr(parent, 'school'):
@@ -1196,15 +1275,30 @@ class ParentEditForm(forms.ModelForm):
                     logger.warning(f'Could not get students from form data: {e}')
             
             # Fallback to cleaned_data if raw data didn't work
-            if not students:
+            if not students and students_field_present:
                 students = self.cleaned_data.get('students', [])
                 if students:
                     import logging
                     logger = logging.getLogger(__name__)
                     logger.info(f'Using cleaned_data: {len(students)} students for parent {parent.id}')
             
-            # Set the students (even if empty list, to clear existing links)
-            parent.children.set(students)
+            # Set the students based on POST data
+            # If students field was in POST, use it (even if empty - user explicitly cleared all links)
+            # If students field was NOT in POST, preserve existing links (user didn't touch the field)
+            if students_field_present:
+                # Field was in POST - update with what was submitted (even if empty list means clear all links)
+                parent.children.set(students)
+                # Log the result
+                import logging
+                logger = logging.getLogger(__name__)
+                logger.info(f'Updated students for parent {parent.id}: Set {len(students)} students (field was in POST). Previous count: {parent.children.count()}')
+            else:
+                # Students field not in POST - this means user didn't interact with the field
+                # Preserve existing links (don't call set() at all)
+                import logging
+                logger = logging.getLogger(__name__)
+                existing_count = parent.children.count()
+                logger.info(f'Students field not in POST data - preserving existing {existing_count} links for parent {parent.id}')
             
             # Log final state for debugging
             import logging

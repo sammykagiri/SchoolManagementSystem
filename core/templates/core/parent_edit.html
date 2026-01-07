@@ -63,8 +63,9 @@
             </h3>
         </div>
         <div class="form-body">
-            <form method="post" enctype="multipart/form-data" novalidate>
+            <form method="post" enctype="multipart/form-data" novalidate id="parentEditForm">
                 {% csrf_token %}
+                <!-- Student inputs will be dynamically added here -->
                 
                 {% if form.non_field_errors %}
                     <div class="alert alert-danger">
@@ -301,7 +302,7 @@
                     <a href="{% url 'core:parent_detail' parent.id %}" class="btn btn-secondary">
                         <i class="fas fa-times me-2"></i>Cancel
                     </a>
-                    <button type="submit" class="btn btn-primary">
+                    <button type="submit" class="btn btn-primary" id="submitParentForm">
                         <i class="fas fa-save me-2"></i>Update Parent
                     </button>
                 </div>
@@ -314,10 +315,35 @@
 {% block extra_js %}
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    const parentForm = document.querySelector('form');
+    // Get the correct form - MUST use the form ID to avoid selecting logout form
+    let parentForm = document.getElementById('parentEditForm');
+    if (!parentForm) {
+        // Fallback: try to find the form in the form-body container
+        const formBody = document.querySelector('.form-body');
+        if (formBody) {
+            parentForm = formBody.querySelector('form');
+        }
+        // Last resort: find form that's not the logout form
+        if (!parentForm) {
+            const allForms = document.querySelectorAll('form');
+            parentForm = Array.from(allForms).find(form => 
+                form.id !== 'logout-form' && 
+                !form.action.includes('logout') &&
+                form.method === 'post'
+            );
+        }
+    }
+    
+    if (!parentForm) {
+        console.error('ERROR: Could not find parent edit form!');
+        return; // Exit if form not found
+    } else {
+        console.log('Found parent form:', parentForm.id || 'NO ID', 'Action:', parentForm.action);
+    }
     const selectedStudentsContainer = document.getElementById('selected-students');
     const studentDropdownItems = document.querySelectorAll('.student-item');
     const selectedStudentValues = new Set();
+    let studentsFieldTouched = false; // Track if user has interacted with students field
     
     // Initialize with existing selections
     {% if parent %}
@@ -334,29 +360,62 @@ document.addEventListener('DOMContentLoaded', function() {
     function updateStudentHiddenInput() {
         console.log('updateStudentHiddenInput called. Selected values:', Array.from(selectedStudentValues));
         
-        // Remove all existing student hidden inputs
-        const existingInputs = parentForm.querySelectorAll('input[name="students"]');
-        console.log('Removing', existingInputs.length, 'existing hidden inputs');
+        // Get current inputs and their values
+        const existingInputs = Array.from(parentForm.querySelectorAll('input[name="students"]'));
+        const existingValues = existingInputs.map(input => input.value);
+        
+        // Remove inputs that are no longer selected
         existingInputs.forEach(input => {
-            input.remove();
+            if (!selectedStudentValues.has(input.value)) {
+                console.log('Removing input for student:', input.value);
+                input.remove();
+            }
         });
         
-        // Create new hidden inputs for each selected student (same pattern as student_form_new.html)
+        // Add inputs for newly selected students
         let createdCount = 0;
         selectedStudentValues.forEach(value => {
-            const hiddenInput = document.createElement('input');
-            hiddenInput.type = 'hidden';
-            hiddenInput.name = 'students';
-            hiddenInput.value = value;
-            parentForm.appendChild(hiddenInput);
-            createdCount++;
-            console.log('Created hidden input for student ID:', value);
+            // Check if input already exists
+            const exists = parentForm.querySelector(`input[name="students"][value="${value}"]`);
+            if (!exists) {
+                const hiddenInput = document.createElement('input');
+                hiddenInput.type = 'hidden';
+                hiddenInput.name = 'students';
+                hiddenInput.value = value;
+                hiddenInput.id = 'student-input-' + value;
+                // Insert at the end of the form to ensure it's included
+                parentForm.appendChild(hiddenInput);
+                createdCount++;
+                console.log('Created hidden input for student ID:', value);
+            }
         });
+        
+        // IMPORTANT: If field was touched but no students selected, add empty marker input
+        // This tells the backend that the field was explicitly cleared, not just not touched
+        if (studentsFieldTouched && selectedStudentValues.size === 0) {
+            // Check if marker already exists
+            const markerExists = parentForm.querySelector('input[name="students"][data-empty-marker="true"]');
+            if (!markerExists) {
+                const emptyMarker = document.createElement('input');
+                emptyMarker.type = 'hidden';
+                emptyMarker.name = 'students';
+                emptyMarker.value = '';
+                emptyMarker.setAttribute('data-empty-marker', 'true');
+                parentForm.appendChild(emptyMarker);
+                console.log('Added empty marker to indicate field was explicitly cleared');
+            }
+        } else {
+            // Remove marker if students are selected
+            const marker = parentForm.querySelector('input[name="students"][data-empty-marker="true"]');
+            if (marker) {
+                marker.remove();
+            }
+        }
         
         // Verify
         const finalInputs = parentForm.querySelectorAll('input[name="students"]');
         const finalValues = Array.from(finalInputs).map(input => input.value);
-        console.log('After updateStudentHiddenInput - Created', createdCount, 'inputs. Total inputs:', finalInputs.length, 'Values:', finalValues);
+        console.log('After updateStudentHiddenInput - Created', createdCount, 'new inputs. Total inputs:', finalInputs.length, 'Values:', finalValues);
     }
     
     // Function to re-enable dropdown item
@@ -383,7 +442,24 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Function to remove selected student
     function removeSelectedStudent(value) {
+        studentsFieldTouched = true; // Mark field as touched
         selectedStudentValues.delete(value);
+        
+        // Remove the hidden input
+        const hiddenInput = parentForm.querySelector('#student-input-' + value);
+        if (hiddenInput) {
+            hiddenInput.remove();
+            console.log('Removed hidden input for student ID:', value);
+        }
+        
+        // Also remove any other inputs with this value (fallback)
+        const allStudentInputs = parentForm.querySelectorAll('input[name="students"]');
+        allStudentInputs.forEach(input => {
+            if (input.value == value) {
+                input.remove();
+            }
+        });
+        
         updateStudentHiddenInput();
         enableStudentDropdownItem(value);
         
@@ -400,6 +476,7 @@ document.addEventListener('DOMContentLoaded', function() {
             return; // Already selected
         }
         
+        studentsFieldTouched = true; // Mark field as touched
         selectedStudentValues.add(value);
         const badge = document.createElement('span');
         badge.className = 'badge bg-primary me-1 mb-1';
@@ -415,7 +492,21 @@ document.addEventListener('DOMContentLoaded', function() {
         });
         
         selectedStudentsContainer.appendChild(badge);
+        
+        // Update hidden inputs (this will create the input for this student)
         updateStudentHiddenInput();
+        
+        // Double-check: ensure the input exists
+        const checkInput = parentForm.querySelector('input[name="students"][value="' + value + '"]');
+        if (!checkInput) {
+            console.warn('Input not found after updateStudentHiddenInput, creating manually');
+            const hiddenInput = document.createElement('input');
+            hiddenInput.type = 'hidden';
+            hiddenInput.name = 'students';
+            hiddenInput.value = value;
+            parentForm.appendChild(hiddenInput);
+        }
+        
         disableStudentDropdownItem(value);
     }
     
@@ -463,18 +554,144 @@ document.addEventListener('DOMContentLoaded', function() {
     // Update hidden input on page load
     updateStudentHiddenInput();
     
-    // Ensure hidden inputs are updated before form submission (same pattern as student_form_new.html)
-    parentForm.addEventListener('submit', function(e) {
-        console.log('=== FORM SUBMIT EVENT TRIGGERED ===');
-        console.log('Selected students before update:', Array.from(selectedStudentValues));
-        updateStudentHiddenInput();
+    // Function to ensure student inputs are ALWAYS in the form
+    // This version doesn't remove inputs unnecessarily - just ensures they exist
+    function ensureStudentInputsInForm() {
+        console.log('=== ensureStudentInputsInForm called ===');
+        console.log('Selected students:', Array.from(selectedStudentValues));
+        
+        // Get current inputs
+        const existingInputs = Array.from(parentForm.querySelectorAll('input[name="students"]'));
+        const existingValues = existingInputs.map(input => input.value);
+        
+        // Remove inputs for students that are no longer selected
+        existingInputs.forEach(input => {
+            if (!selectedStudentValues.has(input.value)) {
+                console.log('Removing input for unselected student:', input.value);
+                input.remove();
+            }
+        });
+        
+        // Add inputs for students that don't have inputs yet
+        let created = 0;
+        selectedStudentValues.forEach(value => {
+            // Check if input already exists
+            const exists = existingInputs.some(input => input.value === value);
+            if (!exists) {
+                const hiddenInput = document.createElement('input');
+                hiddenInput.type = 'hidden';
+                hiddenInput.name = 'students';
+                hiddenInput.value = value;
+                hiddenInput.setAttribute('data-student-id', value);
+                // Append to form - use appendChild to ensure it's properly in the form
+                parentForm.appendChild(hiddenInput);
+                created++;
+                console.log('Created NEW input for student:', value);
+            } else {
+                console.log('Input already exists for student:', value);
+            }
+        });
         
         // Final verification
-        const finalInputs = parentForm.querySelectorAll('input[name="students"]');
-        const finalValues = Array.from(finalInputs).map(input => input.value);
-        console.log('Final hidden inputs in form:', finalValues);
-        console.log('Form will submit with', finalInputs.length, 'student inputs');
-    });
+        const verifyInputs = parentForm.querySelectorAll('input[name="students"]');
+        const verifyValues = Array.from(verifyInputs).map(i => i.value);
+        console.log('Verification: Created', created, 'new inputs. Total', verifyInputs.length, 'inputs in form. Values:', verifyValues);
+        
+        // Double-check: if we have selected students but fewer inputs, something is wrong
+        if (selectedStudentValues.size > verifyInputs.length) {
+            console.error('ERROR: Mismatch! Selected', selectedStudentValues.size, 'but only', verifyInputs.length, 'inputs found. Recreating all...');
+            // Force recreate all
+            verifyInputs.forEach(input => input.remove());
+            selectedStudentValues.forEach(value => {
+                const hiddenInput = document.createElement('input');
+                hiddenInput.type = 'hidden';
+                hiddenInput.name = 'students';
+                hiddenInput.value = value;
+                parentForm.appendChild(hiddenInput);
+            });
+        }
+        
+        return verifyInputs.length;
+    }
+    
+    // CRITICAL: Ensure inputs are ALWAYS in the form, especially before submission
+    // We'll use a more aggressive approach - create inputs immediately and keep them
+    
+    // Function to force-create all student inputs (used before submission)
+    function forceCreateStudentInputs() {
+        if (!parentForm) {
+            console.error('ERROR: parentForm is null!');
+            return 0;
+        }
+        
+        // Remove ALL existing student inputs first (including empty markers)
+        const allExisting = parentForm.querySelectorAll('input[name="students"]');
+        allExisting.forEach(input => input.remove());
+        
+        // Create fresh inputs for ALL selected students
+        // Insert them right after CSRF token to ensure they're included
+        const csrfToken = parentForm.querySelector('input[name="csrfmiddlewaretoken"]');
+        
+        if (selectedStudentValues.size > 0) {
+            // Create inputs for selected students
+            selectedStudentValues.forEach(value => {
+                const input = document.createElement('input');
+                input.type = 'hidden';
+                input.name = 'students';
+                input.value = String(value); // Ensure it's a string
+                input.id = 'student-input-' + value;
+                
+                // Insert after CSRF token or at the beginning
+                if (csrfToken && csrfToken.nextSibling) {
+                    parentForm.insertBefore(input, csrfToken.nextSibling);
+                } else if (csrfToken) {
+                    csrfToken.parentNode.insertBefore(input, csrfToken.nextSibling);
+                } else {
+                    parentForm.insertBefore(input, parentForm.firstChild);
+                }
+            });
+        } else if (studentsFieldTouched) {
+            // Field was touched but all students removed - add empty marker
+            // This tells backend that field was explicitly cleared
+            const emptyMarker = document.createElement('input');
+            emptyMarker.type = 'hidden';
+            emptyMarker.name = 'students';
+            emptyMarker.value = '';
+            emptyMarker.setAttribute('data-empty-marker', 'true');
+            
+            if (csrfToken && csrfToken.nextSibling) {
+                parentForm.insertBefore(emptyMarker, csrfToken.nextSibling);
+            } else if (csrfToken) {
+                csrfToken.parentNode.insertBefore(emptyMarker, csrfToken.nextSibling);
+            } else {
+                parentForm.insertBefore(emptyMarker, parentForm.firstChild);
+            }
+        }
+        // If field wasn't touched, don't add anything (preserve existing links)
+        
+        // Verify they're in the form
+        const verify = parentForm.querySelectorAll('input[name="students"]');
+        return verify.length;
+    }
+    
+    // Get the submit button and attach handlers
+    const submitButton = document.getElementById('submitParentForm');
+    if (submitButton) {
+        // Use mousedown to ensure inputs are ready early
+        submitButton.addEventListener('mousedown', function(e) {
+            forceCreateStudentInputs();
+        }, true);
+        
+        // Also on click
+        submitButton.addEventListener('click', function(e) {
+            forceCreateStudentInputs();
+        }, true);
+    }
+    
+    // Form submit event - final check
+    parentForm.addEventListener('submit', function(e) {
+        forceCreateStudentInputs();
+    }, true); // Capture phase
 });
 </script>
 {% endblock %}

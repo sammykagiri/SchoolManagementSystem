@@ -2697,41 +2697,9 @@ def parent_edit(request, parent_id):
         if form.is_valid():
             print(f"Form is VALID")
             try:
+                # Pass POST data to form so it can handle student linking
+                form._post_data = request.POST
                 parent = form.save()
-                
-                # Handle student linking directly in the view (more reliable)
-                raw_students = request.POST.getlist('students', [])
-                print(f"DEBUG: POST students={raw_students}")
-                # Filter out empty strings, None, and whitespace-only values
-                raw_students = [s for s in raw_students if s is not None and str(s).strip() != '']
-                print(f"DEBUG: Filtered students={raw_students}")
-                
-                if raw_students:
-                    try:
-                        # Convert to integers and filter
-                        student_ids = []
-                        for sid in raw_students:
-                            try:
-                                student_id = int(sid)
-                                student_ids.append(student_id)
-                            except (ValueError, TypeError):
-                                continue
-                        
-                        if student_ids:
-                            # Fetch students from database
-                            students = Student.objects.filter(
-                                id__in=student_ids,
-                                school=school,
-                                is_active=True
-                            )
-                            if students.exists():
-                                parent.children.set(students)
-                                parent.refresh_from_db()
-                    except Exception as e:
-                        import logging
-                        logger = logging.getLogger(__name__)
-                        logger.error(f'Error linking students to parent: {e}', exc_info=True)
-                # Don't clear existing links if no students in POST - preserve existing relationships
                 
                 messages.success(request, f'Parent {parent.full_name} updated successfully.')
                 return redirect('core:parent_detail', parent_id=parent.id)
@@ -2849,37 +2817,9 @@ def parent_register(request):
         form = ParentRegistrationForm(request.POST, request.FILES, school=school)
         if form.is_valid():
             try:
+                # Pass POST data to form so it can handle student linking
+                form._post_data = request.POST
                 parent = form.save(commit=True, school=school)
-                
-                # Handle student linking directly in the view (more reliable)
-                raw_students = request.POST.getlist('students', [])
-                # Filter out empty strings, None, and whitespace-only values
-                raw_students = [s for s in raw_students if s is not None and str(s).strip() != '']
-                
-                if raw_students:
-                    try:
-                        # Convert to integers and filter
-                        student_ids = []
-                        for sid in raw_students:
-                            try:
-                                student_id = int(sid)
-                                student_ids.append(student_id)
-                            except (ValueError, TypeError):
-                                continue
-                        
-                        if student_ids:
-                            # Fetch students from database
-                            students = Student.objects.filter(
-                                id__in=student_ids,
-                                school=school,
-                                is_active=True
-                            )
-                            if students.exists():
-                                parent.children.set(students)
-                    except Exception as e:
-                        import logging
-                        logger = logging.getLogger(__name__)
-                        logger.error(f'Error linking students to parent during registration: {e}', exc_info=True)
                 
                 messages.success(request, f'Parent account created successfully for {parent.user.get_full_name() or parent.user.username}.')
                 return redirect('core:parent_register')
