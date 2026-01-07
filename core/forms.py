@@ -749,6 +749,18 @@ class ParentRegistrationForm(UserCreationForm):
                 if self.cleaned_data.get('photo'):
                     existing_parent.photo = self.cleaned_data.get('photo')
                 existing_parent.save()
+                # Update UserProfile's school to match Parent's school
+                if hasattr(existing_user, 'profile'):
+                    existing_user.profile.school = school
+                    existing_user.profile.save()
+                    # Automatically assign "Parent" role if it exists
+                    try:
+                        parent_role = Role.objects.filter(name='parent', is_active=True).first()
+                        if parent_role and not existing_user.profile.roles.filter(name='parent').exists():
+                            existing_user.profile.roles.add(parent_role)
+                            logger.info(f'ParentRegistrationForm.save - Assigned "Parent" role to user {existing_user.username}')
+                    except Exception as e:
+                        logger.warning(f'ParentRegistrationForm.save - Could not assign Parent role: {e}')
                 parent = existing_parent
                 user = existing_user
             else:
@@ -774,6 +786,19 @@ class ParentRegistrationForm(UserCreationForm):
                         is_active=True
                     )
                     logger.info(f'ParentRegistrationForm.save - Created Parent profile ID: {parent.id} for school: {parent.school.name} (ID: {parent.school.id})')
+                    # Update UserProfile's school to match Parent's school
+                    if hasattr(user, 'profile'):
+                        user.profile.school = school
+                        user.profile.save()
+                        logger.info(f'ParentRegistrationForm.save - Updated UserProfile school to {school.name} (ID: {school.id})')
+                        # Automatically assign "Parent" role if it exists
+                        try:
+                            parent_role = Role.objects.filter(name='parent', is_active=True).first()
+                            if parent_role and not user.profile.roles.filter(name='parent').exists():
+                                user.profile.roles.add(parent_role)
+                                logger.info(f'ParentRegistrationForm.save - Assigned "Parent" role to user {user.username}')
+                        except Exception as e:
+                            logger.warning(f'ParentRegistrationForm.save - Could not assign Parent role: {e}')
                 else:
                     return user
         else:
@@ -800,6 +825,20 @@ class ParentRegistrationForm(UserCreationForm):
                         is_active=True
                     )
                     logger.info(f'ParentRegistrationForm.save - Created new Parent profile ID: {parent.id} for school: {parent.school.name} (ID: {parent.school.id})')
+                    # Update UserProfile's school to match Parent's school
+                    # The signal creates UserProfile with default school, so we need to update it
+                    if hasattr(user, 'profile'):
+                        user.profile.school = school
+                        user.profile.save()
+                        logger.info(f'ParentRegistrationForm.save - Updated UserProfile school to {school.name} (ID: {school.id})')
+                        # Automatically assign "Parent" role if it exists
+                        try:
+                            parent_role = Role.objects.filter(name='parent', is_active=True).first()
+                            if parent_role and not user.profile.roles.filter(name='parent').exists():
+                                user.profile.roles.add(parent_role)
+                                logger.info(f'ParentRegistrationForm.save - Assigned "Parent" role to user {user.username}')
+                        except Exception as e:
+                            logger.warning(f'ParentRegistrationForm.save - Could not assign Parent role: {e}')
                 else:
                     return user
         

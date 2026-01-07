@@ -158,3 +158,4 @@ School Management System
             return False, 'An error occurred during verification.'
 
 
+

@@ -2823,6 +2823,29 @@ def parent_register(request):
         logger = logging.getLogger(__name__)
         logger.info(f'Parent registration - Using school: {school.name} (ID: {school.id}) for admin user: {request.user.username} (Admin Profile school: {request.user.profile.school.name if hasattr(request.user, "profile") and request.user.profile.school else "None"})')
         
+        # Extract school from username if it contains @school_identifier
+        username = request.POST.get('username', '')
+        school_from_username = None
+        
+        if '@' in username:
+            # Extract the school identifier from username (e.g., "sammykagiri2@school1" -> "school1")
+            school_identifier = username.split('@')[-1].strip()
+            school_from_username = _find_school_by_identifier(school_identifier)
+            
+            if school_from_username:
+                logger.info(f'Parent registration - Extracted school "{school_from_username.name}" from username "{username}" (identifier: {school_identifier})')
+                # For superadmins, use school from username if found
+                if request.user.is_superuser:
+                    school = school_from_username
+                    logger.info(f'Parent registration - Superadmin: Using school from username: {school.name} (ID: {school.id})')
+                # For school admins, only use school from username if it matches their school
+                elif hasattr(request.user, 'profile') and request.user.profile.school:
+                    if school_from_username.id == request.user.profile.school.id:
+                        school = school_from_username
+                        logger.info(f'Parent registration - School admin: Using school from username (matches admin school): {school.name} (ID: {school.id})')
+                    else:
+                        logger.warning(f'Parent registration - School admin: Username suggests school "{school_from_username.name}", but admin is from "{request.user.profile.school.name}". Using admin school.')
+        
         form = ParentRegistrationForm(request.POST, request.FILES, school=school)
         if form.is_valid():
             try:
@@ -3943,6 +3966,33 @@ def user_list(request):
     })
 
 
+def _get_school_identifier(school_name):
+    """Convert school name to identifier format (same logic as in ParentRegistrationForm)"""
+    import re
+    school_identifier = school_name.lower().strip()
+    school_identifier = school_identifier.replace(' ', '_').replace('-', '_')
+    # Remove special characters that aren't allowed in usernames (keep only a-z, 0-9, _)
+    school_identifier = re.sub(r'[^a-z0-9_]', '', school_identifier)
+    # Limit length to reasonable size (20 chars should be enough for most school names)
+    if len(school_identifier) > 20:
+        school_identifier = school_identifier[:20]
+    # Ensure school_identifier is not empty
+    if not school_identifier:
+        school_identifier = 'school'
+    return school_identifier
+
+
+def _find_school_by_identifier(identifier):
+    """Find a school by matching its identifier (extracted from username postfix)"""
+    # Get all schools and check which one matches the identifier
+    schools = School.objects.all()
+    for school in schools:
+        school_identifier = _get_school_identifier(school.name)
+        if school_identifier == identifier:
+            return school
+    return None
+
+
 @login_required
 @role_required('super_admin', 'school_admin')
 def user_create(request):
@@ -3953,14 +4003,48 @@ def user_create(request):
         
         if user_form.is_valid() and profile_form.is_valid():
             try:
+                # Extract school from username if it contains @school_identifier
+                username = user_form.cleaned_data.get('username', '')
+                school_from_username = None
+                
+                if '@' in username:
+                    # Extract the school identifier from username (e.g., "sammykagiri2@school1" -> "school1")
+                    school_identifier = username.split('@')[-1].strip()
+                    school_from_username = _find_school_by_identifier(school_identifier)
+                    
+                    if school_from_username:
+                        import logging
+                        logger = logging.getLogger(__name__)
+                        logger.info(f'User creation - Extracted school "{school_from_username.name}" from username "{username}" (identifier: {school_identifier})')
+                
                 # Create user first
                 user = user_form.save()
                 
-                # For school admins, ensure the school is set to their school
-                if not is_superadmin_user(request.user):
+                # Determine which school to assign
+                assigned_school = None
+                
+                # Priority 1: School extracted from username (if superadmin or matches admin's school)
+                if school_from_username:
+                    if is_superadmin_user(request.user):
+                        # Superadmins can assign any school from username
+                        assigned_school = school_from_username
+                    elif hasattr(request.user, 'profile') and request.user.profile.school:
+                        # For school admins, only use school from username if it matches their school
+                        if school_from_username.id == request.user.profile.school.id:
+                            assigned_school = school_from_username
+                
+                # Priority 2: School from form (if not set from username)
+                if not assigned_school:
+                    assigned_school = profile_form.cleaned_data.get('school')
+                
+                # Priority 3: Admin's school (for school admins)
+                if not assigned_school and not is_superadmin_user(request.user):
                     if hasattr(request.user, 'profile') and request.user.profile.school:
-                        # Override school assignment to ensure it's the admin's school
-                        profile_form.cleaned_data['school'] = request.user.profile.school
+                        assigned_school = request.user.profile.school
+                
+                # Update the profile form's school assignment for consistency
+                if assigned_school:
+                    profile_form.cleaned_data['school'] = assigned_school
                 
                 # Check if profile already exists
                 if hasattr(user, 'profile'):
@@ -3969,6 +4053,9 @@ def user_create(request):
                     for field, value in profile_form.cleaned_data.items():
                         if field != 'roles':  # Skip roles field
                             setattr(profile, field, value)
+                    # Ensure school is set correctly (override with assigned_school if determined)
+                    if assigned_school:
+                        profile.school = assigned_school
                     profile.save()
                     # Update roles separately
                     profile.roles.set(profile_form.cleaned_data['roles'])
@@ -3976,10 +4063,9 @@ def user_create(request):
                     # Create new profile
                     profile = profile_form.save(commit=False)
                     profile.user = user
-                    # Ensure school is set correctly for school admins
-                    if not is_superadmin_user(request.user):
-                        if hasattr(request.user, 'profile') and request.user.profile.school:
-                            profile.school = request.user.profile.school
+                    # Ensure school is set correctly
+                    if assigned_school:
+                        profile.school = assigned_school
                     profile.save()
                     # Set roles after saving
                     profile.roles.set(profile_form.cleaned_data['roles'])
