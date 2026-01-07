@@ -2849,17 +2849,6 @@ def parent_register(request):
         form = ParentRegistrationForm(request.POST, request.FILES, school=school)
         if form.is_valid():
             try:
-                # Check if parent already exists with this email in a different school
-                email = form.cleaned_data.get('email', '')
-                existing_user = User.objects.filter(email=email).first()
-                parent_updated = False
-                
-                if existing_user and hasattr(existing_user, 'parent_profile'):
-                    existing_parent = existing_user.parent_profile
-                    if existing_parent.school != school:
-                        # Parent exists in different school - will be updated by form.save()
-                        parent_updated = True
-                
                 parent = form.save(commit=True, school=school)
                 
                 # Handle student linking directly in the view (more reliable)
@@ -2892,10 +2881,7 @@ def parent_register(request):
                         logger = logging.getLogger(__name__)
                         logger.error(f'Error linking students to parent during registration: {e}', exc_info=True)
                 
-                if parent_updated:
-                    messages.success(request, f'Parent account updated and assigned to {school.name}. The parent "{parent.user.get_full_name() or parent.user.username}" was previously in another school and has been moved to this school.')
-                else:
-                    messages.success(request, f'Parent account created successfully for {parent.user.get_full_name() or parent.user.username}.')
+                messages.success(request, f'Parent account created successfully for {parent.user.get_full_name() or parent.user.username}.')
                 return redirect('core:parent_register')
             except Exception as e:
                 import logging
@@ -2914,11 +2900,12 @@ def parent_register(request):
                         if existing_parent.school == school:
                             messages.error(request, f'A parent with this email already exists in this school.')
                         else:
-                            # This shouldn't happen now since we handle it in form.save(), but just in case
+                            # Email is unique in Django User model, but we want to allow same email in different schools
+                            # This shouldn't happen if email is not unique, but if it is, provide helpful message
                             messages.error(
                                 request, 
-                                f'A user with email "{email}" already exists for a parent in another school ({existing_parent.school.name}). '
-                                'The system will attempt to update the parent\'s school assignment.'
+                                f'A user with this email already exists. '
+                                'If you need to register this parent in multiple schools, please contact the administrator.'
                             )
                     else:
                         messages.error(request, f'A user with this email already exists. Please use a different email address.')

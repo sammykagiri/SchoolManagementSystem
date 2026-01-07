@@ -729,6 +729,11 @@ class ParentRegistrationForm(UserCreationForm):
         # Check if a User with this email already exists
         existing_user = User.objects.filter(email=email).first()
         
+        # Check if we should create a new user or use existing one
+        should_create_new_user = True
+        user = None
+        parent = None
+        
         if existing_user:
             # User already exists - check if they're already a parent
             if hasattr(existing_user, 'parent_profile'):
@@ -736,35 +741,13 @@ class ParentRegistrationForm(UserCreationForm):
                 # If parent exists in the same school, we can't create another (would violate unique_together)
                 if existing_parent.school == school:
                     raise ValidationError('A parent with this email already exists in this school.')
-                # If parent exists in a different school, update their school assignment
-                # This handles the case where a parent was assigned to the wrong school
-                existing_parent.school = school
-                # Update parent details if provided
-                if self.cleaned_data.get('phone'):
-                    existing_parent.phone = self.cleaned_data.get('phone', '')
-                if self.cleaned_data.get('address'):
-                    existing_parent.address = self.cleaned_data.get('address', '')
-                if self.cleaned_data.get('preferred_contact_method'):
-                    existing_parent.preferred_contact_method = self.cleaned_data.get('preferred_contact_method', 'phone')
-                if self.cleaned_data.get('photo'):
-                    existing_parent.photo = self.cleaned_data.get('photo')
-                existing_parent.save()
-                # Update UserProfile's school to match Parent's school
-                if hasattr(existing_user, 'profile'):
-                    existing_user.profile.school = school
-                    existing_user.profile.save()
-                    # Automatically assign "Parent" role if it exists
-                    try:
-                        parent_role = Role.objects.filter(name='parent', is_active=True).first()
-                        if parent_role and not existing_user.profile.roles.filter(name='parent').exists():
-                            existing_user.profile.roles.add(parent_role)
-                            logger.info(f'ParentRegistrationForm.save - Assigned "Parent" role to user {existing_user.username}')
-                    except Exception as e:
-                        logger.warning(f'ParentRegistrationForm.save - Could not assign Parent role: {e}')
-                parent = existing_parent
-                user = existing_user
+                # If parent exists in a different school, that's okay - different schools can have parents with the same email
+                # They are different entities with different usernames (different school postfixes)
+                # We'll create a new user account for this school
+                should_create_new_user = True
             else:
-                # User exists but is not a parent - create Parent profile
+                # User exists but is not a parent - create Parent profile for existing user
+                should_create_new_user = False
                 user = existing_user
                 # Update user details if provided
                 if self.cleaned_data.get('first_name'):
@@ -801,7 +784,8 @@ class ParentRegistrationForm(UserCreationForm):
                             logger.warning(f'ParentRegistrationForm.save - Could not assign Parent role: {e}')
                 else:
                     return user
-        else:
+        
+        if should_create_new_user:
             # New user - create User and Parent
             user = super().save(commit=False)
             user.email = self.cleaned_data['email']
@@ -843,6 +827,15 @@ class ParentRegistrationForm(UserCreationForm):
                     return user
         
         if commit and school:
+            # Ensure parent is set (should always be set at this point if commit=True and school is not None)
+            if parent is None:
+                # This shouldn't happen, but log it and try to get parent from user
+                logger.warning(f'ParentRegistrationForm.save - parent is None when it should be set. User: {user.username if user else "None"}')
+                if user and hasattr(user, 'parent_profile'):
+                    parent = user.parent_profile
+                else:
+                    raise ValueError('Parent was not created. This should not happen.')
+            
             # Link selected students - always check raw form data first (more reliable)
             students = []
             if hasattr(self, 'data') and self.data:
@@ -872,8 +865,6 @@ class ParentRegistrationForm(UserCreationForm):
                                 students = list(fetched_students)
                     except Exception as e:
                         # Log error but don't fail the save
-                        import logging
-                        logger = logging.getLogger(__name__)
                         logger.error(f'Error linking students to parent during registration: {e}')
             
             # Fallback to cleaned_data if raw data didn't work (shouldn't happen, but just in case)
