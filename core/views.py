@@ -78,7 +78,12 @@ class CustomLoginView(LoginView):
     def dispatch(self, request, *args, **kwargs):
         # If user is already authenticated, redirect appropriately
         if request.user.is_authenticated:
-            return self.get_success_url_redirect(request)
+            url = self.get_success_url()
+            # Prevent redirect loop - never redirect authenticated users back to login
+            if url and 'login' not in url:
+                return redirect(url)
+            # Fallback to dashboard if login URL would be returned
+            return redirect('core:dashboard')
         return super().dispatch(request, *args, **kwargs)
     
     def get_success_url(self):
@@ -108,8 +113,9 @@ class CustomLoginView(LoginView):
                         return reverse('core:school_admin_list')
                     else:
                         messages.error(self.request, 'You must be assigned to a school to access the dashboard. Please contact administrator.')
+                        # Don't redirect to login for authenticated users - use dashboard as fallback
                         from django.urls import reverse
-                        return reverse('login')
+                        return reverse('core:dashboard')
             else:
                 # User has profile but no valid roles - check if they're a parent
                 try:
@@ -120,18 +126,21 @@ class CustomLoginView(LoginView):
                         return reverse('core:dashboard')
                     elif parent:
                         messages.error(self.request, 'Your parent account is not assigned to a school. Please contact administrator.')
+                        # Don't redirect to login for authenticated users - use dashboard as fallback
                         from django.urls import reverse
-                        return reverse('login')
+                        return reverse('core:dashboard')
                     else:
                         # User has profile but no valid roles and not a parent
                         messages.error(self.request, 'Your account does not have the necessary permissions. Please contact administrator.')
+                        # Don't redirect to login for authenticated users - use dashboard as fallback
                         from django.urls import reverse
-                        return reverse('login')
+                        return reverse('core:dashboard')
                 except Exception:
                     # No parent profile or error accessing it - user has profile but no valid roles and not a parent
                     messages.error(self.request, 'Your account does not have the necessary permissions. Please contact administrator.')
+                    # Don't redirect to login for authenticated users - use dashboard as fallback
                     from django.urls import reverse
-                    return reverse('login')
+                    return reverse('core:dashboard')
         else:
             # User has no profile - check if they're a parent
             try:
@@ -142,8 +151,9 @@ class CustomLoginView(LoginView):
                     return reverse('core:dashboard')
                 elif parent:
                     messages.error(self.request, 'Your parent account is not assigned to a school. Please contact administrator.')
+                    # Don't redirect to login for authenticated users - use dashboard as fallback
                     from django.urls import reverse
-                    return reverse('login')
+                    return reverse('core:dashboard')
                 else:
                     # User has no profile and not a parent
                     if user.is_superuser:
@@ -151,8 +161,9 @@ class CustomLoginView(LoginView):
                         return reverse('core:school_admin_list')
                     else:
                         messages.error(self.request, 'Your account is not properly configured. Please contact administrator.')
+                        # Don't redirect to login for authenticated users - use dashboard as fallback
                         from django.urls import reverse
-                        return reverse('login')
+                        return reverse('core:dashboard')
             except Exception:
                 # No parent profile or error accessing it
                 if user.is_superuser:
@@ -160,8 +171,9 @@ class CustomLoginView(LoginView):
                     return reverse('core:school_admin_list')
                 else:
                     messages.error(self.request, 'Your account is not properly configured. Please contact administrator.')
+                    # Don't redirect to login for authenticated users - use dashboard as fallback
                     from django.urls import reverse
-                    return reverse('login')
+                    return reverse('core:dashboard')
     
     def get_success_url_redirect(self, request):
         """Helper method to redirect authenticated users"""

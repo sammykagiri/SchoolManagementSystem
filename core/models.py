@@ -159,6 +159,11 @@ class ParentManager(models.Manager):
     """Custom manager that defers photo field to avoid errors when column doesn't exist"""
     _photo_column_exists = None
     
+    @classmethod
+    def reset_photo_column_check(cls):
+        """Reset the cached photo column check (useful after migrations)"""
+        cls._photo_column_exists = None
+    
     def get_queryset(self):
         # Cache the check result to avoid querying database on every call
         if ParentManager._photo_column_exists is None:
