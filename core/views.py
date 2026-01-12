@@ -112,40 +112,56 @@ class CustomLoginView(LoginView):
                         return reverse('login')
             else:
                 # User has profile but no valid roles - check if they're a parent
-                if hasattr(user, 'parent_profile'):
+                try:
                     parent = user.parent_profile
-                    if parent.school:
+                    if parent and parent.school:
                         # Parent with school - redirect to dashboard (they can navigate to portal if needed)
                         from django.urls import reverse
                         return reverse('core:dashboard')
-                    else:
+                    elif parent:
                         messages.error(self.request, 'Your parent account is not assigned to a school. Please contact administrator.')
                         from django.urls import reverse
                         return reverse('login')
-                else:
-                    # User has profile but no valid roles and not a parent
+                    else:
+                        # User has profile but no valid roles and not a parent
+                        messages.error(self.request, 'Your account does not have the necessary permissions. Please contact administrator.')
+                        from django.urls import reverse
+                        return reverse('login')
+                except Exception:
+                    # No parent profile or error accessing it - user has profile but no valid roles and not a parent
                     messages.error(self.request, 'Your account does not have the necessary permissions. Please contact administrator.')
                     from django.urls import reverse
                     return reverse('login')
         else:
             # User has no profile - check if they're a parent
-            if hasattr(user, 'parent_profile'):
+            try:
                 parent = user.parent_profile
-                if parent.school:
+                if parent and parent.school:
                     # Parent with school - redirect to dashboard
                     from django.urls import reverse
                     return reverse('core:dashboard')
-                else:
+                elif parent:
                     messages.error(self.request, 'Your parent account is not assigned to a school. Please contact administrator.')
                     from django.urls import reverse
                     return reverse('login')
-            elif user.is_superuser:
-                from django.urls import reverse
-                return reverse('core:school_admin_list')
-            else:
-                messages.error(self.request, 'Your account is not properly configured. Please contact administrator.')
-                from django.urls import reverse
-                return reverse('login')
+                else:
+                    # User has no profile and not a parent
+                    if user.is_superuser:
+                        from django.urls import reverse
+                        return reverse('core:school_admin_list')
+                    else:
+                        messages.error(self.request, 'Your account is not properly configured. Please contact administrator.')
+                        from django.urls import reverse
+                        return reverse('login')
+            except Exception:
+                # No parent profile or error accessing it
+                if user.is_superuser:
+                    from django.urls import reverse
+                    return reverse('core:school_admin_list')
+                else:
+                    messages.error(self.request, 'Your account is not properly configured. Please contact administrator.')
+                    from django.urls import reverse
+                    return reverse('login')
     
     def get_success_url_redirect(self, request):
         """Helper method to redirect authenticated users"""
@@ -163,7 +179,12 @@ def root_redirect(request):
     
     # Check if username suggests this should be a parent account (has @school format)
     # but doesn't have a parent profile - this handles incomplete registrations
-    if '@' in request.user.username and not hasattr(request.user, 'parent_profile'):
+    try:
+        has_parent_profile = request.user.parent_profile is not None
+    except Exception:
+        has_parent_profile = False
+    
+    if '@' in request.user.username and not has_parent_profile:
         # Username format suggests parent, but no parent profile exists
         messages.error(
             request, 
@@ -193,33 +214,46 @@ def root_redirect(request):
                     return redirect('login')
         else:
             # User has profile but no valid roles - check if parent
-            if hasattr(request.user, 'parent_profile'):
+            try:
                 parent = request.user.parent_profile
-                if parent.school:
+                if parent and parent.school:
                     # Parent with school - redirect to dashboard (they can navigate to portal if needed)
                     return redirect('core:dashboard')
-                else:
+                elif parent:
                     messages.error(request, 'Your parent account is not assigned to a school. Please contact administrator.')
                     return redirect('login')
-            else:
-                # User has profile but no valid roles and not a parent
+                else:
+                    # User has profile but no valid roles and not a parent
+                    messages.error(request, 'Your account does not have the necessary permissions. Please contact administrator.')
+                    return redirect('login')
+            except Exception:
+                # No parent profile or error accessing it
                 messages.error(request, 'Your account does not have the necessary permissions. Please contact administrator.')
                 return redirect('login')
     else:
         # User has no profile - check if parent
-        if hasattr(request.user, 'parent_profile'):
+        try:
             parent = request.user.parent_profile
-            if parent.school:
+            if parent and parent.school:
                 # Parent with school - redirect to dashboard
                 return redirect('core:dashboard')
-            else:
+            elif parent:
                 messages.error(request, 'Your parent account is not assigned to a school. Please contact administrator.')
                 return redirect('login')
-        elif request.user.is_superuser:
-            return redirect('core:school_admin_list')
-        else:
-            messages.error(request, 'Your account is not properly configured. Please contact administrator.')
-            return redirect('login')
+            else:
+                # User has no profile and not a parent
+                if request.user.is_superuser:
+                    return redirect('core:school_admin_list')
+                else:
+                    messages.error(request, 'Your account is not properly configured. Please contact administrator.')
+                    return redirect('login')
+        except Exception:
+            # No parent profile or error accessing it
+            if request.user.is_superuser:
+                return redirect('core:school_admin_list')
+            else:
+                messages.error(request, 'Your account is not properly configured. Please contact administrator.')
+                return redirect('login')
 
 
 def is_superadmin_user(user):
