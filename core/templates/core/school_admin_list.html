@@ -14,6 +14,7 @@
                         <thead>
                             <tr>
                                 <th>Name</th>
+                                <th>Short Name</th>
                                 <th>Email</th>
                                 <th>Phone</th>
                                 <th>Actions</th>
@@ -23,6 +24,13 @@
                             {% for school in schools %}
                             <tr>
                                 <td>{{ school.name }}</td>
+                                <td>
+                                    {% if school.short_name %}
+                                        <code>{{ school.short_name }}</code>
+                                    {% else %}
+                                        <span class="text-muted">Not set</span>
+                                    {% endif %}
+                                </td>
                                 <td>{{ school.email }}</td>
                                 <td>{{ school.phone }}</td>
                                 <td class="d-flex gap-2">
@@ -34,7 +42,7 @@
                                 </td>
                             </tr>
                             {% empty %}
-                            <tr><td colspan="4">No schools found.</td></tr>
+                            <tr><td colspan="5">No schools found.</td></tr>
                             {% endfor %}
                         </tbody>
                     </table>

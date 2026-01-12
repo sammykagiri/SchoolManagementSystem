@@ -2,12 +2,19 @@ from django.db import models
 from django.contrib.auth.models import User
 from django.core.validators import MinValueValidator
 import uuid
-from django.db.models.signals import post_save
+from django.db.models.signals import post_save, pre_save
 from django.dispatch import receiver
 
 
 class School(models.Model):
     name = models.CharField(max_length=255, unique=True)
+    short_name = models.CharField(
+        max_length=50, 
+        unique=True, 
+        blank=True, 
+        null=True,
+        help_text='Short name for school (used in usernames). Format: one word or two words separated by dot (.), ampersand (&), or hyphen (-). No spaces or other special characters allowed. Example: "ambassador" or "hip.hop" or "school-name" or "amb&assad". Required for creating parent users.'
+    )
     address = models.TextField(blank=True)
     email = models.EmailField(blank=True, unique=True)
     phone = models.CharField(max_length=20, blank=True)
@@ -18,6 +25,32 @@ class School(models.Model):
     use_secondary_on_headers = models.BooleanField(default=False, help_text='Apply secondary color to headers')
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+
+    def clean(self):
+        """Validate short_name format"""
+        from django.core.exceptions import ValidationError
+        import re
+        
+        if self.short_name:
+            # Remove whitespace
+            short_name = self.short_name.strip()
+            
+            # Check format: one word or two words separated by dot (.), ampersand (&), or hyphen (-)
+            # No spaces or other special characters allowed
+            # Pattern: word or word.separator.word
+            pattern = r'^[a-zA-Z0-9]+([.&-][a-zA-Z0-9]+)?$'
+            if not re.match(pattern, short_name):
+                raise ValidationError({
+                    'short_name': 'Short name must be one word or two words separated by dot (.), ampersand (&), or hyphen (-). No spaces or other special characters allowed. Example: "ambassador" or "hip.hop" or "school-name" or "amb&assad"'
+                })
+            
+            # Convert to lowercase for consistency
+            self.short_name = short_name.lower()
+
+    def save(self, *args, **kwargs):
+        """Override save to run clean validation"""
+        self.full_clean()
+        super().save(*args, **kwargs)
 
     def __str__(self):
         return self.name
@@ -668,6 +701,148 @@ def save_user_profile(sender, instance, **kwargs):
         except Exception:
             # Ignore errors during migrations or if profile doesn't exist yet
             pass
+
+
+# Store old short_name in a module-level dictionary to preserve it across save
+_old_short_names = {}
+
+@receiver(pre_save, sender=School)
+def store_old_short_name(sender, instance, **kwargs):
+    """Store old short_name before saving to detect changes"""
+    if instance.pk:
+        try:
+            old_instance = School.objects.get(pk=instance.pk)
+            _old_short_names[instance.pk] = old_instance.short_name
+        except School.DoesNotExist:
+            _old_short_names[instance.pk] = None
+    else:
+        # For new instances, store None
+        pass
+
+
+@receiver(post_save, sender=School)
+def update_usernames_on_short_name_change(sender, instance, created, **kwargs):
+    """Update all related usernames when school short_name changes"""
+    import logging
+    logger = logging.getLogger(__name__)
+    
+    # Only process if school was updated (not created)
+    if created:
+        logger.debug(f'School {instance.name} (ID: {instance.pk}) was created, skipping username update')
+        return
+    
+    # Get old short_name from the module-level dictionary
+    old_short_name = _old_short_names.pop(instance.pk, None) if instance.pk else None
+    new_short_name = instance.short_name
+    
+    logger.debug(f'School {instance.name} (ID: {instance.pk}) - old_short_name: "{old_short_name}", new_short_name: "{new_short_name}"')
+    
+    # Only proceed if short_name actually changed
+    if old_short_name == new_short_name:
+        logger.debug(f'School {instance.name} short_name unchanged, skipping username update')
+        return
+    
+    # If new_short_name is None/empty, don't update
+    if not new_short_name:
+        logger.debug(f'School {instance.name} has no new short_name, skipping username update')
+        return
+    
+    logger.info(f'School {instance.name} (ID: {instance.pk}) short_name changed from "{old_short_name}" to "{new_short_name}". Updating all usernames with @suffix for this school...')
+    
+    # Normalize new short_name
+    new_short_name_normalized = new_short_name.lower().strip()
+    
+    # Find all users associated with this school through UserProfile
+    user_profiles = UserProfile.objects.filter(school=instance).select_related('user')
+    updated_count = 0
+    processed_users = set()  # Track processed users to avoid duplicates
+    
+    for profile in user_profiles:
+        user = profile.user
+        if user.pk in processed_users:
+            continue
+        processed_users.add(user.pk)
+        
+        username = user.username
+        
+        # Check if username contains @ (has any suffix)
+        if '@' in username:
+            # Extract base username (everything before the last @)
+            base_username, current_suffix = username.rsplit('@', 1)
+            base_username = base_username.strip()
+            
+            # Update to use new short_name
+            new_username = f"{base_username}@{new_short_name_normalized}"
+            
+            # Check if new username already exists
+            counter = 0
+            if User.objects.filter(username=new_username).exclude(pk=user.pk).exists():
+                # If conflict, append a number
+                counter = 1
+                while True:
+                    test_username = f"{base_username}{counter}@{new_short_name_normalized}"
+                    if not User.objects.filter(username=test_username).exclude(pk=user.pk).exists():
+                        new_username = test_username
+                        break
+                    counter += 1
+                    if counter > 1000:  # Safety limit
+                        logger.warning(f'Could not generate unique username for user {user.pk}')
+                        break
+            
+            if counter <= 1000:
+                user.username = new_username
+                user.save(update_fields=['username'])
+                updated_count += 1
+                logger.info(f'Updated username for user {user.pk}: "{username}" -> "{new_username}"')
+        else:
+            # Username doesn't have @, skip it
+            logger.debug(f'Skipping user {user.pk} (username: "{username}") - no @ suffix')
+    
+    # Find all users associated with this school through Parent
+    parents = Parent.objects.filter(school=instance).select_related('user')
+    
+    for parent in parents:
+        user = parent.user
+        if user.pk in processed_users:
+            continue
+        processed_users.add(user.pk)
+        
+        username = user.username
+        
+        # Check if username contains @ (has any suffix)
+        if '@' in username:
+            # Extract base username (everything before the last @)
+            base_username, current_suffix = username.rsplit('@', 1)
+            base_username = base_username.strip()
+            
+            # Update to use new short_name
+            new_username = f"{base_username}@{new_short_name_normalized}"
+            
+            # Check if new username already exists
+            counter = 0
+            if User.objects.filter(username=new_username).exclude(pk=user.pk).exists():
+                # If conflict, append a number
+                counter = 1
+                while True:
+                    test_username = f"{base_username}{counter}@{new_short_name_normalized}"
+                    if not User.objects.filter(username=test_username).exclude(pk=user.pk).exists():
+                        new_username = test_username
+                        break
+                    counter += 1
+                    if counter > 1000:  # Safety limit
+                        logger.warning(f'Could not generate unique username for user {user.pk}')
+                        break
+            
+            if counter <= 1000:
+                user.username = new_username
+                user.save(update_fields=['username'])
+                updated_count += 1
+                logger.info(f'Updated username for parent user {user.pk}: "{username}" -> "{new_username}"')
+        else:
+            # Username doesn't have @, skip it
+            logger.debug(f'Skipping parent user {user.pk} (username: "{username}") - no @ suffix')
+    
+    logger.info(f'Updated {updated_count} usernames for school {instance.name} (short_name: {old_short_name} -> {new_short_name})')
 
 
 class SchoolClass(models.Model):

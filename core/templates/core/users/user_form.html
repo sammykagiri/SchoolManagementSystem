@@ -76,11 +76,20 @@
                                    class="form-control {% if user_form.username.errors %}is-invalid{% endif %}" 
                                    id="{{ user_form.username.id_for_label }}" 
                                    value="{{ user_form.username.value|default:'' }}" 
-                                   {% if user %}{% if not user.is_superuser %}readonly{% endif %}{% endif %}>
+                                   {% if user %}{% if not user.is_superuser %}readonly{% endif %}{% else %}placeholder="Enter username"{% endif %}>
                             {% if user_form.username.errors %}
                                 <div class="invalid-feedback">
                                     {{ user_form.username.errors.0 }}
                                 </div>
+                            {% endif %}
+                            {% if user_form.username.help_text %}
+                                <div class="form-text">{{ user_form.username.help_text }}</div>
+                            {% endif %}
+                            {% if not user %}
+                            <div id="username-preview" class="form-text text-muted" style="display: none;">
+                                <i class="fas fa-info-circle me-1"></i>
+                                <strong>Preview:</strong> <code id="preview-text"></code>
+                            </div>
                             {% endif %}
                         </div>
                         
@@ -271,3 +280,48 @@
 </div>
 {% endblock %}
 
+{% block extra_js %}
+{% if not user %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const usernameInput = document.getElementById('{{ user_form.username.id_for_label }}');
+    const schoolSelect = document.getElementById('{{ profile_form.school.id_for_label }}');
+    const previewDiv = document.getElementById('username-preview');
+    const previewText = document.getElementById('preview-text');
+    
+    function updateUsernamePreview() {
+        if (!usernameInput || !schoolSelect || !previewDiv || !previewText) return;
+        
+        const username = usernameInput.value.trim();
+        const schoolId = schoolSelect.value;
+        
+        if (!username || !schoolId) {
+            previewDiv.style.display = 'none';
+            return;
+        }
+        
+        // Remove any existing @ suffix
+        const baseUsername = username.split('@')[0].trim();
+        
+        if (baseUsername) {
+            // Show generic preview - actual formatting happens on server
+            previewText.textContent = baseUsername + '@[school-short-name]';
+            previewDiv.style.display = 'block';
+        } else {
+            previewDiv.style.display = 'none';
+        }
+    }
+    
+    if (usernameInput && schoolSelect) {
+        usernameInput.addEventListener('input', updateUsernamePreview);
+        schoolSelect.addEventListener('change', updateUsernamePreview);
+        
+        // Initial preview if both fields have values
+        if (usernameInput.value && schoolSelect.value) {
+            updateUsernamePreview();
+        }
+    }
+});
+</script>
+{% endif %}
+{% endblock %}

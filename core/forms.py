@@ -232,6 +232,101 @@ class UserForm(UserCreationForm):
     class Meta:
         model = User
         fields = ('username', 'email', 'first_name', 'last_name', 'password1', 'password2', 'is_staff', 'is_active')
+    
+    def __init__(self, *args, **kwargs):
+        # Extract school from kwargs if provided
+        self.school = kwargs.pop('school', None)
+        super().__init__(*args, **kwargs)
+        
+        # Update help text based on school
+        if self.school:
+            if self.school.short_name:
+                self.fields['username'].help_text = f'Required. Your username will be automatically formatted as "username@{self.school.short_name}" to ensure uniqueness across schools.'
+            else:
+                self.fields['username'].help_text = f'Required. School short name must be set before creating users. Please set the school short name first.'
+        else:
+            self.fields['username'].help_text = 'Required. Username will be formatted as "username@shortname" based on the selected school.'
+    
+    def clean_username(self):
+        username = self.cleaned_data.get('username')
+        if not username:
+            return username
+        
+        # Get school from form instance or from POST data
+        school = self.school
+        if not school and hasattr(self, 'data') and self.data:
+            # Try to get school from profile form data
+            school_id = self.data.get('school')
+            if school_id:
+                try:
+                    from .models import School
+                    school = School.objects.get(id=school_id)
+                except (School.DoesNotExist, ValueError):
+                    pass
+        
+        if school:
+            # Require short_name for user creation
+            if not school.short_name:
+                from django.core.exceptions import ValidationError
+                raise ValidationError(
+                    'School short name is required for user creation. '
+                    'Please set the school short name in school settings first. '
+                    'Format: one word or two words separated by dot (.), ampersand (&), or hyphen (-).'
+                )
+            
+            # Use short_name
+            school_identifier = school.short_name.lower().strip()
+            
+            # Get base username (strip whitespace and remove @ if user already added it)
+            base_username = username.strip()
+            # Remove any existing @school suffix if user mistakenly added it
+            if '@' in base_username:
+                base_username = base_username.split('@')[0].strip()
+            
+            # Create final username with school suffix
+            final_username = f"{base_username}@{school_identifier}"
+            
+            # Ensure username doesn't exceed 150 characters (Django's limit)
+            if len(final_username) > 150:
+                max_base_len = 150 - len(f"@{school_identifier}") - 1
+                if max_base_len > 0:
+                    base_username = base_username[:max_base_len]
+                    final_username = f"{base_username}@{school_identifier}"
+                else:
+                    # School identifier is too long - truncate it
+                    max_school_len = 150 - len(base_username) - 1
+                    school_identifier = school_identifier[:max_school_len]
+                    final_username = f"{base_username}@{school_identifier}"
+            
+            # Check if username is already taken
+            from django.contrib.auth.models import User
+            if User.objects.filter(username=final_username).exists():
+                # Try to append a number
+                counter = 1
+                while True:
+                    new_username = f"{base_username}{counter}@{school_identifier}"
+                    if len(new_username) > 150:
+                        max_base_len = 150 - len(f"{counter}@{school_identifier}") - 1
+                        if max_base_len > 0:
+                            base_username = base_username[:max_base_len]
+                            new_username = f"{base_username}{counter}@{school_identifier}"
+                        else:
+                            max_school_len = 150 - len(f"{base_username}{counter}") - 1
+                            school_identifier = school_identifier[:max_school_len]
+                            new_username = f"{base_username}{counter}@{school_identifier}"
+                    
+                    if not User.objects.filter(username=new_username).exists():
+                        final_username = new_username
+                        break
+                    counter += 1
+                    if counter > 1000:  # Safety limit
+                        from django.core.exceptions import ValidationError
+                        raise ValidationError('Unable to generate a unique username. Please try a different base username.')
+            
+            return final_username
+        
+        # If no school, return username as-is (shouldn't happen in normal flow)
+        return username
 
 
 class UserEditForm(forms.ModelForm):
@@ -460,7 +555,10 @@ class ParentRegistrationForm(UserCreationForm):
             school_id = school.name.lower().replace(' ', '_').replace('-', '_')[:20]
             import re
             school_id = re.sub(r'[^a-z0-9_]', '', school_id)
-            self.fields['username'].help_text = f'Required. Your username will be automatically formatted as "username@{school_id}" to ensure uniqueness across schools.'
+            if school.short_name:
+                self.fields['username'].help_text = f'Required. Your username will be automatically formatted as "username@{school.short_name}" to ensure uniqueness across schools.'
+            else:
+                self.fields['username'].help_text = f'Required. School short name must be set before registering parents. Please contact administrator to set the school short name first.'
         else:
             self.fields['username'].help_text = 'Required. 150 characters or fewer. Letters, digits and @/./+/-/_ only.'
         self.fields['password1'].help_text = 'Your password must contain at least 8 characters.'
@@ -527,24 +625,25 @@ class ParentRegistrationForm(UserCreationForm):
         
         if school:
             # Generate unique username by appending school identifier
-            # Use school name (cleaned and formatted)
+            # Use school short_name (required for parent registration)
             import re
             import logging
             logger = logging.getLogger(__name__)
             
-            # Create school identifier from school name
-            # Convert to lowercase, replace spaces/hyphens with underscores, remove special chars
-            school_identifier = school.name.lower().strip()
-            school_identifier = school_identifier.replace(' ', '_').replace('-', '_')
-            # Remove special characters that aren't allowed in usernames (keep only a-z, 0-9, _)
-            school_identifier = re.sub(r'[^a-z0-9_]', '', school_identifier)
-            # Limit length to reasonable size (20 chars should be enough for most school names)
-            if len(school_identifier) > 20:
-                school_identifier = school_identifier[:20]
+            # Require short_name for parent registration
+            if not school.short_name:
+                raise ValidationError(
+                    'School short name is required for parent registration. '
+                    'Please set the school short name in school settings first. '
+                    'Format: one word or two words separated by dot (.), ampersand (&), or hyphen (-).'
+                )
+            
+            # Use short_name
+            school_identifier = school.short_name.lower().strip()
             
             # Ensure school_identifier is not empty
             if not school_identifier:
-                school_identifier = 'school'
+                raise ValidationError('School short name cannot be empty.')
             
             # Get base username (strip whitespace and remove @ if user already added it)
             base_username = username.strip()

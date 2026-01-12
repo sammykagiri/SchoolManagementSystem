@@ -1,9 +1,28 @@
 from django.contrib import admin
 from .models import (
-    Grade, Term, FeeCategory, FeeCategoryType, TransportRoute, Student, FeeStructure, StudentFee, 
+    School, Grade, Term, FeeCategory, FeeCategoryType, TransportRoute, Student, FeeStructure, StudentFee, 
     SchoolClass, Role, Permission, UserProfile, Parent,
     AcademicYear, Section, StudentClassEnrollment, PromotionLog
 )
+
+
+@admin.register(School)
+class SchoolAdmin(admin.ModelAdmin):
+    list_display = ['name', 'short_name', 'email', 'phone', 'created_at']
+    search_fields = ['name', 'short_name', 'email']
+    fieldsets = (
+        ('Basic Information', {
+            'fields': ('name', 'short_name', 'email', 'phone', 'address')
+        }),
+        ('Branding', {
+            'fields': ('logo', 'primary_color', 'secondary_color', 'use_color_scheme', 'use_secondary_on_headers')
+        }),
+        ('Timestamps', {
+            'fields': ('created_at', 'updated_at'),
+            'classes': ('collapse',)
+        }),
+    )
+    readonly_fields = ['created_at', 'updated_at']
 
 
 @admin.register(Grade)

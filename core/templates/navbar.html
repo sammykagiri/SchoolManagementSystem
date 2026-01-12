@@ -4,13 +4,13 @@
 <!-- Sidebar -->
 <aside id="sidebar" class="sidebar">
     <div class="sidebar-header">
-        {% if user.is_authenticated and user.profile.school and user.profile.school.logo %}
+        {% if user.is_authenticated and user.profile and user.profile.school and user.profile.school.logo %}
             <a href="{% if user.profile.is_parent %}{% url 'core:parent_portal_dashboard' %}{% else %}{% url 'core:dashboard' %}{% endif %}" class="school-logo-container mb-2" style="display: block; text-decoration: none; cursor: pointer;">
                 <img src="{{ user.profile.school.logo.url }}" alt="School Logo" class="school-logo">
             </a>
         {% endif %}
-        <a href="{% if user.profile.is_parent %}{% url 'core:parent_portal_dashboard' %}{% else %}{% url 'core:dashboard' %}{% endif %}" class="sidebar-brand">
-            {% if user.is_authenticated and user.profile.school %}
+        <a href="{% if user.profile and user.profile.is_parent %}{% url 'core:parent_portal_dashboard' %}{% else %}{% url 'core:dashboard' %}{% endif %}" class="sidebar-brand">
+            {% if user.is_authenticated and user.profile and user.profile.school %}
                 {{ user.profile.school.name|title }}
             {% else %}
                 School Management
@@ -19,9 +19,10 @@
     </div>
     
     <nav class="sidebar-nav flex-grow-1">
-        {% if user.is_authenticated and user.profile and not user.profile.is_student and not user.profile.is_parent %}
-        {% comment %}Check if user has school assigned - show all menus only if user has school{% endcomment %}
-        {% if user.profile.school %}
+        {% if user.is_authenticated %}
+            {% if user.is_superuser or user.profile and not user.profile.is_student and not user.profile.is_parent %}
+            {% comment %}Check if user has school assigned - show all menus only if user has school{% endcomment %}
+            {% if user.is_superuser or user.profile and user.profile.school %}
         <ul class="nav flex-column">
             <!-- Dashboard -->
             <li class="nav-item">
@@ -50,7 +51,7 @@
                             <i class="fas fa-plus me-2"></i>Add Student
                         </a>
                     </li>
-                    {% if user.is_superuser or user.profile.is_school_admin or user.profile.is_super_admin %}
+                    {% if user.is_superuser or user.profile and user.profile.is_school_admin or user.profile and user.profile.is_super_admin %}
                     <li class="nav-item"><hr class="dropdown-divider my-2"></li>
                     <li class="nav-item">
                         <a class="nav-link {% if 'promotion' in request.resolver_match.url_name %}active{% endif %}" href="{% url 'core:promotion_wizard_step1' %}">
@@ -119,7 +120,7 @@
                     <i class="fas fa-chevron-down ms-auto"></i>
                 </a>
                 <ul class="collapse nav flex-column submenu" id="feesSubmenu">
-                    {% if user.is_superuser or user.profile.is_school_admin or user.profile.is_accountant %}
+                    {% if user.is_superuser or user.profile and user.profile.is_school_admin or user.profile and user.profile.is_accountant %}
                     <li class="nav-item">
                         <a class="nav-link {% if request.resolver_match.url_name == 'fee_category_type_list' or request.resolver_match.url_name == 'fee_category_type_add' or request.resolver_match.url_name == 'fee_category_type_edit' %}active{% endif %}" href="{% url 'core:fee_category_type_list' %}">
                             <i class="fas fa-tag me-2"></i>Category Types
@@ -295,7 +296,7 @@
                             <i class="fas fa-list me-2"></i>Assignments
                         </a>
                     </li>
-                    {% if user.profile.is_school_admin or user.profile.is_teacher %}
+                    {% if user.profile and user.profile.is_school_admin or user.profile and user.profile.is_teacher %}
                     <li class="nav-item">
                         <a class="nav-link {% if request.resolver_match.url_name == 'submission_list' or request.resolver_match.url_name == 'submission_detail' %}active{% endif %}" href="{% url 'homework:submission_list' %}">
                             <i class="fas fa-check-circle me-2"></i>View Submissions
@@ -390,7 +391,7 @@
                         </a>
                     </li>
                     {% endif %}
-                    {% if user.is_superuser or user.profile.is_school_admin or user.profile.is_accountant %}
+                    {% if user.is_superuser or user.profile and user.profile.is_school_admin or user.profile and user.profile.is_accountant %}
                     <li class="nav-item"><hr class="dropdown-divider my-2"></li>
                     <li class="nav-item">
                         <a class="nav-link {% if request.resolver_match.url_name == 'transport_route_list' or request.resolver_match.url_name == 'transport_route_create' or request.resolver_match.url_name == 'transport_route_edit' %}active{% endif %}" href="{% url 'core:transport_route_list' %}">
@@ -398,7 +399,7 @@
                         </a>
                     </li>
                     {% endif %}
-                    {% if user.is_superuser or user.profile.is_school_admin %}
+                    {% if user.is_superuser or user.profile and user.profile.is_school_admin %}
                     <li class="nav-item"><hr class="dropdown-divider my-2"></li>
                     <li class="nav-item">
                         <a class="nav-link {% if request.resolver_match.url_name == 'user_list' or request.resolver_match.url_name == 'user_create' or request.resolver_match.url_name == 'user_edit' or request.resolver_match.url_name == 'profile' %}active{% endif %}" href="{% url 'core:user_list' %}">
@@ -414,7 +415,7 @@
                 </ul>
             </li>
             
-            {% if user.is_superuser or user.profile.is_super_admin %}
+            {% if user.is_superuser or user.profile and user.profile.is_super_admin %}
             <!-- Super Admin: Manage Schools -->
             <li class="nav-item">
                 <a class="nav-link {% if request.resolver_match.url_name == 'school_admin_list' %}active{% endif %}" href="{% url 'core:school_admin_list' %}">
@@ -427,7 +428,7 @@
         {% else %}
         {% comment %}User without school assignment - show only Manage Schools for superadmin, warning for others{% endcomment %}
         <ul class="nav flex-column">
-            {% if user.is_superuser or user.profile.is_super_admin %}
+            {% if user.is_superuser or user.profile and user.profile.is_super_admin %}
             <!-- Super Admin: Manage Schools (even without school assignment) -->
             <li class="nav-item">
                 <a class="nav-link {% if request.resolver_match.url_name == 'school_admin_list' %}active{% endif %}" href="{% url 'core:school_admin_list' %}">
@@ -444,8 +445,9 @@
             {% endif %}
         </ul>
         {% endif %}
-        {% elif user.is_authenticated and user.is_superuser or user.profile and user.profile.is_parent %}
-        {% comment %}Parent Portal Menu (for parents and superusers){% endcomment %}
+        {% endif %}
+        {% if user.is_authenticated and user.profile and user.profile.is_parent %}
+        {% comment %}Parent Portal Menu (for parents only){% endcomment %}
         <ul class="nav flex-column">
             <!-- Parent Portal Dashboard -->
             <li class="nav-item">
@@ -465,14 +467,7 @@
             </li>
             {% endif %}
         </ul>
-        {% else %}
-        <ul class="nav flex-column">
-            <li class="nav-item">
-                <span class="nav-link text-warning">
-                    <i class="fas fa-info-circle me-2"></i>Student features coming soon
-                </span>
-            </li>
-        </ul>
+        {% endif %}
         {% endif %}
     </nav>
     

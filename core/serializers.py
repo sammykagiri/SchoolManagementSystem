@@ -7,7 +7,7 @@ from .models import (
 class SchoolSerializer(serializers.ModelSerializer):
     class Meta:
         model = School
-        fields = ['id', 'name', 'address', 'email', 'phone']
+        fields = ['id', 'name', 'short_name', 'address', 'email', 'phone']
 
 class GradeSerializer(serializers.ModelSerializer):
     class Meta:

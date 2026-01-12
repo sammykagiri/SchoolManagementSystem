@@ -2598,8 +2598,30 @@ def school_update(request):
         school.secondary_color = secondary_color if secondary_color else None
         school.use_color_scheme = use_color_scheme
         school.use_secondary_on_headers = use_secondary_on_headers
+        short_name = request.POST.get('short_name', '').strip()
+        if short_name:
+            # Validate short_name format using the model's clean method
+            try:
+                # Create a temporary school instance to validate
+                temp_school = School(short_name=short_name)
+                temp_school.clean()
+                # Validate short_name uniqueness
+                if School.objects.filter(short_name=short_name.lower()).exclude(id=school.id).exists():
+                    errors.append('A school with this short name already exists.')
+                else:
+                    school.short_name = short_name.lower()
+            except Exception as e:
+                # Extract validation error message
+                if hasattr(e, 'error_dict') and 'short_name' in e.error_dict:
+                    errors.append(str(e.error_dict['short_name'][0]))
+                else:
+                    errors.append(f'Invalid short name format: {str(e)}')
         if logo:
             school.logo = logo
+        if errors:
+            for error in errors:
+                messages.error(request, error)
+            return render(request, 'core/school_form.html', {'school': school})
         school.save()
         messages.success(request, 'School details updated successfully!')
         return redirect('core:school_update')
@@ -2977,8 +2999,30 @@ def school_admin_edit(request, school_id):
         school.secondary_color = secondary_color if secondary_color else None
         school.use_color_scheme = use_color_scheme
         school.use_secondary_on_headers = use_secondary_on_headers
+        short_name = request.POST.get('short_name', '').strip()
+        if short_name:
+            # Validate short_name format using the model's clean method
+            try:
+                # Create a temporary school instance to validate
+                temp_school = School(short_name=short_name)
+                temp_school.clean()
+                # Validate short_name uniqueness
+                if School.objects.filter(short_name=short_name.lower()).exclude(id=school.id).exists():
+                    errors.append('A school with this short name already exists.')
+                else:
+                    school.short_name = short_name.lower()
+            except Exception as e:
+                # Extract validation error message
+                if hasattr(e, 'error_dict') and 'short_name' in e.error_dict:
+                    errors.append(str(e.error_dict['short_name'][0]))
+                else:
+                    errors.append(f'Invalid short name format: {str(e)}')
         if logo:
             school.logo = logo
+        if errors:
+            for error in errors:
+                messages.error(request, error)
+            return render(request, 'core/school_form.html', {'school': school})
         try:
             school.save()
             messages.success(request, 'School updated successfully!')
@@ -3960,10 +4004,14 @@ def user_list(request):
     })
 
 
-def _get_school_identifier(school_name):
-    """Convert school name to identifier format (same logic as in ParentRegistrationForm)"""
+def _get_school_identifier(school):
+    """Get school identifier from short_name or generate from name"""
     import re
-    school_identifier = school_name.lower().strip()
+    if school.short_name:
+        return school.short_name.lower().strip()
+    
+    # Fallback: Generate from school name
+    school_identifier = school.name.lower().strip()
     school_identifier = school_identifier.replace(' ', '_').replace('-', '_')
     # Remove special characters that aren't allowed in usernames (keep only a-z, 0-9, _)
     school_identifier = re.sub(r'[^a-z0-9_]', '', school_identifier)
@@ -3978,10 +4026,20 @@ def _get_school_identifier(school_name):
 
 def _find_school_by_identifier(identifier):
     """Find a school by matching its identifier (extracted from username postfix)"""
-    # Get all schools and check which one matches the identifier
+    # Normalize identifier (lowercase, strip)
+    identifier = identifier.lower().strip()
+    
+    # First, try to find by short_name (exact match)
+    try:
+        school = School.objects.get(short_name=identifier)
+        return school
+    except School.DoesNotExist:
+        pass
+    
+    # Fallback: Get all schools and check which one matches the identifier
     schools = School.objects.all()
     for school in schools:
-        school_identifier = _get_school_identifier(school.name)
+        school_identifier = _get_school_identifier(school)
         if school_identifier == identifier:
             return school
     return None
@@ -3992,7 +4050,20 @@ def _find_school_by_identifier(identifier):
 def user_create(request):
     """Create a new user with role assignment"""
     if request.method == 'POST':
-        user_form = UserForm(request.POST)
+        # Get school from profile form data to pass to user form
+        school = None
+        school_id = request.POST.get('school')
+        if school_id:
+            try:
+                school = School.objects.get(id=school_id)
+            except (School.DoesNotExist, ValueError):
+                pass
+        # If no school from form, use admin's school for school admins
+        if not school and not is_superadmin_user(request.user):
+            if hasattr(request.user, 'profile') and request.user.profile.school:
+                school = request.user.profile.school
+        
+        user_form = UserForm(request.POST, school=school)
         profile_form = UserProfileForm(request.POST, current_user=request.user)
         
         if user_form.is_valid() and profile_form.is_valid():
@@ -4074,7 +4145,13 @@ def user_create(request):
             else:
                 messages.error(request, "Please correct the errors below.")
     else:
-        user_form = UserForm()
+        # For new users, determine school for username formatting
+        school = None
+        if not is_superadmin_user(request.user):
+            if hasattr(request.user, 'profile') and request.user.profile.school:
+                school = request.user.profile.school
+        
+        user_form = UserForm(school=school)
         profile_form = UserProfileForm(current_user=request.user)
     
     return render(request, 'core/users/user_form.html', {
