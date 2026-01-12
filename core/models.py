@@ -155,6 +155,35 @@ class TransportRoute(models.Model):
         unique_together = ['school', 'name']
 
 
+class ParentManager(models.Manager):
+    """Custom manager that defers photo field to avoid errors when column doesn't exist"""
+    _photo_column_exists = None
+    
+    def get_queryset(self):
+        # Cache the check result to avoid querying database on every call
+        if ParentManager._photo_column_exists is None:
+            from django.db import connection
+            try:
+                with connection.cursor() as cursor:
+                    cursor.execute("""
+                        SELECT column_name 
+                        FROM information_schema.columns 
+                        WHERE table_schema = 'public'
+                        AND table_name = 'core_parent' 
+                        AND column_name = 'photo'
+                    """)
+                    ParentManager._photo_column_exists = cursor.fetchone() is not None
+            except:
+                # If check fails, assume column doesn't exist (safer)
+                ParentManager._photo_column_exists = False
+        
+        queryset = super().get_queryset()
+        if not ParentManager._photo_column_exists:
+            # Defer photo field if column doesn't exist
+            queryset = queryset.defer('photo')
+        return queryset
+
+
 class Parent(models.Model):
     """Parent/guardian profile linked to a user account."""
     user = models.OneToOneField(
@@ -184,6 +213,9 @@ class Parent(models.Model):
     photo = models.ImageField(upload_to='parent_photos/', blank=True, null=True, help_text='Parent photo')
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+    
+    # Custom manager that defers photo field if column doesn't exist
+    objects = ParentManager()
 
     class Meta:
         ordering = ['user__first_name', 'user__last_name']
