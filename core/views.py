@@ -90,6 +90,11 @@ class CustomLoginView(LoginView):
         """Determine where to redirect after successful login - default to dashboard"""
         user = self.request.user
         
+        # Superusers always get access - check first
+        if user.is_superuser:
+            from django.urls import reverse
+            return reverse('core:school_admin_list')
+        
         # Default: redirect to dashboard (as per LOGIN_REDIRECT_URL setting)
         # Parents can access portal by navigating to /portal/ explicitly
         
