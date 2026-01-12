@@ -64,13 +64,13 @@
     .select2-container--bootstrap-5 .select2-selection--multiple .select2-selection__choice__remove:hover {
         color: rgba(255, 255, 255, 0.8);
     }
-    /* Select2 multiple selection - prevent wrapping, keep cursor on right */
+    /* Select2 multiple selection - allow wrapping when items don't fit */
     .select2-container--bootstrap-5 .select2-selection--multiple {
         padding: 0.375rem 0.75rem !important;   /* match bs5 input padding */
         min-height: 38px !important;
         display: flex !important;
         flex-direction: row !important;
-        flex-wrap: nowrap !important;           /* ← the most important rule */
+        flex-wrap: wrap !important;            /* allow wrapping when items don't fit */
         overflow-x: auto !important;            /* horizontal scroll when many tags */
         gap: 0.35rem !important;
         align-items: center !important;
@@ -79,11 +79,11 @@
     .select2-container--bootstrap-5 .select2-selection--multiple .select2-selection__rendered {
         display: flex !important;
         flex-direction: row !important;
-        flex-wrap: nowrap !important;
+        flex-wrap: wrap !important;             /* allow wrapping */
         align-items: center !important;
         padding: 0 !important;
         margin: 0 !important;
-        width: auto !important;                 /* very important */
+        width: 100% !important;
     }
 
     /* Tags themselves */
@@ -93,11 +93,10 @@
         white-space: nowrap !important;
     }
 
-    /* The search field must grow and never force new line */
+    /* The search field - can wrap to new line if needed */
     .select2-container--bootstrap-5 .select2-selection__search--inline,
     .select2-container--bootstrap-5 .select2-search--inline {
-        flex-grow: 1 !important;
-        flex-shrink: 1 !important;
+        flex: 1 1 auto !important;
         min-width: 140px !important;            /* adjust as needed */
         margin: 0 !important;
         padding: 0 !important;
@@ -405,21 +404,31 @@ $(document).ready(function() {
         closeOnSelect: false,
         dropdownParent: $('body'),
         
-        // This hides already selected items from the dropdown
-        templateResult: function(data, container) {
-            if (!data.id) {
-                return data.text; // placeholder / loading message
-            }
-            
-            // Check if this option is already selected
+        // This hides already selected items from the dropdown using matcher
+        matcher: function(params, data) {
+            // Get currently selected IDs
             const selectedIds = $('#id_students').val() || [];
-            if (selectedIds.includes(data.id)) {
-                // Hide it completely
-                $(container).css('display', 'none');
-                return null; // or return some empty string - both work
+            const dataIdStr = String(data.id);
+            const isSelected = selectedIds.some(id => String(id) === dataIdStr);
+            
+            // Don't show if already selected
+            if (isSelected) {
+                return null;
             }
             
-            return data.text;
+            // If there's no search term, show all unselected items
+            if (!params.term || $.trim(params.term) === '') {
+                return data;
+            }
+            
+            // If there's a search term, filter by text match
+            if (data.text) {
+                if (data.text.toUpperCase().indexOf(params.term.toUpperCase()) > -1) {
+                    return data;
+                }
+            }
+            
+            return null;
         },
         templateSelection: function(data) {
             return data.text;
@@ -477,31 +486,26 @@ $(document).ready(function() {
             });
         }
     }
-    $('#id_students').select2({
-    theme: 'bootstrap-5',
-    width: '100%',
-    placeholder: 'Select students to link (optional)',
-    allowClear: false,
-    closeOnSelect: false,
-    dropdownParent: $('body'),
-
-    // This hides already selected items from the dropdown
-    templateResult: function(data, container) {
-        if (!data.id) {
-            return data.text; // placeholder / loading message
+    
+    // Force refresh dropdown when selections change to update hidden items
+    $('#id_students').on('select2:select select2:unselect', function() {
+        // When dropdown is open, trigger a search refresh to re-run matcher
+        const select2 = $(this).data('select2');
+        if (select2 && select2.isOpen()) {
+            // Trigger a search to refresh the results
+            const searchField = select2.$dropdown.find('.select2-search__field');
+            if (searchField.length) {
+                const currentTerm = searchField.val() || '';
+                // Clear and re-enter the search term to trigger matcher
+                searchField.val('').trigger('input');
+                if (currentTerm) {
+                    setTimeout(function() {
+                        searchField.val(currentTerm).trigger('input');
+                    }, 10);
+                }
+            }
         }
-
-        // Check if this option is already selected
-        const selectedIds = $('#id_students').val() || [];
-        if (selectedIds.includes(data.id)) {
-            // Hide it completely
-            $(container).css('display', 'none');
-            return null; // or return some empty string - both work
-        }
-
-        return data.text;
-    }
-});
+    });
 });
 </script>
 {% endblock %}
