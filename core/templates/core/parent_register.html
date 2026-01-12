@@ -39,16 +39,77 @@
     .multi-select-wrapper {
         margin-bottom: 15px;
     }
-    .selected-items {
+    /* Select2 customization for horizontal selected items */
+    .select2-container--bootstrap-5 .select2-selection--multiple {
         min-height: 40px;
-        padding: 8px;
-        border: 1px solid #dee2e6;
-        border-radius: 4px;
-        background-color: #f8f9fa;
+        padding: 4px 8px;
     }
-    .student-item.disabled {
-        opacity: 0.5;
-        pointer-events: none;
+    .select2-container--bootstrap-5 .select2-selection--multiple .select2-selection__choice {
+        display: inline-flex;
+        align-items: center;
+        margin: 2px 4px 2px 0;
+        padding: 4px 8px;
+        background-color: #0d6efd;
+        color: white;
+        border: none;
+        border-radius: 4px;
+        flex-shrink: 0;
+    }
+    .select2-container--bootstrap-5 .select2-selection--multiple .select2-selection__choice__remove {
+        color: white;
+        margin-right: 6px;
+        border-right: 1px solid rgba(255, 255, 255, 0.3);
+        padding-right: 6px;
+    }
+    .select2-container--bootstrap-5 .select2-selection--multiple .select2-selection__choice__remove:hover {
+        color: rgba(255, 255, 255, 0.8);
+    }
+    /* Select2 multiple selection - prevent wrapping, keep cursor on right */
+    .select2-container--bootstrap-5 .select2-selection--multiple {
+        padding: 0.375rem 0.75rem !important;   /* match bs5 input padding */
+        min-height: 38px !important;
+        display: flex !important;
+        flex-direction: row !important;
+        flex-wrap: nowrap !important;           /* ← the most important rule */
+        overflow-x: auto !important;            /* horizontal scroll when many tags */
+        gap: 0.35rem !important;
+        align-items: center !important;
+    }
+
+    .select2-container--bootstrap-5 .select2-selection--multiple .select2-selection__rendered {
+        display: flex !important;
+        flex-direction: row !important;
+        flex-wrap: nowrap !important;
+        align-items: center !important;
+        padding: 0 !important;
+        margin: 0 !important;
+        width: auto !important;                 /* very important */
+    }
+
+    /* Tags themselves */
+    .select2-container--bootstrap-5 .select2-selection__choice {
+        flex-shrink: 0 !important;
+        margin: 0 !important;
+        white-space: nowrap !important;
+    }
+
+    /* The search field must grow and never force new line */
+    .select2-container--bootstrap-5 .select2-selection__search--inline,
+    .select2-container--bootstrap-5 .select2-search--inline {
+        flex-grow: 1 !important;
+        flex-shrink: 1 !important;
+        min-width: 140px !important;            /* adjust as needed */
+        margin: 0 !important;
+        padding: 0 !important;
+    }
+
+    .select2-container--bootstrap-5 .select2-search__field {
+        margin: 0 !important;
+        padding: 0 !important;
+        min-height: 24px;
+        line-height: 1.5;
+        width: 100% !important;
+        box-sizing: content-box !important;
     }
 </style>
 {% endblock %}
@@ -284,39 +345,16 @@
                     {% with students_queryset=form.students.field.queryset %}
                     {% if students_queryset|length > 0 %}
                     <div class="multi-select-wrapper">
-                        <div class="selected-items mb-2" id="selected-students">
-                            {% for student in form.students.value %}
-                                {% for student_obj in students_queryset %}
-                                    {% if student_obj.id|stringformat:"s" == student|stringformat:"s" %}
-                                        <span class="badge bg-primary me-1 mb-1" data-value="{{ student_obj.id }}">
-                                            {{ student_obj.full_name }} ({{ student_obj.student_id }})
-                                            <button type="button" class="btn-close btn-close-white ms-1" style="font-size: 0.7em;" aria-label="Remove"></button>
-                                        </span>
-                                    {% endif %}
-                                {% endfor %}
+                        <select name="students" id="id_students" class="form-select select2" multiple="multiple">
+                            {% for student in students_queryset %}
+                                <option value="{{ student.id }}" 
+                                        {% if student.id in form.students.value %}selected{% endif %}>
+                                    {{ student.full_name }} ({{ student.student_id }}){% if student.grade %} - Grade: {{ student.grade.name }}{% endif %}
+                                </option>
                             {% endfor %}
-                        </div>
-                        <div class="dropdown">
-                            <button class="btn btn-outline-secondary dropdown-toggle w-100" type="button" id="studentDropdown" data-bs-toggle="dropdown" aria-expanded="false">
-                                Select Students
-                            </button>
-                            <ul class="dropdown-menu w-100" aria-labelledby="studentDropdown" id="studentDropdownMenu">
-                                {% for student in students_queryset %}
-                                    <li>
-                                        <a class="dropdown-item student-item" href="#" data-value="{{ student.id }}" data-text="{{ student.full_name }} ({{ student.student_id }})">
-                                            {{ student.full_name }} ({{ student.student_id }})
-                                            {% if student.grade %}
-                                                - Grade: {{ student.grade.name }}
-                                            {% endif %}
-                                        </a>
-                                    </li>
-                                {% endfor %}
-                            </ul>
-                        </div>
-                        <!-- Hidden input will be created dynamically by JavaScript - no static input needed -->
-                    </div>
+                        </select>
                         {% if form.students.help_text %}
-                            <div class="form-text">{{ form.students.help_text }}</div>
+                            <div class="form-text mt-2">{{ form.students.help_text }}</div>
                         {% endif %}
                         {% if form.students.errors %}
                             <div class="text-danger small mt-2">
@@ -325,6 +363,7 @@
                                 {% endfor %}
                             </div>
                         {% endif %}
+                    </div>
                     {% else %}
                     <div class="alert alert-warning">
                         <i class="fas fa-exclamation-triangle me-2"></i>
@@ -356,139 +395,113 @@
 
 {% block extra_js %}
 <script>
-document.addEventListener('DOMContentLoaded', function() {
-    const parentForm = document.querySelector('form');
-    const selectedStudentsContainer = document.getElementById('selected-students');
-    const studentDropdownItems = document.querySelectorAll('.student-item');
-    const selectedStudentValues = new Set();
-    
-    // Initialize with existing selections
-    {% for student in form.students.value %}
-        selectedStudentValues.add('{{ student }}');
-    {% endfor %}
-    
-    // Function to update hidden inputs (Django expects multiple inputs with same name for many-to-many)
-    function updateStudentHiddenInput() {
-        // Remove all existing student hidden inputs (including the main one)
-        const existingInputs = parentForm.querySelectorAll('input[name="students"]');
-        existingInputs.forEach(input => {
-            input.remove();
-        });
+$(document).ready(function() {
+    // Initialize Select2 for student selection
+    $('#id_students').select2({
+        theme: 'bootstrap-5',
+        width: '100%',
+        placeholder: 'Select students to link (optional)',
+        allowClear: false,
+        closeOnSelect: false,
+        dropdownParent: $('body'),
         
-        // Only create hidden inputs if there are selected students
-        // Don't create any input if no students are selected (empty list is fine)
-        if (selectedStudentValues.size > 0) {
-            selectedStudentValues.forEach(value => {
-                // Only add if value is not empty
-                if (value && value.toString().trim() !== '') {
-                    const hiddenInput = document.createElement('input');
-                    hiddenInput.type = 'hidden';
-                    hiddenInput.name = 'students';
-                    hiddenInput.value = value.toString().trim();
-                    parentForm.appendChild(hiddenInput);
-                }
-            });
-        }
-        // If no students selected, don't create any input - Django will treat it as empty list
-    }
-    
-    // Function to re-enable dropdown item
-    function enableStudentDropdownItem(value) {
-        studentDropdownItems.forEach(item => {
-            if (item.getAttribute('data-value') === value) {
-                item.classList.remove('disabled');
-                item.style.pointerEvents = '';
-                item.style.opacity = '';
+        // This hides already selected items from the dropdown
+        templateResult: function(data, container) {
+            if (!data.id) {
+                return data.text; // placeholder / loading message
             }
-        });
-    }
-    
-    // Function to disable dropdown item
-    function disableStudentDropdownItem(value) {
-        studentDropdownItems.forEach(item => {
-            if (item.getAttribute('data-value') === value) {
-                item.classList.add('disabled');
-                item.style.pointerEvents = 'none';
-                item.style.opacity = '0.5';
-            }
-        });
-    }
-    
-    // Function to remove selected student
-    function removeSelectedStudent(value) {
-        selectedStudentValues.delete(value);
-        updateStudentHiddenInput();
-        enableStudentDropdownItem(value);
-        
-        // Remove the badge from DOM
-        const badge = selectedStudentsContainer.querySelector(`[data-value="${value}"]`);
-        if (badge) {
-            badge.remove();
-        }
-    }
-    
-    // Function to add selected student
-    function addSelectedStudent(value, text) {
-        if (selectedStudentValues.has(value)) {
-            return; // Already selected
-        }
-        
-        selectedStudentValues.add(value);
-        const badge = document.createElement('span');
-        badge.className = 'badge bg-primary me-1 mb-1';
-        badge.setAttribute('data-value', value);
-        badge.innerHTML = text + ' <button type="button" class="btn-close btn-close-white ms-1" style="font-size: 0.7em;" aria-label="Remove"></button>';
-        
-        // Add remove functionality
-        const removeBtn = badge.querySelector('.btn-close');
-        removeBtn.addEventListener('click', function(e) {
-            e.preventDefault();
-            e.stopPropagation();
-            removeSelectedStudent(value);
-        });
-        
-        selectedStudentsContainer.appendChild(badge);
-        updateStudentHiddenInput();
-        disableStudentDropdownItem(value);
-    }
-    
-    // Handle remove buttons for existing badges
-    const existingStudentBadges = selectedStudentsContainer.querySelectorAll('.badge[data-value]');
-    existingStudentBadges.forEach(badge => {
-        const removeBtn = badge.querySelector('.btn-close');
-        if (removeBtn) {
-            removeBtn.addEventListener('click', function(e) {
-                e.preventDefault();
-                e.stopPropagation();
-                const value = badge.getAttribute('data-value');
-                removeSelectedStudent(value);
-            });
-        }
-    });
-    
-    // Handle dropdown item clicks
-    studentDropdownItems.forEach(item => {
-        item.addEventListener('click', function(e) {
-            e.preventDefault();
-            e.stopPropagation();
-            const value = this.getAttribute('data-value');
-            const text = this.getAttribute('data-text');
             
-            if (!selectedStudentValues.has(value)) {
-                addSelectedStudent(value, text);
+            // Check if this option is already selected
+            const selectedIds = $('#id_students').val() || [];
+            if (selectedIds.includes(data.id)) {
+                // Hide it completely
+                $(container).css('display', 'none');
+                return null; // or return some empty string - both work
             }
-        });
-        
-        // Check if already selected and disable
-        const value = item.getAttribute('data-value');
-        if (selectedStudentValues.has(value)) {
-            disableStudentDropdownItem(value);
+            
+            return data.text;
+        },
+        templateSelection: function(data) {
+            return data.text;
         }
     });
     
-    // Update hidden input on page load
-    updateStudentHiddenInput();
+    // Function to ensure search input appears right after selected items
+    // With flex-wrap: nowrap, the search should naturally appear after items
+    function ensureSearchAfterItems() {
+        const container = $('#id_students').next('.select2-container');
+        if (container.length) {
+            const rendered = container.find('.select2-selection__rendered');
+            const search = rendered.find('.select2-search--inline');
+            
+            // Ensure search is in the rendered container and positioned correctly
+            if (search.length && !search.parent().is(rendered)) {
+                search.detach().appendTo(rendered);
+            }
+        }
+    }
+    
+    // Ensure search is right after items after any selection/deselection
+    $('#id_students').on('select2:select select2:unselect', function() {
+        // Use a small delay to ensure DOM is updated
+        setTimeout(ensureSearchAfterItems, 10);
+    });
+    
+    // Ensure search is right after items when dropdown closes
+    $('#id_students').on('select2:close', function() {
+        setTimeout(ensureSearchAfterItems, 10);
+    });
+    
+    // Ensure proper ordering on initial load
+    setTimeout(ensureSearchAfterItems, 100);
+    
+    // Also ensure on focus and when dropdown opens
+    $('#id_students').on('select2:open', function() {
+        setTimeout(ensureSearchAfterItems, 10);
+    });
+    
+    // Use MutationObserver to watch for DOM changes and ensure search stays right after items
+    const container = $('#id_students').next('.select2-container');
+    if (container.length) {
+        const observer = new MutationObserver(function(mutations) {
+            // Debounce to avoid too many calls
+            clearTimeout(observer.timeout);
+            observer.timeout = setTimeout(ensureSearchAfterItems, 10);
+        });
+        
+        const rendered = container.find('.select2-selection__rendered');
+        if (rendered.length) {
+            observer.observe(rendered[0], {
+                childList: true,
+                subtree: true
+            });
+        }
+    }
+    $('#id_students').select2({
+    theme: 'bootstrap-5',
+    width: '100%',
+    placeholder: 'Select students to link (optional)',
+    allowClear: false,
+    closeOnSelect: false,
+    dropdownParent: $('body'),
+
+    // This hides already selected items from the dropdown
+    templateResult: function(data, container) {
+        if (!data.id) {
+            return data.text; // placeholder / loading message
+        }
+
+        // Check if this option is already selected
+        const selectedIds = $('#id_students').val() || [];
+        if (selectedIds.includes(data.id)) {
+            // Hide it completely
+            $(container).css('display', 'none');
+            return null; // or return some empty string - both work
+        }
+
+        return data.text;
+    }
+});
 });
 </script>
 {% endblock %}
-
