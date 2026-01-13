@@ -84,6 +84,29 @@ class CustomLoginView(LoginView):
             request.POST = post_data
         return super().post(request, *args, **kwargs)
     
+    def form_invalid(self, form):
+        """Handle invalid form submission - display authentication errors"""
+        # Django's AuthenticationForm adds non_field_errors for authentication failures
+        # The default message is: "Please enter a correct username and password. Note that both fields may be case-sensitive."
+        # Since we convert usernames to lowercase, we can provide a clearer message
+        from django.core.exceptions import ValidationError
+        
+        # Check if this is an authentication error (not a field validation error)
+        if form.non_field_errors:
+            # Check if username and password fields have values (meaning it's likely an auth failure)
+            username = form.data.get('username', '').strip()
+            password = form.data.get('password', '').strip()
+            
+            if username and password:
+                # Both fields have values, so this is likely an authentication failure
+                # Clear the default message and add a clearer one
+                form._errors.pop('__all__', None)
+                form.add_error(None, ValidationError(
+                    "Invalid username or password. Please check your credentials and try again."
+                ))
+        
+        return super().form_invalid(form)
+    
     def dispatch(self, request, *args, **kwargs):
         # If user is already authenticated, redirect appropriately
         if request.user.is_authenticated:
