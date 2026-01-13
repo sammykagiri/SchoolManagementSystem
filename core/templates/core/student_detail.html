@@ -391,7 +391,6 @@
                                             <th class="text-end">Balance</th>
                                             <th>Due Date</th>
                                             <th>Status</th>
-                                            <th>Actions</th>
                                         </tr>
                                     </thead>
                                     <tbody>
@@ -426,17 +425,10 @@
                                                     <span class="badge bg-secondary">N/A</span>
                                                 {% endif %}
                                             </td>
-                                            <td>
-                                                {% if fee.balance > 0 %}
-                                                    <a href="{% url 'payments:payment_list' %}?search={{ student.student_id }}" class="btn btn-sm btn-primary">
-                                                        <i class="fas fa-money-bill"></i> Pay
-                                                    </a>
-                                                {% endif %}
-                                            </td>
                                         </tr>
                                         {% empty %}
                                         <tr>
-                                            <td colspan="8" class="text-center text-muted py-4">
+                                            <td colspan="7" class="text-center text-muted py-4">
                                                 No fee records found for this student.
                                             </td>
                                         </tr>
