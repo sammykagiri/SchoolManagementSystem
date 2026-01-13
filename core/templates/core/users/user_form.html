@@ -76,7 +76,7 @@
                                    class="form-control {% if user_form.username.errors %}is-invalid{% endif %}" 
                                    id="{{ user_form.username.id_for_label }}" 
                                    value="{{ user_form.username.value|default:'' }}" 
-                                   {% if user %}{% if not user.is_superuser %}readonly{% endif %}{% else %}placeholder="Enter username"{% endif %}>
+                                   {% if user %}{% if not user.is_superuser %}readonly{% endif %}{% else %}placeholder="Enter username" oninput="this.value = this.value.toLowerCase();"{% endif %}>
                             {% if user_form.username.errors %}
                                 <div class="invalid-feedback">
                                     {{ user_form.username.errors.0 }}

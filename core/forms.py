@@ -277,13 +277,13 @@ class UserForm(UserCreationForm):
             # Use short_name
             school_identifier = school.short_name.lower().strip()
             
-            # Get base username (strip whitespace and remove @ if user already added it)
-            base_username = username.strip()
+            # Get base username (strip whitespace, convert to lowercase, and remove @ if user already added it)
+            base_username = username.strip().lower()
             # Remove any existing @school suffix if user mistakenly added it
             if '@' in base_username:
-                base_username = base_username.split('@')[0].strip()
+                base_username = base_username.split('@')[0].strip().lower()
             
-            # Create final username with school suffix
+            # Create final username with school suffix (already lowercase)
             final_username = f"{base_username}@{school_identifier}"
             
             # Ensure username doesn't exceed 150 characters (Django's limit)
@@ -645,13 +645,13 @@ class ParentRegistrationForm(UserCreationForm):
             if not school_identifier:
                 raise ValidationError('School short name cannot be empty.')
             
-            # Get base username (strip whitespace and remove @ if user already added it)
-            base_username = username.strip()
+            # Get base username (strip whitespace, convert to lowercase, and remove @ if user already added it)
+            base_username = username.strip().lower()
             # Remove any existing @school suffix if user mistakenly added it
             if '@' in base_username:
-                base_username = base_username.split('@')[0].strip()
+                base_username = base_username.split('@')[0].strip().lower()
             
-            # Create final username with school suffix
+            # Create final username with school suffix (already lowercase)
             final_username = f"{base_username}@{school_identifier}"
             
             # Ensure username doesn't exceed 150 characters (Django's limit)

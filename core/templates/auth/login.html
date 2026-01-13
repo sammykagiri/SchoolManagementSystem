@@ -82,6 +82,7 @@
                                class="form-control {% if form.username.errors %}is-invalid{% endif %}" 
                                id="{{ form.username.id_for_label }}" 
                                placeholder="Enter your username" 
+                               oninput="this.value = this.value.toLowerCase();"
                                required>
                         {% if form.username.errors %}
                             <div class="invalid-feedback">

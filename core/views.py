@@ -75,6 +75,15 @@ class CustomLoginView(LoginView):
     """Custom login view that redirects authenticated users based on their role"""
     template_name = 'auth/login.html'
     
+    def post(self, request, *args, **kwargs):
+        """Override post to convert username to lowercase before authentication"""
+        # Convert username to lowercase if provided
+        if 'username' in request.POST:
+            post_data = request.POST.copy()
+            post_data['username'] = post_data['username'].lower().strip()
+            request.POST = post_data
+        return super().post(request, *args, **kwargs)
+    
     def dispatch(self, request, *args, **kwargs):
         # If user is already authenticated, redirect appropriately
         if request.user.is_authenticated:
