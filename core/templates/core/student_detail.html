@@ -175,17 +175,11 @@
                                     <td>{{ student.upi|default:"Not provided" }}</td>
                                 </tr>
                                     </table>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="row mt-4">
-                        <div class="col-12">
-                            <h5>Additional Information:</h5>
+                                    
+                                    <h5 class="mt-4">Additional Information:</h5>
                             <table class="table table-borderless">
                                 <tr>
-                                    <th width="15%">Status:</th>
+                                    <th width="30%">Status:</th>
                                     <td>
                                         <span class="badge bg-{% if student.is_active %}success{% else %}secondary{% endif %}">
                                             {% if student.is_active %}Active{% else %}Inactive{% endif %}
@@ -201,6 +195,8 @@
                                     <td>{{ student.updated_at|indian_datetime }}</td>
                                 </tr>
                             </table>
+                                </div>
+                            </div>
                         </div>
                     </div>
 
