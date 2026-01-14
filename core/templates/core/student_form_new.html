@@ -6,13 +6,13 @@
     .multi-select-wrapper {
         margin-bottom: 15px;
     }
-    /* Select2 multiple selection - allow wrapping when items don't fit */
+    /* Select2 multiple selection - cursor on the right, no wrapping */
     .select2-container--bootstrap-5 .select2-selection--multiple {
         padding: 0.375rem 0.75rem !important;   /* match bs5 input padding */
         min-height: 38px !important;
         display: flex !important;
         flex-direction: row !important;
-        flex-wrap: wrap !important;            /* allow wrapping when items don't fit */
+        flex-wrap: nowrap !important;          /* prevent wrapping - cursor stays on right */
         overflow-x: auto !important;            /* horizontal scroll when many tags */
         gap: 0.35rem !important;
         align-items: center !important;
@@ -21,11 +21,11 @@
     .select2-container--bootstrap-5 .select2-selection--multiple .select2-selection__rendered {
         display: flex !important;
         flex-direction: row !important;
-        flex-wrap: wrap !important;             /* allow wrapping */
+        flex-wrap: nowrap !important;          /* prevent wrapping */
         align-items: center !important;
         padding: 0 !important;
         margin: 0 !important;
-        width: 100% !important;
+        width: auto !important;                 /* very important - allows natural width */
     }
 
     /* Tags themselves */
@@ -35,10 +35,11 @@
         white-space: nowrap !important;
     }
 
-    /* The search field - can wrap to new line if needed */
+    /* The search field must grow and never force new line */
     .select2-container--bootstrap-5 .select2-selection__search--inline,
     .select2-container--bootstrap-5 .select2-search--inline {
-        flex: 1 1 auto !important;
+        flex-grow: 1 !important;
+        flex-shrink: 1 !important;
         min-width: 140px !important;            /* adjust as needed */
         margin: 0 !important;
         padding: 0 !important;
