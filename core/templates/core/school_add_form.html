@@ -24,6 +24,24 @@
                             <input type="text" name="name" id="id_name" class="form-control" value="{{ post.name|default:'' }}" required>
                         </div>
                         <div class="mb-3">
+                            <label for="id_short_name" class="form-label">Short Name <span class="text-danger">*</span></label>
+                            <input type="text" 
+                                   name="short_name" 
+                                   id="id_short_name" 
+                                   class="form-control" 
+                                   value="{{ post.short_name|default:'' }}" 
+                                   pattern="^[a-zA-Z0-9]+([._-][a-zA-Z0-9]+)?$"
+                                   title="One word or two words separated by dot (.), underscore (_), or hyphen (-). No spaces or other special characters."
+                                   placeholder="e.g., ambassador, hip.hop, school-name, amb_assad"
+                                   onkeypress="return /[a-zA-Z0-9._-]/.test(event.key)"
+                                   oninput="this.value = this.value.replace(/[^a-zA-Z0-9._-]/g, '')"
+                                   required>
+                            <div class="form-text">
+                                <i class="fas fa-info-circle me-1"></i>
+                                Used in usernames (format: username@shortname). One word or two words separated by dot (.), underscore (_), or hyphen (-). No spaces or other special characters allowed.
+                            </div>
+                        </div>
+                        <div class="mb-3">
                             <label for="id_address" class="form-label">Address</label>
                             <input type="text" name="address" id="id_address" class="form-control" value="{{ post.address|default:'' }}">
                         </div>

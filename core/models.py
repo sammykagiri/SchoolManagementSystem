@@ -13,7 +13,7 @@ class School(models.Model):
         unique=True, 
         blank=True, 
         null=True,
-        help_text='Short name for school (used in usernames). Format: one word or two words separated by dot (.), ampersand (&), or hyphen (-). No spaces or other special characters allowed. Example: "ambassador" or "hip.hop" or "school-name" or "amb&assad". Required for creating parent users.'
+        help_text='Short name for school (used in usernames). Format: one word or two words separated by dot (.), underscore (_), or hyphen (-). No spaces or other special characters allowed. Example: "ambassador" or "hip.hop" or "school-name" or "amb_assad". Required for creating parent users.'
     )
     address = models.TextField(blank=True)
     email = models.EmailField(blank=True, unique=True)
@@ -35,13 +35,13 @@ class School(models.Model):
             # Remove whitespace
             short_name = self.short_name.strip()
             
-            # Check format: one word or two words separated by dot (.), ampersand (&), or hyphen (-)
+            # Check format: one word or two words separated by dot (.), underscore (_), or hyphen (-)
             # No spaces or other special characters allowed
             # Pattern: word or word.separator.word
-            pattern = r'^[a-zA-Z0-9]+([.&-][a-zA-Z0-9]+)?$'
+            pattern = r'^[a-zA-Z0-9]+([._-][a-zA-Z0-9]+)?$'
             if not re.match(pattern, short_name):
                 raise ValidationError({
-                    'short_name': 'Short name must be one word or two words separated by dot (.), ampersand (&), or hyphen (-). No spaces or other special characters allowed. Example: "ambassador" or "hip.hop" or "school-name" or "amb&assad"'
+                    'short_name': 'Short name must be one word or two words separated by dot (.), underscore (_), or hyphen (-). No spaces or other special characters allowed. Example: "ambassador" or "hip.hop" or "school-name" or "amb_assad"'
                 })
             
             # Convert to lowercase for consistency

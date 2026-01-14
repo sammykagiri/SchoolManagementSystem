@@ -271,7 +271,7 @@ class UserForm(UserCreationForm):
                 raise ValidationError(
                     'School short name is required for user creation. '
                     'Please set the school short name in school settings first. '
-                    'Format: one word or two words separated by dot (.), ampersand (&), or hyphen (-).'
+                    'Format: one word or two words separated by dot (.), underscore (_), or hyphen (-).'
                 )
             
             # Use short_name
@@ -635,7 +635,7 @@ class ParentRegistrationForm(UserCreationForm):
                 raise ValidationError(
                     'School short name is required for parent registration. '
                     'Please set the school short name in school settings first. '
-                    'Format: one word or two words separated by dot (.), ampersand (&), or hyphen (-).'
+                    'Format: one word or two words separated by dot (.), underscore (_), or hyphen (-).'
                 )
             
             # Use short_name
