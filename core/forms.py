@@ -481,10 +481,21 @@ class ParentRegistrationForm(UserCreationForm):
             filtered = [v for v in values if v is not None and str(v).strip() != '']
             return filtered if filtered else []
     
+    # Custom SelectMultiple widget that filters out empty strings
+    class FilteredSelectMultiple(forms.SelectMultiple):
+        def value_from_datadict(self, data, files, name):
+            """Filter out empty strings from the data"""
+            values = super().value_from_datadict(data, files, name)
+            if values is None:
+                return []
+            # Filter out empty strings, None, and whitespace-only values
+            filtered = [v for v in values if v is not None and str(v).strip() != '']
+            return filtered if filtered else []
+    
     students = forms.ModelMultipleChoiceField(
         queryset=Student.objects.none(),
         required=False,
-        widget=FilteredCheckboxSelectMultiple(),
+        widget=FilteredSelectMultiple(attrs={'class': 'form-select select2'}),
         help_text='Select students to link to this parent account (optional - can be done later)',
         error_messages={
             'invalid_choice': 'Select a valid student.',
@@ -556,6 +567,8 @@ class ParentRegistrationForm(UserCreationForm):
                 school=school, 
                 is_active=True
             ).order_by('first_name', 'last_name')
+            # Customize option labels to match template format
+            self.fields['students'].label_from_instance = lambda obj: f"{obj.full_name} ({obj.student_id}){' - Grade: ' + obj.grade.name if obj.grade else ''}"
         else:
             self.fields['students'].queryset = Student.objects.none()
         
@@ -1030,7 +1043,7 @@ class ParentEditForm(forms.ModelForm):
     students = forms.ModelMultipleChoiceField(
         queryset=Student.objects.none(),
         required=False,
-        widget=ParentRegistrationForm.FilteredCheckboxSelectMultiple(),
+        widget=ParentRegistrationForm.FilteredSelectMultiple(attrs={'class': 'form-select select2'}),
         help_text='Select students to link to this parent account'
     )
     is_active = forms.BooleanField(required=False, help_text='Active status')
@@ -1126,6 +1139,8 @@ class ParentEditForm(forms.ModelForm):
                 is_active=True
             ).order_by('first_name', 'last_name')
             
+            # Customize option labels to match template format
+            self.fields['students'].label_from_instance = lambda obj: f"{obj.full_name} ({obj.student_id}){' - Grade: ' + obj.grade.name if obj.grade else ''}"
             # Set initial students if editing
             if instance:
                 self.fields['students'].initial = instance.children.all()

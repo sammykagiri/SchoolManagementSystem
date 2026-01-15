@@ -1,4 +1,5 @@
 {% extends 'base.html' %}
+{% load widget_tweaks %}
 {% block title %}{% if teacher %}Edit Teacher{% else %}Add Teacher{% endif %} | School Management System{% endblock %}
 {% block content %}
 <div class="container py-4">
@@ -81,31 +82,16 @@
                             <div class="col-md-6">
                                 <label for="id_specialization" class="form-label">Specialization</label>
                                 <div class="multi-select-wrapper">
-                                    <div class="selected-items mb-2" id="selected-specializations">
-                                        {% for spec in selected_specializations %}
-                                            <span class="badge bg-primary me-1 mb-1" data-value="{{ spec }}">
-                                                {{ spec }}
-                                                <button type="button" class="btn-close btn-close-white ms-1" style="font-size: 0.7em;" aria-label="Remove"></button>
-                                            </span>
+                                    <select name="specialization" id="id_specialization" class="form-select select2" multiple="multiple">
+                                        {% for subject in subjects %}
+                                            <option value="{{ subject.name }}" 
+                                                    {% if subject.name in selected_specializations %}selected{% endif %}>
+                                                {{ subject.name }}{% if subject.code %} ({{ subject.code }}){% endif %}
+                                            </option>
                                         {% endfor %}
-                                    </div>
-                                    <div class="dropdown">
-                                        <button class="btn btn-outline-secondary dropdown-toggle w-100" type="button" id="specializationDropdown" data-bs-toggle="dropdown" aria-expanded="false">
-                                            Select Subjects
-                                        </button>
-                                        <ul class="dropdown-menu w-100" aria-labelledby="specializationDropdown" id="specializationDropdownMenu">
-                                            {% for subject in subjects %}
-                                                <li>
-                                                    <a class="dropdown-item specialization-item" href="#" data-value="{{ subject.name }}" data-text="{{ subject.name }}{% if subject.code %} ({{ subject.code }}){% endif %}">
-                                                        {{ subject.name }}{% if subject.code %} ({{ subject.code }}){% endif %}
-                                                    </a>
-                                                </li>
-                                            {% endfor %}
-                                        </ul>
-                                    </div>
-                                    <input type="hidden" name="specialization" id="id_specialization" value="{% for spec in selected_specializations %}{{ spec }}{% if not forloop.last %},{% endif %}{% endfor %}">
+                                    </select>
                                 </div>
-                                <div class="form-text">Click to select subjects. Selected items appear above.</div>
+                                <div class="form-text">Select subjects for specialization. Multiple selections allowed.</div>
                             </div>
                             
                             <div class="col-md-12">
@@ -152,120 +138,82 @@
 </div>
 {% endblock %}
 
+{% block extra_css %}
+<style>
+    /* Re-apply working Select2 example styles, adapted for Bootstrap 5 theme */
+    .select2-container--bootstrap-5 .select2-selection--multiple {
+        background-color: white;
+        border: 1px solid #aaa;
+        border-radius: 4px;
+        cursor: text;
+        padding-bottom: 5px !important;
+        padding-right: 5px !important;
+        position: relative;
+        display: block !important; /* Use block display for the main selection container */
+        min-height: 32px !important;
+        user-select: none;
+        -webkit-user-select: none;
+    }
+
+    .select2-container--bootstrap-5.select2-container--focus .select2-selection--multiple {
+        border: solid black 1px !important;
+        outline: 0 !important;
+    }
+
+    /* Target the ul element - ensure inline flow */
+    .select2-container--bootstrap-5 .select2-selection--multiple ul.select2-selection__rendered {
+        padding: 0 !important;
+        margin: 0 !important;
+        list-style: none !important;
+        display: inline !important; /* Inline to prevent block spacing */
+    }
+
+    /* List items - inline-block for proper rendering and spacing */
+    .select2-container--bootstrap-5 .select2-selection--multiple .select2-selection__rendered li.select2-selection__choice {
+        margin: 0 5px 0 0 !important; /* Only right margin for spacing between items */
+        padding: 0 !important;
+        display: inline-block !important;
+        vertical-align: top !important;
+    }
+
+    /* Search field - inline to stay on same line */
+    .select2-container--bootstrap-5 .select2-selection__search--inline,
+    .select2-container--bootstrap-5 .select2-search--inline {
+        margin: 0 !important;
+        padding: 0 !important;
+        display: inline !important;
+    }
+
+    .select2-container--bootstrap-5 .select2-search__field {
+        margin: 0 !important;
+        padding: 0 !important;
+    }
+</style>
+{% endblock %}
+
 {% block extra_js %}
 <script>
-document.addEventListener('DOMContentLoaded', function() {
-    const selectedItemsContainer = document.getElementById('selected-specializations');
-    const hiddenInput = document.getElementById('id_specialization');
-    const dropdownItems = document.querySelectorAll('.specialization-item');
-    const selectedValues = new Set();
-    
-    // Initialize with existing selections
-    {% for spec in selected_specializations %}
-        selectedValues.add('{{ spec }}');
-    {% endfor %}
-    
-    // Function to update hidden input
-    function updateHiddenInput() {
-        hiddenInput.value = Array.from(selectedValues).join(',');
-    }
-    
-    // Function to re-enable dropdown item
-    function enableDropdownItem(value) {
-        dropdownItems.forEach(item => {
-            if (item.getAttribute('data-value') === value) {
-                item.classList.remove('disabled');
-                item.style.pointerEvents = '';
-                item.style.opacity = '';
-            }
-        });
-    }
-    
-    // Function to disable dropdown item
-    function disableDropdownItem(value) {
-        dropdownItems.forEach(item => {
-            if (item.getAttribute('data-value') === value) {
-                item.classList.add('disabled');
-                item.style.pointerEvents = 'none';
-                item.style.opacity = '0.5';
-            }
-        });
-    }
-    
-    // Function to remove selected item
-    function removeSelectedItem(value) {
-        selectedValues.delete(value);
-        updateHiddenInput();
-        enableDropdownItem(value);
-        
-        // Remove the badge from DOM
-        const badge = selectedItemsContainer.querySelector(`[data-value="${value}"]`);
-        if (badge) {
-            badge.remove();
-        }
-    }
-    
-    // Function to add selected item
-    function addSelectedItem(value, text) {
-        if (selectedValues.has(value)) {
-            return; // Already selected
-        }
-        
-        selectedValues.add(value);
-        const badge = document.createElement('span');
-        badge.className = 'badge bg-primary me-1 mb-1';
-        badge.setAttribute('data-value', value);
-        badge.innerHTML = text + ' <button type="button" class="btn-close btn-close-white ms-1" style="font-size: 0.7em;" aria-label="Remove"></button>';
-        
-        // Add remove functionality
-        const removeBtn = badge.querySelector('.btn-close');
-        removeBtn.addEventListener('click', function(e) {
-            e.preventDefault();
-            e.stopPropagation();
-            removeSelectedItem(value);
-        });
-        
-        selectedItemsContainer.appendChild(badge);
-        updateHiddenInput();
-        disableDropdownItem(value);
-    }
-    
-    // Handle remove buttons for existing badges (including those not in dropdown)
-    const existingBadges = selectedItemsContainer.querySelectorAll('.badge[data-value]');
-    existingBadges.forEach(badge => {
-        const removeBtn = badge.querySelector('.btn-close');
-        if (removeBtn) {
-            removeBtn.addEventListener('click', function(e) {
-                e.preventDefault();
-                e.stopPropagation();
-                const value = badge.getAttribute('data-value');
-                removeSelectedItem(value);
-            });
-        }
+$(document).ready(function() {
+    // Initialize Select2 for specialization selection
+    $('#id_specialization').select2('destroy'); // Destroy any existing initialization
+    $('#id_specialization').select2({
+        theme: 'bootstrap-5',
+        width: '100%',
+        placeholder: 'Select subjects for specialization (optional)',
+        closeOnSelect: false
     });
     
-    // Handle dropdown item clicks
-    dropdownItems.forEach(item => {
-        item.addEventListener('click', function(e) {
-            e.preventDefault();
-            e.stopPropagation();
-            const value = this.getAttribute('data-value');
-            const text = this.getAttribute('data-text');
-            
-            if (!selectedValues.has(value)) {
-                addSelectedItem(value, text);
-            }
+    // Convert Select2 multiple values to comma-separated string for form submission
+    // The view expects getlist('specialization'), so we need to ensure proper submission
+    const form = document.querySelector('form');
+    if (form) {
+        form.addEventListener('submit', function(e) {
+            const selectedValues = $('#id_specialization').val() || [];
+            // Select2 with multiple will submit as array, which Django's getlist can handle
+            // But we need to ensure the select element has the correct values
+            // Select2 already handles this, so we just need to make sure it's synced
         });
-        
-        // Check if already selected and disable
-        const value = item.getAttribute('data-value');
-        if (selectedValues.has(value)) {
-            disableDropdownItem(value);
-        }
-    });
-    
-    // Update hidden input on page load
-    updateHiddenInput();
+    }
 });
 </script>
 {% endblock %}
