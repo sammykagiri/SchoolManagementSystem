@@ -1,57 +1,57 @@
 {% extends 'base.html' %}
+{% load widget_tweaks %}
 {% block title %}{{ title|default:'Add Student' }} | School Management System{% endblock %}
 
 {% block extra_css %}
 <style>
-    .multi-select-wrapper {
-        margin-bottom: 15px;
-    }
-    /* Select2 multiple selection - cursor on the right, no wrapping */
+    /* Match working Select2 example styles for Bootstrap 5 theme */
     .select2-container--bootstrap-5 .select2-selection--multiple {
-        padding: 0.375rem 0.75rem !important;   /* match bs5 input padding */
-        min-height: 38px !important;
-        display: flex !important;
-        flex-direction: row !important;
-        flex-wrap: nowrap !important;          /* prevent wrapping - cursor stays on right */
-        overflow-x: auto !important;            /* horizontal scroll when many tags */
-        gap: 0.35rem !important;
-        align-items: center !important;
+        background-color: white !important;
+        border: 1px solid #aaa !important;
+        border-radius: 4px !important;
+        cursor: text !important;
+        padding-bottom: 5px !important;
+        padding-right: 5px !important;
+        position: relative !important;
+        box-sizing: border-box !important;
+        display: block !important;
+        min-height: 32px !important;
+        user-select: none !important;
+        -webkit-user-select: none !important;
     }
-
-    .select2-container--bootstrap-5 .select2-selection--multiple .select2-selection__rendered {
-        display: flex !important;
-        flex-direction: row !important;
-        flex-wrap: nowrap !important;          /* prevent wrapping */
-        align-items: center !important;
+    
+    .select2-container--bootstrap-5.select2-container--focus .select2-selection--multiple {
+        border: solid black 1px !important;
+        outline: 0 !important;
+    }
+    
+    /* Remove empty line at bottom - make ul inline */
+    .select2-container--bootstrap-5 .select2-selection--multiple ul.select2-selection__rendered {
         padding: 0 !important;
         margin: 0 !important;
-        width: auto !important;                 /* very important - allows natural width */
+        list-style: none !important;
+        display: inline !important;
     }
-
-    /* Tags themselves */
-    .select2-container--bootstrap-5 .select2-selection__choice {
-        flex-shrink: 0 !important;
-        margin: 0 !important;
-        white-space: nowrap !important;
+    
+    /* List items - inline-block to prevent line breaks with spacing between them */
+    .select2-container--bootstrap-5 .select2-selection--multiple .select2-selection__rendered li.select2-selection__choice {
+        margin: 2px 5px 2px 0 !important;  /* Top and bottom margin for spacing, right margin between items */
+        padding: 0 !important;
+        display: inline-block !important;
+        vertical-align: top !important;
     }
-
-    /* The search field must grow and never force new line */
+    
+    /* Search field - inline to stay on same line */
     .select2-container--bootstrap-5 .select2-selection__search--inline,
     .select2-container--bootstrap-5 .select2-search--inline {
-        flex-grow: 1 !important;
-        flex-shrink: 1 !important;
-        min-width: 140px !important;            /* adjust as needed */
         margin: 0 !important;
         padding: 0 !important;
+        display: inline !important;
     }
-
+    
     .select2-container--bootstrap-5 .select2-search__field {
         margin: 0 !important;
         padding: 0 !important;
-        min-height: 24px;
-        line-height: 1.5;
-        width: 100% !important;
-        box-sizing: content-box !important;
     }
 </style>
 {% endblock %}
@@ -388,22 +388,12 @@
 
                             <!-- Linked Parents/Guardians -->
                             <div class="col-12">
-                                <label for="id_parents" class="form-label">
-                                    Linked Parent/Guardian Accounts
+                                <label for="{{ form.parents.id_for_label }}" class="form-label">
+                                    {{ form.parents.label }}
+                                    {% if form.parents.field.required %}<span class="text-danger">*</span>{% endif %}
                                 </label>
                                 <div class="multi-select-wrapper">
-                                    <select name="parents" id="id_parents" class="form-select select2" multiple="multiple">
-                                        {% for parent in form.parents.field.queryset %}
-                                            <option value="{{ parent.id }}" 
-                                                    {% if student %}
-                                                        {% if parent in student.parents.all %}selected{% endif %}
-                                                    {% else %}
-                                                        {% if parent.id in form.parents.value %}selected{% endif %}
-                                                    {% endif %}>
-                                                {{ parent.full_name }} ({{ parent.user.username }}){% if parent.phone %} - {{ parent.phone }}{% endif %}
-                                            </option>
-                                        {% endfor %}
-                                    </select>
+                                    {% render_field form.parents class="form-select select2" %}
                                 </div>
                                 {% if form.parents.help_text %}
                                     <div class="form-text mt-2">{{ form.parents.help_text }}</div>
@@ -1795,120 +1785,26 @@ document.addEventListener('DOMContentLoaded', function() {
     {% endif %}
     
     // Parent/Guardian selection handling with Select2
+    // Initialize after DOM is ready - destroy any existing initialization first
+    // This ensures our settings take precedence over the global initialization in base.html
+    if ($('#id_parents').hasClass('select2-hidden-accessible')) {
+        $('#id_parents').select2('destroy');
+    }
     $('#id_parents').select2({
         theme: 'bootstrap-5',
         width: '100%',
         placeholder: 'Select parents/guardians to link (optional)',
-        allowClear: false,
-        closeOnSelect: false,
-        dropdownParent: $('body'),
-        
-        // This hides already selected items from the dropdown using matcher
-        matcher: function(params, data) {
-            // Get currently selected IDs
-            const selectedIds = $('#id_parents').val() || [];
-            const dataIdStr = String(data.id);
-            const isSelected = selectedIds.some(id => String(id) === dataIdStr);
-            
-            // Don't show if already selected
-            if (isSelected) {
-                return null;
-            }
-            
-            // If there's no search term, show all unselected items
-            if (!params.term || $.trim(params.term) === '') {
-                return data;
-            }
-            
-            // If there's a search term, filter by text match
-            if (data.text) {
-                if (data.text.toUpperCase().indexOf(params.term.toUpperCase()) > -1) {
-                    return data;
-                }
-            }
-            
-            return null;
-        },
-        templateSelection: function(data) {
-            return data.text;
-        }
+        closeOnSelect: false  // Keep dropdown open for multi-select (matches Select2 example behavior)
     });
     
-    // Function to ensure search input appears right after selected items
-    // With flex-wrap: nowrap, the search should naturally appear after items
-    function ensureParentSearchAfterItems() {
-        const container = $('#id_parents').next('.select2-container');
-        if (container.length) {
-            const rendered = container.find('.select2-selection__rendered');
-            const search = rendered.find('.select2-search--inline');
-            
-            // Ensure search is in the rendered container and positioned correctly
-            if (search.length && !search.parent().is(rendered)) {
-                search.detach().appendTo(rendered);
-            }
-        }
-    }
-    
-    // Ensure search is right after items after any selection/deselection
+    // Trigger form change check for update button state
     $('#id_parents').on('select2:select select2:unselect', function() {
-        // Use a small delay to ensure DOM is updated
-        setTimeout(ensureParentSearchAfterItems, 10);
-        
-        // When dropdown is open, trigger a search refresh to re-run matcher
-        const select2 = $(this).data('select2');
-        if (select2 && select2.isOpen()) {
-            // Trigger a search to refresh the results
-            const searchField = select2.$dropdown.find('.select2-search__field');
-            if (searchField.length) {
-                const currentTerm = searchField.val() || '';
-                // Clear and re-enter the search term to trigger matcher
-                searchField.val('').trigger('input');
-                if (currentTerm) {
-                    setTimeout(function() {
-                        searchField.val(currentTerm).trigger('input');
-                    }, 10);
-                }
-            }
-        }
-        
-        // Trigger form change check for update button state
         if (typeof checkFormChanges === 'function') {
             setTimeout(function() {
                 checkFormChanges();
             }, 50);
         }
     });
-    
-    // Ensure search is right after items when dropdown closes
-    $('#id_parents').on('select2:close', function() {
-        setTimeout(ensureParentSearchAfterItems, 10);
-    });
-    
-    // Ensure proper ordering on initial load
-    setTimeout(ensureParentSearchAfterItems, 100);
-    
-    // Also ensure on focus and when dropdown opens
-    $('#id_parents').on('select2:open', function() {
-        setTimeout(ensureParentSearchAfterItems, 10);
-    });
-    
-    // Use MutationObserver to watch for DOM changes and ensure search stays right after items
-    const parentContainer = $('#id_parents').next('.select2-container');
-    if (parentContainer.length) {
-        const observer = new MutationObserver(function(mutations) {
-            // Debounce to avoid too many calls
-            clearTimeout(observer.timeout);
-            observer.timeout = setTimeout(ensureParentSearchAfterItems, 10);
-        });
-        
-        const rendered = parentContainer.find('.select2-selection__rendered');
-        if (rendered.length) {
-            observer.observe(rendered[0], {
-                childList: true,
-                subtree: true
-            });
-        }
-    }
     
     // Initialize initial parent IDs for form change detection
     {% if student %}

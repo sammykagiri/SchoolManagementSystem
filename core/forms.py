@@ -24,7 +24,7 @@ class StudentForm(forms.ModelForm):
             'address': forms.Textarea(attrs={'rows': 3}),
             'uses_transport': forms.CheckboxInput(),
             'photo': forms.FileInput(attrs={'accept': 'image/*', 'class': 'form-control'}),
-            'parents': forms.CheckboxSelectMultiple(attrs={'style': 'display: none;'}),  # Hidden - handled by custom UI
+            'parents': forms.SelectMultiple(attrs={'class': 'form-select select2'}),
             'school_class': forms.Select(attrs={'class': 'form-select'}),
             'optional_fee_categories': forms.CheckboxSelectMultiple(),
             'upi': forms.TextInput(attrs={
@@ -59,8 +59,17 @@ class StudentForm(forms.ModelForm):
             self.fields['transport_route'].queryset = active_routes
             # Filter parents by school
             from .models import Parent
-            self.fields['parents'].queryset = Parent.objects.filter(school=school, is_active=True)
-            
+            parents_queryset = Parent.objects.filter(school=school, is_active=True).select_related('user')
+            self.fields['parents'].queryset = parents_queryset
+        else:
+            # No school provided - set empty queryset
+            from .models import Parent
+            self.fields['parents'].queryset = Parent.objects.none()
+        
+        # Customize option labels to match template format (always set)
+        self.fields['parents'].label_from_instance = lambda obj: f"{obj.full_name} ({obj.user.username}){' - ' + obj.phone if obj.phone else ''}"
+        
+        if school:
             # Filter optional fee categories by school and set defaults
             if school:
                 optional_categories = FeeCategory.objects.filter(school=school, is_optional=True)

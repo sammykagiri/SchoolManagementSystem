@@ -66,6 +66,7 @@ INSTALLED_APPS = [
     'rest_framework',
     'corsheaders',
     'storages',  # For AWS S3 media file storage
+    'widget_tweaks',
     'core',
     'payments',
     'communications',
