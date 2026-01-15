@@ -1,0 +1,180 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}{{ title }} | School Management System{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h4 class="mb-0">
+            <i class="fas fa-user-tag me-2"></i> 
+            {% if role %}Edit Role: {{ role.get_display_name }}{% else %}{{ title }}{% endif %}
+        </h4>
+        <a href="{% url 'core:role_list' %}" class="btn btn-outline-secondary">
+            <i class="fas fa-arrow-left me-2"></i>Back to Roles
+        </a>
+    </div>
+    
+    <div class="card shadow-sm">
+        <div class="card-header bg-primary text-white">
+            <h5 class="mb-0">Role Information</h5>
+        </div>
+        <div class="card-body">
+            <form method="post" novalidate>
+                {% csrf_token %}
+                
+                {% if form.non_field_errors %}
+                    <div class="alert alert-danger">
+                        {% for error in form.non_field_errors %}
+                            {{ error }}
+                        {% endfor %}
+                    </div>
+                {% endif %}
+                
+                <div class="mb-3">
+                    <label for="{{ form.name.id_for_label }}" class="form-label">
+                        Role Name (Internal) <span class="text-danger">*</span>
+                    </label>
+                    {{ form.name }}
+                    {% if form.name.help_text %}
+                        <div class="form-text">{{ form.name.help_text }}</div>
+                    {% endif %}
+                    <div class="alert alert-info mt-2">
+                        <small>
+                            <strong>Note:</strong> You can create custom roles like "librarian", "security_guard", "counselor", etc. 
+                            Predefined roles (super_admin, school_admin, teacher, accountant, parent, student) can also be created if needed.
+                        </small>
+                    </div>
+                    {% if form.name.errors %}
+                        <div class="text-danger small">
+                            {% for error in form.name.errors %}
+                                <div>{{ error }}</div>
+                            {% endfor %}
+                        </div>
+                    {% endif %}
+                </div>
+                
+                <div class="mb-3">
+                    <label for="{{ form.display_name.id_for_label }}" class="form-label">
+                        Display Name
+                    </label>
+                    {{ form.display_name }}
+                    {% if form.display_name.help_text %}
+                        <div class="form-text">{{ form.display_name.help_text }}</div>
+                    {% endif %}
+                    {% if form.display_name.errors %}
+                        <div class="text-danger small">
+                            {% for error in form.display_name.errors %}
+                                <div>{{ error }}</div>
+                            {% endfor %}
+                        </div>
+                    {% endif %}
+                </div>
+                
+                <div class="mb-3">
+                    <label for="{{ form.description.id_for_label }}" class="form-label">
+                        Description
+                    </label>
+                    {{ form.description }}
+                    {% if form.description.help_text %}
+                        <div class="form-text">{{ form.description.help_text }}</div>
+                    {% endif %}
+                    {% if form.description.errors %}
+                        <div class="text-danger small">
+                            {% for error in form.description.errors %}
+                                <div>{{ error }}</div>
+                            {% endfor %}
+                        </div>
+                    {% endif %}
+                </div>
+                
+                <div class="mb-3">
+                    <div class="form-check form-switch">
+                        {{ form.is_active }}
+                        <label class="form-check-label" for="{{ form.is_active.id_for_label }}">
+                            Active Status
+                        </label>
+                    </div>
+                    {% if form.is_active.help_text %}
+                        <div class="form-text">{{ form.is_active.help_text }}</div>
+                    {% endif %}
+                    {% if form.is_active.errors %}
+                        <div class="text-danger small">
+                            {% for error in form.is_active.errors %}
+                                <div>{{ error }}</div>
+                            {% endfor %}
+                        </div>
+                    {% endif %}
+                </div>
+                
+                <div class="mb-3">
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <label class="form-label mb-0">Permissions</label>
+                        <div>
+                            <button type="button" class="btn btn-sm btn-outline-primary" id="selectAllPermissions">
+                                <i class="fas fa-check-square me-1"></i>Select All
+                            </button>
+                            <button type="button" class="btn btn-sm btn-outline-secondary" id="deselectAllPermissions">
+                                <i class="fas fa-square me-1"></i>Deselect All
+                            </button>
+                        </div>
+                    </div>
+                    {% if form.permissions.help_text %}
+                        <div class="form-text mb-2">{{ form.permissions.help_text }}</div>
+                    {% endif %}
+                    <div class="border rounded p-3" style="max-height: 300px; overflow-y: auto;" id="permissionsContainer">
+                        {% for permission in form.permissions %}
+                            <div class="form-check mb-2">
+                                {{ permission.tag }}
+                                <label class="form-check-label" for="{{ permission.id_for_label }}">
+                                    {{ permission.choice_label }}
+                                </label>
+                            </div>
+                        {% empty %}
+                            <p class="text-muted">No permissions available.</p>
+                        {% endfor %}
+                    </div>
+                    {% if form.permissions.errors %}
+                        <div class="text-danger small mt-2">
+                            {% for error in form.permissions.errors %}
+                                <div>{{ error }}</div>
+                            {% endfor %}
+                        </div>
+                    {% endif %}
+                </div>
+                
+                <div class="d-flex justify-content-between mt-4">
+                    <a href="{% url 'core:role_list' %}" class="btn btn-secondary">
+                        <i class="fas fa-times me-2"></i>Cancel
+                    </a>
+                    {% if role %}
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-save me-2"></i>Update Role
+                    </button>
+                    {% else %}
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-save me-2"></i>Save Role
+                    </button>
+                    {% endif %}
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+$(document).ready(function() {
+    // Select All Permissions
+    $('#selectAllPermissions').on('click', function() {
+        $('#permissionsContainer input[type="checkbox"]').prop('checked', true);
+    });
+    
+    // Deselect All Permissions
+    $('#deselectAllPermissions').on('click', function() {
+        $('#permissionsContainer input[type="checkbox"]').prop('checked', false);
+    });
+});
+</script>
+{% endblock %}

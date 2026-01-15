@@ -146,6 +146,9 @@ urlpatterns = [
     
     # Role Management
     path('roles/', views.role_list, name='role_list'),
+    path('roles/add/', views.role_add, name='role_add'),
+    path('roles/<int:role_id>/edit/', views.role_edit, name='role_edit'),
+    path('roles/<int:role_id>/delete/', views.role_delete, name='role_delete'),
     path('roles/<int:role_id>/permissions/', views.role_permissions, name='role_permissions'),
     
     # Student Promotion

@@ -3,7 +3,7 @@ from django.contrib.auth.forms import UserCreationForm
 from django.contrib.auth.models import User
 from django.core.exceptions import ValidationError
 from django.db.models import Q
-from .models import Student, Grade, TransportRoute, Role, UserProfile, School, SchoolClass, FeeCategory, Parent
+from .models import Student, Grade, TransportRoute, Role, UserProfile, School, SchoolClass, FeeCategory, Parent, Permission
 
 
 class StudentForm(forms.ModelForm):
@@ -1429,3 +1429,63 @@ class ParentEditForm(forms.ModelForm):
             logger.info(f'Parent {parent.id} now has {parent.children.count()} linked students')
         
         return parent
+
+
+class RoleForm(forms.ModelForm):
+    """Form for creating and updating roles"""
+    
+    class Meta:
+        model = Role
+        fields = ['name', 'display_name', 'description', 'is_active', 'permissions']
+        widgets = {
+            'name': forms.TextInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'e.g., librarian, security_guard, counselor'
+            }),
+            'display_name': forms.TextInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'e.g., Librarian, Security Guard, Counselor (optional)'
+            }),
+            'description': forms.Textarea(attrs={'rows': 3, 'class': 'form-control'}),
+            'is_active': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+            'permissions': forms.CheckboxSelectMultiple(attrs={'class': 'form-check-input'}),
+        }
+    
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields['name'].help_text = 'Enter a unique role name using lowercase letters and underscores (e.g., "librarian", "security_guard"). This will be used internally.'
+        self.fields['display_name'].help_text = 'Optional: Enter a human-readable name for this role. If left blank, it will be auto-generated from the role name.'
+        self.fields['description'].help_text = 'Optional description of this role'
+        self.fields['is_active'].help_text = 'Inactive roles cannot be assigned to users'
+        self.fields['permissions'].help_text = 'Select permissions to assign to this role'
+        self.fields['permissions'].queryset = Permission.objects.all().order_by('resource_type', 'permission_type')
+    
+    def clean_name(self):
+        """Validate role name format"""
+        name = self.cleaned_data.get('name', '').strip().lower()
+        
+        if not name:
+            raise ValidationError('Role name is required.')
+        
+        # Validate format: only lowercase letters, numbers, and underscores
+        import re
+        if not re.match(r'^[a-z0-9_]+$', name):
+            raise ValidationError(
+                'Role name must contain only lowercase letters, numbers, and underscores. '
+                'Examples: "librarian", "security_guard", "counselor"'
+            )
+        
+        # Check for uniqueness (excluding current instance if editing)
+        existing = Role.objects.filter(name=name)
+        if self.instance and self.instance.pk:
+            existing = existing.exclude(pk=self.instance.pk)
+        if existing.exists():
+            raise ValidationError(f'A role with the name "{name}" already exists.')
+        
+        return name
+    
+    def clean_display_name(self):
+        """Clean and validate display name"""
+        display_name = self.cleaned_data.get('display_name', '').strip()
+        # Display name is optional, so empty string is fine
+        return display_name if display_name else ''

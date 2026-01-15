@@ -4307,6 +4307,79 @@ def role_list(request):
 
 @login_required
 @role_required('super_admin', 'school_admin')
+def role_add(request):
+    """Add a new role"""
+    from .forms import RoleForm
+    
+    if request.method == 'POST':
+        form = RoleForm(request.POST)
+        if form.is_valid():
+            role = form.save()
+            messages.success(request, f'Role "{role.get_display_name()}" created successfully!')
+            return redirect('core:role_list')
+    else:
+        form = RoleForm()
+    
+    return render(request, 'core/roles/role_form.html', {
+        'form': form,
+        'title': 'Add Role',
+        'role': None
+    })
+
+
+@login_required
+@role_required('super_admin', 'school_admin')
+def role_edit(request, role_id):
+    """Edit an existing role"""
+    from .forms import RoleForm
+    role = get_object_or_404(Role, id=role_id)
+    
+    if request.method == 'POST':
+        form = RoleForm(request.POST, instance=role)
+        if form.is_valid():
+            role = form.save()
+            messages.success(request, f'Role "{role.get_display_name()}" updated successfully!')
+            return redirect('core:role_list')
+    else:
+        form = RoleForm(instance=role)
+    
+    return render(request, 'core/roles/role_form.html', {
+        'form': form,
+        'title': 'Edit Role',
+        'role': role
+    })
+
+
+@login_required
+@role_required('super_admin', 'school_admin')
+def role_delete(request, role_id):
+    """Delete a role"""
+    role = get_object_or_404(Role, id=role_id)
+    
+    if request.method == 'POST':
+        role_name = role.get_display_name()
+        user_count = role.user_profiles.count()
+        
+        # Check if role is assigned to any users
+        if user_count > 0:
+            messages.error(
+                request, 
+                f'Cannot delete role "{role_name}" because it is assigned to {user_count} user(s). '
+                'Please remove the role from all users before deleting.'
+            )
+            return redirect('core:role_list')
+        
+        role.delete()
+        messages.success(request, f'Role "{role_name}" deleted successfully!')
+        return redirect('core:role_list')
+    
+    return render(request, 'core/roles/role_confirm_delete.html', {
+        'role': role
+    })
+
+
+@login_required
+@role_required('super_admin', 'school_admin')
 def role_permissions(request, role_id):
     """Manage permissions for a role"""
     role = get_object_or_404(Role, id=role_id)

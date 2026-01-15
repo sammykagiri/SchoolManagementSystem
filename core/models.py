@@ -508,7 +508,18 @@ class Role(models.Model):
         ('student', 'Student'),
     ]
     
-    name = models.CharField(max_length=20, choices=ROLE_CHOICES, unique=True)
+    # Allow custom role names - removed choices constraint to enable custom roles
+    # ROLE_CHOICES is kept for reference and backward compatibility
+    name = models.CharField(
+        max_length=50, 
+        unique=True,
+        help_text='Role name (use lowercase with underscores, e.g., "librarian", "security_guard")'
+    )
+    display_name = models.CharField(
+        max_length=100,
+        blank=True,
+        help_text='Human-readable display name (e.g., "Librarian", "Security Guard"). If left blank, will be auto-generated from name.'
+    )
     permissions = models.ManyToManyField('Permission', related_name='roles', blank=True)
     description = models.TextField(blank=True, help_text='Description of this role')
     is_active = models.BooleanField(default=True)
@@ -520,7 +531,18 @@ class Role(models.Model):
     
     def get_display_name(self):
         """Get the human-readable name for this role"""
-        return dict(self.ROLE_CHOICES).get(self.name, self.name)
+        # If display_name is set, use it
+        if self.display_name:
+            return self.display_name
+        
+        # Check if it's a predefined role
+        predefined = dict(self.ROLE_CHOICES).get(self.name)
+        if predefined:
+            return predefined
+        
+        # For custom roles, format the name nicely
+        # Convert "librarian" -> "Librarian", "security_guard" -> "Security Guard"
+        return self.name.replace('_', ' ').title()
     
     def has_permission(self, permission_type, resource_type):
         """Check if this role has a specific permission"""

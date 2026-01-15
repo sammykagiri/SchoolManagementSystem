@@ -7,6 +7,9 @@
 <div class="container py-4">
     <div class="d-flex justify-content-between align-items-center mb-4">
         <h1><i class="fas fa-user-tag me-2"></i> Role Management</h1>
+        <a href="{% url 'core:role_add' %}" class="btn btn-primary">
+            <i class="fas fa-plus me-2"></i> Add Role
+        </a>
     </div>
     
     <div class="card shadow-sm">
@@ -19,6 +22,7 @@
                     <thead>
                         <tr>
                             <th>Role Name</th>
+                            <th>Status</th>
                             <th>Users</th>
                             <th>Permissions</th>
                             <th>Actions</th>
@@ -28,17 +32,32 @@
                         {% for role in roles %}
                         <tr>
                             <td>{{ role.get_display_name }}</td>
+                            <td>
+                                {% if role.is_active %}
+                                    <span class="badge bg-success">Active</span>
+                                {% else %}
+                                    <span class="badge bg-secondary">Inactive</span>
+                                {% endif %}
+                            </td>
                             <td>{{ role.user_profiles.count }}</td>
                             <td>{{ role.permissions.count }}</td>
                             <td>
-                                <a href="{% url 'core:role_permissions' role.id %}" class="btn btn-sm btn-outline-primary">
-                                    <i class="fas fa-key me-1"></i> Manage Permissions
-                                </a>
+                                <div class="btn-group" role="group">
+                                    <a href="{% url 'core:role_permissions' role.id %}" class="btn btn-sm btn-outline-info" title="Manage Permissions">
+                                        <i class="fas fa-key"></i>
+                                    </a>
+                                    <a href="{% url 'core:role_edit' role.id %}" class="btn btn-sm btn-outline-primary" title="Edit Role">
+                                        <i class="fas fa-edit"></i>
+                                    </a>
+                                    <a href="{% url 'core:role_delete' role.id %}" class="btn btn-sm btn-outline-danger" title="Delete Role">
+                                        <i class="fas fa-trash"></i>
+                                    </a>
+                                </div>
                             </td>
                         </tr>
                         {% empty %}
                         <tr>
-                            <td colspan="4" class="text-center">No roles found.</td>
+                            <td colspan="5" class="text-center">No roles found.</td>
                         </tr>
                         {% endfor %}
                     </tbody>
