@@ -100,7 +100,22 @@
                             </td>
                             <td>{{ list_user.date_joined|date:"d-m-Y" }}</td>
                             <td>
-                                {% if is_superadmin or not list_user.is_superuser and not list_user.profile.is_super_admin %}
+                                {% if is_superadmin %}
+                                    {% if user|has_permission:'change_user_management' or user|has_permission:'delete_user_management' %}
+                                    <div class="btn-group">
+                                        {% if user|has_permission:'change_user_management' %}
+                                        <a href="{% url 'core:user_edit' list_user.id %}" class="btn btn-sm btn-outline-primary">
+                                            <i class="fas fa-edit"></i>
+                                        </a>
+                                        {% endif %}
+                                        {% if user|has_permission:'delete_user_management' %}
+                                        <a href="{% url 'core:user_delete' list_user.id %}" class="btn btn-sm btn-outline-danger">
+                                            <i class="fas fa-trash"></i>
+                                        </a>
+                                        {% endif %}
+                                    </div>
+                                    {% endif %}
+                                {% elif not list_user.is_superuser and not list_user.profile.is_super_admin %}
                                     {% if user|has_permission:'change_user_management' or user|has_permission:'delete_user_management' %}
                                     <div class="btn-group">
                                         {% if user|has_permission:'change_user_management' %}

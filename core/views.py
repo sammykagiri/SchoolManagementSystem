@@ -162,6 +162,12 @@ def home(request):
 
 
 @login_required
+def settings_list(request):
+    """Settings page with permission-based access cards"""
+    return render(request, 'core/settings_list.html')
+
+
+@login_required
 @permission_required('view', 'dashboard')
 def dashboard(request):
     """Main dashboard view - uses service for business logic (Admin/Teacher only for MVP)"""

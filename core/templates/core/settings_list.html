@@ -1,0 +1,113 @@
+{% extends 'base.html' %}
+{% load permissions %}
+{% load static %}
+
+{% block title %}Settings | School Management System{% endblock %}
+
+{% block content %}
+{% if user.is_authenticated %}
+<div class="container py-4">
+    <div class="row mb-4">
+        <div class="col-12">
+            <h2 class="mb-2">Settings</h2>
+            <p class="text-muted">Configure system settings and manage academic structure</p>
+        </div>
+    </div>
+
+    <div class="row mb-4">
+        <!-- Terms Card -->
+        {% if user|has_permission:'view_term' %}
+        <div class="col-md-4 mb-3">
+            <div class="card h-100 shadow-sm">
+                <div class="card-body text-center">
+                    <i class="fas fa-calendar-alt fa-3x text-primary mb-3"></i>
+                    <h5 class="card-title">Terms</h5>
+                    <p class="card-text text-muted small">Manage academic terms and periods</p>
+                    <a href="{% url 'core:term_list' %}" class="btn btn-primary btn-sm">Manage Terms</a>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Grades Card -->
+        {% if user|has_permission:'view_grade' %}
+        <div class="col-md-4 mb-3">
+            <div class="card h-100 shadow-sm">
+                <div class="card-body text-center">
+                    <i class="fas fa-graduation-cap fa-3x text-info mb-3"></i>
+                    <h5 class="card-title">Grades</h5>
+                    <p class="card-text text-muted small">Manage student grades and levels</p>
+                    <a href="{% url 'core:grade_list' %}" class="btn btn-primary btn-sm">Manage Grades</a>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Classes Card -->
+        {% if user|has_permission:'view_class' %}
+        <div class="col-md-4 mb-3">
+            <div class="card h-100 shadow-sm">
+                <div class="card-body text-center">
+                    <i class="fas fa-chalkboard fa-3x text-success mb-3"></i>
+                    <h5 class="card-title">Classes</h5>
+                    <p class="card-text text-muted small">Manage classes and sections</p>
+                    <a href="{% url 'core:class_list' %}" class="btn btn-primary btn-sm">Manage Classes</a>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Transport Routes Card -->
+        {% if user|has_permission:'view_fee' %}
+        <div class="col-md-4 mb-3">
+            <div class="card h-100 shadow-sm">
+                <div class="card-body text-center">
+                    <i class="fas fa-route fa-3x text-warning mb-3"></i>
+                    <h5 class="card-title">Transport Routes</h5>
+                    <p class="card-text text-muted small">Manage transport routes and fees</p>
+                    <a href="{% url 'core:transport_route_list' %}" class="btn btn-primary btn-sm">Manage Routes</a>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Fee Categories Card -->
+        {% if user|has_permission:'view_fee' %}
+        <div class="col-md-4 mb-3">
+            <div class="card h-100 shadow-sm">
+                <div class="card-body text-center">
+                    <i class="fas fa-tags fa-3x text-danger mb-3"></i>
+                    <h5 class="card-title">Fee Categories</h5>
+                    <p class="card-text text-muted small">Manage fee categories and types</p>
+                    <a href="{% url 'core:fee_category_list' %}" class="btn btn-primary btn-sm">Manage Categories</a>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Fee Category Types Card -->
+        {% if user|has_permission:'view_fee' %}
+        <div class="col-md-4 mb-3">
+            <div class="card h-100 shadow-sm">
+                <div class="card-body text-center">
+                    <i class="fas fa-list-alt fa-3x text-secondary mb-3"></i>
+                    <h5 class="card-title">Fee Category Types</h5>
+                    <p class="card-text text-muted small">Manage fee category types</p>
+                    <a href="{% url 'core:fee_category_type_list' %}" class="btn btn-primary btn-sm">Manage Types</a>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% else %}
+<div class="container py-4">
+    <div class="row">
+        <div class="col-md-12 text-center">
+            <h2>Settings</h2>
+            <p class="text-muted">Please <a href="{% url 'login' %}">login</a> to access the settings.</p>
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endblock %}

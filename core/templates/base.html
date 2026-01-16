@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% block title %}School Management{% if request.user.is_authenticated and request.user.profile.school %} - {{ request.user.profile.school.name }}{% endif %}{% endblock %}</title>
+    <title>{% block title %}School Management{% endblock %}</title>
     
     <!-- Favicon -->
     <link rel="icon" type="image/x-icon" href="{% static 'img/favicon.ico' %}">

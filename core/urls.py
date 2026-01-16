@@ -25,6 +25,8 @@ urlpatterns = [
     path('', views.root_redirect, name='root'),
     # Home page
     path('home/', views.home, name='home'),
+    # Settings
+    path('settings/', views.settings_list, name='settings_list'),
     # Dashboard
     path('dashboard/', views.dashboard, name='dashboard'),
     

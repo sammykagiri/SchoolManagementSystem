@@ -20,9 +20,11 @@
     
     <nav class="sidebar-nav flex-grow-1">
         {% if user.is_authenticated %}
-            {% if user.is_superuser or user.profile and not user.profile.is_student and not user.profile.is_parent %}
-            {% comment %}Check if user has school assigned - show all menus only if user has school{% endcomment %}
-            {% if user.is_superuser or user.profile and user.profile.school %}
+            {% if user.is_superuser or user.profile %}
+                {% if user.is_superuser or not user.profile.is_student %}
+                    {% if user.is_superuser or not user.profile.is_parent %}
+                    {% comment %}Check if user has school assigned - show all menus only if user has school{% endcomment %}
+                    {% if user.is_superuser or user.profile and user.profile.school %}
         <ul class="nav flex-column">
             <!-- Home -->
             <li class="nav-item">
@@ -454,14 +456,23 @@
             {% endif %}
             
             <!-- Settings -->
+            {% if user|has_permission:'view_term' or user|has_permission:'view_grade' or user|has_permission:'view_class' %}
             <li class="nav-item">
-                <a class="nav-link {% if request.resolver_match.url_name == 'term_list' or request.resolver_match.url_name == 'grade_list' or request.resolver_match.url_name == 'class_list' or request.resolver_match.url_name == 'user_list' or request.resolver_match.url_name == 'role_list' or request.resolver_match.url_name == 'transport_route_list' %}active{% endif %}" 
+                <a class="nav-link {% if request.resolver_match.url_name == 'settings_list' or request.resolver_match.url_name == 'term_list' or request.resolver_match.url_name == 'grade_list' or request.resolver_match.url_name == 'class_list' or request.resolver_match.url_name == 'transport_route_list' %}active{% endif %}" 
                    href="#" data-bs-toggle="collapse" data-bs-target="#settingsSubmenu" aria-expanded="false">
                     <i class="fas fa-cog me-2"></i>
                     <span>Settings</span>
                     <i class="fas fa-chevron-down ms-auto"></i>
                 </a>
                 <ul class="collapse nav flex-column submenu" id="settingsSubmenu">
+                    <li class="nav-item">
+                        <a class="nav-link {% if request.resolver_match.url_name == 'settings_list' %}active{% endif %}" href="{% url 'core:settings_list' %}">
+                            <i class="fas fa-cog me-2"></i>Settings Overview
+                        </a>
+                    </li>
+                    {% if user|has_permission:'view_term' or user|has_permission:'view_grade' or user|has_permission:'view_class' %}
+                    <li class="nav-item"><hr class="dropdown-divider my-2"></li>
+                    {% endif %}
                     {% if user|has_permission:'view_term' %}
                     <li class="nav-item">
                         <a class="nav-link {% if request.resolver_match.url_name == 'term_list' or request.resolver_match.url_name == 'term_create' or request.resolver_match.url_name == 'term_edit' %}active{% endif %}" href="{% url 'core:term_list' %}">
@@ -541,6 +552,9 @@
             {% endif %}
         </ul>
         {% endif %}
+                    {% endif %}
+                {% endif %}
+            {% endif %}
         {% endif %}
         {% if user.is_authenticated and user.profile and user.profile.is_parent %}
         {% comment %}Parent Portal Menu (for parents only){% endcomment %}

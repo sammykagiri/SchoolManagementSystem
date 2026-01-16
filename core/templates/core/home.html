@@ -11,14 +11,14 @@
         <div class="col-12 text-center">
             <h2 class="mb-2">Welcome to School Management System</h2>
             {% if user.profile and user.profile.school %}
-                <p class="text-muted">{{ user.profile.school.name }}</p>
+            <p class="text-muted">{{ user.profile.school.name }}</p>
             {% endif %}
         </div>
     </div>
 
     <div class="row mb-4">
-        <!-- Dashboard Card -->
         {% if user|has_permission:'view_dashboard' %}
+        <!-- Dashboard Card -->
         <div class="col-md-4 mb-3">
             <div class="card h-100 shadow-sm">
                 <div class="card-body text-center">
@@ -31,8 +31,8 @@
         </div>
         {% endif %}
 
-        <!-- Students Card -->
         {% if user|has_permission:'view_student' or user|has_permission:'add_student' %}
+        <!-- Students Card -->
         <div class="col-md-4 mb-3">
             <div class="card h-100 shadow-sm">
                 <div class="card-body text-center">
@@ -45,8 +45,8 @@
         </div>
         {% endif %}
 
-        <!-- Parents Card -->
         {% if user|has_permission:'view_parent' or user|has_permission:'add_parent' %}
+        <!-- Parents Card -->
         <div class="col-md-4 mb-3">
             <div class="card h-100 shadow-sm">
                 <div class="card-body text-center">
@@ -59,8 +59,8 @@
         </div>
         {% endif %}
 
-        <!-- Teachers Card -->
         {% if user|has_permission:'view_teacher' or user|has_permission:'add_teacher' %}
+        <!-- Teachers Card -->
         <div class="col-md-4 mb-3">
             <div class="card h-100 shadow-sm">
                 <div class="card-body text-center">
@@ -73,8 +73,8 @@
         </div>
         {% endif %}
 
-        <!-- Fees Card -->
         {% if user|has_permission:'view_fee' or user|has_permission:'view_fee_structure' or user|has_permission:'view_payment' %}
+        <!-- Fees Card -->
         <div class="col-md-4 mb-3">
             <div class="card h-100 shadow-sm">
                 <div class="card-body text-center">
@@ -87,8 +87,8 @@
         </div>
         {% endif %}
 
-        <!-- Attendance Card -->
         {% if user|has_permission:'view_attendance' or user|has_permission:'add_attendance' %}
+        <!-- Attendance Card -->
         <div class="col-md-4 mb-3">
             <div class="card h-100 shadow-sm">
                 <div class="card-body text-center">
@@ -101,8 +101,8 @@
         </div>
         {% endif %}
 
-        <!-- Subjects Card -->
         {% if user|has_permission:'view_subject' or user|has_permission:'add_subject' %}
+        <!-- Subjects Card -->
         <div class="col-md-4 mb-3">
             <div class="card h-100 shadow-sm">
                 <div class="card-body text-center">
@@ -115,8 +115,8 @@
         </div>
         {% endif %}
 
-        <!-- Timetable Card -->
         {% if user|has_permission:'view_timetable' or user|has_permission:'add_timetable' %}
+        <!-- Timetable Card -->
         <div class="col-md-4 mb-3">
             <div class="card h-100 shadow-sm">
                 <div class="card-body text-center">
@@ -129,8 +129,8 @@
         </div>
         {% endif %}
 
-        <!-- Exams Card -->
         {% if user|has_permission:'view_exam' or user|has_permission:'view_gradebook' %}
+        <!-- Exams Card -->
         <div class="col-md-4 mb-3">
             <div class="card h-100 shadow-sm">
                 <div class="card-body text-center">
@@ -143,8 +143,8 @@
         </div>
         {% endif %}
 
-        <!-- Homework Card -->
         {% if user|has_permission:'view_assignment' or user|has_permission:'view_submission' %}
+        <!-- Homework Card -->
         <div class="col-md-4 mb-3">
             <div class="card h-100 shadow-sm">
                 <div class="card-body text-center">
@@ -157,8 +157,8 @@
         </div>
         {% endif %}
 
-        <!-- Communications Card -->
         {% if user|has_permission:'view_template' or user|has_permission:'view_email' or user|has_permission:'view_sms' %}
+        <!-- Communications Card -->
         <div class="col-md-4 mb-3">
             <div class="card h-100 shadow-sm">
                 <div class="card-body text-center">
@@ -171,8 +171,8 @@
         </div>
         {% endif %}
 
-        <!-- Reports Card -->
         {% if user|has_permission:'view_report' %}
+        <!-- Reports Card -->
         <div class="col-md-4 mb-3">
             <div class="card h-100 shadow-sm">
                 <div class="card-body text-center">
@@ -185,22 +185,22 @@
         </div>
         {% endif %}
 
-        <!-- Settings Card -->
         {% if user|has_permission:'view_term' or user|has_permission:'view_grade' or user|has_permission:'view_class' %}
+        <!-- Settings Card -->
         <div class="col-md-4 mb-3">
             <div class="card h-100 shadow-sm">
                 <div class="card-body text-center">
                     <i class="fas fa-cog fa-3x text-secondary mb-3"></i>
                     <h5 class="card-title">Settings</h5>
                     <p class="card-text text-muted small">Configure terms, grades, and classes</p>
-                    <a href="{% url 'core:term_list' %}" class="btn btn-primary btn-sm">View Settings</a>
+                    <a href="{% url 'core:settings_list' %}" class="btn btn-primary btn-sm">View Settings</a>
                 </div>
             </div>
         </div>
         {% endif %}
 
-        <!-- User Management Card -->
         {% if user|has_permission:'view_user_management' or user|has_permission:'view_role_management' %}
+        <!-- User Management Card -->
         <div class="col-md-4 mb-3">
             <div class="card h-100 shadow-sm">
                 <div class="card-body text-center">
@@ -213,8 +213,8 @@
         </div>
         {% endif %}
 
-        <!-- School Management Card (Super Admin) -->
         {% if user.is_superuser or user|has_permission:'view_school_management' %}
+        <!-- School Management Card (Super Admin) -->
         <div class="col-md-4 mb-3">
             <div class="card h-100 shadow-sm">
                 <div class="card-body text-center">
