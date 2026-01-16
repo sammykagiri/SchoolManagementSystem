@@ -1,0 +1,241 @@
+{% extends 'base.html' %}
+{% load permissions %}
+{% load static %}
+
+{% block title %}Home | School Management System{% endblock %}
+
+{% block content %}
+{% if user.is_authenticated %}
+<div class="container py-4">
+    <div class="row mb-4">
+        <div class="col-12 text-center">
+            <h2 class="mb-2">Welcome to School Management System</h2>
+            {% if user.profile and user.profile.school %}
+                <p class="text-muted">{{ user.profile.school.name }}</p>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="row mb-4">
+        <!-- Dashboard Card -->
+        {% if user|has_permission:'view_dashboard' %}
+        <div class="col-md-4 mb-3">
+            <div class="card h-100 shadow-sm">
+                <div class="card-body text-center">
+                    <i class="fas fa-tachometer-alt fa-3x text-primary mb-3"></i>
+                    <h5 class="card-title">Dashboard</h5>
+                    <p class="card-text text-muted small">View system overview and statistics</p>
+                    <a href="{% url 'core:dashboard' %}" class="btn btn-primary btn-sm">View Dashboard</a>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Students Card -->
+        {% if user|has_permission:'view_student' or user|has_permission:'add_student' %}
+        <div class="col-md-4 mb-3">
+            <div class="card h-100 shadow-sm">
+                <div class="card-body text-center">
+                    <i class="fas fa-users fa-3x text-info mb-3"></i>
+                    <h5 class="card-title">Students</h5>
+                    <p class="card-text text-muted small">Manage student records and information</p>
+                    <a href="{% url 'core:student_list' %}" class="btn btn-primary btn-sm">View Students</a>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Parents Card -->
+        {% if user|has_permission:'view_parent' or user|has_permission:'add_parent' %}
+        <div class="col-md-4 mb-3">
+            <div class="card h-100 shadow-sm">
+                <div class="card-body text-center">
+                    <i class="fas fa-user-friends fa-3x text-success mb-3"></i>
+                    <h5 class="card-title">Parents</h5>
+                    <p class="card-text text-muted small">Manage parent and guardian records</p>
+                    <a href="{% url 'core:parent_list' %}" class="btn btn-primary btn-sm">View Parents</a>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Teachers Card -->
+        {% if user|has_permission:'view_teacher' or user|has_permission:'add_teacher' %}
+        <div class="col-md-4 mb-3">
+            <div class="card h-100 shadow-sm">
+                <div class="card-body text-center">
+                    <i class="fas fa-user-tie fa-3x text-warning mb-3"></i>
+                    <h5 class="card-title">Teachers</h5>
+                    <p class="card-text text-muted small">Manage teacher records and assignments</p>
+                    <a href="{% url 'core:teacher_list' %}" class="btn btn-primary btn-sm">View Teachers</a>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Fees Card -->
+        {% if user|has_permission:'view_fee' or user|has_permission:'view_fee_structure' or user|has_permission:'view_payment' %}
+        <div class="col-md-4 mb-3">
+            <div class="card h-100 shadow-sm">
+                <div class="card-body text-center">
+                    <i class="fas fa-money-bill-wave fa-3x text-success mb-3"></i>
+                    <h5 class="card-title">Fees & Payments</h5>
+                    <p class="card-text text-muted small">Manage fee structures and payments</p>
+                    <a href="{% url 'core:fee_structure_list' %}" class="btn btn-primary btn-sm">View Fees</a>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Attendance Card -->
+        {% if user|has_permission:'view_attendance' or user|has_permission:'add_attendance' %}
+        <div class="col-md-4 mb-3">
+            <div class="card h-100 shadow-sm">
+                <div class="card-body text-center">
+                    <i class="fas fa-check-circle fa-3x text-primary mb-3"></i>
+                    <h5 class="card-title">Attendance</h5>
+                    <p class="card-text text-muted small">Track and manage student attendance</p>
+                    <a href="{% url 'attendance:attendance_list' %}" class="btn btn-primary btn-sm">View Attendance</a>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Subjects Card -->
+        {% if user|has_permission:'view_subject' or user|has_permission:'add_subject' %}
+        <div class="col-md-4 mb-3">
+            <div class="card h-100 shadow-sm">
+                <div class="card-body text-center">
+                    <i class="fas fa-book-open fa-3x text-info mb-3"></i>
+                    <h5 class="card-title">Subjects</h5>
+                    <p class="card-text text-muted small">Manage subjects and curriculum</p>
+                    <a href="{% url 'timetable:subject_list' %}" class="btn btn-primary btn-sm">View Subjects</a>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Timetable Card -->
+        {% if user|has_permission:'view_timetable' or user|has_permission:'add_timetable' %}
+        <div class="col-md-4 mb-3">
+            <div class="card h-100 shadow-sm">
+                <div class="card-body text-center">
+                    <i class="fas fa-calendar-week fa-3x text-secondary mb-3"></i>
+                    <h5 class="card-title">Timetable</h5>
+                    <p class="card-text text-muted small">Manage class schedules and timetables</p>
+                    <a href="{% url 'timetable:timetable_list' %}" class="btn btn-primary btn-sm">View Timetable</a>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Exams Card -->
+        {% if user|has_permission:'view_exam' or user|has_permission:'view_gradebook' %}
+        <div class="col-md-4 mb-3">
+            <div class="card h-100 shadow-sm">
+                <div class="card-body text-center">
+                    <i class="fas fa-clipboard-list fa-3x text-danger mb-3"></i>
+                    <h5 class="card-title">Exams & Gradebook</h5>
+                    <p class="card-text text-muted small">Manage exams and student grades</p>
+                    <a href="{% url 'exams:exam_list' %}" class="btn btn-primary btn-sm">View Exams</a>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Homework Card -->
+        {% if user|has_permission:'view_assignment' or user|has_permission:'view_submission' %}
+        <div class="col-md-4 mb-3">
+            <div class="card h-100 shadow-sm">
+                <div class="card-body text-center">
+                    <i class="fas fa-book fa-3x text-warning mb-3"></i>
+                    <h5 class="card-title">Homework</h5>
+                    <p class="card-text text-muted small">Manage assignments and submissions</p>
+                    <a href="{% url 'homework:assignment_list' %}" class="btn btn-primary btn-sm">View Assignments</a>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Communications Card -->
+        {% if user|has_permission:'view_template' or user|has_permission:'view_email' or user|has_permission:'view_sms' %}
+        <div class="col-md-4 mb-3">
+            <div class="card h-100 shadow-sm">
+                <div class="card-body text-center">
+                    <i class="fas fa-envelope fa-3x text-primary mb-3"></i>
+                    <h5 class="card-title">Communications</h5>
+                    <p class="card-text text-muted small">Send emails, SMS, and manage templates</p>
+                    <a href="{% url 'communications:dashboard' %}" class="btn btn-primary btn-sm">View Communications</a>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Reports Card -->
+        {% if user|has_permission:'view_report' %}
+        <div class="col-md-4 mb-3">
+            <div class="card h-100 shadow-sm">
+                <div class="card-body text-center">
+                    <i class="fas fa-chart-line fa-3x text-success mb-3"></i>
+                    <h5 class="card-title">Reports</h5>
+                    <p class="card-text text-muted small">View financial and academic reports</p>
+                    <a href="{% url 'payments:financial_reports' %}" class="btn btn-primary btn-sm">View Reports</a>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Settings Card -->
+        {% if user|has_permission:'view_term' or user|has_permission:'view_grade' or user|has_permission:'view_class' %}
+        <div class="col-md-4 mb-3">
+            <div class="card h-100 shadow-sm">
+                <div class="card-body text-center">
+                    <i class="fas fa-cog fa-3x text-secondary mb-3"></i>
+                    <h5 class="card-title">Settings</h5>
+                    <p class="card-text text-muted small">Configure terms, grades, and classes</p>
+                    <a href="{% url 'core:term_list' %}" class="btn btn-primary btn-sm">View Settings</a>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- User Management Card -->
+        {% if user|has_permission:'view_user_management' or user|has_permission:'view_role_management' %}
+        <div class="col-md-4 mb-3">
+            <div class="card h-100 shadow-sm">
+                <div class="card-body text-center">
+                    <i class="fas fa-user-shield fa-3x text-danger mb-3"></i>
+                    <h5 class="card-title">User Management</h5>
+                    <p class="card-text text-muted small">Manage users, roles, and permissions</p>
+                    <a href="{% url 'core:user_list' %}" class="btn btn-primary btn-sm">Manage Users</a>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- School Management Card (Super Admin) -->
+        {% if user.is_superuser or user|has_permission:'view_school_management' %}
+        <div class="col-md-4 mb-3">
+            <div class="card h-100 shadow-sm">
+                <div class="card-body text-center">
+                    <i class="fas fa-school fa-3x text-info mb-3"></i>
+                    <h5 class="card-title">School Management</h5>
+                    <p class="card-text text-muted small">Manage multiple schools</p>
+                    <a href="{% url 'core:school_admin_list' %}" class="btn btn-primary btn-sm">Manage Schools</a>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% else %}
+<div class="container py-4">
+    <div class="row">
+        <div class="col-md-12 text-center">
+            <h2>Welcome to School Management System</h2>
+            <p class="text-muted">Please <a href="{% url 'login' %}">login</a> to access the system.</p>
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endblock %}

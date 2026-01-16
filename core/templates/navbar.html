@@ -5,11 +5,11 @@
 <aside id="sidebar" class="sidebar">
     <div class="sidebar-header">
         {% if user.is_authenticated and user.profile and user.profile.school and user.profile.school.logo %}
-            <a href="{% if user.profile.is_parent %}{% url 'core:parent_portal_dashboard' %}{% else %}{% url 'core:dashboard' %}{% endif %}" class="school-logo-container mb-2" style="display: block; text-decoration: none; cursor: pointer;">
+            <a href="{% url 'core:home' %}" class="school-logo-container mb-2" style="display: block; text-decoration: none; cursor: pointer;">
                 <img src="{{ user.profile.school.logo.url }}" alt="School Logo" class="school-logo">
             </a>
         {% endif %}
-        <a href="{% if user.profile and user.profile.is_parent %}{% url 'core:parent_portal_dashboard' %}{% else %}{% url 'core:dashboard' %}{% endif %}" class="sidebar-brand">
+        <a href="{% url 'core:home' %}" class="sidebar-brand">
             {% if user.is_authenticated and user.profile and user.profile.school %}
                 {{ user.profile.school.name|title }}
             {% else %}
@@ -24,6 +24,14 @@
             {% comment %}Check if user has school assigned - show all menus only if user has school{% endcomment %}
             {% if user.is_superuser or user.profile and user.profile.school %}
         <ul class="nav flex-column">
+            <!-- Home -->
+            <li class="nav-item">
+                <a class="nav-link {% if request.resolver_match.url_name == 'home' %}active{% endif %}" href="{% url 'core:home' %}">
+                    <i class="fas fa-home me-2"></i>
+                    <span>Home</span>
+                </a>
+            </li>
+            
             <!-- Dashboard -->
             {% if user|has_permission:'view_dashboard' %}
             <li class="nav-item">

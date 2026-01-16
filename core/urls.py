@@ -23,6 +23,8 @@ router.register(r'api/classes', SchoolClassViewSet, basename='api-class')
 urlpatterns = [
     # Root - redirects based on user role
     path('', views.root_redirect, name='root'),
+    # Home page
+    path('home/', views.home, name='home'),
     # Dashboard
     path('dashboard/', views.dashboard, name='dashboard'),
     
