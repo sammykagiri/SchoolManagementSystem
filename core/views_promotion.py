@@ -9,7 +9,7 @@ from django.contrib import messages
 from django.core.paginator import Paginator
 from .models import AcademicYear, Grade, SchoolClass, Section, StudentClassEnrollment, PromotionLog
 from .services.promotion_service import PromotionService, PromotionPreview, PromotionResult
-from .decorators import role_required
+from .decorators import role_required, permission_required
 
 
 @login_required
@@ -46,7 +46,7 @@ def promotion_wizard_step1(request):
 
 
 @login_required
-@role_required('super_admin', 'school_admin')
+@permission_required('change', 'student')
 def promotion_wizard_step2(request):
     """Step 2: Select promotion mode and filters"""
     school = request.user.profile.school
@@ -229,7 +229,7 @@ def promotion_preview(request):
 
 
 @login_required
-@role_required('super_admin', 'school_admin')
+@permission_required('change', 'student')
 def promotion_confirm(request):
     """Step 4: Final confirmation before execution"""
     school = request.user.profile.school
@@ -332,7 +332,7 @@ def promotion_confirm(request):
 
 
 @login_required
-@role_required('super_admin', 'school_admin')
+@permission_required('view', 'student')
 def promotion_history(request):
     """View promotion history/logs"""
     school = request.user.profile.school

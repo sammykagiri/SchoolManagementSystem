@@ -1,4 +1,5 @@
 {% extends 'base.html' %}
+{% load permissions %}
 {% load static %}
 {% load currency date_format %}
 
@@ -81,12 +82,16 @@
                         <button onclick="window.print()" class="btn btn-info">
                             <i class="fas fa-print"></i> Print
                         </button>
+                        {% if user|has_permission:'change_student' %}
                         <a href="{% url 'core:student_update' student.student_id %}" class="btn btn-warning">
                             <i class="fas fa-edit"></i> Edit
                         </a>
+                        {% endif %}
+                        {% if user|has_permission:'delete_student' %}
                         <a href="{% url 'core:student_delete' student.student_id %}" class="btn btn-danger">
                             <i class="fas fa-trash"></i> Delete
                         </a>
+                        {% endif %}
                         <a href="{% url 'core:student_list' %}" class="btn btn-secondary">
                             <i class="fas fa-arrow-left"></i> Back to List
                         </a>

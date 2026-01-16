@@ -1,4 +1,5 @@
 {% extends 'base.html' %}
+{% load permissions %}
 {% load static %}
 {% load date_format %}
 
@@ -10,12 +11,16 @@
         <div class="card-header d-flex justify-content-between align-items-center">
             <h3 class="mb-0">{{ teacher.full_name }}</h3>
             <div>
+                {% if user|has_permission:'change_teacher' %}
                 <a href="{% url 'core:teacher_edit' teacher.id %}" class="btn btn-warning">
                     <i class="fas fa-edit"></i> Edit
                 </a>
+                {% endif %}
+                {% if user|has_permission:'delete_teacher' %}
                 <a href="{% url 'core:teacher_delete' teacher.id %}" class="btn btn-danger">
                     <i class="fas fa-trash"></i> Delete
                 </a>
+                {% endif %}
                 <a href="{% url 'core:teacher_list' %}" class="btn btn-secondary">
                     <i class="fas fa-arrow-left"></i> Back to List
                 </a>

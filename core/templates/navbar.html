@@ -25,14 +25,17 @@
             {% if user.is_superuser or user.profile and user.profile.school %}
         <ul class="nav flex-column">
             <!-- Dashboard -->
+            {% if user|has_permission:'view_dashboard' %}
             <li class="nav-item">
                 <a class="nav-link {% if request.resolver_match.url_name == 'dashboard' %}active{% endif %}" href="{% url 'core:dashboard' %}">
                     <i class="fas fa-tachometer-alt me-2"></i>
                     <span>Dashboard</span>
                 </a>
             </li>
+            {% endif %}
             
             <!-- Students -->
+            {% if user|has_permission:'view_student' or user|has_permission:'add_student' %}
             <li class="nav-item">
                 <a class="nav-link {% if request.resolver_match.url_name == 'student_list' or request.resolver_match.url_name == 'student_detail' or request.resolver_match.url_name == 'student_create' or request.resolver_match.url_name == 'student_update' or 'promotion' in request.resolver_match.url_name %}active{% endif %}" 
                    href="#" data-bs-toggle="collapse" data-bs-target="#studentsSubmenu" aria-expanded="false">
@@ -41,17 +44,21 @@
                     <i class="fas fa-chevron-down ms-auto"></i>
                 </a>
                 <ul class="collapse nav flex-column submenu" id="studentsSubmenu">
+                    {% if user|has_permission:'view_student' %}
                     <li class="nav-item">
                         <a class="nav-link {% if request.resolver_match.url_name == 'student_list' %}active{% endif %}" href="{% url 'core:student_list' %}">
                             <i class="fas fa-list me-2"></i>Student List
                         </a>
                     </li>
+                    {% endif %}
+                    {% if user|has_permission:'add_student' %}
                     <li class="nav-item">
                         <a class="nav-link {% if request.resolver_match.url_name == 'student_create' or request.resolver_match.url_name == 'student_detail' or request.resolver_match.url_name == 'student_update' %}active{% endif %}" href="{% url 'core:student_create' %}" id="addStudentNavLink">
                             <i class="fas fa-plus me-2"></i>Add Student
                         </a>
                     </li>
-                    {% if user.is_superuser or user.profile and user.profile.is_school_admin or user.profile and user.profile.is_super_admin %}
+                    {% endif %}
+                    {% if user|has_permission:'change_student' %}
                     <li class="nav-item"><hr class="dropdown-divider my-2"></li>
                     <li class="nav-item">
                         <a class="nav-link {% if 'promotion' in request.resolver_match.url_name %}active{% endif %}" href="{% url 'core:promotion_wizard_step1' %}">
@@ -66,8 +73,10 @@
                     {% endif %}
                 </ul>
             </li>
+            {% endif %}
             
             <!-- Parents -->
+            {% if user|has_permission:'view_parent' or user|has_permission:'add_parent' %}
             <li class="nav-item">
                 <a class="nav-link {% if request.resolver_match.url_name == 'parent_list' or request.resolver_match.url_name == 'parent_detail' or request.resolver_match.url_name == 'parent_register' %}active{% endif %}" 
                    href="#" data-bs-toggle="collapse" data-bs-target="#parentsSubmenu" aria-expanded="false">
@@ -76,20 +85,26 @@
                     <i class="fas fa-chevron-down ms-auto"></i>
                 </a>
                 <ul class="collapse nav flex-column submenu" id="parentsSubmenu">
+                    {% if user|has_permission:'view_parent' %}
                     <li class="nav-item">
                         <a class="nav-link {% if request.resolver_match.url_name == 'parent_list' %}active{% endif %}" href="{% url 'core:parent_list' %}">
                             <i class="fas fa-list me-2"></i>Parent List
                         </a>
                     </li>
+                    {% endif %}
+                    {% if user|has_permission:'add_parent' %}
                     <li class="nav-item">
                         <a class="nav-link {% if request.resolver_match.url_name == 'parent_register' %}active{% endif %}" href="{% url 'core:parent_register' %}">
                             <i class="fas fa-plus me-2"></i>Add Parent
                         </a>
                     </li>
+                    {% endif %}
                 </ul>
             </li>
+            {% endif %}
             
             <!-- Teachers -->
+            {% if user|has_permission:'view_teacher' or user|has_permission:'add_teacher' %}
             <li class="nav-item">
                 <a class="nav-link {% if request.resolver_match.url_name == 'teacher_list' or request.resolver_match.url_name == 'teacher_add' or request.resolver_match.url_name == 'teacher_edit' or request.resolver_match.url_name == 'teacher_detail' %}active{% endif %}" 
                    href="#" data-bs-toggle="collapse" data-bs-target="#teachersSubmenu" aria-expanded="false">
@@ -98,20 +113,26 @@
                     <i class="fas fa-chevron-down ms-auto"></i>
                 </a>
                 <ul class="collapse nav flex-column submenu" id="teachersSubmenu">
+                    {% if user|has_permission:'view_teacher' %}
                     <li class="nav-item">
                         <a class="nav-link {% if request.resolver_match.url_name == 'teacher_list' or request.resolver_match.url_name == 'teacher_detail' %}active{% endif %}" href="{% url 'core:teacher_list' %}">
                             <i class="fas fa-list me-2"></i>Teacher List
                         </a>
                     </li>
+                    {% endif %}
+                    {% if user|has_permission:'add_teacher' %}
                     <li class="nav-item">
                         <a class="nav-link {% if request.resolver_match.url_name == 'teacher_add' or request.resolver_match.url_name == 'teacher_edit' %}active{% endif %}" href="{% url 'core:teacher_add' %}">
                             <i class="fas fa-plus me-2"></i>Add Teacher
                         </a>
                     </li>
+                    {% endif %}
                 </ul>
             </li>
+            {% endif %}
             
             <!-- Fees -->
+            {% if user|has_permission:'view_fee' or user|has_permission:'view_fee_structure' or user|has_permission:'view_payment' or user|has_permission:'view_receipt' %}
             <li class="nav-item">
                 <a class="nav-link {% if 'payments' in request.resolver_match.namespace or request.resolver_match.url_name == 'fee_structure_list' or request.resolver_match.url_name == 'generate_student_fees' or request.resolver_match.url_name == 'fee_category_list' or request.resolver_match.url_name == 'fee_category_type_list' %}active{% endif %}" 
                    href="#" data-bs-toggle="collapse" data-bs-target="#feesSubmenu" aria-expanded="false">
@@ -120,7 +141,7 @@
                     <i class="fas fa-chevron-down ms-auto"></i>
                 </a>
                 <ul class="collapse nav flex-column submenu" id="feesSubmenu">
-                    {% if user.is_superuser or user.profile and user.profile.is_school_admin or user.profile and user.profile.is_accountant %}
+                    {% if user|has_permission:'view_fee' %}
                     <li class="nav-item">
                         <a class="nav-link {% if request.resolver_match.url_name == 'fee_category_type_list' or request.resolver_match.url_name == 'fee_category_type_add' or request.resolver_match.url_name == 'fee_category_type_edit' %}active{% endif %}" href="{% url 'core:fee_category_type_list' %}">
                             <i class="fas fa-tag me-2"></i>Category Types
@@ -132,41 +153,57 @@
                         </a>
                     </li>
                     {% endif %}
+                    {% if user|has_permission:'view_fee_structure' %}
                     <li class="nav-item">
                         <a class="nav-link {% if request.resolver_match.url_name == 'fee_structure_list' or request.resolver_match.url_name == 'fee_structure_create' or request.resolver_match.url_name == 'fee_structure_update' or request.resolver_match.url_name == 'fee_structure_delete' %}active{% endif %}" href="{% url 'core:fee_structure_list' %}">
                             <i class="fas fa-list-alt me-2"></i>Fee Structures
                         </a>
                     </li>
+                    {% endif %}
+                    {% if user|has_permission:'add_fee' %}
                     <li class="nav-item">
                         <a class="nav-link {% if request.resolver_match.url_name == 'generate_student_fees' %}active{% endif %}" href="{% url 'core:generate_student_fees' %}">
                             <i class="fas fa-cogs me-2"></i>Generate Fees
                         </a>
                     </li>
+                    {% endif %}
+                    {% if user|has_permission:'view_fee' %}
                     <li class="nav-item">
                         <a class="nav-link {% if request.resolver_match.url_name == 'fee_summary' %}active{% endif %}" href="{% url 'payments:fee_summary' %}">
                             <i class="fas fa-file-invoice-dollar me-2"></i>Fee Summary
                         </a>
                     </li>
+                    {% endif %}
+                    {% if user|has_permission:'view_payment' or user|has_permission:'view_receipt' or user|has_permission:'view_reminder' %}
                     <li class="nav-item"><hr class="dropdown-divider my-2"></li>
+                    {% if user|has_permission:'view_payment' %}
                     <li class="nav-item">
                         <a class="nav-link {% if request.resolver_match.url_name == 'payment_list' or request.resolver_match.url_name == 'payment_detail' or request.resolver_match.url_name == 'payment_create' %}active{% endif %}" href="{% url 'payments:payment_list' %}">
                             <i class="fas fa-credit-card me-2"></i>Payments
                         </a>
                     </li>
+                    {% endif %}
+                    {% if user|has_permission:'view_receipt' %}
                     <li class="nav-item">
                         <a class="nav-link {% if request.resolver_match.url_name == 'receipt_list' or request.resolver_match.url_name == 'receipt_detail' %}active{% endif %}" href="{% url 'payments:receipt_list' %}">
                             <i class="fas fa-receipt me-2"></i>Receipts
                         </a>
                     </li>
+                    {% endif %}
+                    {% if user|has_permission:'view_reminder' %}
                     <li class="nav-item">
                         <a class="nav-link {% if request.resolver_match.url_name == 'reminder_list' or request.resolver_match.url_name == 'reminder_create' %}active{% endif %}" href="{% url 'payments:reminder_list' %}">
                             <i class="fas fa-bell me-2"></i>Reminders
                         </a>
                     </li>
+                    {% endif %}
+                    {% endif %}
                 </ul>
             </li>
+            {% endif %}
             
             <!-- Attendance -->
+            {% if user|has_permission:'view_attendance' or user|has_permission:'add_attendance' %}
             <li class="nav-item">
                 <a class="nav-link {% if 'attendance' in request.resolver_match.namespace %}active{% endif %}" 
                    href="#" data-bs-toggle="collapse" data-bs-target="#attendanceSubmenu" aria-expanded="false">
@@ -175,25 +212,33 @@
                     <i class="fas fa-chevron-down ms-auto"></i>
                 </a>
                 <ul class="collapse nav flex-column submenu" id="attendanceSubmenu">
+                    {% if user|has_permission:'view_attendance' %}
                     <li class="nav-item">
                         <a class="nav-link {% if request.resolver_match.url_name == 'attendance_list' or request.resolver_match.url_name == 'attendance_detail' %}active{% endif %}" href="{% url 'attendance:attendance_list' %}">
                             <i class="fas fa-list me-2"></i>Attendance Records
                         </a>
                     </li>
+                    {% endif %}
+                    {% if user|has_permission:'add_attendance' %}
                     <li class="nav-item">
                         <a class="nav-link {% if request.resolver_match.url_name == 'mark_attendance' %}active{% endif %}" href="{% url 'attendance:mark_attendance' %}">
                             <i class="fas fa-edit me-2"></i>Mark Attendance
                         </a>
                     </li>
+                    {% endif %}
+                    {% if user|has_permission:'view_attendance' %}
                     <li class="nav-item">
                         <a class="nav-link {% if request.resolver_match.url_name == 'attendance_summary' %}active{% endif %}" href="{% url 'attendance:attendance_summary' %}">
                             <i class="fas fa-chart-bar me-2"></i>Summary
                         </a>
                     </li>
+                    {% endif %}
                 </ul>
             </li>
+            {% endif %}
             
             <!-- Subjects -->
+            {% if user|has_permission:'view_subject' or user|has_permission:'add_subject' %}
             <li class="nav-item">
                 <a class="nav-link {% if 'subject' in request.resolver_match.url_name or 'subject' in request.resolver_match.namespace %}active{% endif %}" 
                    href="#" data-bs-toggle="collapse" data-bs-target="#subjectsSubmenu" aria-expanded="false">
@@ -202,6 +247,7 @@
                     <i class="fas fa-chevron-down ms-auto"></i>
                 </a>
                 <ul class="collapse nav flex-column submenu" id="subjectsSubmenu">
+                    {% if user|has_permission:'view_subject' %}
                     <li class="nav-item">
                         <a class="nav-link {% if request.resolver_match.url_name == 'subject_list' or request.resolver_match.url_name == 'subject_detail' %}active{% endif %}" href="{% url 'timetable:subject_list' %}">
                             <i class="fas fa-list me-2"></i>Subject List
@@ -212,7 +258,10 @@
                             <i class="fas fa-layer-group me-2"></i>View by Level
                         </a>
                     </li>
+                    {% endif %}
+                    {% if user|has_permission:'add_subject' or user|has_permission:'change_subject' %}
                     <li class="nav-item"><hr class="dropdown-divider my-2"></li>
+                    {% if user|has_permission:'add_subject' %}
                     <li class="nav-item">
                         <a class="nav-link {% if request.resolver_match.url_name == 'subject_add' or request.resolver_match.url_name == 'subject_edit' %}active{% endif %}" href="{% url 'timetable:subject_add' %}">
                             <i class="fas fa-plus me-2"></i>Add Subject
@@ -223,16 +272,22 @@
                             <i class="fas fa-magic me-2"></i>Generate CBC Subjects
                         </a>
                     </li>
+                    {% endif %}
+                    {% if user|has_permission:'change_subject' %}
                     <li class="nav-item"><hr class="dropdown-divider my-2"></li>
                     <li class="nav-item">
                         <a class="nav-link {% if request.resolver_match.url_name == 'subject_bulk_update_level' %}active{% endif %}" href="{% url 'timetable:subject_bulk_update_level' %}">
                             <i class="fas fa-edit me-2"></i>Bulk Update Levels
                         </a>
                     </li>
+                    {% endif %}
+                    {% endif %}
                 </ul>
             </li>
+            {% endif %}
             
             <!-- Timetable -->
+            {% if user|has_permission:'view_timetable' or user|has_permission:'add_timetable' %}
             <li class="nav-item">
                 <a class="nav-link {% if 'timetable' in request.resolver_match.namespace and request.resolver_match.url_name != 'subject_list' and request.resolver_match.url_name != 'subject_add' %}active{% endif %}" 
                    href="#" data-bs-toggle="collapse" data-bs-target="#timetableSubmenu" aria-expanded="false">
@@ -241,21 +296,27 @@
                     <i class="fas fa-chevron-down ms-auto"></i>
                 </a>
                 <ul class="collapse nav flex-column submenu" id="timetableSubmenu">
+                    {% if user|has_permission:'view_timetable' %}
                     <li class="nav-item">
                         <a class="nav-link {% if request.resolver_match.url_name == 'timetable_list' or request.resolver_match.url_name == 'timetable_detail' or request.resolver_match.url_name == 'timetable_create' or request.resolver_match.url_name == 'timetable_edit' %}active{% endif %}" href="{% url 'timetable:timetable_list' %}">
                             <i class="fas fa-calendar me-2"></i>Class Timetables
                         </a>
                     </li>
+                    {% endif %}
+                    {% if user|has_permission:'add_timetable' or user|has_permission:'change_timetable' %}
                     <li class="nav-item"><hr class="dropdown-divider my-2"></li>
                     <li class="nav-item">
                         <a class="nav-link {% if request.resolver_match.url_name == 'timeslot_list' or request.resolver_match.url_name == 'timeslot_create' or request.resolver_match.url_name == 'timeslot_edit' %}active{% endif %}" href="{% url 'timetable:timeslot_list' %}">
                             <i class="fas fa-clock me-2"></i>Time Slots
                         </a>
                     </li>
+                    {% endif %}
                 </ul>
             </li>
+            {% endif %}
             
             <!-- Exams -->
+            {% if user|has_permission:'view_exam' or user|has_permission:'view_gradebook' %}
             <li class="nav-item">
                 <a class="nav-link {% if 'exams' in request.resolver_match.namespace %}active{% endif %}" 
                    href="#" data-bs-toggle="collapse" data-bs-target="#examsSubmenu" aria-expanded="false">
@@ -264,11 +325,14 @@
                     <i class="fas fa-chevron-down ms-auto"></i>
                 </a>
                 <ul class="collapse nav flex-column submenu" id="examsSubmenu">
+                    {% if user|has_permission:'view_exam' %}
                     <li class="nav-item">
                         <a class="nav-link {% if request.resolver_match.url_name == 'exam_list' or request.resolver_match.url_name == 'exam_detail' or request.resolver_match.url_name == 'exam_create' or request.resolver_match.url_name == 'exam_edit' %}active{% endif %}" href="{% url 'exams:exam_list' %}">
                             <i class="fas fa-file-alt me-2"></i>Exams
                         </a>
                     </li>
+                    {% endif %}
+                    {% if user|has_permission:'view_gradebook' %}
                     <li class="nav-item">
                         <a class="nav-link {% if request.resolver_match.url_name == 'gradebook_list' or request.resolver_match.url_name == 'gradebook_detail' %}active{% endif %}" href="{% url 'exams:gradebook_list' %}">
                             <i class="fas fa-book me-2"></i>Gradebook
@@ -279,10 +343,13 @@
                             <i class="fas fa-chart-bar me-2"></i>Summary
                         </a>
                     </li>
+                    {% endif %}
                 </ul>
             </li>
+            {% endif %}
             
             <!-- Homework -->
+            {% if user|has_permission:'view_assignment' or user|has_permission:'view_submission' %}
             <li class="nav-item">
                 <a class="nav-link {% if 'homework' in request.resolver_match.namespace %}active{% endif %}" 
                    href="#" data-bs-toggle="collapse" data-bs-target="#homeworkSubmenu" aria-expanded="false">
@@ -291,12 +358,14 @@
                     <i class="fas fa-chevron-down ms-auto"></i>
                 </a>
                 <ul class="collapse nav flex-column submenu" id="homeworkSubmenu">
+                    {% if user|has_permission:'view_assignment' %}
                     <li class="nav-item">
                         <a class="nav-link {% if request.resolver_match.url_name == 'assignment_list' or request.resolver_match.url_name == 'assignment_detail' or request.resolver_match.url_name == 'assignment_create' or request.resolver_match.url_name == 'assignment_edit' %}active{% endif %}" href="{% url 'homework:assignment_list' %}">
                             <i class="fas fa-list me-2"></i>Assignments
                         </a>
                     </li>
-                    {% if user.profile and user.profile.is_school_admin or user.profile and user.profile.is_teacher %}
+                    {% endif %}
+                    {% if user|has_permission:'view_submission' %}
                     <li class="nav-item">
                         <a class="nav-link {% if request.resolver_match.url_name == 'submission_list' or request.resolver_match.url_name == 'submission_detail' %}active{% endif %}" href="{% url 'homework:submission_list' %}">
                             <i class="fas fa-check-circle me-2"></i>View Submissions
@@ -305,8 +374,10 @@
                     {% endif %}
                 </ul>
             </li>
+            {% endif %}
             
             <!-- Communications -->
+            {% if user|has_permission:'view_template' or user|has_permission:'view_email' or user|has_permission:'view_sms' or user|has_permission:'view_log' %}
             <li class="nav-item">
                 <a class="nav-link {% if 'communications' in request.resolver_match.namespace %}active{% endif %}" 
                    href="#" data-bs-toggle="collapse" data-bs-target="#communicationsSubmenu" aria-expanded="false">
@@ -320,31 +391,43 @@
                             <i class="fas fa-tachometer-alt me-2"></i>Dashboard
                         </a>
                     </li>
+                    {% if user|has_permission:'view_template' or user|has_permission:'view_email' or user|has_permission:'view_sms' or user|has_permission:'view_log' %}
                     <li class="nav-item"><hr class="dropdown-divider my-2"></li>
+                    {% if user|has_permission:'view_template' %}
                     <li class="nav-item">
                         <a class="nav-link {% if request.resolver_match.url_name == 'template_list' or request.resolver_match.url_name == 'template_create' or request.resolver_match.url_name == 'template_edit' %}active{% endif %}" href="{% url 'communications:template_list' %}">
                             <i class="fas fa-file-alt me-2"></i>Templates
                         </a>
                     </li>
+                    {% endif %}
+                    {% if user|has_permission:'view_email' %}
                     <li class="nav-item">
                         <a class="nav-link {% if request.resolver_match.url_name == 'email_list' or request.resolver_match.url_name == 'email_detail' or request.resolver_match.url_name == 'email_send' %}active{% endif %}" href="{% url 'communications:email_list' %}">
                             <i class="fas fa-envelope me-2"></i>Emails
                         </a>
                     </li>
+                    {% endif %}
+                    {% if user|has_permission:'view_sms' %}
                     <li class="nav-item">
                         <a class="nav-link {% if request.resolver_match.url_name == 'sms_list' or request.resolver_match.url_name == 'sms_detail' or request.resolver_match.url_name == 'sms_send' %}active{% endif %}" href="{% url 'communications:sms_list' %}">
                             <i class="fas fa-sms me-2"></i>SMS Messages
                         </a>
                     </li>
+                    {% endif %}
+                    {% if user|has_permission:'view_log' %}
                     <li class="nav-item">
                         <a class="nav-link {% if request.resolver_match.url_name == 'log_list' or request.resolver_match.url_name == 'log_detail' %}active{% endif %}" href="{% url 'communications:log_list' %}">
                             <i class="fas fa-list me-2"></i>Communication Logs
                         </a>
                     </li>
+                    {% endif %}
+                    {% endif %}
                 </ul>
             </li>
+            {% endif %}
             
             <!-- Reports -->
+            {% if user|has_permission:'view_report' %}
             <li class="nav-item">
                 <a class="nav-link {% if request.resolver_match.url_name == 'financial_reports' or request.resolver_match.url_name == 'payment_collection_report' or request.resolver_match.url_name == 'outstanding_fees_report' or request.resolver_match.url_name == 'collection_summary_report' or request.resolver_match.url_name == 'payment_method_analysis' %}active{% endif %}" 
                    href="#" data-bs-toggle="collapse" data-bs-target="#reportsSubmenu" aria-expanded="false">
@@ -360,6 +443,7 @@
                     </li>
                 </ul>
             </li>
+            {% endif %}
             
             <!-- Settings -->
             <li class="nav-item">
@@ -391,7 +475,7 @@
                         </a>
                     </li>
                     {% endif %}
-                    {% if user.is_superuser or user.profile and user.profile.is_school_admin or user.profile and user.profile.is_accountant %}
+                    {% if user|has_permission:'view_fee' %}
                     <li class="nav-item"><hr class="dropdown-divider my-2"></li>
                     <li class="nav-item">
                         <a class="nav-link {% if request.resolver_match.url_name == 'transport_route_list' or request.resolver_match.url_name == 'transport_route_create' or request.resolver_match.url_name == 'transport_route_edit' %}active{% endif %}" href="{% url 'core:transport_route_list' %}">
@@ -399,23 +483,27 @@
                         </a>
                     </li>
                     {% endif %}
-                    {% if user.is_superuser or user.profile and user.profile.is_school_admin %}
+                    {% if user|has_permission:'view_user_management' or user|has_permission:'view_role_management' %}
                     <li class="nav-item"><hr class="dropdown-divider my-2"></li>
+                    {% if user|has_permission:'view_user_management' %}
                     <li class="nav-item">
                         <a class="nav-link {% if request.resolver_match.url_name == 'user_list' or request.resolver_match.url_name == 'user_create' or request.resolver_match.url_name == 'user_edit' or request.resolver_match.url_name == 'profile' %}active{% endif %}" href="{% url 'core:user_list' %}">
                             <i class="fas fa-users me-2"></i>User Management
                         </a>
                     </li>
+                    {% endif %}
+                    {% if user|has_permission:'view_role_management' %}
                     <li class="nav-item">
                         <a class="nav-link {% if request.resolver_match.url_name == 'role_list' or request.resolver_match.url_name == 'role_create' or request.resolver_match.url_name == 'role_edit' %}active{% endif %}" href="{% url 'core:role_list' %}">
                             <i class="fas fa-user-tag me-2"></i>Role Management
                         </a>
                     </li>
                     {% endif %}
+                    {% endif %}
                 </ul>
             </li>
             
-            {% if user.is_superuser or user.profile and user.profile.is_super_admin %}
+            {% if user|has_permission:'view_school_management' %}
             <!-- Super Admin: Manage Schools -->
             <li class="nav-item">
                 <a class="nav-link {% if request.resolver_match.url_name == 'school_admin_list' %}active{% endif %}" href="{% url 'core:school_admin_list' %}">
@@ -428,7 +516,7 @@
         {% else %}
         {% comment %}User without school assignment - show only Manage Schools for superadmin, warning for others{% endcomment %}
         <ul class="nav flex-column">
-            {% if user.is_superuser or user.profile and user.profile.is_super_admin %}
+            {% if user|has_permission:'view_school_management' %}
             <!-- Super Admin: Manage Schools (even without school assignment) -->
             <li class="nav-item">
                 <a class="nav-link {% if request.resolver_match.url_name == 'school_admin_list' %}active{% endif %}" href="{% url 'core:school_admin_list' %}">

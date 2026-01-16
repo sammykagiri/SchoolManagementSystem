@@ -1,4 +1,5 @@
 {% extends 'base.html' %}
+{% load permissions %}
 {% block title %}Students | School Management System{% endblock %}
 {% block content %}
 <div class="container py-4">
@@ -46,14 +47,16 @@
             <a href="{% url 'core:student_list' %}" class="btn btn-outline-secondary">
                 <i class="fas fa-times"></i> Clear Filters
             </a>
-            {% if can_add_student %}
-                <a href="{% url 'core:student_create' %}" class="btn btn-primary">
-                    <i class="fas fa-plus"></i> Add Student
-                </a>
-            {% else %}
-                <button class="btn btn-primary" disabled title="Please create at least one grade and one class before adding students">
-                    <i class="fas fa-plus"></i> Add Student
-                </button>
+            {% if user|has_permission:'add_student' %}
+                {% if can_add_student %}
+                    <a href="{% url 'core:student_create' %}" class="btn btn-primary">
+                        <i class="fas fa-plus"></i> Add Student
+                    </a>
+                {% else %}
+                    <button class="btn btn-primary" disabled title="Please create at least one grade and one class before adding students">
+                        <i class="fas fa-plus"></i> Add Student
+                    </button>
+                {% endif %}
             {% endif %}
         </div>
         <input type="hidden" name="show_inactive" id="showInactiveHidden" value="{% if show_inactive %}true{% else %}false{% endif %}">
@@ -113,12 +116,20 @@
                         <td>{{ student.parent_name }}</td>
                         <td>{{ student.parent_phone }}</td>
                         <td>
+                            {% if user|has_permission:'view_student' %}
                             <a href="{% url 'core:student_detail' student.student_id %}" class="btn btn-sm btn-outline-info me-1">View</a>
+                            {% endif %}
+                            {% if user|has_permission:'change_student' %}
                             <a href="{% url 'core:student_update' student.student_id %}" class="btn btn-sm btn-outline-primary me-1">Edit</a>
+                            {% endif %}
+                            {% if user|has_permission:'view_report' %}
                             <a href="{% url 'core:student_statement' student.student_id %}" class="btn btn-sm btn-outline-success me-1" title="Fee Statement">
                                 <i class="fas fa-file-invoice"></i> Statement
                             </a>
+                            {% endif %}
+                            {% if user|has_permission:'delete_student' %}
                             <a href="{% url 'core:student_delete' student.student_id %}" class="btn btn-sm btn-outline-danger" onclick="return confirm('Are you sure you want to delete this student?');">Delete</a>
+                            {% endif %}
                         </td>
                     </tr>
                     {% empty %}

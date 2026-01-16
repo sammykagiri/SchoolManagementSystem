@@ -61,7 +61,7 @@ TeacherService = services_module.TeacherService
 
 # Import new promotion service from services package
 from .services.promotion_service import PromotionService, PromotionPreview, PromotionResult
-from .decorators import role_required
+from .decorators import role_required, permission_required
 # Import promotion views
 from .views_promotion import (
     promotion_wizard_step1, promotion_wizard_step2, promotion_preview,
@@ -341,7 +341,7 @@ class IsSuperUser(BasePermission):
 
 
 @login_required
-@role_required('super_admin', 'school_admin', 'teacher', 'accountant')
+@permission_required('view', 'dashboard')
 def dashboard(request):
     """Main dashboard view - uses service for business logic (Admin/Teacher only for MVP)"""
     # Ensure user has a profile
@@ -470,7 +470,7 @@ def api_dashboard(request):
 
 
 @login_required
-@role_required('super_admin', 'school_admin', 'teacher', 'accountant')
+@permission_required('view', 'student')
 def student_list(request):
     """List all students"""
     school = request.user.profile.school
@@ -536,7 +536,7 @@ def student_list(request):
 
 
 @login_required
-@role_required('super_admin', 'school_admin', 'teacher', 'accountant')
+@permission_required('view', 'student')
 def student_detail(request, student_id):
     """Student detail view"""
     school = request.user.profile.school
@@ -566,7 +566,7 @@ def student_detail(request, student_id):
 
 
 @login_required
-@role_required('super_admin', 'school_admin', 'teacher')
+@permission_required('add', 'student')
 def student_create(request):
     """Create new student using Django form"""
     school = request.user.profile.school
@@ -615,7 +615,7 @@ def student_create(request):
 
 
 @login_required
-@role_required('super_admin', 'school_admin', 'teacher')
+@permission_required('change', 'student')
 def student_update(request, student_id):
     """Update student using Django form"""
     school = request.user.profile.school
@@ -844,7 +844,7 @@ def student_update(request, student_id):
 
 
 @login_required
-@role_required('super_admin', 'school_admin')
+@permission_required('delete', 'student')
 def student_delete(request, student_id):
     """Delete student"""
     school = request.user.profile.school
@@ -861,7 +861,7 @@ def student_delete(request, student_id):
 
 
 @login_required
-@role_required('super_admin', 'school_admin', 'teacher')
+@permission_required('view', 'grade')
 def grade_list(request):
     """List all grades"""
     school = request.user.profile.school
@@ -972,7 +972,7 @@ def grade_list(request):
 
 
 @login_required
-@role_required('super_admin', 'school_admin', 'teacher')
+@permission_required('add', 'grade')
 def grade_generate(request):
     """Generate multiple grades generically"""
     school = request.user.profile.school
@@ -1057,7 +1057,7 @@ def grade_generate(request):
 
 
 @login_required
-@role_required('super_admin', 'school_admin', 'teacher')
+@permission_required('change', 'grade')
 def grade_edit(request, grade_id):
     """Edit a grade"""
     school = request.user.profile.school
@@ -1081,7 +1081,7 @@ def grade_edit(request, grade_id):
 
 
 @login_required
-@role_required('super_admin', 'school_admin')
+@permission_required('delete', 'grade')
 def grade_delete(request, grade_id):
     """Delete a grade"""
     school = request.user.profile.school
@@ -1100,7 +1100,7 @@ def grade_delete(request, grade_id):
 
 
 @login_required
-@role_required('super_admin', 'school_admin', 'teacher', 'accountant')
+@permission_required('view', 'term')
 def term_list(request):
     """List all terms"""
     school = request.user.profile.school
@@ -1171,7 +1171,7 @@ def term_add(request):
 
 
 @login_required
-@role_required('super_admin', 'school_admin', 'teacher')
+@permission_required('add', 'term')
 def term_generate(request):
     """Generate multiple terms generically for an academic year"""
     school = request.user.profile.school
@@ -1329,7 +1329,7 @@ def term_generate(request):
 
 
 @login_required
-@role_required('super_admin', 'school_admin', 'teacher')
+@permission_required('change', 'term')
 def term_edit(request, term_id):
     """Edit existing term"""
     school = request.user.profile.school
@@ -1388,7 +1388,7 @@ def term_edit(request, term_id):
 
 
 @login_required
-@role_required('super_admin', 'school_admin')
+@permission_required('delete', 'term')
 def term_delete(request, term_id):
     """Delete a term (soft delete)"""
     school = request.user.profile.school
@@ -1480,7 +1480,7 @@ def fee_structure_list(request):
 
 
 @login_required
-@role_required('super_admin', 'school_admin', 'accountant')
+@permission_required('change', 'fee_structure')
 def fee_structure_edit(request, fee_structure_id):
     """Edit a fee structure"""
     school = request.user.profile.school
@@ -1517,7 +1517,7 @@ def fee_structure_edit(request, fee_structure_id):
 
 
 @login_required
-@role_required('super_admin', 'school_admin', 'accountant')
+@permission_required('delete', 'fee_structure')
 def fee_structure_delete(request, fee_structure_id):
     """Delete a fee structure"""
     school = request.user.profile.school
@@ -1538,7 +1538,7 @@ def fee_structure_delete(request, fee_structure_id):
 
 
 @login_required
-@role_required('super_admin', 'school_admin', 'accountant')
+@permission_required('view', 'fee')
 def fee_category_list(request):
     """List and manage fee categories"""
     school = request.user.profile.school
@@ -1551,7 +1551,7 @@ def fee_category_list(request):
 
 
 @login_required
-@role_required('super_admin', 'school_admin', 'accountant')
+@permission_required('add', 'fee')
 def fee_category_add(request):
     """Add a new fee category"""
     school = request.user.profile.school
@@ -1619,7 +1619,7 @@ def fee_category_add(request):
 
 
 @login_required
-@role_required('super_admin', 'school_admin', 'accountant')
+@permission_required('change', 'fee')
 def fee_category_edit(request, category_id):
     """Edit an existing fee category"""
     school = request.user.profile.school
@@ -1686,7 +1686,7 @@ def fee_category_edit(request, category_id):
 
 
 @login_required
-@role_required('super_admin', 'school_admin', 'accountant')
+@permission_required('delete', 'fee')
 def fee_category_delete(request, category_id):
     """Delete a fee category"""
     school = request.user.profile.school
@@ -1752,7 +1752,7 @@ def fee_category_type_list(request):
 
 
 @login_required
-@role_required('super_admin', 'school_admin', 'accountant')
+@permission_required('add', 'fee')
 def fee_category_type_add(request):
     """Add a new fee category type"""
     school = request.user.profile.school
@@ -1806,7 +1806,7 @@ def fee_category_type_add(request):
 
 
 @login_required
-@role_required('super_admin', 'school_admin', 'accountant')
+@permission_required('change', 'fee')
 def fee_category_type_edit(request, type_id):
     """Edit an existing fee category type"""
     school = request.user.profile.school
@@ -1859,7 +1859,7 @@ def fee_category_type_edit(request, type_id):
 
 
 @login_required
-@role_required('super_admin', 'school_admin', 'accountant')
+@permission_required('delete', 'fee')
 def fee_category_type_delete(request, type_id):
     """Delete a fee category type"""
     school = request.user.profile.school
@@ -1893,7 +1893,7 @@ def fee_category_type_delete(request, type_id):
 
 
 @login_required
-@role_required('super_admin', 'school_admin', 'accountant')
+@permission_required('add', 'fee')
 def generate_student_fees(request):
     """Generate student fees - create fee structures for terms and grades"""
     school = request.user.profile.school
@@ -1995,7 +1995,7 @@ def generate_student_fees(request):
 
 
 @login_required
-@role_required('super_admin', 'school_admin', 'accountant')
+@permission_required('view', 'fee')
 def get_previous_term_fees(request):
     """API endpoint to get fee structures from a previous term for copying"""
     if request.method != 'GET':
@@ -2033,7 +2033,7 @@ def get_previous_term_fees(request):
 
 
 @login_required
-@role_required('super_admin', 'school_admin', 'accountant')
+@permission_required('add', 'fee')
 def generate_student_fees_from_structures(request):
     """Generate StudentFee records from FeeStructure for all students in a term"""
     school = request.user.profile.school
@@ -2256,7 +2256,7 @@ def transport_route_list(request):
 
 
 @login_required
-@role_required('super_admin', 'school_admin', 'accountant')
+@permission_required('add', 'fee')
 def transport_route_add(request):
     """Add a new transport route"""
     school = request.user.profile.school
@@ -2341,7 +2341,7 @@ def transport_route_add(request):
 
 
 @login_required
-@role_required('super_admin', 'school_admin', 'accountant')
+@permission_required('change', 'fee')
 def transport_route_edit(request, route_id):
     """Edit an existing transport route"""
     school = request.user.profile.school
@@ -2425,7 +2425,7 @@ def transport_route_edit(request, route_id):
 
 
 @login_required
-@role_required('super_admin', 'school_admin', 'accountant')
+@permission_required('delete', 'fee')
 def transport_route_delete(request, route_id):
     """Delete a transport route"""
     school = request.user.profile.school
@@ -2736,7 +2736,7 @@ def school_admin_list(request):
 
 
 @login_required
-@role_required('super_admin', 'school_admin', 'teacher', 'accountant')
+@permission_required('view', 'parent')
 def parent_list(request):
     """List all parents/guardians"""
     school = request.user.profile.school
@@ -2779,7 +2779,7 @@ def parent_list(request):
 
 
 @login_required
-@role_required('super_admin', 'school_admin', 'teacher', 'accountant')
+@permission_required('view', 'parent')
 def parent_detail(request, parent_id):
     """View parent/guardian details"""
     school = request.user.profile.school
@@ -2801,7 +2801,7 @@ def parent_detail(request, parent_id):
 
 
 @login_required
-@role_required('super_admin', 'school_admin')
+@permission_required('change', 'parent')
 def parent_edit(request, parent_id):
     """Edit parent/guardian information"""
     school = request.user.profile.school
@@ -2843,7 +2843,7 @@ def parent_edit(request, parent_id):
 
 
 @login_required
-@role_required('super_admin', 'school_admin')
+@permission_required('add', 'parent')
 def parent_register(request):
     """Register a new parent/guardian and optionally link to students"""
     # Determine the school - ALWAYS get it from the admin's profile (for non-superusers)
@@ -3104,7 +3104,7 @@ def api_school_update(request, pk):
 
 
 @login_required
-@role_required('super_admin', 'school_admin', 'teacher')
+@permission_required('view', 'class')
 def class_list(request):
     school = request.user.profile.school
     grades_queryset = Grade.objects.filter(school=school)
@@ -3159,7 +3159,7 @@ def class_list(request):
 
 
 @login_required
-@role_required('super_admin', 'school_admin', 'teacher')
+@permission_required('add', 'class')
 def class_generate(request):
     """Generate multiple classes generically based on grades and streams"""
     school = request.user.profile.school
@@ -3273,7 +3273,7 @@ def class_generate(request):
 
 
 @login_required
-@role_required('super_admin', 'school_admin', 'accountant', 'teacher')
+@permission_required('view', 'report')
 def student_statement(request, student_id):
     """Generate fee statement for a student"""
     school = request.user.profile.school
@@ -3387,7 +3387,7 @@ def student_statement(request, student_id):
 
 
 @login_required
-@role_required('super_admin', 'school_admin', 'accountant', 'teacher')
+@permission_required('view', 'report')
 def student_statement_pdf(request, student_id):
     """Generate PDF version of student statement"""
     school = request.user.profile.school
@@ -3502,7 +3502,7 @@ def student_statement_pdf(request, student_id):
 
 
 @login_required
-@role_required('super_admin', 'school_admin', 'accountant', 'teacher')
+@permission_required('view', 'report')
 def student_statement_email(request, student_id):
     """Email student statement"""
     school = request.user.profile.school
@@ -3678,7 +3678,7 @@ def serve_media_file(request, path):
         raise Http404("Media file not found")
 
 @login_required
-@role_required('super_admin', 'school_admin', 'teacher')
+@permission_required('add', 'class')
 def class_add(request):
     school = request.user.profile.school
     # Debug: Check user's school and available grades
@@ -3715,7 +3715,7 @@ def class_add(request):
     return render(request, 'core/class_form.html', {'grades': grades, 'teachers': teachers, 'post': {}, 'school_class': None})
 
 @login_required
-@role_required('super_admin', 'school_admin', 'teacher')
+@permission_required('change', 'class')
 def class_edit(request, class_id):
     school = request.user.profile.school
     school_class = get_object_or_404(SchoolClass, id=class_id, school=school)
@@ -3757,7 +3757,7 @@ def class_edit(request, class_id):
     return render(request, 'core/class_form.html', {'grades': grades, 'teachers': teachers, 'school_class': school_class})
 
 @login_required
-@role_required('super_admin', 'school_admin')
+@permission_required('delete', 'class')
 def class_delete(request, class_id):
     school = request.user.profile.school
     school_class = get_object_or_404(SchoolClass, id=class_id, school=school)
@@ -3769,7 +3769,7 @@ def class_delete(request, class_id):
 
 
 @login_required
-@role_required('super_admin', 'school_admin', 'teacher')
+@permission_required('delete', 'class')
 def class_bulk_delete(request):
     """Bulk delete classes"""
     school = request.user.profile.school
@@ -3809,7 +3809,7 @@ def class_bulk_delete(request):
 
 # Teacher Management Views
 @login_required
-@role_required('super_admin', 'school_admin', 'teacher')
+@permission_required('view', 'teacher')
 def teacher_detail(request, teacher_id):
     """View teacher details"""
     school = request.user.profile.school
@@ -3826,7 +3826,7 @@ def teacher_detail(request, teacher_id):
 
 
 @login_required
-@role_required('super_admin', 'school_admin', 'teacher')
+@permission_required('view', 'teacher')
 def teacher_list(request):
     """List all teachers"""
     school = request.user.profile.school
@@ -3857,7 +3857,7 @@ def teacher_list(request):
 
 
 @login_required
-@role_required('super_admin', 'school_admin', 'teacher')
+@permission_required('add', 'teacher')
 def teacher_add(request):
     """Add a new teacher"""
     school = request.user.profile.school
@@ -3928,7 +3928,7 @@ def teacher_add(request):
 
 
 @login_required
-@role_required('super_admin', 'school_admin', 'teacher')
+@permission_required('change', 'teacher')
 def teacher_edit(request, teacher_id):
     """Edit a teacher"""
     school = request.user.profile.school
@@ -3989,7 +3989,7 @@ def teacher_edit(request, teacher_id):
 
 
 @login_required
-@role_required('super_admin', 'school_admin')
+@permission_required('delete', 'teacher')
 def teacher_delete(request, teacher_id):
     """Delete a teacher"""
     school = request.user.profile.school
@@ -4006,7 +4006,7 @@ def teacher_delete(request, teacher_id):
 
 # User Management Views
 @login_required
-@role_required('super_admin', 'school_admin')
+@permission_required('view', 'user_management')
 def user_list(request):
     """List all users"""
     users = User.objects.select_related('profile').all().order_by('-date_joined')
@@ -4078,7 +4078,7 @@ def _find_school_by_identifier(identifier):
 
 
 @login_required
-@role_required('super_admin', 'school_admin')
+@permission_required('add', 'user_management')
 def user_create(request):
     """Create a new user with role assignment"""
     if request.method == 'POST':
@@ -4196,7 +4196,7 @@ def user_create(request):
 
 
 @login_required
-@role_required('super_admin', 'school_admin')
+@permission_required('change', 'user_management')
 def user_edit(request, user_id):
     """Edit an existing user"""
     user_to_edit = get_object_or_404(User, id=user_id)
@@ -4260,7 +4260,7 @@ def user_edit(request, user_id):
 
 
 @login_required
-@role_required('super_admin', 'school_admin')
+@permission_required('delete', 'user_management')
 def user_delete(request, user_id):
     """Delete a user"""
     user_to_delete = get_object_or_404(User, id=user_id)
@@ -4298,7 +4298,7 @@ def user_delete(request, user_id):
 
 # Role Management Views
 @login_required
-@role_required('super_admin', 'school_admin')
+@permission_required('view', 'role_management')
 def role_list(request):
     """List all roles"""
     roles = Role.objects.all()
@@ -4306,7 +4306,7 @@ def role_list(request):
 
 
 @login_required
-@role_required('super_admin', 'school_admin')
+@permission_required('add', 'role_management')
 def role_add(request):
     """Add a new role"""
     from .forms import RoleForm
@@ -4328,7 +4328,7 @@ def role_add(request):
 
 
 @login_required
-@role_required('super_admin', 'school_admin')
+@permission_required('change', 'role_management')
 def role_edit(request, role_id):
     """Edit an existing role"""
     from .forms import RoleForm
@@ -4351,7 +4351,7 @@ def role_edit(request, role_id):
 
 
 @login_required
-@role_required('super_admin', 'school_admin')
+@permission_required('delete', 'role_management')
 def role_delete(request, role_id):
     """Delete a role"""
     role = get_object_or_404(Role, id=role_id)
@@ -4379,7 +4379,7 @@ def role_delete(request, role_id):
 
 
 @login_required
-@role_required('super_admin', 'school_admin')
+@permission_required('change', 'role_management')
 def role_permissions(request, role_id):
     """Manage permissions for a role"""
     role = get_object_or_404(Role, id=role_id)
@@ -4422,7 +4422,7 @@ def role_permissions(request, role_id):
 
 
 @login_required
-@role_required('super_admin', 'school_admin', 'accountant', 'teacher')
+@permission_required('view', 'report')
 def student_statement(request, student_id):
     """Generate fee statement for a student"""
     school = request.user.profile.school
@@ -4537,7 +4537,7 @@ def student_statement(request, student_id):
 
 
 @login_required
-@role_required('super_admin', 'school_admin', 'accountant', 'teacher')
+@permission_required('view', 'report')
 def student_statement_pdf(request, student_id):
     """Generate PDF version of student statement"""
     school = request.user.profile.school
@@ -4653,7 +4653,7 @@ def student_statement_pdf(request, student_id):
 
 
 @login_required
-@role_required('super_admin', 'school_admin', 'accountant', 'teacher')
+@permission_required('view', 'report')
 def student_statement_email(request, student_id):
     """Email student statement"""
     school = request.user.profile.school

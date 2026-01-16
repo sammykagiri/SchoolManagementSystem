@@ -1,4 +1,5 @@
 {% extends 'base.html' %}
+{% load permissions %}
 
 {% block title %}Grades | School Management System{% endblock %}
 
@@ -10,9 +11,11 @@
             <div class="card">
                 <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
                     <h4 class="mb-0">Grades</h4>
+                    {% if user|has_permission:'add_grade' %}
                     <a href="{% url 'core:grade_generate' %}" class="btn btn-light btn-sm">
                         <i class="fas fa-magic me-2"></i>Generate Generic Grades
                     </a>
+                    {% endif %}
                 </div>
                 <div class="card-body">
                     {% if grades %}
@@ -29,9 +32,11 @@
                                     </button>
                                     <span id="selectedCount" class="ms-2 text-muted">0 selected</span>
                                 </div>
-                                <button type="submit" class="btn btn-danger btn-sm" id="bulkDeleteBtn" disabled onclick="return confirm('Are you sure you want to delete the selected grades? This action cannot be undone.');">
-                                    <i class="fas fa-trash me-1"></i>Delete Selected
-                                </button>
+                                    {% if user|has_permission:'delete_grade' %}
+                                    <button type="submit" class="btn btn-danger btn-sm" id="bulkDeleteBtn" disabled onclick="return confirm('Are you sure you want to delete the selected grades? This action cannot be undone.');">
+                                        <i class="fas fa-trash me-1"></i>Delete Selected
+                                    </button>
+                                    {% endif %}
                             </div>
                             
                             <table class="table table-bordered table-striped">
@@ -55,13 +60,17 @@
                                         <td>{{ grade.description|default:"-" }}</td>
                                         <td>
                                             <div class="btn-group btn-group-sm" role="group">
+                                                {% if user|has_permission:'change_grade' %}
                                                 <a href="{% url 'core:grade_edit' grade.id %}" class="btn btn-outline-primary" title="Edit">
                                                     <i class="fas fa-edit"></i>
                                                 </a>
+                                                {% endif %}
+                                                {% if user|has_permission:'delete_grade' %}
                                                 <a href="{% url 'core:grade_delete' grade.id %}" class="btn btn-outline-danger" title="Delete" 
                                                    onclick="return confirm('Are you sure you want to delete this grade?');">
                                                     <i class="fas fa-trash"></i>
                                                 </a>
+                                                {% endif %}
                                             </div>
                                         </td>
                                     </tr>
@@ -82,6 +91,7 @@
         </div>
 
         <!-- Add New Grade Card (Right Side) -->
+        {% if user|has_permission:'add_grade' %}
         <div class="col-md-4 mb-4">
             <div class="card h-100">
                 <div class="card-header bg-secondary text-white">
@@ -105,6 +115,7 @@
                 </div>
             </div>
         </div>
+        {% endif %}
     </div>
 </div>
 {% endblock %}

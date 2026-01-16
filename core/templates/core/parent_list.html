@@ -1,4 +1,5 @@
 {% extends 'base.html' %}
+{% load permissions %}
 {% block title %}Parents | School Management System{% endblock %}
 {% block content %}
 <div class="container py-4">
@@ -19,9 +20,11 @@
             <a href="{% url 'core:parent_list' %}" class="btn btn-outline-secondary">
                 <i class="fas fa-times"></i> Clear Filters
             </a>
+            {% if user|has_permission:'add_parent' %}
             <a href="{% url 'core:parent_register' %}" class="btn btn-primary">
                 <i class="fas fa-plus"></i> Add Parent
             </a>
+            {% endif %}
         </div>
         <input type="hidden" name="show_inactive" id="showInactiveHidden" value="{% if show_inactive %}true{% else %}false{% endif %}">
     </form>
@@ -81,8 +84,12 @@
                             {% endif %}
                         </td>
                         <td>
+                            {% if user|has_permission:'view_parent' %}
                             <a href="{% url 'core:parent_detail' parent.id %}" class="btn btn-sm btn-outline-info me-1">View</a>
+                            {% endif %}
+                            {% if user|has_permission:'change_parent' %}
                             <a href="{% url 'core:parent_edit' parent.id %}" class="btn btn-sm btn-outline-primary">Edit</a>
+                            {% endif %}
                         </td>
                     </tr>
                     {% empty %}
