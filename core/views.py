@@ -3720,17 +3720,35 @@ def teacher_add(request):
         is_active = request.POST.get('is_active') == 'on'
         photo = request.FILES.get('photo')
         
-        errors = []
+        field_errors = {}
         if not first_name:
-            errors.append('First name is required.')
+            field_errors['first_name'] = 'First name is required.'
         if not last_name:
-            errors.append('Last name is required.')
+            field_errors['last_name'] = 'Last name is required.'
+        if not gender:
+            field_errors['gender'] = 'Gender is required.'
+        if not email:
+            field_errors['email'] = 'Email is required.'
+        elif '@' not in email:
+            field_errors['email'] = 'Please enter a valid email address.'
+        if not phone:
+            field_errors['phone'] = 'Phone is required.'
+        if not date_of_birth:
+            field_errors['date_of_birth'] = 'Date of birth is required.'
+        if not date_of_joining:
+            field_errors['date_of_joining'] = 'Date of joining is required.'
+        if not qualification:
+            field_errors['qualification'] = 'Qualification is required.'
         
-        if errors:
-            for error in errors:
-                messages.error(request, error)
+        if field_errors:
             subjects = TimetableSubject.objects.filter(school=school, is_active=True).order_by('name')
-            return render(request, 'core/teacher_form.html', {'post': request.POST, 'teacher': None, 'subjects': subjects})
+            return render(request, 'core/teacher_form.html', {
+                'post': request.POST, 
+                'teacher': None, 
+                'subjects': subjects,
+                'selected_specializations': request.POST.getlist('specialization'),
+                'field_errors': field_errors
+            })
         
         # Generate employee ID
         employee_id = TeacherService.generate_employee_id(school)
@@ -3744,13 +3762,13 @@ def teacher_add(request):
             employee_id=employee_id,
             first_name=first_name,
             last_name=last_name,
-            gender=gender if gender else None,
-            email=email if email else None,
-            phone=phone if phone else None,
+            gender=gender,
+            email=email,
+            phone=phone,
             address=address if address else None,
             date_of_birth=date_of_birth,
             date_of_joining=date_of_joining,
-            qualification=qualification if qualification else None,
+            qualification=qualification,
             specialization=specialization if specialization else None,
             photo=photo,
             is_active=is_active
@@ -3765,7 +3783,8 @@ def teacher_add(request):
         'post': {}, 
         'teacher': None, 
         'subjects': subjects,
-        'selected_specializations': selected_specializations
+        'selected_specializations': selected_specializations,
+        'field_errors': {}
     })
 
 
@@ -3780,13 +3799,13 @@ def teacher_edit(request, teacher_id):
     if request.method == 'POST':
         teacher.first_name = request.POST.get('first_name', '').strip()
         teacher.last_name = request.POST.get('last_name', '').strip()
-        teacher.gender = request.POST.get('gender', '') or None
-        teacher.email = request.POST.get('email', '').strip() or None
-        teacher.phone = request.POST.get('phone', '').strip() or None
+        teacher.gender = request.POST.get('gender', '')
+        teacher.email = request.POST.get('email', '').strip()
+        teacher.phone = request.POST.get('phone', '').strip()
         teacher.address = request.POST.get('address', '').strip() or None
         teacher.date_of_birth = request.POST.get('date_of_birth', '') or None
         teacher.date_of_joining = request.POST.get('date_of_joining', '') or None
-        teacher.qualification = request.POST.get('qualification', '').strip() or None
+        teacher.qualification = request.POST.get('qualification', '').strip()
         specialization_list = request.POST.getlist('specialization')
         teacher.specialization = ', '.join([s.strip() for s in specialization_list if s.strip()]) or None
         teacher.is_active = request.POST.get('is_active') == 'on'
@@ -3794,15 +3813,27 @@ def teacher_edit(request, teacher_id):
         if 'photo' in request.FILES:
             teacher.photo = request.FILES['photo']
         
-        errors = []
+        field_errors = {}
         if not teacher.first_name:
-            errors.append('First name is required.')
+            field_errors['first_name'] = 'First name is required.'
         if not teacher.last_name:
-            errors.append('Last name is required.')
+            field_errors['last_name'] = 'Last name is required.'
+        if not teacher.gender:
+            field_errors['gender'] = 'Gender is required.'
+        if not teacher.email:
+            field_errors['email'] = 'Email is required.'
+        elif '@' not in teacher.email:
+            field_errors['email'] = 'Please enter a valid email address.'
+        if not teacher.phone:
+            field_errors['phone'] = 'Phone is required.'
+        if not teacher.date_of_birth:
+            field_errors['date_of_birth'] = 'Date of birth is required.'
+        if not teacher.date_of_joining:
+            field_errors['date_of_joining'] = 'Date of joining is required.'
+        if not teacher.qualification:
+            field_errors['qualification'] = 'Qualification is required.'
         
-        if errors:
-            for error in errors:
-                messages.error(request, error)
+        if field_errors:
             subjects = TimetableSubject.objects.filter(school=school, is_active=True).order_by('name')
             specialization_list = request.POST.getlist('specialization')
             selected_specializations = [s.strip() for s in specialization_list if s.strip()]
@@ -3810,7 +3841,8 @@ def teacher_edit(request, teacher_id):
                 'post': request.POST, 
                 'teacher': teacher, 
                 'subjects': subjects,
-                'selected_specializations': selected_specializations
+                'selected_specializations': selected_specializations,
+                'field_errors': field_errors
             })
         
         teacher.save()
@@ -3826,7 +3858,8 @@ def teacher_edit(request, teacher_id):
         'post': {}, 
         'teacher': teacher, 
         'subjects': subjects,
-        'selected_specializations': selected_specializations
+        'selected_specializations': selected_specializations,
+        'field_errors': {}
     })
 
 

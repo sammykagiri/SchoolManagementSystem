@@ -10,14 +10,6 @@
                     <h4 class="mb-0">{% if teacher %}Edit Teacher{% else %}Add Teacher{% endif %}</h4>
                 </div>
                 <div class="card-body">
-                    {% if messages %}
-                        {% for message in messages %}
-                            <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
-                                {{ message }}
-                                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-                            </div>
-                        {% endfor %}
-                    {% endif %}
                     <form method="post" enctype="multipart/form-data" novalidate>
                         {% csrf_token %}
                         <div class="row g-3">
@@ -29,54 +21,78 @@
                             
                             <div class="col-md-4">
                                 <label for="id_first_name" class="form-label">First Name <span class="text-danger">*</span></label>
-                                <input type="text" name="first_name" id="id_first_name" class="form-control" 
-                                       value="{% if post.first_name %}{{ post.first_name }}{% elif teacher %}{{ teacher.first_name }}{% endif %}" required>
+                                <input type="text" name="first_name" id="id_first_name" class="form-control{% if field_errors.first_name %} is-invalid{% endif %}" 
+                                       value="{% if post.first_name %}{{ post.first_name }}{% elif teacher %}{{ teacher.first_name }}{% endif %}">
+                                {% if field_errors.first_name %}
+                                    <div class="invalid-feedback d-block">{{ field_errors.first_name }}</div>
+                                {% endif %}
                             </div>
                             
                             <div class="col-md-4">
                                 <label for="id_last_name" class="form-label">Last Name <span class="text-danger">*</span></label>
-                                <input type="text" name="last_name" id="id_last_name" class="form-control" 
-                                       value="{% if post.last_name %}{{ post.last_name }}{% elif teacher %}{{ teacher.last_name }}{% endif %}" required>
+                                <input type="text" name="last_name" id="id_last_name" class="form-control{% if field_errors.last_name %} is-invalid{% endif %}" 
+                                       value="{% if post.last_name %}{{ post.last_name }}{% elif teacher %}{{ teacher.last_name }}{% endif %}">
+                                {% if field_errors.last_name %}
+                                    <div class="invalid-feedback d-block">{{ field_errors.last_name }}</div>
+                                {% endif %}
                             </div>
                             
                             <div class="col-md-4">
-                                <label for="id_gender" class="form-label">Gender</label>
-                                <select name="gender" id="id_gender" class="form-select">
+                                <label for="id_gender" class="form-label">Gender <span class="text-danger">*</span></label>
+                                <select name="gender" id="id_gender" class="form-select{% if field_errors.gender %} is-invalid{% endif %}">
                                     <option value="">Select Gender</option>
                                     <option value="M" {% if post.gender == 'M' or teacher.gender == 'M' %}selected{% endif %}>Male</option>
                                     <option value="F" {% if post.gender == 'F' or teacher.gender == 'F' %}selected{% endif %}>Female</option>
                                 </select>
+                                {% if field_errors.gender %}
+                                    <div class="invalid-feedback d-block">{{ field_errors.gender }}</div>
+                                {% endif %}
                             </div>
                             
                             <div class="col-md-4">
-                                <label for="id_email" class="form-label">Email</label>
-                                <input type="email" name="email" id="id_email" class="form-control" 
+                                <label for="id_email" class="form-label">Email <span class="text-danger">*</span></label>
+                                <input type="email" name="email" id="id_email" class="form-control{% if field_errors.email %} is-invalid{% endif %}" 
                                        value="{% if post.email %}{{ post.email }}{% elif teacher %}{{ teacher.email|default:'' }}{% endif %}">
+                                {% if field_errors.email %}
+                                    <div class="invalid-feedback d-block">{{ field_errors.email }}</div>
+                                {% endif %}
                             </div>
                             
                             <div class="col-md-4">
-                                <label for="id_phone" class="form-label">Phone</label>
-                                <input type="text" name="phone" id="id_phone" class="form-control" 
+                                <label for="id_phone" class="form-label">Phone <span class="text-danger">*</span></label>
+                                <input type="text" name="phone" id="id_phone" class="form-control{% if field_errors.phone %} is-invalid{% endif %}" 
                                        value="{% if post.phone %}{{ post.phone }}{% elif teacher %}{{ teacher.phone|default:'' }}{% endif %}">
+                                {% if field_errors.phone %}
+                                    <div class="invalid-feedback d-block">{{ field_errors.phone }}</div>
+                                {% endif %}
                             </div>
                             
                             <div class="col-md-6">
-                                <label for="id_date_of_birth" class="form-label">Date of Birth</label>
-                                <input type="date" name="date_of_birth" id="id_date_of_birth" class="form-control" 
+                                <label for="id_date_of_birth" class="form-label">Date of Birth <span class="text-danger">*</span></label>
+                                <input type="date" name="date_of_birth" id="id_date_of_birth" class="form-control{% if field_errors.date_of_birth %} is-invalid{% endif %}" 
                                        value="{% if post.date_of_birth %}{{ post.date_of_birth }}{% elif teacher and teacher.date_of_birth %}{{ teacher.date_of_birth|date:'Y-m-d' }}{% endif %}">
+                                {% if field_errors.date_of_birth %}
+                                    <div class="invalid-feedback d-block">{{ field_errors.date_of_birth }}</div>
+                                {% endif %}
                             </div>
                             
                             <div class="col-md-6">
-                                <label for="id_date_of_joining" class="form-label">Date of Joining</label>
-                                <input type="date" name="date_of_joining" id="id_date_of_joining" class="form-control" 
+                                <label for="id_date_of_joining" class="form-label">Date of Joining <span class="text-danger">*</span></label>
+                                <input type="date" name="date_of_joining" id="id_date_of_joining" class="form-control{% if field_errors.date_of_joining %} is-invalid{% endif %}" 
                                        value="{% if post.date_of_joining %}{{ post.date_of_joining }}{% elif teacher and teacher.date_of_joining %}{{ teacher.date_of_joining|date:'Y-m-d' }}{% endif %}">
+                                {% if field_errors.date_of_joining %}
+                                    <div class="invalid-feedback d-block">{{ field_errors.date_of_joining }}</div>
+                                {% endif %}
                             </div>
                             
                             <div class="col-md-6">
-                                <label for="id_qualification" class="form-label">Qualification</label>
-                                <input type="text" name="qualification" id="id_qualification" class="form-control" 
+                                <label for="id_qualification" class="form-label">Qualification <span class="text-danger">*</span></label>
+                                <input type="text" name="qualification" id="id_qualification" class="form-control{% if field_errors.qualification %} is-invalid{% endif %}" 
                                        value="{% if post.qualification %}{{ post.qualification }}{% elif teacher %}{{ teacher.qualification|default:'' }}{% endif %}" 
                                        placeholder="e.g., B.Ed, M.Sc">
+                                {% if field_errors.qualification %}
+                                    <div class="invalid-feedback d-block">{{ field_errors.qualification }}</div>
+                                {% endif %}
                             </div>
                             
                             <div class="col-md-6">
@@ -203,15 +219,128 @@ $(document).ready(function() {
         closeOnSelect: false
     });
     
-    // Convert Select2 multiple values to comma-separated string for form submission
-    // The view expects getlist('specialization'), so we need to ensure proper submission
+    // Form validation on submit
     const form = document.querySelector('form');
     if (form) {
         form.addEventListener('submit', function(e) {
-            const selectedValues = $('#id_specialization').val() || [];
-            // Select2 with multiple will submit as array, which Django's getlist can handle
-            // But we need to ensure the select element has the correct values
-            // Select2 already handles this, so we just need to make sure it's synced
+            let isValid = true;
+            
+            // Remove previous validation states
+            form.querySelectorAll('.is-invalid').forEach(function(field) {
+                field.classList.remove('is-invalid');
+            });
+            form.querySelectorAll('.invalid-feedback').forEach(function(msg) {
+                if (msg.classList.contains('client-validation')) {
+                    msg.remove();
+                }
+            });
+            
+            // Validate First Name
+            const firstName = document.getElementById('id_first_name');
+            if (!firstName.value.trim()) {
+                firstName.classList.add('is-invalid');
+                const errorMsg = document.createElement('div');
+                errorMsg.className = 'invalid-feedback d-block client-validation';
+                errorMsg.textContent = 'First name is required.';
+                firstName.parentElement.appendChild(errorMsg);
+                isValid = false;
+            }
+            
+            // Validate Last Name
+            const lastName = document.getElementById('id_last_name');
+            if (!lastName.value.trim()) {
+                lastName.classList.add('is-invalid');
+                const errorMsg = document.createElement('div');
+                errorMsg.className = 'invalid-feedback d-block client-validation';
+                errorMsg.textContent = 'Last name is required.';
+                lastName.parentElement.appendChild(errorMsg);
+                isValid = false;
+            }
+            
+            // Validate Gender
+            const gender = document.getElementById('id_gender');
+            if (!gender.value.trim()) {
+                gender.classList.add('is-invalid');
+                const errorMsg = document.createElement('div');
+                errorMsg.className = 'invalid-feedback d-block client-validation';
+                errorMsg.textContent = 'Gender is required.';
+                gender.parentElement.appendChild(errorMsg);
+                isValid = false;
+            }
+            
+            // Validate Email
+            const email = document.getElementById('id_email');
+            if (!email.value.trim()) {
+                email.classList.add('is-invalid');
+                const errorMsg = document.createElement('div');
+                errorMsg.className = 'invalid-feedback d-block client-validation';
+                errorMsg.textContent = 'Email is required.';
+                email.parentElement.appendChild(errorMsg);
+                isValid = false;
+            } else if (!email.value.includes('@')) {
+                email.classList.add('is-invalid');
+                const errorMsg = document.createElement('div');
+                errorMsg.className = 'invalid-feedback d-block client-validation';
+                errorMsg.textContent = 'Please enter a valid email address.';
+                email.parentElement.appendChild(errorMsg);
+                isValid = false;
+            }
+            
+            // Validate Phone
+            const phone = document.getElementById('id_phone');
+            if (!phone.value.trim()) {
+                phone.classList.add('is-invalid');
+                const errorMsg = document.createElement('div');
+                errorMsg.className = 'invalid-feedback d-block client-validation';
+                errorMsg.textContent = 'Phone is required.';
+                phone.parentElement.appendChild(errorMsg);
+                isValid = false;
+            }
+            
+            // Validate Date of Birth
+            const dateOfBirth = document.getElementById('id_date_of_birth');
+            if (!dateOfBirth.value.trim()) {
+                dateOfBirth.classList.add('is-invalid');
+                const errorMsg = document.createElement('div');
+                errorMsg.className = 'invalid-feedback d-block client-validation';
+                errorMsg.textContent = 'Date of birth is required.';
+                dateOfBirth.parentElement.appendChild(errorMsg);
+                isValid = false;
+            }
+            
+            // Validate Date of Joining
+            const dateOfJoining = document.getElementById('id_date_of_joining');
+            if (!dateOfJoining.value.trim()) {
+                dateOfJoining.classList.add('is-invalid');
+                const errorMsg = document.createElement('div');
+                errorMsg.className = 'invalid-feedback d-block client-validation';
+                errorMsg.textContent = 'Date of joining is required.';
+                dateOfJoining.parentElement.appendChild(errorMsg);
+                isValid = false;
+            }
+            
+            // Validate Qualification
+            const qualification = document.getElementById('id_qualification');
+            if (!qualification.value.trim()) {
+                qualification.classList.add('is-invalid');
+                const errorMsg = document.createElement('div');
+                errorMsg.className = 'invalid-feedback d-block client-validation';
+                errorMsg.textContent = 'Qualification is required.';
+                qualification.parentElement.appendChild(errorMsg);
+                isValid = false;
+            }
+            
+            // Prevent form submission if validation fails
+            if (!isValid) {
+                e.preventDefault();
+                // Scroll to first invalid field
+                const firstInvalid = form.querySelector('.is-invalid');
+                if (firstInvalid) {
+                    firstInvalid.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    firstInvalid.focus();
+                }
+                return false;
+            }
         });
     }
 });
