@@ -119,8 +119,14 @@ class CustomLoginView(LoginView):
         return super().dispatch(request, *args, **kwargs)
     
     def get_success_url(self):
-        """Determine where to redirect after successful login - default to home page"""
+        """Determine where to redirect after successful login - default to home page or portal for parent portal users"""
         from django.urls import reverse
+        # Superusers always go to home
+        if self.request.user.is_superuser:
+            return reverse('core:home')
+        # Check if user has parent_portal permission
+        if hasattr(self.request.user, 'profile') and self.request.user.profile.has_permission('view', 'parent_portal'):
+            return reverse('core:parent_portal_dashboard')
         return reverse('core:home')
     
     def get_success_url_redirect(self, request):
@@ -130,8 +136,11 @@ class CustomLoginView(LoginView):
 
 
 def root_redirect(request):
-    """Root redirect - goes to home page"""
+    """Root redirect - goes to home page or portal for parent portal users"""
     if request.user.is_authenticated:
+        # Check if user has parent_portal permission (exclude superusers)
+        if not request.user.is_superuser and hasattr(request.user, 'profile') and request.user.profile.has_permission('view', 'parent_portal'):
+            return redirect('core:parent_portal_dashboard')
         return redirect('core:home')
     return redirect('login')
 
@@ -157,7 +166,13 @@ class IsSuperUser(BasePermission):
 
 @login_required
 def home(request):
-    """Home page with permission-based access cards"""
+    """Home page with permission-based access cards - redirects to portal for parent portal users"""
+    # Superusers always see the home page
+    if request.user.is_superuser:
+        return render(request, 'core/home.html')
+    # Check if user has parent_portal permission
+    if hasattr(request.user, 'profile') and request.user.profile.has_permission('view', 'parent_portal'):
+        return redirect('core:parent_portal_dashboard')
     return render(request, 'core/home.html')
 
 

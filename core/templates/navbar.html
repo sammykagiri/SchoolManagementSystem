@@ -5,10 +5,25 @@
 <aside id="sidebar" class="sidebar">
     <div class="sidebar-header">
         {% if user.is_authenticated and user.profile and user.profile.school and user.profile.school.logo %}
+            {% if not user.is_superuser and user|has_permission:'view_parent_portal' %}
+            <a href="{% url 'core:parent_portal_dashboard' %}" class="school-logo-container mb-2" style="display: block; text-decoration: none; cursor: pointer;">
+                <img src="{{ user.profile.school.logo.url }}" alt="School Logo" class="school-logo">
+            </a>
+            {% else %}
             <a href="{% url 'core:home' %}" class="school-logo-container mb-2" style="display: block; text-decoration: none; cursor: pointer;">
                 <img src="{{ user.profile.school.logo.url }}" alt="School Logo" class="school-logo">
             </a>
+            {% endif %}
         {% endif %}
+        {% if not user.is_superuser and user|has_permission:'view_parent_portal' %}
+        <a href="{% url 'core:parent_portal_dashboard' %}" class="sidebar-brand">
+            {% if user.is_authenticated and user.profile and user.profile.school %}
+                {{ user.profile.school.name|title }}
+            {% else %}
+                School Management
+            {% endif %}
+        </a>
+        {% else %}
         <a href="{% url 'core:home' %}" class="sidebar-brand">
             {% if user.is_authenticated and user.profile and user.profile.school %}
                 {{ user.profile.school.name|title }}
@@ -16,6 +31,7 @@
                 School Management
             {% endif %}
         </a>
+        {% endif %}
     </div>
     
     <nav class="sidebar-nav flex-grow-1">
