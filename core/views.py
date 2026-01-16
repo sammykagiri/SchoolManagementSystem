@@ -4190,7 +4190,7 @@ def user_create(request):
         'user_form': user_form,
         'profile_form': profile_form,
         'title': 'Create New User',
-        'user': None,
+        'user_to_edit': None,
         'is_superadmin': is_superadmin_user(request.user)
     })
 
@@ -4254,7 +4254,7 @@ def user_edit(request, user_id):
         'user_form': user_form,
         'profile_form': profile_form,
         'title': f'Edit User: {user_to_edit.username}',
-        'user': user_to_edit,
+        'user_to_edit': user_to_edit,
         'is_superadmin': is_superadmin_user(request.user)
     })
 

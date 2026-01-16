@@ -43,7 +43,7 @@
     <div class="card form-card">
         <div class="form-header">
             <h3 class="mb-0">
-                {% if user %}
+                {% if user_to_edit %}
                     <i class="fas fa-user-edit me-2"></i>
                 {% else %}
                     <i class="fas fa-user-plus me-2"></i>
@@ -76,7 +76,7 @@
                                    class="form-control {% if user_form.username.errors %}is-invalid{% endif %}" 
                                    id="{{ user_form.username.id_for_label }}" 
                                    value="{{ user_form.username.value|default:'' }}" 
-                                   {% if user %}{% if not user.is_superuser %}readonly{% endif %}{% else %}placeholder="Enter username" oninput="this.value = this.value.toLowerCase();"{% endif %}>
+                                   {% if user_to_edit %}{% if not user_to_edit.is_superuser %}readonly{% endif %}{% else %}placeholder="Enter username" oninput="this.value = this.value.toLowerCase();"{% endif %}>
                             {% if user_form.username.errors %}
                                 <div class="invalid-feedback">
                                     {{ user_form.username.errors.0 }}
@@ -85,7 +85,7 @@
                             {% if user_form.username.help_text %}
                                 <div class="form-text">{{ user_form.username.help_text }}</div>
                             {% endif %}
-                            {% if not user %}
+                            {% if not user_to_edit %}
                             <div id="username-preview" class="form-text text-muted" style="display: none;">
                                 <i class="fas fa-info-circle me-1"></i>
                                 <strong>Preview:</strong> <code id="preview-text"></code>
@@ -135,7 +135,7 @@
                         </div>
                     </div>
                     
-                    {% if not user %}
+                    {% if not user_to_edit %}
                     <div class="row">
                         <div class="col-md-6 mb-3">
                             <label for="{{ user_form.password1.id_for_label }}" class="form-label">Password *</label>
@@ -267,7 +267,7 @@
                         <i class="fas fa-arrow-left me-2"></i>Back to User List
                     </a>
                     <button type="submit" class="btn btn-primary">
-                        {% if user %}
+                        {% if user_to_edit %}
                             <i class="fas fa-save me-2"></i>Update User
                         {% else %}
                             <i class="fas fa-user-plus me-2"></i>Create User
@@ -281,7 +281,7 @@
 {% endblock %}
 
 {% block extra_js %}
-{% if not user %}
+{% if not user_to_edit %}
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     const usernameInput = document.getElementById('{{ user_form.username.id_for_label }}');
