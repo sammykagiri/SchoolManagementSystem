@@ -40,7 +40,8 @@
                 {% if user.is_superuser or not user.profile.is_student %}
                     {% if user.is_superuser or not user.profile.is_parent %}
                     {% comment %}Check if user has school assigned - show all menus only if user has school{% endcomment %}
-                    {% if user.is_superuser or user.profile and user.profile.school %}
+                    {% if user.is_superuser or user.profile.school %}
+                    {% comment %}Show menus for superusers or users with school assignment{% endcomment %}
         <ul class="nav flex-column">
             <!-- Home -->
             <li class="nav-item">
@@ -550,23 +551,27 @@
         </ul>
         {% else %}
         {% comment %}User without school assignment - show only Manage Schools for superadmin, warning for others{% endcomment %}
-        <ul class="nav flex-column">
-            {% if user|has_permission:'view_school_management' %}
-            <!-- Super Admin: Manage Schools (even without school assignment) -->
-            <li class="nav-item">
-                <a class="nav-link {% if request.resolver_match.url_name == 'school_admin_list' %}active{% endif %}" href="{% url 'core:school_admin_list' %}">
-                    <i class="fas fa-school me-2"></i>
-                    <span>Manage Schools</span>
-                </a>
-            </li>
-            {% else %}
-            <li class="nav-item">
-                <span class="nav-link text-warning">
-                    <i class="fas fa-exclamation-triangle me-2"></i>You must be assigned to a school to access menus. Please contact administrator.
-                </span>
-            </li>
+        {% if not user.is_superuser %}
+            {% if not user.profile.school %}
+            <ul class="nav flex-column">
+                {% if user|has_permission:'view_school_management' %}
+                <!-- Super Admin: Manage Schools (even without school assignment) -->
+                <li class="nav-item">
+                    <a class="nav-link {% if request.resolver_match.url_name == 'school_admin_list' %}active{% endif %}" href="{% url 'core:school_admin_list' %}">
+                        <i class="fas fa-school me-2"></i>
+                        <span>Manage Schools</span>
+                    </a>
+                </li>
+                {% else %}
+                <li class="nav-item">
+                    <span class="nav-link text-warning">
+                        <i class="fas fa-exclamation-triangle me-2"></i>You must be assigned to a school to access menus. Please contact administrator.
+                    </span>
+                </li>
+                {% endif %}
+            </ul>
             {% endif %}
-        </ul>
+        {% endif %}
         {% endif %}
                     {% endif %}
                 {% endif %}
