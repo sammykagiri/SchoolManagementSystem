@@ -556,14 +556,15 @@
                 {% endif %}
             {% endif %}
         {% endif %}
-        {% if user.is_authenticated and user.profile and user.profile.is_parent %}
-        {% comment %}Parent Portal Menu (for parents only){% endcomment %}
+        
+        {% if user|has_permission:'view_parent_portal' %}
+        {% comment %}Parent Portal Menu - Standalone menu for parents{% endcomment %}
         <ul class="nav flex-column">
             <!-- Parent Portal Dashboard -->
             <li class="nav-item">
-                <a class="nav-link {% if request.resolver_match.url_name == 'parent_portal_dashboard' %}active{% endif %}" href="{% url 'core:parent_portal_dashboard' %}">
+                <a class="nav-link {% if request.resolver_match.url_name == 'parent_portal_dashboard' or 'parent_portal' in request.resolver_match.url_name %}active{% endif %}" href="{% url 'core:parent_portal_dashboard' %}">
                     <i class="fas fa-home me-2"></i>
-                    <span>{% if user.is_superuser %}Parent Portal{% else %}Dashboard{% endif %}</span>
+                    <span>Parent Portal</span>
                 </a>
             </li>
             

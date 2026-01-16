@@ -593,6 +593,7 @@ class Permission(models.Model):
         ('user_management', 'User Management'),
         ('role_management', 'Role Management'),
         ('school_management', 'School Management'),
+        ('parent_portal', 'Parent Portal'),
     ]
     
     permission_type = models.CharField(max_length=20, choices=PERMISSION_TYPES)

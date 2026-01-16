@@ -59,6 +59,8 @@ class Command(BaseCommand):
             'user_management',
             'role_management',
             'school_management',
+            'parent',
+            'parent_portal',
         ]
 
         # Define permission types

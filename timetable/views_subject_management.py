@@ -127,6 +127,7 @@ def subject_level_overview(request):
 
 
 @login_required
+@permission_required('change', 'subject')
 def subject_bulk_update_level(request):
     """Bulk update learning level for multiple subjects"""
     school = request.user.profile.school
@@ -171,6 +172,7 @@ def subject_bulk_update_level(request):
 
 
 @login_required
+@permission_required('change', 'subject')
 def subject_sync_with_templates(request, learning_level):
     """Sync existing subjects with CBC templates (update missing fields)"""
     school = request.user.profile.school

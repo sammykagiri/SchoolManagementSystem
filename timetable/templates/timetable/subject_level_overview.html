@@ -1,4 +1,5 @@
 {% extends 'base.html' %}
+{% load permissions %}
 {% block title %}Subjects by Learning Level | School Management System{% endblock %}
 {% block content %}
 <div class="container py-4">
@@ -10,9 +11,11 @@
             <a href="{% url 'timetable:subject_list' %}" class="btn btn-outline-secondary">
                 <i class="fas fa-list me-2"></i>All Subjects
             </a>
+            {% if user|has_permission:'add_subject' %}
             <a href="{% url 'timetable:subject_generate' %}" class="btn btn-success">
                 <i class="fas fa-magic me-2"></i>Generate CBC Subjects
             </a>
+            {% endif %}
         </div>
     </div>
     
@@ -109,18 +112,22 @@
                     <div class="alert alert-info mb-0">
                         <i class="fas fa-info-circle me-2"></i>
                         No subjects created for this level yet.
+                        {% if user|has_permission:'add_subject' %}
                         <a href="{% url 'timetable:subject_generate' %}?learning_level={{ level_info.level }}" class="alert-link">
                             Generate subjects
                         </a>
+                        {% endif %}
                     </div>
                     {% else %}
                     <div class="d-grid gap-2">
                         <a href="{% url 'timetable:subject_by_level' level_info.level %}" class="btn btn-primary btn-sm">
                             <i class="fas fa-eye me-2"></i>View Subjects
                         </a>
+                        {% if user|has_permission:'change_subject' %}
                         <a href="{% url 'timetable:subject_sync_with_templates' level_info.level %}" class="btn btn-outline-info btn-sm">
                             <i class="fas fa-sync me-2"></i>Sync with Templates
                         </a>
+                        {% endif %}
                     </div>
                     {% endif %}
                 </div>
@@ -141,9 +148,11 @@
                 You have <strong>{{ subjects_without_level }}</strong> subject(s) without a learning level assigned.
                 Consider updating them to organize by CBC levels.
             </p>
+            {% if user|has_permission:'change_subject' %}
             <a href="{% url 'timetable:subject_bulk_update_level' %}" class="btn btn-warning">
                 <i class="fas fa-edit me-2"></i>Bulk Update Learning Levels
             </a>
+            {% endif %}
         </div>
     </div>
     {% endif %}

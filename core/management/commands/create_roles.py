@@ -75,6 +75,7 @@ class Command(BaseCommand):
                     'view_gradebook',
                     'view_assignment', 'view_submission',
                     'view_dashboard',
+                    'view_parent_portal',
                 ]
             },
             'student': {
