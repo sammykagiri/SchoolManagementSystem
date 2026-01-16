@@ -185,15 +185,27 @@
         </div>
         {% endif %}
 
-        {% if user|has_permission:'view_term' or user|has_permission:'view_grade' or user|has_permission:'view_class' %}
+        {% if user|has_permission:'view_term' or user|has_permission:'view_grade' or user|has_permission:'view_class' or user|has_permission:'view_user_management' or user|has_permission:'view_role_management' %}
         <!-- Settings Card -->
         <div class="col-md-4 mb-3">
             <div class="card h-100 shadow-sm">
                 <div class="card-body text-center">
                     <i class="fas fa-cog fa-3x text-secondary mb-3"></i>
                     <h5 class="card-title">Settings</h5>
-                    <p class="card-text text-muted small">Configure terms, grades, and classes</p>
-                    <a href="{% url 'core:settings_list' %}" class="btn btn-primary btn-sm">View Settings</a>
+                    <p class="card-text text-muted small">Configure terms, grades, classes, users, and roles</p>
+                    <div class="d-grid gap-2">
+                        <a href="{% url 'core:settings_list' %}" class="btn btn-primary btn-sm">View Settings</a>
+                        {% if user|has_permission:'view_user_management' %}
+                        <a href="{% url 'core:user_list' %}" class="btn btn-outline-primary btn-sm">
+                            <i class="fas fa-users me-1"></i>User Management
+                        </a>
+                        {% endif %}
+                        {% if user|has_permission:'view_role_management' %}
+                        <a href="{% url 'core:role_list' %}" class="btn btn-outline-primary btn-sm">
+                            <i class="fas fa-user-tag me-1"></i>Role Management
+                        </a>
+                        {% endif %}
+                    </div>
                 </div>
             </div>
         </div>
