@@ -59,6 +59,20 @@
         </div>
         {% endif %}
 
+        {% if user|has_permission:'view_parent_portal' %}
+        <!-- Parent Portal Card -->
+        <div class="col-md-4 mb-3">
+            <div class="card h-100 shadow-sm">
+                <div class="card-body text-center">
+                    <i class="fas fa-door-open fa-3x text-info mb-3"></i>
+                    <h5 class="card-title">Parent Portal</h5>
+                    <p class="card-text text-muted small">Access your children's information, fees, and performance</p>
+                    <a href="{% url 'core:parent_portal_dashboard' %}" class="btn btn-primary btn-sm">Open Portal</a>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
         {% if user|has_permission:'view_teacher' or user|has_permission:'add_teacher' %}
         <!-- Teachers Card -->
         <div class="col-md-4 mb-3">

@@ -4703,32 +4703,41 @@ def parent_portal_dashboard(request):
     
     # Get all children linked to this parent
     children = parent.children.all().select_related('grade', 'school_class', 'school_class__class_teacher').order_by('first_name', 'last_name')
+    has_children = children.exists()
     
     # Calculate fee statistics for all children
-    all_student_fees = StudentFee.objects.filter(
-        student__in=children,
-        student__is_active=True
-    ).select_related('fee_category', 'term', 'student')
-    
-    total_charged = all_student_fees.aggregate(total=Sum('amount_charged'))['total'] or Decimal('0.00')
-    total_paid = all_student_fees.aggregate(total=Sum('amount_paid'))['total'] or Decimal('0.00')
-    total_balance = total_charged - total_paid
-    
-    # Get overdue fees
-    from django.utils import timezone
-    overdue_fees = all_student_fees.filter(
-        due_date__lt=timezone.now().date(),
-        is_paid=False
-    ).order_by('due_date')
-    
-    # Get recent payments
-    recent_payments = Payment.objects.filter(
-        student__in=children
-    ).select_related('student', 'student_fee').order_by('-created_at')[:10]
+    if has_children:
+        all_student_fees = StudentFee.objects.filter(
+            student__in=children,
+            student__is_active=True
+        ).select_related('fee_category', 'term', 'student')
+        
+        total_charged = all_student_fees.aggregate(total=Sum('amount_charged'))['total'] or Decimal('0.00')
+        total_paid = all_student_fees.aggregate(total=Sum('amount_paid'))['total'] or Decimal('0.00')
+        total_balance = total_charged - total_paid
+        
+        # Get overdue fees
+        from django.utils import timezone
+        overdue_fees = all_student_fees.filter(
+            due_date__lt=timezone.now().date(),
+            is_paid=False
+        ).order_by('due_date')
+        
+        # Get recent payments
+        recent_payments = Payment.objects.filter(
+            student__in=children
+        ).select_related('student', 'student_fee').order_by('-created_at')[:10]
+    else:
+        total_charged = Decimal('0.00')
+        total_paid = Decimal('0.00')
+        total_balance = Decimal('0.00')
+        overdue_fees = StudentFee.objects.none()
+        recent_payments = Payment.objects.none()
     
     context = {
         'parent': parent,
         'children': children,
+        'has_children': has_children,
         'total_charged': total_charged,
         'total_paid': total_paid,
         'total_balance': total_balance,

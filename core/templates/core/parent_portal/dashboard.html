@@ -42,6 +42,7 @@
     </div>
 
     <!-- Children List -->
+    {% if has_children %}
     <div class="row mb-4">
         <div class="col-12">
             <div class="card">
@@ -49,7 +50,6 @@
                     <h5 class="mb-0"><i class="fas fa-users me-2"></i>My Children</h5>
                 </div>
                 <div class="card-body">
-                    {% if children %}
                     <div class="row">
                         {% for child in children %}
                         <div class="col-md-6 mb-3">
@@ -96,16 +96,11 @@
                         </div>
                         {% endfor %}
                     </div>
-                    {% else %}
-                    <div class="alert alert-info">
-                        <i class="fas fa-info-circle me-2"></i>
-                        No children linked to your account. Please contact the school administrator.
-                    </div>
-                    {% endif %}
                 </div>
             </div>
         </div>
     </div>
+    {% endif %}
 
     <!-- Overdue Fees -->
     {% if overdue_fees %}
