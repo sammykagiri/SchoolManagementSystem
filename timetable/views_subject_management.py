@@ -6,6 +6,7 @@ These views provide organized management of subjects grouped by CBC learning lev
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
+from core.decorators import permission_required
 from django.db.models import Q, Count
 from .models import Subject, SubjectPathway
 from .cbc_subjects import (
@@ -15,6 +16,7 @@ from core.models import Grade
 
 
 @login_required
+@permission_required('view', 'subject')
 def subject_by_level(request, learning_level):
     """View subjects for a specific learning level"""
     school = request.user.profile.school
@@ -78,6 +80,7 @@ def subject_by_level(request, learning_level):
 
 
 @login_required
+@permission_required('view', 'subject')
 def subject_level_overview(request):
     """Overview of subjects organized by learning level"""
     school = request.user.profile.school

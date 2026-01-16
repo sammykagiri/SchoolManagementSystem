@@ -275,9 +275,10 @@ def permission_required(permission_type, resource_type):
                 )
                 request.user.refresh_from_db()
                 
-                # If still no profile after creation attempt, raise error
+                # If still no profile after creation attempt, redirect with error
                 if not hasattr(request.user, 'profile'):
-                    raise PermissionDenied("User profile not found.")
+                    messages.error(request, 'User profile not found. Please contact administrator.')
+                    return redirect('core:home')
             
             # Check if user has school assigned (except for superadmin accessing manage school views)
             is_manage_school_view = (
@@ -292,13 +293,14 @@ def permission_required(permission_type, resource_type):
                 else:
                     # User without school assignment cannot access any menu/view
                     messages.error(request, 'You must be assigned to a school to access this page. Please contact administrator.')
-                    raise PermissionDenied("You must be assigned to a school to access this page.")
+                    return redirect('core:home')
             
             if request.user.profile.has_permission(permission_type, resource_type):
                 return view_func(request, *args, **kwargs)
             else:
                 messages.error(request, 'You do not have permission to perform this action.')
-                raise PermissionDenied("Insufficient permissions.")
+                # Redirect to home page instead of raising PermissionDenied for better UX
+                return redirect('core:home')
                 
         return _wrapped_view
     return decorator

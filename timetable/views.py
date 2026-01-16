@@ -2,6 +2,7 @@ from rest_framework import viewsets, permissions
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
+from core.decorators import permission_required
 from django.core.paginator import Paginator
 from django.db.models import Q, Max, Count
 from .models import Subject, Teacher, TimeSlot, Timetable, SubjectPathway, StudentSubjectSelection
@@ -833,6 +834,7 @@ def timetable_generate(request):
 
 
 @login_required
+@permission_required('view', 'subject')
 def subject_list(request):
     """List subjects with filtering by learning level"""
     school = request.user.profile.school
@@ -916,6 +918,7 @@ def subject_detail(request, subject_id):
 
 
 @login_required
+@permission_required('add', 'subject')
 def subject_generate(request):
     """Generate CBC subjects based on templates"""
     school = request.user.profile.school
@@ -1069,6 +1072,7 @@ def subject_generate(request):
 
 
 @login_required
+@permission_required('add', 'subject')
 def subject_add(request):
     """Add a new subject"""
     school = request.user.profile.school

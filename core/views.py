@@ -4657,12 +4657,11 @@ from django.http import JsonResponse
 from django.db.models import Sum
 from decimal import Decimal, InvalidOperation
 from .models import Parent, Student, StudentFee
-from .decorators import role_required
 from payments.models import Payment
 
 
 @login_required
-@role_required('parent', 'super_admin', 'school_admin')
+@permission_required('view', 'parent')
 def parent_portal_dashboard(request):
     """Parent portal dashboard showing overview of children and fees"""
     parent = None
@@ -4736,7 +4735,7 @@ def parent_portal_dashboard(request):
 
 
 @login_required
-@role_required('parent', 'super_admin', 'school_admin')
+@permission_required('view', 'parent')
 def parent_portal_student_fees(request, student_id):
     """View fee details for a specific child"""
     parent = None
@@ -4791,7 +4790,7 @@ def parent_portal_student_fees(request, student_id):
 
 
 @login_required
-@role_required('parent', 'super_admin', 'school_admin')
+@permission_required('view', 'parent')
 def parent_portal_student_statement(request, student_id):
     """View fee statement for a specific child (parent portal version)"""
     parent = None
@@ -4937,7 +4936,7 @@ def parent_portal_student_statement(request, student_id):
 
 
 @login_required
-@role_required('parent', 'super_admin', 'school_admin')
+@permission_required('view', 'parent')
 def parent_portal_student_performance(request, student_id):
     """View student performance/academic records"""
     try:
@@ -4965,7 +4964,7 @@ def parent_portal_student_performance(request, student_id):
 
 
 @login_required
-@role_required('parent', 'super_admin', 'school_admin')
+@permission_required('view', 'parent')
 def parent_portal_profile(request):
     """Parent profile management with verification for phone/email updates"""
     try:
@@ -5071,7 +5070,7 @@ def parent_portal_profile(request):
 
 
 @login_required
-@role_required('parent', 'super_admin', 'school_admin')
+@permission_required('view', 'parent')
 def parent_portal_payment_initiate(request, student_id, fee_id):
     """Initiate M-Pesa payment for a student fee or total balance (fee_id=0)"""
     try:

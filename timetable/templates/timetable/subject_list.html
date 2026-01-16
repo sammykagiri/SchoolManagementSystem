@@ -1,20 +1,25 @@
 {% extends 'base.html' %}
 {% load string_utils %}
+{% load permissions %}
 {% block title %}Subjects | School Management System{% endblock %}
 {% block content %}
 <div class="container py-4">
     <div class="d-flex justify-content-between align-items-center mb-4">
         <h2 class="mb-0">Subjects</h2>
         <div class="d-flex gap-2">
+            {% if user|has_permission:'view_subject' %}
             <a href="{% url 'timetable:subject_level_overview' %}" class="btn btn-info">
                 <i class="fas fa-layer-group me-2"></i>View by Level
             </a>
+            {% endif %}
+            {% if user|has_permission:'add_subject' %}
             <a href="{% url 'timetable:subject_generate' %}" class="btn btn-success">
                 <i class="fas fa-magic me-2"></i>Generate CBC Subjects
             </a>
             <a href="{% url 'timetable:subject_add' %}" class="btn btn-primary">
                 <i class="fas fa-plus me-2"></i>Add Subject
             </a>
+            {% endif %}
         </div>
     </div>
     
@@ -250,12 +255,14 @@
                 {% if selected_level or search_query %}
                 <a href="{% url 'timetable:subject_list' %}" class="btn btn-sm btn-outline-primary">Clear filters</a>
                 {% else %}
+                {% if user|has_permission:'add_subject' %}
                 <a href="{% url 'timetable:subject_generate' %}" class="btn btn-sm btn-success me-2">
                     <i class="fas fa-magic me-2"></i>Generate CBC Subjects
                 </a>
                 <a href="{% url 'timetable:subject_add' %}" class="btn btn-sm btn-primary">
                     <i class="fas fa-plus me-2"></i>Add Subject
                 </a>
+                {% endif %}
                 {% endif %}
             </div>
             {% endif %}
