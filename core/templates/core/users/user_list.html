@@ -62,7 +62,7 @@
         </div>
         <div class="card-body">
             <div class="table-responsive">
-                <table class="table table-hover">
+                <table class="table table-hover" id="usersTable">
                     <thead>
                         <tr>
                             <th>Username</th>
@@ -146,5 +146,34 @@
         </div>
     </div>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+$(document).ready(function() {
+    // Initialize DataTables with default sorting by School (column 3), then Username (column 0)
+    $('#usersTable').DataTable({
+        order: [[3, 'asc'], [0, 'asc']], // Sort by School (index 3), then Username (index 0)
+        pageLength: 25,
+        lengthMenu: [[10, 25, 50, 100, -1], [10, 25, 50, 100, "All"]],
+        responsive: true,
+        columnDefs: [
+            {
+                targets: [7], // Actions column
+                orderable: false, // Disable sorting on Actions column
+                searchable: false // Disable searching on Actions column
+            }
+        ],
+        language: {
+            search: "Filter:",
+            lengthMenu: "Show _MENU_ users per page",
+            info: "Showing _START_ to _END_ of _TOTAL_ users",
+            infoEmpty: "No users available",
+            infoFiltered: "(filtered from _MAX_ total users)",
+            zeroRecords: "No matching users found"
+        }
+    });
+});
+</script>
 {% endblock %}
 

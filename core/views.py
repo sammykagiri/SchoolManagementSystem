@@ -3949,7 +3949,7 @@ def teacher_delete(request, teacher_id):
 @permission_required('view', 'user_management')
 def user_list(request):
     """List all users"""
-    users = User.objects.select_related('profile').all().order_by('-date_joined')
+    users = User.objects.select_related('profile', 'profile__school').all()
     
     # If user is a school admin (not superadmin), filter users
     if not is_superadmin_user(request.user):
@@ -3969,6 +3969,9 @@ def user_list(request):
         
         # Exclude those users
         users = users.exclude(id__in=superadmin_user_ids)
+    
+    # Default sorting: by school name, then username
+    users = users.order_by('profile__school__name', 'username')
     
     return render(request, 'core/users/user_list.html', {
         'users': users,
