@@ -822,8 +822,8 @@ document.addEventListener('DOMContentLoaded', function() {
         const fileInputs = studentForm.querySelectorAll('input[type="file"]');
         fileInputs.forEach(function(input) {
             input.addEventListener('change', function() {
-                // Update initial value when file is selected
-                initialValues[input.name] = input.files.length > 0 ? 'has_file' : '';
+                // Don't update initialValues - keep original value for comparison
+                // Just trigger form change check
                 checkFormChanges();
             });
         });
