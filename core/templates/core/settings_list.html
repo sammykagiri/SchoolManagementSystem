@@ -98,6 +98,34 @@
             </div>
         </div>
         {% endif %}
+
+        <!-- User Management Card -->
+        {% if user|has_permission:'view_user_management' %}
+        <div class="col-md-4 mb-3">
+            <div class="card h-100 shadow-sm">
+                <div class="card-body text-center">
+                    <i class="fas fa-user-shield fa-3x text-danger mb-3"></i>
+                    <h5 class="card-title">User Management</h5>
+                    <p class="card-text text-muted small">Manage users and permissions</p>
+                    <a href="{% url 'core:user_list' %}" class="btn btn-primary btn-sm">Manage Users</a>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Role Management Card -->
+        {% if user|has_permission:'view_role_management' %}
+        <div class="col-md-4 mb-3">
+            <div class="card h-100 shadow-sm">
+                <div class="card-body text-center">
+                    <i class="fas fa-user-tag fa-3x text-primary mb-3"></i>
+                    <h5 class="card-title">Role Management</h5>
+                    <p class="card-text text-muted small">Manage roles and their permissions</p>
+                    <a href="{% url 'core:role_list' %}" class="btn btn-primary btn-sm">Manage Roles</a>
+                </div>
+            </div>
+        </div>
+        {% endif %}
     </div>
 </div>
 {% else %}
