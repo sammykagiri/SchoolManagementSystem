@@ -78,7 +78,6 @@ class Subject(models.Model):
         max_length=20,
         blank=True,
         null=True,
-        unique=True,
         help_text='Official KNEC subject code (e.g., 101 for Mathematics)'
     )
     
@@ -150,7 +149,7 @@ class Subject(models.Model):
 
     class Meta:
         unique_together = [
-            ('school', 'name'),
+            ('school', 'name', 'learning_level'),
         ]
         constraints = [
             # Existing: unique code per school when provided
@@ -159,11 +158,11 @@ class Subject(models.Model):
                 condition=~models.Q(code=''),
                 name='unique_school_code_when_provided'
             ),
-            # NEW: unique KNEC code (globally, as KNEC codes are standardized)
+            # NEW: unique KNEC code per learning level (allows same code across different levels)
             models.UniqueConstraint(
-                fields=['knec_code'],
-                condition=~models.Q(knec_code__isnull=True) & ~models.Q(knec_code=''),
-                name='unique_knec_code_when_provided'
+                fields=['knec_code', 'learning_level'],
+                condition=~models.Q(knec_code__isnull=True) & ~models.Q(knec_code='') & ~models.Q(learning_level__isnull=True),
+                name='unique_knec_code_per_learning_level'
             ),
         ]
         ordering = ['name']

@@ -963,8 +963,8 @@ def subject_generate(request):
             if subject_template['name'] not in selected_subjects:
                 continue
             
-            # Check if subject already exists by name
-            if Subject.objects.filter(school=school, name=subject_template['name']).exists():
+            # Check if subject already exists by name and learning level
+            if Subject.objects.filter(school=school, name=subject_template['name'], learning_level=selected_level).exists():
                 skipped_count += 1
                 continue
             
@@ -1096,17 +1096,17 @@ def subject_add(request):
         if not name:
             errors.append('Subject name is required.')
         
-        # Check for duplicate subject name in the same school
-        if Subject.objects.filter(school=school, name=name).exists():
-            errors.append('A subject with this name already exists.')
+        # Check for duplicate subject name in the same school and learning level
+        if Subject.objects.filter(school=school, name=name, learning_level=learning_level).exists():
+            errors.append('A subject with this name already exists for this learning level.')
         
         # Check for duplicate code in the same school
         if code and Subject.objects.filter(school=school, code=code).exclude(name=name).exists():
             errors.append('A subject with this code already exists.')
         
-        # Check for duplicate KNEC code (globally)
-        if knec_code and Subject.objects.filter(knec_code=knec_code).exists():
-            errors.append('A subject with this KNEC code already exists.')
+        # Check for duplicate KNEC code in the same learning level
+        if knec_code and learning_level and Subject.objects.filter(knec_code=knec_code, learning_level=learning_level).exists():
+            errors.append('A subject with this KNEC code already exists for this learning level.')
         
         # Validate religious education
         if is_religious_education and not religious_type:
@@ -1187,17 +1187,17 @@ def subject_edit(request, subject_id):
         if not name:
             errors.append('Subject name is required.')
         
-        # Check for duplicate subject name in the same school (excluding current subject)
-        if Subject.objects.filter(school=school, name=name).exclude(id=subject.id).exists():
-            errors.append('A subject with this name already exists.')
+        # Check for duplicate subject name in the same school and learning level (excluding current subject)
+        if Subject.objects.filter(school=school, name=name, learning_level=learning_level).exclude(id=subject.id).exists():
+            errors.append('A subject with this name already exists for this learning level.')
         
         # Check for duplicate code in the same school
         if code and Subject.objects.filter(school=school, code=code).exclude(id=subject.id).exists():
             errors.append('A subject with this code already exists.')
         
-        # Check for duplicate KNEC code (globally, excluding current)
-        if knec_code and Subject.objects.filter(knec_code=knec_code).exclude(id=subject.id).exists():
-            errors.append('A subject with this KNEC code already exists.')
+        # Check for duplicate KNEC code in the same learning level (excluding current)
+        if knec_code and learning_level and Subject.objects.filter(knec_code=knec_code, learning_level=learning_level).exclude(id=subject.id).exists():
+            errors.append('A subject with this KNEC code already exists for this learning level.')
         
         # Validate religious education
         if is_religious_education and not religious_type:

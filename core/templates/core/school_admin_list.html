@@ -1,65 +1,124 @@
 {% extends 'base.html' %}
 {% block title %}Manage Schools | School Management System{% endblock %}
 {% block content %}
-<div class="container py-4">
-    <div class="row">
-        <div class="col-md-8">
+<div class="container-fluid py-4 px-4">
+    <div class="row g-4">
+        <div class="col-lg-9 col-md-12">
             <div class="card mb-4">
                 <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
-                    <h4 class="mb-0">All Schools</h4>
+                    <h4 class="mb-0">All Schools <span class="badge bg-light text-dark ms-2">({{ schools_with_stats|length }})</span></h4>
                     <a href="{% url 'core:school_add' %}" class="btn btn-success btn-sm">+ Add School</a>
                 </div>
                 <div class="card-body">
-                    <table class="table table-bordered table-striped">
-                        <thead>
-                            <tr>
-                                <th>Name</th>
-                                <th>Short Name</th>
-                                <th>Email</th>
-                                <th>Phone</th>
-                                <th>Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for school in schools %}
-                            <tr>
-                                <td>{{ school.name }}</td>
-                                <td>
-                                    {% if school.short_name %}
-                                        <code>{{ school.short_name }}</code>
-                                    {% else %}
-                                        <span class="text-muted">Not set</span>
-                                    {% endif %}
-                                </td>
-                                <td>{{ school.email }}</td>
-                                <td>{{ school.phone }}</td>
-                                <td class="d-flex gap-2">
-                                    <a href="{% url 'core:school_admin_edit' school.id %}" class="btn btn-sm btn-secondary">Edit</a>
-                                    <form method="post" action="{% url 'core:school_admin_delete' school.id %}" style="display:inline;">
-                                        {% csrf_token %}
-                                        <button type="submit" class="btn btn-sm btn-danger" onclick="return confirm('Are you sure you want to delete this school?');">Delete</button>
-                                    </form>
-                                </td>
-                            </tr>
-                            {% empty %}
-                            <tr><td colspan="5">No schools found.</td></tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
+                    <div class="table-responsive">
+                        <table class="table table-bordered table-striped table-sm">
+                            <thead>
+                                <tr>
+                                    <th style="min-width: 150px;">Name</th>
+                                    <th style="min-width: 100px;">Short Name</th>
+                                    <th style="min-width: 150px;">Email</th>
+                                    <th style="min-width: 120px;">Phone</th>
+                                    <th style="min-width: 120px;">Students</th>
+                                    <th style="min-width: 120px;">Parents</th>
+                                    <th style="min-width: 120px;">Teachers</th>
+                                    <th style="min-width: 80px;">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for item in schools_with_stats %}
+                                <tr>
+                                    <td>{{ item.school.name }}</td>
+                                    <td>
+                                        {% if item.school.short_name %}
+                                            <code>{{ item.school.short_name }}</code>
+                                        {% else %}
+                                            <span class="text-muted">Not set</span>
+                                        {% endif %}
+                                    </td>
+                                    <td><small>{{ item.school.email }}</small></td>
+                                    <td><small>{{ item.school.phone }}</small></td>
+                                    <td>
+                                        <span class="badge bg-success">{{ item.active_students }}</span>
+                                        {% if item.inactive_students > 0 %}
+                                            <span class="badge bg-secondary">{{ item.inactive_students }}</span>
+                                        {% endif %}
+                                        <br><small class="text-muted">Total: {{ item.total_students }}</small>
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-success">{{ item.active_parents }}</span>
+                                        {% if item.inactive_parents > 0 %}
+                                            <span class="badge bg-secondary">{{ item.inactive_parents }}</span>
+                                        {% endif %}
+                                        <br><small class="text-muted">Total: {{ item.total_parents }}</small>
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-success">{{ item.active_teachers }}</span>
+                                        {% if item.inactive_teachers > 0 %}
+                                            <span class="badge bg-secondary">{{ item.inactive_teachers }}</span>
+                                        {% endif %}
+                                        <br><small class="text-muted">Total: {{ item.total_teachers }}</small>
+                                    </td>
+                                    <td>
+                                        <div class="d-flex gap-1">
+                                            <a href="{% url 'core:school_admin_edit' item.school.id %}" class="btn btn-sm btn-secondary" title="Edit School">
+                                                <i class="fas fa-edit"></i>
+                                            </a>
+                                            <form method="post" action="{% url 'core:school_admin_delete' item.school.id %}" style="display:inline;">
+                                                {% csrf_token %}
+                                                <button type="submit" class="btn btn-sm btn-danger" onclick="return confirm('Are you sure you want to delete this school?');" title="Delete School">
+                                                    <i class="fas fa-trash"></i>
+                                                </button>
+                                            </form>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% empty %}
+                                <tr><td colspan="8">No schools found.</td></tr>
+                                {% endfor %}
+                            </tbody>
+                            <tfoot>
+                                <tr class="table-info fw-bold">
+                                    <td colspan="4" class="text-end"><strong>Totals:</strong></td>
+                                    <td>
+                                        <span class="badge bg-success">{{ totals.active_students }}</span>
+                                        {% if totals.inactive_students > 0 %}
+                                            <span class="badge bg-secondary">{{ totals.inactive_students }}</span>
+                                        {% endif %}
+                                        <br><small class="text-muted">Total: {{ totals.total_students }}</small>
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-success">{{ totals.active_parents }}</span>
+                                        {% if totals.inactive_parents > 0 %}
+                                            <span class="badge bg-secondary">{{ totals.inactive_parents }}</span>
+                                        {% endif %}
+                                        <br><small class="text-muted">Total: {{ totals.total_parents }}</small>
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-success">{{ totals.active_teachers }}</span>
+                                        {% if totals.inactive_teachers > 0 %}
+                                            <span class="badge bg-secondary">{{ totals.inactive_teachers }}</span>
+                                        {% endif %}
+                                        <br><small class="text-muted">Total: {{ totals.total_teachers }}</small>
+                                    </td>
+                                    <td></td>
+                                </tr>
+                            </tfoot>
+                        </table>
+                    </div>
                 </div>
             </div>
         </div>
-        <div class="col-md-4">
+        <div class="col-lg-3 col-md-12">
             <div class="card">
                 <div class="card-header bg-secondary text-white">
-                    <h5 class="mb-0">Assign User to School</h5>
+                    <h6 class="mb-0">Assign User to School</h6>
                 </div>
                 <div class="card-body">
                     <form method="post" novalidate id="assignUserForm">
                         {% csrf_token %}
                         <div class="mb-3">
-                            <label for="user_id" class="form-label">User</label>
-                            <select name="user_id" id="user_id" class="form-select" required>
+                            <label for="user_id" class="form-label small">User</label>
+                            <select name="user_id" id="user_id" class="form-select form-select-sm" required>
                                 <option value="">Select user</option>
                                 {% for user in users %}
                                 <option value="{{ user.id }}">{{ user.username }}{% if user.profile.school %} ({{ user.profile.school.name }}){% endif %}</option>
@@ -67,16 +126,16 @@
                             </select>
                         </div>
                         <div class="mb-3">
-                            <label for="school_id" class="form-label">School</label>
-                            <select name="school_id" id="school_id" class="form-select" required>
+                            <label for="school_id" class="form-label small">School</label>
+                            <select name="school_id" id="school_id" class="form-select form-select-sm" required>
                                 <option value="">Select school</option>
-                                {% for school in schools %}
-                                <option value="{{ school.id }}">{{ school.name }}</option>
+                                {% for item in schools_with_stats %}
+                                <option value="{{ item.school.id }}">{{ item.school.name }}</option>
                                 {% endfor %}
                             </select>
                         </div>
                         <div class="d-flex justify-content-end">
-                            <button type="submit" class="btn btn-primary">Assign</button>
+                            <button type="submit" class="btn btn-primary btn-sm">Assign</button>
                         </div>
                     </form>
                 </div>

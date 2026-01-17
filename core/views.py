@@ -2556,8 +2556,69 @@ def school_admin_list(request):
     """List all schools and allow admin to edit or assign users to schools"""
     from django.contrib.auth.models import User
     from django.shortcuts import redirect
+    from django.db.models import Count, Q
+    from .models import Student, Parent
+    from timetable.models import Teacher
+    
     schools = School.objects.all()
     users = User.objects.all().select_related('profile')
+    
+    # Calculate statistics for each school
+    schools_with_stats = []
+    total_active_students = 0
+    total_inactive_students = 0
+    total_active_parents = 0
+    total_inactive_parents = 0
+    total_active_teachers = 0
+    total_inactive_teachers = 0
+    
+    for school in schools:
+        # Count active/inactive students
+        active_students = Student.objects.filter(school=school, is_active=True).count()
+        inactive_students = Student.objects.filter(school=school, is_active=False).count()
+        
+        # Count active/inactive parents
+        active_parents = Parent.objects.filter(school=school, is_active=True).count()
+        inactive_parents = Parent.objects.filter(school=school, is_active=False).count()
+        
+        # Count active/inactive teachers
+        active_teachers = Teacher.objects.filter(school=school, is_active=True).count()
+        inactive_teachers = Teacher.objects.filter(school=school, is_active=False).count()
+        
+        # Add to totals
+        total_active_students += active_students
+        total_inactive_students += inactive_students
+        total_active_parents += active_parents
+        total_inactive_parents += inactive_parents
+        total_active_teachers += active_teachers
+        total_inactive_teachers += inactive_teachers
+        
+        schools_with_stats.append({
+            'school': school,
+            'active_students': active_students,
+            'inactive_students': inactive_students,
+            'total_students': active_students + inactive_students,
+            'active_parents': active_parents,
+            'inactive_parents': inactive_parents,
+            'total_parents': active_parents + inactive_parents,
+            'active_teachers': active_teachers,
+            'inactive_teachers': inactive_teachers,
+            'total_teachers': active_teachers + inactive_teachers,
+        })
+    
+    # Calculate grand totals
+    totals = {
+        'active_students': total_active_students,
+        'inactive_students': total_inactive_students,
+        'total_students': total_active_students + total_inactive_students,
+        'active_parents': total_active_parents,
+        'inactive_parents': total_inactive_parents,
+        'total_parents': total_active_parents + total_inactive_parents,
+        'active_teachers': total_active_teachers,
+        'inactive_teachers': total_inactive_teachers,
+        'total_teachers': total_active_teachers + total_inactive_teachers,
+    }
+    
     if request.method == 'POST':
         # Handle user-school assignment
         user_id = request.POST.get('user_id')
@@ -2573,7 +2634,11 @@ def school_admin_list(request):
                 return redirect('core:school_admin_list')
             except Exception as e:
                 messages.error(request, f'Error: {e}')
-    context = {'schools': schools, 'users': users}
+    context = {
+        'schools_with_stats': schools_with_stats,
+        'users': users,
+        'totals': totals
+    }
     return render(request, 'core/school_admin_list.html', context)
 
 
@@ -3716,7 +3781,7 @@ def teacher_add(request):
         date_of_joining = request.POST.get('date_of_joining', '') or None
         qualification = request.POST.get('qualification', '').strip()
         specialization_list = request.POST.getlist('specialization')
-        specialization = ', '.join([s.strip() for s in specialization_list if s.strip()]) or None
+        specialization = ', '.join([s.strip() for s in specialization_list if s.strip()]) or ''
         is_active = request.POST.get('is_active') == 'on'
         photo = request.FILES.get('photo')
         
@@ -3765,11 +3830,11 @@ def teacher_add(request):
             gender=gender,
             email=email,
             phone=phone,
-            address=address if address else None,
+            address=address or '',
             date_of_birth=date_of_birth,
             date_of_joining=date_of_joining,
             qualification=qualification,
-            specialization=specialization if specialization else None,
+            specialization=specialization or '',
             photo=photo,
             is_active=is_active
         )
@@ -3802,12 +3867,12 @@ def teacher_edit(request, teacher_id):
         teacher.gender = request.POST.get('gender', '')
         teacher.email = request.POST.get('email', '').strip()
         teacher.phone = request.POST.get('phone', '').strip()
-        teacher.address = request.POST.get('address', '').strip() or None
+        teacher.address = request.POST.get('address', '').strip() or ''
         teacher.date_of_birth = request.POST.get('date_of_birth', '') or None
         teacher.date_of_joining = request.POST.get('date_of_joining', '') or None
         teacher.qualification = request.POST.get('qualification', '').strip()
         specialization_list = request.POST.getlist('specialization')
-        teacher.specialization = ', '.join([s.strip() for s in specialization_list if s.strip()]) or None
+        teacher.specialization = ', '.join([s.strip() for s in specialization_list if s.strip()]) or ''
         teacher.is_active = request.POST.get('is_active') == 'on'
         
         if 'photo' in request.FILES:
