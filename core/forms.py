@@ -847,29 +847,32 @@ class ParentRegistrationForm(UserCreationForm):
         logger = logging.getLogger(__name__)
         logger.info(f'ParentRegistrationForm.save - Using school: {school.name} (ID: {school.id})')
         
-        # Check if a User with this email already exists
-        existing_user = User.objects.filter(email=email).first()
+        # Get the final username that will be created (with school suffix)
+        # The clean_username method already processes and sets the final username in cleaned_data
+        final_username = self.cleaned_data.get('username', '').strip().lower()
+        
+        # Check if a User with this final username already exists
+        existing_user_by_username = User.objects.filter(username=final_username).first()
         
         # Check if we should create a new user or use existing one
         should_create_new_user = True
         user = None
         parent = None
         
-        if existing_user:
-            # User already exists - check if they're already a parent
-            if hasattr(existing_user, 'parent_profile'):
-                existing_parent = existing_user.parent_profile
+        if existing_user_by_username:
+            # User with this exact username already exists
+            if hasattr(existing_user_by_username, 'parent_profile'):
+                existing_parent = existing_user_by_username.parent_profile
                 # If parent exists in the same school, we can't create another (would violate unique_together)
                 if existing_parent.school == school:
-                    raise ValidationError('A parent with this email already exists in this school.')
-                # If parent exists in a different school, that's okay - different schools can have parents with the same email
-                # They are different entities with different usernames (different school postfixes)
-                # We'll create a new user account for this school
+                    raise ValidationError('A parent with this username already exists in this school.')
+                # If parent exists in a different school, that shouldn't happen with username-based system
+                # But if it does, we'll create a new user account for this school
                 should_create_new_user = True
             else:
                 # User exists but is not a parent - create Parent profile for existing user
                 should_create_new_user = False
-                user = existing_user
+                user = existing_user_by_username
                 # Update user details if provided
                 if self.cleaned_data.get('first_name'):
                     user.first_name = self.cleaned_data.get('first_name', user.first_name)

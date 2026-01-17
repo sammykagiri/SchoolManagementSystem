@@ -4790,7 +4790,16 @@ def parent_portal_dashboard(request):
     is_superuser_view = False
     
     try:
-        parent = Parent.objects.get(user=request.user)
+        parent = Parent.objects.select_related('school', 'user', 'user__profile').get(user=request.user)
+        
+        # CRITICAL: Ensure UserProfile school matches Parent school
+        # This fixes cases where UserProfile school was incorrectly set
+        if hasattr(request.user, 'profile') and request.user.profile.school != parent.school:
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.warning(f'Parent portal - School mismatch detected for user {request.user.username}. UserProfile school: {request.user.profile.school.name if request.user.profile.school else "None"}, Parent school: {parent.school.name}. Syncing UserProfile school to Parent school.')
+            request.user.profile.school = parent.school
+            request.user.profile.save()
     except Parent.DoesNotExist:
         # Allow superusers to access even without a Parent profile
         if request.user.is_superuser:
