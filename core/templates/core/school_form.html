@@ -65,7 +65,12 @@
                         <div class="mb-3">
                             <label class="form-label">School Color Scheme</label>
                             <div class="mb-2">
-                                <label for="id_primary_color" class="form-label small">Primary Color</label>
+                                <div class="d-flex justify-content-between align-items-center mb-1">
+                                    <label for="id_primary_color" class="form-label small mb-0">Primary Color</label>
+                                    <button type="button" class="btn btn-sm btn-outline-secondary" id="reset_primary_color" title="Reset to default color">
+                                        <i class="fas fa-undo me-1"></i>Reset to Default
+                                    </button>
+                                </div>
                                 <div class="input-group">
                                     <input type="color" 
                                            name="primary_color" 
@@ -81,10 +86,15 @@
                                            pattern="^#[0-9A-Fa-f]{6}$"
                                            maxlength="7">
                                 </div>
-                                <div class="form-text small">Primary color for buttons and primary elements</div>
+                                <div class="form-text small">Primary color for buttons and primary elements (Default: #0d6efd)</div>
                             </div>
                             <div class="mb-2">
-                                <label for="id_secondary_color" class="form-label small">Secondary Color (Optional)</label>
+                                <div class="d-flex justify-content-between align-items-center mb-1">
+                                    <label for="id_secondary_color" class="form-label small mb-0">Secondary Color (Optional)</label>
+                                    <button type="button" class="btn btn-sm btn-outline-secondary" id="reset_secondary_color" title="Reset to default color">
+                                        <i class="fas fa-undo me-1"></i>Reset to Default
+                                    </button>
+                                </div>
                                 <div class="input-group">
                                     <input type="color" 
                                            name="secondary_color" 
@@ -100,7 +110,7 @@
                                            pattern="^#[0-9A-Fa-f]{6}$"
                                            maxlength="7">
                                 </div>
-                                <div class="form-text small">Secondary color for accents and optional header styling</div>
+                                <div class="form-text small">Secondary color for accents and optional header styling (Default: #6c757d)</div>
                             </div>
                         </div>
                         <div class="mb-3">
@@ -353,6 +363,36 @@
         if (useSecondaryOnHeaders) {
             useSecondaryOnHeaders.addEventListener('change', function() {
                 if (useColorScheme && useColorScheme.checked && colorPicker) {
+                    const colors = getCurrentColors();
+                    updateColorSchemePreview(colors.primary, colors.secondary);
+                }
+            });
+        }
+        
+        // Reset to default colors functionality
+        const resetPrimaryColor = document.getElementById('reset_primary_color');
+        const resetSecondaryColor = document.getElementById('reset_secondary_color');
+        const DEFAULT_PRIMARY_COLOR = '#0d6efd';
+        const DEFAULT_SECONDARY_COLOR = '#6c757d';
+        
+        if (resetPrimaryColor && colorPicker && colorText) {
+            resetPrimaryColor.addEventListener('click', function() {
+                colorPicker.value = DEFAULT_PRIMARY_COLOR;
+                colorText.value = DEFAULT_PRIMARY_COLOR;
+                // Update preview if color scheme is enabled
+                if (useColorScheme && useColorScheme.checked) {
+                    const colors = getCurrentColors();
+                    updateColorSchemePreview(colors.primary, colors.secondary);
+                }
+            });
+        }
+        
+        if (resetSecondaryColor && secondaryColorPicker && secondaryColorText) {
+            resetSecondaryColor.addEventListener('click', function() {
+                secondaryColorPicker.value = DEFAULT_SECONDARY_COLOR;
+                secondaryColorText.value = DEFAULT_SECONDARY_COLOR;
+                // Update preview if color scheme is enabled
+                if (useColorScheme && useColorScheme.checked) {
                     const colors = getCurrentColors();
                     updateColorSchemePreview(colors.primary, colors.secondary);
                 }
