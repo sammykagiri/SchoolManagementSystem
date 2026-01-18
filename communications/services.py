@@ -22,8 +22,24 @@ class EmailService:
                    template=None, payment_reminder=None, payment=None, sent_by=None):
         """Send email and log it"""
         try:
-            # Send email
-            send_mail(
+            # Validate email settings before attempting to send
+            if not settings.EMAIL_HOST_USER or not settings.EMAIL_HOST_PASSWORD:
+                error_msg = "Email settings are not configured. Please set EMAIL_HOST_USER and EMAIL_HOST_PASSWORD in your environment variables."
+                logger.error(error_msg)
+                raise ValueError(error_msg)
+            
+            if not self.from_email:
+                error_msg = "From email address is not configured. Please set EMAIL_HOST_USER in your environment variables."
+                logger.error(error_msg)
+                raise ValueError(error_msg)
+            
+            if not recipient_email:
+                error_msg = "Recipient email address is required."
+                logger.error(error_msg)
+                raise ValueError(error_msg)
+            
+            # Send email and check return value (number of messages sent)
+            result = send_mail(
                 subject=subject,
                 message=content,
                 from_email=self.from_email,
@@ -31,8 +47,26 @@ class EmailService:
                 fail_silently=False,
             )
             
+            # send_mail returns the number of messages successfully sent
+            # If it's 0 or None, the email was not sent
+            if not result or result == 0:
+                error_msg = f"Email send_mail returned {result}, indicating no messages were sent."
+                logger.error(error_msg)
+                raise ValueError(error_msg)
+            
             # Log the email
+            # Get school from student if available, otherwise from template
+            school = None
+            if student:
+                school = student.school
+            elif template:
+                school = template.school
+            
+            if not school:
+                raise ValueError("School is required. Either student or template must be provided.")
+            
             email_message = EmailMessage.objects.create(
+                school=school,
                 template=template,
                 student=student,
                 recipient_email=recipient_email,
@@ -48,6 +82,7 @@ class EmailService:
             # Create communication log
             if student:
                 CommunicationLog.objects.create(
+                    school=school,
                     student=student,
                     communication_type='email',
                     template=template,
@@ -65,18 +100,22 @@ class EmailService:
             
             # Log failed email
             if student:
-                EmailMessage.objects.create(
-                    template=template,
-                    student=student,
-                    recipient_email=recipient_email,
-                    subject=subject,
-                    content=content,
-                    status='failed',
-                    error_message=str(e),
-                    payment_reminder=payment_reminder,
-                    payment=payment,
-                    sent_by=sent_by
-                )
+                # Get school from student if available, otherwise from template
+                school = student.school if student else (template.school if template else None)
+                if school:
+                    EmailMessage.objects.create(
+                        school=school,
+                        template=template,
+                        student=student,
+                        recipient_email=recipient_email,
+                        subject=subject,
+                        content=content,
+                        status='failed',
+                        error_message=str(e),
+                        payment_reminder=payment_reminder,
+                        payment=payment,
+                        sent_by=sent_by
+                    )
             
             return False
     
@@ -259,17 +298,21 @@ class SMSService:
                 
                 # Log failed SMS
                 if student:
-                    SMSMessage.objects.create(
-                        template=template,
-                        student=student,
-                        recipient_phone=recipient_phone,
-                        content=content,
-                        status='failed',
-                        error_message=error_msg,
-                        payment_reminder=payment_reminder,
-                        payment=payment,
-                        sent_by=sent_by
-                    )
+                    # Get school from student if available, otherwise from template
+                    school = student.school if student else (template.school if template else None)
+                    if school:
+                        SMSMessage.objects.create(
+                            school=school,
+                            template=template,
+                            student=student,
+                            recipient_phone=recipient_phone,
+                            content=content,
+                            status='failed',
+                            error_message=error_msg,
+                            payment_reminder=payment_reminder,
+                            payment=payment,
+                            sent_by=sent_by
+                        )
                 return False
             
             # Construct the JSON payload for Celcom Africa
@@ -303,8 +346,14 @@ class SMSService:
 
                 # Update SMS tracker
                 if response_code == 200 or (response_code is None and response_description.lower() == "success"):
+                    # Get school from student if available, otherwise from template
+                    school = student.school if student else (template.school if template else None)
+                    if not school and student:
+                        raise ValueError("School is required. Student must have a school assigned.")
+                    
                     # Log the SMS
                     sms_message = SMSMessage.objects.create(
+                        school=school,
                         template=template,
                         student=student,
                         recipient_phone=formatted_phone,
@@ -318,8 +367,9 @@ class SMSService:
                     )
                     
                     # Create communication log
-                    if student:
+                    if student and school:
                         CommunicationLog.objects.create(
+                            school=school,
                             student=student,
                             communication_type='sms',
                             template=template,
@@ -337,17 +387,21 @@ class SMSService:
                     
                     # Log failed SMS
                     if student:
-                        SMSMessage.objects.create(
-                            template=template,
-                            student=student,
-                            recipient_phone=formatted_phone,
-                            content=content,
-                            status='failed',
-                            error_message=error_message,
-                            payment_reminder=payment_reminder,
-                            payment=payment,
-                            sent_by=sent_by
-                        )
+                        # Get school from student if available, otherwise from template
+                        school = student.school if student else (template.school if template else None)
+                        if school:
+                            SMSMessage.objects.create(
+                                school=school,
+                                template=template,
+                                student=student,
+                                recipient_phone=formatted_phone,
+                                content=content,
+                                status='failed',
+                                error_message=error_message,
+                                payment_reminder=payment_reminder,
+                                payment=payment,
+                                sent_by=sent_by
+                            )
                     return False
             
             # No recipient data in response
@@ -356,17 +410,21 @@ class SMSService:
             
             # Log failed SMS
             if student:
-                SMSMessage.objects.create(
-                    template=template,
-                    student=student,
-                    recipient_phone=formatted_phone,
-                    content=content,
-                    status='failed',
-                    error_message=error_msg,
-                    payment_reminder=payment_reminder,
-                    payment=payment,
-                    sent_by=sent_by
-                )
+                # Get school from student if available, otherwise from template
+                school = student.school if student else (template.school if template else None)
+                if school:
+                    SMSMessage.objects.create(
+                        school=school,
+                        template=template,
+                        student=student,
+                        recipient_phone=formatted_phone,
+                        content=content,
+                        status='failed',
+                        error_message=error_msg,
+                        payment_reminder=payment_reminder,
+                        payment=payment,
+                        sent_by=sent_by
+                    )
             return False
             
         except requests.exceptions.RequestException as e:
@@ -374,17 +432,21 @@ class SMSService:
             
             # Log failed SMS
             if student:
-                SMSMessage.objects.create(
-                    template=template,
-                    student=student,
-                    recipient_phone=recipient_phone,
-                    content=content,
-                    status='failed',
-                    error_message=f"Network error: {str(e)}",
-                    payment_reminder=payment_reminder,
-                    payment=payment,
-                    sent_by=sent_by
-                )
+                # Get school from student if available, otherwise from template
+                school = student.school if student else (template.school if template else None)
+                if school:
+                    SMSMessage.objects.create(
+                        school=school,
+                        template=template,
+                        student=student,
+                        recipient_phone=recipient_phone,
+                        content=content,
+                        status='failed',
+                        error_message=f"Network error: {str(e)}",
+                        payment_reminder=payment_reminder,
+                        payment=payment,
+                        sent_by=sent_by
+                    )
             return False
             
         except Exception as e:
@@ -392,17 +454,21 @@ class SMSService:
             
             # Log failed SMS
             if student:
-                SMSMessage.objects.create(
-                    template=template,
-                    student=student,
-                    recipient_phone=recipient_phone,
-                    content=content,
-                    status='failed',
-                    error_message=str(e),
-                    payment_reminder=payment_reminder,
-                    payment=payment,
-                    sent_by=sent_by
-                )
+                # Get school from student if available, otherwise from template
+                school = student.school if student else (template.school if template else None)
+                if school:
+                    SMSMessage.objects.create(
+                        school=school,
+                        template=template,
+                        student=student,
+                        recipient_phone=recipient_phone,
+                        content=content,
+                        status='failed',
+                        error_message=str(e),
+                        payment_reminder=payment_reminder,
+                        payment=payment,
+                        sent_by=sent_by
+                    )
             
             return False
     

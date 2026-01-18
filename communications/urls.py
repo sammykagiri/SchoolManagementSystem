@@ -29,4 +29,11 @@ urlpatterns = [
     # Send communications
     path('send/email/<int:student_id>/', views.send_email, name='send_email'),
     path('send/sms/<int:student_id>/', views.send_sms, name='send_sms'),
+    
+    # API endpoints
+    path('api/template/<int:template_id>/', views.get_template_content, name='get_template_content'),
+    
+    # Bulk communications
+    path('bulk/email/', views.bulk_email, name='bulk_email'),
+    path('bulk/sms/', views.bulk_sms, name='bulk_sms'),
 ] 

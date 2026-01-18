@@ -44,13 +44,22 @@
                         <div class="row">
                             <div class="col-md-6">
                                 <div class="mb-3">
-                                    <label for="template" class="form-label">Use Template (Optional)</label>
+                                    <label for="template" class="form-label">
+                                        Use Template (Optional) 
+                                        <i class="fas fa-info-circle text-primary" 
+                                           data-bs-toggle="tooltip" 
+                                           title="Select a template to load its content. You can still edit the content before sending."></i>
+                                    </label>
                                     <select class="form-select" id="template" name="template">
-                                        <option value="">Custom Message</option>
+                                        <option value="">-- Select a Template --</option>
                                         {% for template in templates %}
-                                        <option value="{{ template.id }}">{{ template.name }}</option>
+                                        <option value="{{ template.id }}">{{ template.name }} ({{ template.get_message_type_display }})</option>
                                         {% endfor %}
                                     </select>
+                                    <div class="form-text">
+                                        <i class="fas fa-lightbulb me-1"></i>
+                                        <strong>Tip:</strong> Selecting a template will automatically load its subject and content. You can edit it before sending.
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -81,13 +90,87 @@
 </div>
 
 <script>
-document.getElementById('template').addEventListener('change', function() {
-    const templateId = this.value;
-    if (templateId) {
-        // You can add JavaScript here to load template content via AJAX
-        // For now, we'll just show a placeholder
-        console.log('Template selected:', templateId);
-    }
+document.addEventListener('DOMContentLoaded', function() {
+    const templateSelect = document.getElementById('template');
+    const subjectInput = document.getElementById('subject');
+    const contentTextarea = document.getElementById('content');
+    const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+    
+    // Initialize Bootstrap tooltips
+    var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+    var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+        return new bootstrap.Tooltip(tooltipTriggerEl);
+    });
+    
+    templateSelect.addEventListener('change', function() {
+        const templateId = this.value;
+        
+        if (!templateId) {
+            // Clear fields if "Select a Template" is chosen
+            if (confirm('Clear the current subject and content?')) {
+                subjectInput.value = '';
+                contentTextarea.value = '';
+            }
+            return;
+        }
+        
+        // Show loading state
+        const originalSelectValue = this.value;
+        const originalSelectText = this.options[this.selectedIndex].text;
+        this.disabled = true;
+        // Only change the text of the selected option, don't replace innerHTML
+        this.options[this.selectedIndex].text = 'Loading template...';
+        
+        // Fetch template content via AJAX
+        fetch(`{% url 'communications:get_template_content' 0 %}`.replace('0', templateId), {
+            method: 'GET',
+            headers: {
+                'X-CSRFToken': csrfToken,
+                'Content-Type': 'application/json',
+            },
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                // Load template content into form fields
+                if (data.subject) {
+                    subjectInput.value = data.subject;
+                }
+                if (data.content) {
+                    contentTextarea.value = data.content;
+                }
+                
+                // Show success message
+                const alertDiv = document.createElement('div');
+                alertDiv.className = 'alert alert-success alert-dismissible fade show mt-2';
+                alertDiv.innerHTML = `
+                    <i class="fas fa-check-circle me-2"></i>
+                    Template loaded successfully! You can edit the content before sending.
+                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                `;
+                templateSelect.parentElement.insertAdjacentElement('afterend', alertDiv);
+                
+                // Auto-hide alert after 5 seconds
+                setTimeout(() => {
+                    alertDiv.remove();
+                }, 5000);
+            } else {
+                alert('Error loading template: ' + (data.error || 'Unknown error'));
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Failed to load template. Please try again.');
+        })
+        .finally(() => {
+            // Restore select dropdown
+            this.disabled = false;
+            // Restore original text
+            if (this.options[this.selectedIndex]) {
+                this.options[this.selectedIndex].text = originalSelectText;
+            }
+        });
+    });
 });
 </script>
 {% endblock %}

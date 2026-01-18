@@ -1,0 +1,309 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Bulk Email | Communications{% endblock %}
+
+{% block extra_css %}
+<style>
+    .student-checkbox {
+        cursor: pointer;
+    }
+    .student-row:hover {
+        background-color: #f8f9fa;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h3 class="card-title"><i class="fas fa-paper-plane me-2"></i>Bulk Email</h3>
+                    <a href="{% url 'communications:dashboard' %}" class="btn btn-secondary">
+                        <i class="fas fa-arrow-left"></i> Back to Dashboard
+                    </a>
+                </div>
+                <div class="card-body">
+                    <!-- Filters -->
+                    <form method="get" class="mb-4" id="filterForm">
+                        <div class="row g-3">
+                            <div class="col-md-3">
+                                <label for="grade" class="form-label">Filter by Grade</label>
+                                <select class="form-select" id="grade" name="grade">
+                                    <option value="">All Grades</option>
+                                    {% for grade in grades %}
+                                        <option value="{{ grade.id }}" {% if selected_grade|default:'' == grade.id|stringformat:'s' %}selected{% endif %}>{{ grade.name }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="col-md-3">
+                                <label for="class" class="form-label">Filter by Class</label>
+                                <select class="form-select" id="class" name="class">
+                                    <option value="">All Classes</option>
+                                    {% for class in classes %}
+                                        <option value="{{ class.id }}" {% if selected_class|default:'' == class.id|stringformat:'s' %}selected{% endif %}>{{ class.name }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label d-block">&nbsp;</label>
+                                <div class="form-check form-switch d-flex align-items-center h-100">
+                                    <input class="form-check-input" type="checkbox" id="show_inactive" name="show_inactive" {% if show_inactive %}checked{% endif %}>
+                                    <label class="form-check-label ms-2" for="show_inactive">Show Inactive</label>
+                                </div>
+                            </div>
+                            <div class="col-md-3 d-flex align-items-end">
+                                <button type="submit" class="btn btn-primary w-100">
+                                    <i class="fas fa-filter me-2"></i>Apply Filters
+                                </button>
+                            </div>
+                        </div>
+                    </form>
+
+                    <form method="post" id="bulkEmailForm">
+                        {% csrf_token %}
+                        
+                        <!-- Template Selection -->
+                        <div class="row mb-4">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="template" class="form-label">
+                                        Use Template (Optional) 
+                                        <i class="fas fa-info-circle text-primary" 
+                                           data-bs-toggle="tooltip" 
+                                           title="Select a template to load its content. You can still edit the content before sending."></i>
+                                    </label>
+                                    <select class="form-select" id="template" name="template">
+                                        <option value="">-- Select a Template --</option>
+                                        {% for template in templates %}
+                                        <option value="{{ template.id }}">{{ template.name }} ({{ template.get_message_type_display }})</option>
+                                        {% endfor %}
+                                    </select>
+                                    <div class="form-text">
+                                        <i class="fas fa-lightbulb me-1"></i>
+                                        <strong>Tip:</strong> Selecting a template will automatically load its subject and content.
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Email Fields -->
+                        <div class="mb-3">
+                            <label for="subject" class="form-label">Email Subject <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" id="subject" name="subject" required>
+                        </div>
+                        <div class="mb-4">
+                            <label for="content" class="form-label">Email Content <span class="text-danger">*</span></label>
+                            <textarea class="form-control" id="content" name="content" rows="8" required></textarea>
+                            <div class="form-text">
+                                Use placeholders: {student_name}, {parent_name}, {amount}, {due_date}, {school_name}
+                            </div>
+                        </div>
+
+                        <!-- Student Selection -->
+                        <div class="mb-4">
+                            <div class="d-flex justify-content-between align-items-center mb-3">
+                                <h5>Select Students <span class="text-muted">(<span id="selectedCount">0</span> selected)</span></h5>
+                                <div class="btn-group" role="group">
+                                    <button type="button" class="btn btn-sm btn-outline-primary" id="selectAll">
+                                        <i class="fas fa-check-square me-1"></i>Select All
+                                    </button>
+                                    <button type="button" class="btn btn-sm btn-outline-secondary" id="deselectAll">
+                                        <i class="fas fa-square me-1"></i>Deselect All
+                                    </button>
+                                </div>
+                            </div>
+                            
+                            <div class="table-responsive" style="max-height: 400px; overflow-y: auto;">
+                                <table class="table table-hover table-sm">
+                                    <thead class="table-light sticky-top">
+                                        <tr>
+                                            <th width="50">
+                                                <input type="checkbox" id="selectAllCheckbox" class="form-check-input">
+                                            </th>
+                                            <th>Student ID</th>
+                                            <th>Name</th>
+                                            <th>Grade</th>
+                                            <th>Class</th>
+                                            <th>Parent Email</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for student in students %}
+                                        <tr class="student-row">
+                                            <td>
+                                                <input type="checkbox" 
+                                                       name="students" 
+                                                       value="{{ student.id }}" 
+                                                       class="form-check-input student-checkbox student-check">
+                                            </td>
+                                            <td>{{ student.student_id }}</td>
+                                            <td>{{ student.full_name }}</td>
+                                            <td>{% if student.grade %}{{ student.grade.name }}{% else %}-{% endif %}</td>
+                                            <td>{% if student.school_class %}{{ student.school_class.name }}{% else %}-{% endif %}</td>
+                                            <td>
+                                                {% if student.parent_email %}
+                                                    <span class="text-success">{{ student.parent_email }}</span>
+                                                {% else %}
+                                                    <span class="text-danger">No email</span>
+                                                {% endif %}
+                                            </td>
+                                        </tr>
+                                        {% empty %}
+                                        <tr>
+                                            <td colspan="6" class="text-center text-muted py-4">No students found. Try adjusting your filters.</td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        <div class="d-flex justify-content-between">
+                            <a href="{% url 'communications:dashboard' %}" class="btn btn-secondary">
+                                <i class="fas fa-times"></i> Cancel
+                            </a>
+                            <button type="submit" class="btn btn-primary" id="sendBulkEmailBtn">
+                                <i class="fas fa-paper-plane me-2"></i>Send Bulk Email (<span id="sendCount">0</span>)
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const selectAllCheckbox = document.getElementById('selectAllCheckbox');
+    const studentCheckboxes = document.querySelectorAll('.student-check');
+    const selectAllBtn = document.getElementById('selectAll');
+    const deselectAllBtn = document.getElementById('deselectAll');
+    const selectedCountSpan = document.getElementById('selectedCount');
+    const sendCountSpan = document.getElementById('sendCount');
+    const sendBtn = document.getElementById('sendBulkEmailBtn');
+    const templateSelect = document.getElementById('template');
+    const subjectInput = document.getElementById('subject');
+    const contentTextarea = document.getElementById('content');
+    const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+    
+    // Initialize Bootstrap tooltips
+    var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+    var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+        return new bootstrap.Tooltip(tooltipTriggerEl);
+    });
+    
+    // Update selected count
+    function updateSelectedCount() {
+        const selected = document.querySelectorAll('.student-check:checked').length;
+        const studentsWithEmail = Array.from(studentCheckboxes).filter(cb => {
+            const row = cb.closest('tr');
+            const emailCell = row.querySelector('td:last-child');
+            return emailCell && !emailCell.textContent.includes('No email');
+        }).length;
+        
+        selectedCountSpan.textContent = selected;
+        sendCountSpan.textContent = selected;
+        
+        // Disable send button if no students selected or no email field
+        sendBtn.disabled = selected === 0 || !subjectInput.value.trim() || !contentTextarea.value.trim();
+    }
+    
+    // Select all checkbox
+    if (selectAllCheckbox) {
+        selectAllCheckbox.addEventListener('change', function() {
+            studentCheckboxes.forEach(cb => {
+                cb.checked = this.checked;
+            });
+            updateSelectedCount();
+        });
+    }
+    
+    // Select all button
+    if (selectAllBtn) {
+        selectAllBtn.addEventListener('click', function() {
+            studentCheckboxes.forEach(cb => {
+                const row = cb.closest('tr');
+                const emailCell = row.querySelector('td:last-child');
+                // Only select students with email
+                if (emailCell && !emailCell.textContent.includes('No email')) {
+                    cb.checked = true;
+                }
+            });
+            selectAllCheckbox.checked = Array.from(studentCheckboxes).every(cb => cb.checked);
+            updateSelectedCount();
+        });
+    }
+    
+    // Deselect all button
+    if (deselectAllBtn) {
+        deselectAllBtn.addEventListener('click', function() {
+            studentCheckboxes.forEach(cb => cb.checked = false);
+            if (selectAllCheckbox) selectAllCheckbox.checked = false;
+            updateSelectedCount();
+        });
+    }
+    
+    // Individual checkbox change
+    studentCheckboxes.forEach(cb => {
+        cb.addEventListener('change', function() {
+            if (selectAllCheckbox) {
+                selectAllCheckbox.checked = Array.from(studentCheckboxes).every(c => c.checked);
+            }
+            updateSelectedCount();
+        });
+    });
+    
+    // Update count when subject/content changes
+    subjectInput.addEventListener('input', updateSelectedCount);
+    contentTextarea.addEventListener('input', updateSelectedCount);
+    
+    // Template loading
+    templateSelect.addEventListener('change', function() {
+        const templateId = this.value;
+        
+        if (!templateId) return;
+        
+        // Show loading state
+        const originalSelectText = this.options[this.selectedIndex].text;
+        this.disabled = true;
+        this.options[this.selectedIndex].text = 'Loading template...';
+        
+        // Fetch template content via AJAX
+        fetch(`{% url 'communications:get_template_content' 0 %}`.replace('0', templateId), {
+            method: 'GET',
+            headers: {
+                'X-CSRFToken': csrfToken,
+                'Content-Type': 'application/json',
+            },
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                if (data.subject) subjectInput.value = data.subject;
+                if (data.content) contentTextarea.value = data.content;
+                updateSelectedCount();
+            } else {
+                alert('Error loading template: ' + (data.error || 'Unknown error'));
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Failed to load template. Please try again.');
+        })
+        .finally(() => {
+            this.disabled = false;
+            if (this.options[this.selectedIndex]) {
+                this.options[this.selectedIndex].text = originalSelectText;
+            }
+        });
+    });
+    
+    // Initial count update
+    updateSelectedCount();
+});
+</script>
+{% endblock %}

@@ -3,11 +3,15 @@ from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.core.paginator import Paginator
 from django.db.models import Q
+from django.http import JsonResponse
 from .models import CommunicationTemplate, EmailMessage, SMSMessage, CommunicationLog
 from .services import CommunicationService
 from core.models import Student
 from core.decorators import role_required
 import json
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 @login_required
@@ -304,22 +308,111 @@ def send_email(request, student_id):
         try:
             template = None
             if template_id:
-                template = CommunicationTemplate.objects.get(school=school, id=template_id)
+                # Validate template_id is a number
+                try:
+                    template_id_int = int(template_id)
+                    template = CommunicationTemplate.objects.get(school=school, id=template_id_int)
+                except (ValueError, CommunicationTemplate.DoesNotExist):
+                    # Invalid template_id - ignore it and continue without template
+                    pass
             
+            # Collect all recipient emails from student.parent_email and linked Parent objects
+            recipient_emails = set()  # Use set to avoid duplicates
+            
+            # Add student.parent_email if present
+            if student.parent_email:
+                recipient_emails.add(student.parent_email)
+            
+            # Add emails from all linked Parent objects
+            if student.parents.exists():
+                for parent in student.parents.all():
+                    if parent.email:
+                        recipient_emails.add(parent.email)
+                    elif parent.user.email:
+                        recipient_emails.add(parent.user.email)
+            
+            if not recipient_emails:
+                messages.error(request, 'No email address found for this student\'s parent(s). Please ensure the student has a parent email or linked parent account with an email address.')
+                return redirect('core:student_detail', student_id=student.student_id)
+            
+            # Replace placeholders in subject and content
+            # Get parent name - try from linked parents first, then fall back to student.parent_name
+            parent_name = student.parent_name
+            if student.parents.exists():
+                # Use first parent's full name if available
+                first_parent = student.parents.first()
+                if first_parent:
+                    parent_name = first_parent.full_name
+            
+            # Build context for placeholder replacement
+            context = {
+                'student_name': student.full_name,
+                'parent_name': parent_name,
+                'school_name': school.name,
+            }
+            
+            # Optional placeholders (will be left as-is if not provided)
+            # These can be replaced if they exist in the template
+            placeholder_defaults = {
+                'amount': '',
+                'due_date': '',
+                'due_name': '',  # Alias for due_date if needed
+            }
+            
+            # Replace placeholders in subject and content
+            try:
+                # Use format with SafeDict to handle missing placeholders gracefully
+                class SafeDict(dict):
+                    def __missing__(self, key):
+                        # Return the original placeholder if not found
+                        return '{' + key + '}'
+                
+                safe_context = SafeDict({**context, **placeholder_defaults})
+                subject = subject.format(**safe_context)
+                content = content.format(**safe_context)
+            except (KeyError, ValueError) as e:
+                # If format fails, log but continue with original content
+                logger.warning(f'Error replacing placeholders in email: {str(e)}')
+                # Try with basic replacements only
+                try:
+                    subject = subject.format(**context)
+                    content = content.format(**context)
+                except Exception:
+                    pass  # Keep original if replacement fails
+            
+            # Send email to all recipients
             communication_service = CommunicationService()
-            success = communication_service.email_service.send_email(
-                recipient_email=student.parent_email,
-                subject=subject,
-                content=content,
-                student=student,
-                template=template,
-                sent_by=request.user
-            )
+            success_count = 0
+            error_count = 0
             
-            if success:
-                messages.success(request, 'Email sent successfully.')
+            for recipient_email in recipient_emails:
+                try:
+                    success = communication_service.email_service.send_email(
+                        recipient_email=recipient_email,
+                        subject=subject,
+                        content=content,
+                        student=student,
+                        template=template,
+                        sent_by=request.user
+                    )
+                    if success:
+                        success_count += 1
+                    else:
+                        error_count += 1
+                except Exception as e:
+                    logger.error(f'Error sending email to {recipient_email}: {str(e)}')
+                    error_count += 1
+            
+            # Show appropriate messages
+            if success_count > 0 and error_count == 0:
+                if len(recipient_emails) == 1:
+                    messages.success(request, 'Email sent successfully.')
+                else:
+                    messages.success(request, f'Email sent successfully to {success_count} recipient(s).')
+            elif success_count > 0 and error_count > 0:
+                messages.warning(request, f'Email sent to {success_count} recipient(s), but failed to send to {error_count} recipient(s).')
             else:
-                messages.error(request, 'Failed to send email.')
+                messages.error(request, 'Failed to send email to all recipients.')
                 
         except Exception as e:
             messages.error(request, f'Error sending email: {str(e)}')
@@ -355,7 +448,13 @@ def send_sms(request, student_id):
         try:
             template = None
             if template_id:
-                template = CommunicationTemplate.objects.get(school=school, id=template_id)
+                # Validate template_id is a number
+                try:
+                    template_id_int = int(template_id)
+                    template = CommunicationTemplate.objects.get(school=school, id=template_id_int)
+                except (ValueError, CommunicationTemplate.DoesNotExist):
+                    # Invalid template_id - ignore it and continue without template
+                    pass
             
             communication_service = CommunicationService()
             success = communication_service.sms_service.send_sms(
@@ -385,3 +484,298 @@ def send_sms(request, student_id):
         'templates': templates,
     }
     return render(request, 'communications/send_sms.html', context)
+
+
+@login_required
+@role_required('super_admin', 'school_admin', 'teacher')
+def get_template_content(request, template_id):
+    """API endpoint to get template content as JSON"""
+    school = request.user.profile.school
+    try:
+        template = CommunicationTemplate.objects.get(school=school, id=template_id)
+        return JsonResponse({
+            'success': True,
+            'subject': template.subject or '',
+            'content': template.content or '',
+        })
+    except CommunicationTemplate.DoesNotExist:
+        return JsonResponse({
+            'success': False,
+            'error': 'Template not found'
+        }, status=404)
+
+
+@login_required
+@role_required('super_admin', 'school_admin', 'teacher')
+def bulk_email(request):
+    """Bulk email to multiple students"""
+    school = request.user.profile.school
+    
+    # Get filters from GET parameters
+    grade_id = request.GET.get('grade', '')
+    class_id = request.GET.get('class', '')
+    show_inactive = request.GET.get('show_inactive', 'false').lower() == 'true'
+    
+    # Get all students
+    students = Student.objects.filter(school=school).select_related('grade', 'school_class')
+    
+    # Apply filters
+    if not show_inactive:
+        students = students.filter(is_active=True)
+    if grade_id:
+        students = students.filter(grade_id=grade_id)
+    if class_id:
+        students = students.filter(school_class_id=class_id)
+    
+    # Get grades and classes for filters
+    from core.models import Grade, SchoolClass
+    grades = Grade.objects.filter(school=school)
+    classes = SchoolClass.objects.filter(school=school, is_active=True)
+    
+    # Get templates
+    templates = CommunicationTemplate.objects.filter(
+        school=school,
+        template_type__in=['email', 'both'],
+        is_active=True
+    )
+    
+    if request.method == 'POST':
+        subject = request.POST.get('subject')
+        content = request.POST.get('content')
+        template_id = request.POST.get('template')
+        selected_students = request.POST.getlist('students')
+        
+        if not subject or not content:
+            messages.error(request, 'Subject and content are required.')
+        elif not selected_students:
+            messages.error(request, 'Please select at least one student.')
+        else:
+            try:
+                template = None
+                if template_id:
+                    # Validate template_id is a number
+                    try:
+                        template_id_int = int(template_id)
+                        template = CommunicationTemplate.objects.get(school=school, id=template_id_int)
+                    except (ValueError, CommunicationTemplate.DoesNotExist):
+                        # Invalid template_id - ignore it and continue without template
+                        pass
+                
+                communication_service = CommunicationService()
+                success_count = 0
+                error_count = 0
+                
+                # Send email to each selected student
+                for student_id in selected_students:
+                    try:
+                        student = Student.objects.prefetch_related('parents', 'parents__user').get(school=school, id=student_id)
+                        
+                        # Collect all recipient emails from student.parent_email and linked Parent objects
+                        recipient_emails = set()  # Use set to avoid duplicates
+                        
+                        # Add student.parent_email if present
+                        if student.parent_email:
+                            recipient_emails.add(student.parent_email)
+                        
+                        # Add emails from all linked Parent objects
+                        if student.parents.exists():
+                            for parent in student.parents.all():
+                                if parent.email:
+                                    recipient_emails.add(parent.email)
+                                elif parent.user.email:
+                                    recipient_emails.add(parent.user.email)
+                        
+                        # Replace placeholders per student
+                        # Get parent name - try from linked parents first, then fall back to student.parent_name
+                        parent_name = student.parent_name
+                        if student.parents.exists():
+                            # Use first parent's full name if available
+                            first_parent = student.parents.first()
+                            if first_parent:
+                                parent_name = first_parent.full_name
+                        
+                        # Build context for placeholder replacement per student
+                        student_context = {
+                            'student_name': student.full_name,
+                            'parent_name': parent_name,
+                            'school_name': school.name,
+                        }
+                        
+                        # Optional placeholders (will be left as-is if not provided)
+                        placeholder_defaults = {
+                            'amount': '',
+                            'due_date': '',
+                            'due_name': '',  # Alias for due_date if needed
+                        }
+                        
+                        # Replace placeholders in subject and content for this student
+                        try:
+                            # Use format with SafeDict to handle missing placeholders gracefully
+                            class SafeDict(dict):
+                                def __missing__(self, key):
+                                    # Return the original placeholder if not found
+                                    return '{' + key + '}'
+                            
+                            safe_context = SafeDict({**student_context, **placeholder_defaults})
+                            student_subject = subject.format(**safe_context)
+                            student_content = content.format(**safe_context)
+                        except (KeyError, ValueError) as e:
+                            # If format fails, log but continue with original content
+                            logger.warning(f'Error replacing placeholders in bulk email for student {student_id}: {str(e)}')
+                            # Try with basic replacements only
+                            try:
+                                student_subject = subject.format(**student_context)
+                                student_content = content.format(**student_context)
+                            except Exception:
+                                # Keep original if replacement fails
+                                student_subject = subject
+                                student_content = content
+                        
+                        # Send email to all recipients for this student
+                        if recipient_emails:
+                            student_success = True
+                            for recipient_email in recipient_emails:
+                                try:
+                                    success = communication_service.email_service.send_email(
+                                        recipient_email=recipient_email,
+                                        subject=student_subject,
+                                        content=student_content,
+                                        student=student,
+                                        template=template,
+                                        sent_by=request.user
+                                    )
+                                    if not success:
+                                        student_success = False
+                                        error_count += 1
+                                except Exception as e:
+                                    logger.error(f'Error sending bulk email to {recipient_email} for student {student_id}: {str(e)}')
+                                    student_success = False
+                                    error_count += 1
+                            
+                            if student_success:
+                                success_count += 1
+                        else:
+                            error_count += 1
+                    except Exception as e:
+                        logger.error(f'Error sending bulk email to student {student_id}: {str(e)}')
+                        error_count += 1
+                
+                if success_count > 0:
+                    messages.success(request, f'Successfully sent {success_count} email(s).')
+                if error_count > 0:
+                    messages.warning(request, f'Failed to send {error_count} email(s).')
+                    
+            except Exception as e:
+                messages.error(request, f'Error sending bulk emails: {str(e)}')
+    
+    context = {
+        'students': students.order_by('first_name', 'last_name'),
+        'grades': grades,
+        'classes': classes,
+        'templates': templates,
+        'selected_grade': grade_id,
+        'selected_class': class_id,
+        'show_inactive': show_inactive,
+    }
+    return render(request, 'communications/bulk_email.html', context)
+
+
+@login_required
+@role_required('super_admin', 'school_admin', 'teacher')
+def bulk_sms(request):
+    """Bulk SMS to multiple students"""
+    school = request.user.profile.school
+    
+    # Get filters from GET parameters
+    grade_id = request.GET.get('grade', '')
+    class_id = request.GET.get('class', '')
+    show_inactive = request.GET.get('show_inactive', 'false').lower() == 'true'
+    
+    # Get all students
+    students = Student.objects.filter(school=school).select_related('grade', 'school_class')
+    
+    # Apply filters
+    if not show_inactive:
+        students = students.filter(is_active=True)
+    if grade_id:
+        students = students.filter(grade_id=grade_id)
+    if class_id:
+        students = students.filter(school_class_id=class_id)
+    
+    # Get grades and classes for filters
+    from core.models import Grade, SchoolClass
+    grades = Grade.objects.filter(school=school)
+    classes = SchoolClass.objects.filter(school=school, is_active=True)
+    
+    # Get templates
+    templates = CommunicationTemplate.objects.filter(
+        school=school,
+        template_type__in=['sms', 'both'],
+        is_active=True
+    )
+    
+    if request.method == 'POST':
+        content = request.POST.get('content')
+        template_id = request.POST.get('template')
+        selected_students = request.POST.getlist('students')
+        
+        if not content:
+            messages.error(request, 'Content is required.')
+        elif not selected_students:
+            messages.error(request, 'Please select at least one student.')
+        else:
+            try:
+                template = None
+                if template_id:
+                    # Validate template_id is a number
+                    try:
+                        template_id_int = int(template_id)
+                        template = CommunicationTemplate.objects.get(school=school, id=template_id_int)
+                    except (ValueError, CommunicationTemplate.DoesNotExist):
+                        # Invalid template_id - ignore it and continue without template
+                        pass
+                
+                communication_service = CommunicationService()
+                success_count = 0
+                error_count = 0
+                
+                # Send SMS to each selected student
+                for student_id in selected_students:
+                    try:
+                        student = Student.objects.get(school=school, id=student_id)
+                        if student.parent_phone:
+                            success = communication_service.sms_service.send_sms(
+                                recipient_phone=student.parent_phone,
+                                content=content,
+                                student=student,
+                                template=template,
+                                sent_by=request.user
+                            )
+                            if success:
+                                success_count += 1
+                            else:
+                                error_count += 1
+                        else:
+                            error_count += 1
+                    except Exception as e:
+                        logger.error(f'Error sending bulk SMS to student {student_id}: {str(e)}')
+                        error_count += 1
+                
+                if success_count > 0:
+                    messages.success(request, f'Successfully sent {success_count} SMS(s).')
+                if error_count > 0:
+                    messages.warning(request, f'Failed to send {error_count} SMS(s).')
+                    
+            except Exception as e:
+                messages.error(request, f'Error sending bulk SMS: {str(e)}')
+    
+    context = {
+        'students': students.order_by('first_name', 'last_name'),
+        'grades': grades,
+        'classes': classes,
+        'templates': templates,
+        'selected_grade': grade_id,
+        'selected_class': class_id,
+        'show_inactive': show_inactive,
+    }
+    return render(request, 'communications/bulk_sms.html', context)

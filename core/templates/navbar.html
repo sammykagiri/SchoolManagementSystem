@@ -441,6 +441,19 @@
                         </a>
                     </li>
                     {% endif %}
+                    {% if user|has_permission:'view_email' or user|has_permission:'view_sms' %}
+                    <li class="nav-item"><hr class="dropdown-divider my-2"></li>
+                    <li class="nav-item">
+                        <a class="nav-link {% if request.resolver_match.url_name == 'bulk_email' %}active{% endif %}" href="{% url 'communications:bulk_email' %}">
+                            <i class="fas fa-paper-plane me-2"></i>Bulk Email
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {% if request.resolver_match.url_name == 'bulk_sms' %}active{% endif %}" href="{% url 'communications:bulk_sms' %}">
+                            <i class="fas fa-comments me-2"></i>Bulk SMS
+                        </a>
+                    </li>
+                    {% endif %}
                     {% if user|has_permission:'view_log' %}
                     <li class="nav-item">
                         <a class="nav-link {% if request.resolver_match.url_name == 'log_list' or request.resolver_match.url_name == 'log_detail' %}active{% endif %}" href="{% url 'communications:log_list' %}">
