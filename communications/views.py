@@ -316,81 +316,97 @@ def send_email(request, student_id):
                     # Invalid template_id - ignore it and continue without template
                     pass
             
-            # Collect all recipient emails from student.parent_email and linked Parent objects
-            recipient_emails = set()  # Use set to avoid duplicates
+            # Collect all recipient emails with their corresponding parent objects
+            # Use dict to map email to parent for personalization
+            email_to_parent = {}  # Maps email -> Parent object (or None for student.parent_email)
             
-            # Add student.parent_email if present
+            # Add student.parent_email if present (no specific parent object)
             if student.parent_email:
-                recipient_emails.add(student.parent_email)
+                email_to_parent[student.parent_email] = None
             
             # Add emails from all linked Parent objects
             if student.parents.exists():
                 for parent in student.parents.all():
                     if parent.email:
-                        recipient_emails.add(parent.email)
+                        email_to_parent[parent.email] = parent
                     elif parent.user.email:
-                        recipient_emails.add(parent.user.email)
+                        email_to_parent[parent.user.email] = parent
             
-            if not recipient_emails:
+            if not email_to_parent:
                 messages.error(request, 'No email address found for this student\'s parent(s). Please ensure the student has a parent email or linked parent account with an email address.')
                 return redirect('core:student_detail', student_id=student.student_id)
             
-            # Replace placeholders in subject and content
-            # Get parent name - try from linked parents first, then fall back to student.parent_name
-            parent_name = student.parent_name
-            if student.parents.exists():
-                # Use first parent's full name if available
-                first_parent = student.parents.first()
-                if first_parent:
-                    parent_name = first_parent.full_name
+            # Get student's total balance for {amount} placeholder
+            from django.db.models import Sum
+            from decimal import Decimal
+            from core.models import StudentFee
+            student_fees = StudentFee.objects.filter(student=student)
+            total_charged = student_fees.aggregate(total=Sum('amount_charged'))['total'] or Decimal('0.00')
+            total_paid = student_fees.aggregate(total=Sum('amount_paid'))['total'] or Decimal('0.00')
+            total_balance = total_charged - total_paid
+            amount_str = f"KES {total_balance:,.2f}" if total_balance > 0 else ''
             
-            # Build context for placeholder replacement
-            context = {
-                'student_name': student.full_name,
-                'parent_name': parent_name,
-                'school_name': school.name,
-            }
+            # Get earliest due date for {due_date} placeholder
+            earliest_due_date = student_fees.filter(is_paid=False).order_by('due_date').first()
+            due_date_str = earliest_due_date.due_date.strftime('%Y-%m-%d') if earliest_due_date else ''
             
-            # Optional placeholders (will be left as-is if not provided)
-            # These can be replaced if they exist in the template
-            placeholder_defaults = {
-                'amount': '',
-                'due_date': '',
-                'due_name': '',  # Alias for due_date if needed
-            }
-            
-            # Replace placeholders in subject and content
-            try:
-                # Use format with SafeDict to handle missing placeholders gracefully
-                class SafeDict(dict):
-                    def __missing__(self, key):
-                        # Return the original placeholder if not found
-                        return '{' + key + '}'
-                
-                safe_context = SafeDict({**context, **placeholder_defaults})
-                subject = subject.format(**safe_context)
-                content = content.format(**safe_context)
-            except (KeyError, ValueError) as e:
-                # If format fails, log but continue with original content
-                logger.warning(f'Error replacing placeholders in email: {str(e)}')
-                # Try with basic replacements only
-                try:
-                    subject = subject.format(**context)
-                    content = content.format(**context)
-                except Exception:
-                    pass  # Keep original if replacement fails
-            
-            # Send email to all recipients
+            # Send email to all recipients with personalized content
             communication_service = CommunicationService()
             success_count = 0
             error_count = 0
             
-            for recipient_email in recipient_emails:
+            for recipient_email, parent_obj in email_to_parent.items():
                 try:
+                    # Get parent name for this specific recipient
+                    if parent_obj:
+                        # Use the specific parent's full name
+                        parent_name = parent_obj.full_name
+                    else:
+                        # Fall back to student.parent_name for student.parent_email
+                        parent_name = student.parent_name
+                        # Try to get from first linked parent if available
+                        if student.parents.exists():
+                            first_parent = student.parents.first()
+                            if first_parent:
+                                parent_name = first_parent.full_name
+                    
+                    # Build context for placeholder replacement per recipient
+                    context = {
+                        'student_name': student.full_name,
+                        'parent_name': parent_name,
+                        'school_name': school.name,
+                        'amount': amount_str,
+                        'due_date': due_date_str,
+                        'due_name': due_date_str,  # Alias for due_date
+                    }
+                    
+                    # Replace placeholders in subject and content for this recipient
+                    try:
+                        # Use format with SafeDict to handle missing placeholders gracefully
+                        class SafeDict(dict):
+                            def __missing__(self, key):
+                                # Return the original placeholder if not found
+                                return '{' + key + '}'
+                        
+                        safe_context = SafeDict(context)
+                        personalized_subject = subject.format(**safe_context)
+                        personalized_content = content.format(**safe_context)
+                    except (KeyError, ValueError) as e:
+                        # If format fails, log but continue with original content
+                        logger.warning(f'Error replacing placeholders in email to {recipient_email}: {str(e)}')
+                        # Try with basic replacements only
+                        try:
+                            personalized_subject = subject.format(**context)
+                            personalized_content = content.format(**context)
+                        except Exception:
+                            # Keep original if replacement fails
+                            personalized_subject = subject
+                            personalized_content = content
+                    
                     success = communication_service.email_service.send_email(
                         recipient_email=recipient_email,
-                        subject=subject,
-                        content=content,
+                        subject=personalized_subject,
+                        content=personalized_content,
                         student=student,
                         template=template,
                         sent_by=request.user
@@ -405,7 +421,7 @@ def send_email(request, student_id):
             
             # Show appropriate messages
             if success_count > 0 and error_count == 0:
-                if len(recipient_emails) == 1:
+                if len(email_to_parent) == 1:
                     messages.success(request, 'Email sent successfully.')
                 else:
                     messages.success(request, f'Email sent successfully to {success_count} recipient(s).')
@@ -570,76 +586,91 @@ def bulk_email(request):
                     try:
                         student = Student.objects.prefetch_related('parents', 'parents__user').get(school=school, id=student_id)
                         
-                        # Collect all recipient emails from student.parent_email and linked Parent objects
-                        recipient_emails = set()  # Use set to avoid duplicates
+                        # Collect all recipient emails with their corresponding parent objects
+                        # Use dict to map email to parent for personalization
+                        email_to_parent = {}  # Maps email -> Parent object (or None for student.parent_email)
                         
-                        # Add student.parent_email if present
+                        # Add student.parent_email if present (no specific parent object)
                         if student.parent_email:
-                            recipient_emails.add(student.parent_email)
+                            email_to_parent[student.parent_email] = None
                         
                         # Add emails from all linked Parent objects
                         if student.parents.exists():
                             for parent in student.parents.all():
                                 if parent.email:
-                                    recipient_emails.add(parent.email)
+                                    email_to_parent[parent.email] = parent
                                 elif parent.user.email:
-                                    recipient_emails.add(parent.user.email)
+                                    email_to_parent[parent.user.email] = parent
                         
-                        # Replace placeholders per student
-                        # Get parent name - try from linked parents first, then fall back to student.parent_name
-                        parent_name = student.parent_name
-                        if student.parents.exists():
-                            # Use first parent's full name if available
-                            first_parent = student.parents.first()
-                            if first_parent:
-                                parent_name = first_parent.full_name
+                        # Get student's total balance for {amount} placeholder
+                        from django.db.models import Sum
+                        from decimal import Decimal
+                        from core.models import StudentFee
+                        student_fees = StudentFee.objects.filter(student=student)
+                        total_charged = student_fees.aggregate(total=Sum('amount_charged'))['total'] or Decimal('0.00')
+                        total_paid = student_fees.aggregate(total=Sum('amount_paid'))['total'] or Decimal('0.00')
+                        total_balance = total_charged - total_paid
+                        amount_str = f"KES {total_balance:,.2f}" if total_balance > 0 else ''
                         
-                        # Build context for placeholder replacement per student
-                        student_context = {
-                            'student_name': student.full_name,
-                            'parent_name': parent_name,
-                            'school_name': school.name,
-                        }
+                        # Get earliest due date for {due_date} placeholder
+                        earliest_due_date = student_fees.filter(is_paid=False).order_by('due_date').first()
+                        due_date_str = earliest_due_date.due_date.strftime('%Y-%m-%d') if earliest_due_date else ''
                         
-                        # Optional placeholders (will be left as-is if not provided)
-                        placeholder_defaults = {
-                            'amount': '',
-                            'due_date': '',
-                            'due_name': '',  # Alias for due_date if needed
-                        }
-                        
-                        # Replace placeholders in subject and content for this student
-                        try:
-                            # Use format with SafeDict to handle missing placeholders gracefully
-                            class SafeDict(dict):
-                                def __missing__(self, key):
-                                    # Return the original placeholder if not found
-                                    return '{' + key + '}'
-                            
-                            safe_context = SafeDict({**student_context, **placeholder_defaults})
-                            student_subject = subject.format(**safe_context)
-                            student_content = content.format(**safe_context)
-                        except (KeyError, ValueError) as e:
-                            # If format fails, log but continue with original content
-                            logger.warning(f'Error replacing placeholders in bulk email for student {student_id}: {str(e)}')
-                            # Try with basic replacements only
-                            try:
-                                student_subject = subject.format(**student_context)
-                                student_content = content.format(**student_context)
-                            except Exception:
-                                # Keep original if replacement fails
-                                student_subject = subject
-                                student_content = content
-                        
-                        # Send email to all recipients for this student
-                        if recipient_emails:
+                        # Send email to all recipients for this student with personalized content
+                        if email_to_parent:
                             student_success = True
-                            for recipient_email in recipient_emails:
+                            for recipient_email, parent_obj in email_to_parent.items():
                                 try:
+                                    # Get parent name for this specific recipient
+                                    if parent_obj:
+                                        # Use the specific parent's full name
+                                        parent_name = parent_obj.full_name
+                                    else:
+                                        # Fall back to student.parent_name for student.parent_email
+                                        parent_name = student.parent_name
+                                        # Try to get from first linked parent if available
+                                        if student.parents.exists():
+                                            first_parent = student.parents.first()
+                                            if first_parent:
+                                                parent_name = first_parent.full_name
+                                    
+                                    # Build context for placeholder replacement per recipient
+                                    student_context = {
+                                        'student_name': student.full_name,
+                                        'parent_name': parent_name,
+                                        'school_name': school.name,
+                                        'amount': amount_str,
+                                        'due_date': due_date_str,
+                                        'due_name': due_date_str,  # Alias for due_date
+                                    }
+                                    
+                                    # Replace placeholders in subject and content for this recipient
+                                    try:
+                                        # Use format with SafeDict to handle missing placeholders gracefully
+                                        class SafeDict(dict):
+                                            def __missing__(self, key):
+                                                # Return the original placeholder if not found
+                                                return '{' + key + '}'
+                                        
+                                        safe_context = SafeDict(student_context)
+                                        personalized_subject = subject.format(**safe_context)
+                                        personalized_content = content.format(**safe_context)
+                                    except (KeyError, ValueError) as e:
+                                        # If format fails, log but continue with original content
+                                        logger.warning(f'Error replacing placeholders in bulk email to {recipient_email} for student {student_id}: {str(e)}')
+                                        # Try with basic replacements only
+                                        try:
+                                            personalized_subject = subject.format(**student_context)
+                                            personalized_content = content.format(**student_context)
+                                        except Exception:
+                                            # Keep original if replacement fails
+                                            personalized_subject = subject
+                                            personalized_content = content
+                                    
                                     success = communication_service.email_service.send_email(
                                         recipient_email=recipient_email,
-                                        subject=student_subject,
-                                        content=student_content,
+                                        subject=personalized_subject,
+                                        content=personalized_content,
                                         student=student,
                                         template=template,
                                         sent_by=request.user
