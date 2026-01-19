@@ -618,7 +618,6 @@ def bulk_email(request):
                         
                         # Send email to all recipients for this student with personalized content
                         if email_to_parent:
-                            student_success = True
                             for recipient_email, parent_obj in email_to_parent.items():
                                 try:
                                     # Get parent name for this specific recipient
@@ -675,16 +674,13 @@ def bulk_email(request):
                                         template=template,
                                         sent_by=request.user
                                     )
-                                    if not success:
-                                        student_success = False
-                                        error_count += 1
+                                    if success:
+                                        success_count += 1  # Count each successful email send
+                                    else:
+                                        error_count += 1  # Count each failed email send
                                 except Exception as e:
                                     logger.error(f'Error sending bulk email to {recipient_email} for student {student_id}: {str(e)}')
-                                    student_success = False
-                                    error_count += 1
-                            
-                            if student_success:
-                                success_count += 1
+                                    error_count += 1  # Count each failed email send
                         else:
                             error_count += 1
                     except Exception as e:
@@ -692,9 +688,15 @@ def bulk_email(request):
                         error_count += 1
                 
                 if success_count > 0:
-                    messages.success(request, f'Successfully sent {success_count} email(s).')
+                    if success_count == 1:
+                        messages.success(request, 'Successfully sent 1 email.')
+                    else:
+                        messages.success(request, f'Successfully sent {success_count} emails.')
                 if error_count > 0:
-                    messages.warning(request, f'Failed to send {error_count} email(s).')
+                    if error_count == 1:
+                        messages.warning(request, 'Failed to send 1 email.')
+                    else:
+                        messages.warning(request, f'Failed to send {error_count} emails.')
                     
             except Exception as e:
                 messages.error(request, f'Error sending bulk emails: {str(e)}')
@@ -773,19 +775,83 @@ def bulk_sms(request):
                 # Send SMS to each selected student
                 for student_id in selected_students:
                     try:
-                        student = Student.objects.get(school=school, id=student_id)
+                        student = Student.objects.prefetch_related('parents', 'parents__user').get(school=school, id=student_id)
+                        
+                        # Collect all recipient phone numbers with their corresponding parent objects
+                        # Use dict to map phone to parent for personalization
+                        phone_to_parent = {}  # Maps phone -> Parent object (or None for student.parent_phone)
+                        
+                        # Add student.parent_phone if present (no specific parent object)
                         if student.parent_phone:
-                            success = communication_service.sms_service.send_sms(
-                                recipient_phone=student.parent_phone,
-                                content=content,
-                                student=student,
-                                template=template,
-                                sent_by=request.user
-                            )
-                            if success:
-                                success_count += 1
-                            else:
-                                error_count += 1
+                            phone_to_parent[student.parent_phone] = None
+                        
+                        # Add phones from all linked Parent objects
+                        if student.parents.exists():
+                            for parent in student.parents.all():
+                                if parent.phone:
+                                    phone_to_parent[parent.phone] = parent
+                        
+                        # Replace placeholders per student
+                        # Get parent name - try from linked parents first, then fall back to student.parent_name
+                        parent_name = student.parent_name
+                        if student.parents.exists():
+                            # Use first parent's full name if available
+                            first_parent = student.parents.first()
+                            if first_parent:
+                                parent_name = first_parent.full_name
+                        
+                        # Build context for placeholder replacement per student
+                        student_context = {
+                            'student_name': student.full_name,
+                            'parent_name': parent_name,
+                            'school_name': school.name,
+                        }
+                        
+                        # Optional placeholders (will be left as-is if not provided)
+                        placeholder_defaults = {
+                            'amount': '',
+                            'due_date': '',
+                            'due_name': '',  # Alias for due_date if needed
+                        }
+                        
+                        # Replace placeholders in content for this student
+                        try:
+                            # Use format with SafeDict to handle missing placeholders gracefully
+                            class SafeDict(dict):
+                                def __missing__(self, key):
+                                    # Return the original placeholder if not found
+                                    return '{' + key + '}'
+                            
+                            safe_context = SafeDict({**student_context, **placeholder_defaults})
+                            personalized_content = content.format(**safe_context)
+                        except (KeyError, ValueError) as e:
+                            # If format fails, log but continue with original content
+                            logger.warning(f'Error replacing placeholders in bulk SMS for student {student_id}: {str(e)}')
+                            # Try with basic replacements only
+                            try:
+                                personalized_content = content.format(**student_context)
+                            except Exception:
+                                # Keep original if replacement fails
+                                personalized_content = content
+                        
+                        # Send SMS to all recipients for this student
+                        if phone_to_parent:
+                            for recipient_phone, parent_obj in phone_to_parent.items():
+                                try:
+                                    success = communication_service.sms_service.send_sms(
+                                        recipient_phone=recipient_phone,
+                                        content=personalized_content,
+                                        student=student,
+                                        template=template,
+                                        sent_by=request.user
+                                    )
+                                    if success:
+                                        success_count += 1  # Count each successful SMS send
+                                    else:
+                                        error_count += 1  # Count each failed SMS send
+                                except Exception as e:
+                                    logger.error(f'Error sending bulk SMS to {recipient_phone} for student {student_id}: {str(e)}')
+                                    error_count += 1  # Count each failed SMS send
                         else:
                             error_count += 1
                     except Exception as e:
@@ -793,9 +859,15 @@ def bulk_sms(request):
                         error_count += 1
                 
                 if success_count > 0:
-                    messages.success(request, f'Successfully sent {success_count} SMS(s).')
+                    if success_count == 1:
+                        messages.success(request, 'Successfully sent 1 SMS.')
+                    else:
+                        messages.success(request, f'Successfully sent {success_count} SMS.')
                 if error_count > 0:
-                    messages.warning(request, f'Failed to send {error_count} SMS(s).')
+                    if error_count == 1:
+                        messages.warning(request, 'Failed to send 1 SMS.')
+                    else:
+                        messages.warning(request, f'Failed to send {error_count} SMS.')
                     
             except Exception as e:
                 messages.error(request, f'Error sending bulk SMS: {str(e)}')

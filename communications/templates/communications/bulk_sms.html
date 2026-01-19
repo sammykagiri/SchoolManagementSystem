@@ -55,11 +55,12 @@
                                 </div>
                             </div>
                             <div class="col-md-3 d-flex align-items-end">
-                                <button type="submit" class="btn btn-primary w-100">
-                                    <i class="fas fa-filter me-2"></i>Apply Filters
-                                </button>
+                                <a href="{% url 'communications:bulk_sms' %}" class="btn btn-outline-secondary w-100">
+                                    <i class="fas fa-times me-2"></i>Clear Filters
+                                </a>
                             </div>
                         </div>
+                        <input type="hidden" name="show_inactive" id="showInactiveHidden" value="{% if show_inactive %}true{% else %}false{% endif %}">
                     </form>
 
                     <form method="post" id="bulkSMSForm">
@@ -197,6 +198,39 @@ document.addEventListener('DOMContentLoaded', function() {
     const templateSelect = document.getElementById('template');
     const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
     
+    // Auto-filter functionality
+    const filterForm = document.getElementById('filterForm');
+    const gradeSelect = document.getElementById('grade');
+    const classSelect = document.getElementById('class');
+    const showInactiveCheckbox = document.getElementById('show_inactive');
+    const showInactiveHidden = document.getElementById('showInactiveHidden');
+    
+    const submitForm = () => {
+        if (typeof filterForm.requestSubmit === 'function') {
+            filterForm.requestSubmit();
+        } else {
+            filterForm.submit();
+        }
+    };
+    
+    // Auto-submit on grade change
+    if (gradeSelect) {
+        gradeSelect.addEventListener('change', submitForm);
+    }
+    
+    // Auto-submit on class change
+    if (classSelect) {
+        classSelect.addEventListener('change', submitForm);
+    }
+    
+    // Auto-submit on show inactive checkbox change
+    if (showInactiveCheckbox && showInactiveHidden) {
+        showInactiveCheckbox.addEventListener('change', function() {
+            showInactiveHidden.value = this.checked ? 'true' : 'false';
+            submitForm();
+        });
+    }
+    
     // Initialize Bootstrap tooltips
     var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
     var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
@@ -222,20 +256,34 @@ document.addEventListener('DOMContentLoaded', function() {
     
     contentTextarea.addEventListener('input', updateCharCount);
     
-    // Update selected count
+    // Update selected count and send count (distinct phone numbers)
     function updateSelectedCount() {
         const selected = document.querySelectorAll('.student-check:checked').length;
-        const studentsWithPhone = Array.from(studentCheckboxes).filter(cb => {
+        const selectedCheckboxes = Array.from(studentCheckboxes).filter(cb => cb.checked);
+        
+        // Count distinct phone numbers from selected students
+        const distinctPhones = new Set();
+        selectedCheckboxes.forEach(cb => {
             const row = cb.closest('tr');
-            const phoneCell = row.querySelector('td:last-child');
-            return phoneCell && !phoneCell.textContent.includes('No phone');
-        }).length;
+            const phoneCell = row.querySelector('.parent-phone-cell');
+            if (phoneCell) {
+                const phoneSpans = phoneCell.querySelectorAll('span[data-phone]');
+                phoneSpans.forEach(span => {
+                    const phone = span.getAttribute('data-phone');
+                    if (phone && phone.trim()) {
+                        distinctPhones.add(phone.trim());
+                    }
+                });
+            }
+        });
+        
+        const distinctPhoneCount = distinctPhones.size;
         
         selectedCountSpan.textContent = selected;
-        sendCountSpan.textContent = selected;
+        sendCountSpan.textContent = distinctPhoneCount;
         
-        // Disable send button if no students selected or no content
-        sendBtn.disabled = selected === 0 || !contentTextarea.value.trim();
+        // Disable send button if no students selected or no content or no distinct phones
+        sendBtn.disabled = selected === 0 || !contentTextarea.value.trim() || distinctPhoneCount === 0;
     }
     
     // Select all checkbox
@@ -367,6 +415,9 @@ document.addEventListener('DOMContentLoaded', function() {
             cell.appendChild(noPhoneSpan);
         }
     });
+    
+    // Update count after deduplication
+    updateSelectedCount();
 });
 </script>
 {% endblock %}

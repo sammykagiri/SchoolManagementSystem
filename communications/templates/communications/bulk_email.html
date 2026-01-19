@@ -55,11 +55,12 @@
                                 </div>
                             </div>
                             <div class="col-md-3 d-flex align-items-end">
-                                <button type="submit" class="btn btn-primary w-100">
-                                    <i class="fas fa-filter me-2"></i>Apply Filters
-                                </button>
+                                <a href="{% url 'communications:bulk_email' %}" class="btn btn-outline-secondary w-100">
+                                    <i class="fas fa-times me-2"></i>Clear Filters
+                                </a>
                             </div>
                         </div>
+                        <input type="hidden" name="show_inactive" id="showInactiveHidden" value="{% if show_inactive %}true{% else %}false{% endif %}">
                     </form>
 
                     <form method="post" id="bulkEmailForm">
@@ -200,26 +201,73 @@ document.addEventListener('DOMContentLoaded', function() {
     const contentTextarea = document.getElementById('content');
     const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
     
+    // Auto-filter functionality
+    const filterForm = document.getElementById('filterForm');
+    const gradeSelect = document.getElementById('grade');
+    const classSelect = document.getElementById('class');
+    const showInactiveCheckbox = document.getElementById('show_inactive');
+    const showInactiveHidden = document.getElementById('showInactiveHidden');
+    
+    const submitForm = () => {
+        if (typeof filterForm.requestSubmit === 'function') {
+            filterForm.requestSubmit();
+        } else {
+            filterForm.submit();
+        }
+    };
+    
+    // Auto-submit on grade change
+    if (gradeSelect) {
+        gradeSelect.addEventListener('change', submitForm);
+    }
+    
+    // Auto-submit on class change
+    if (classSelect) {
+        classSelect.addEventListener('change', submitForm);
+    }
+    
+    // Auto-submit on show inactive checkbox change
+    if (showInactiveCheckbox && showInactiveHidden) {
+        showInactiveCheckbox.addEventListener('change', function() {
+            showInactiveHidden.value = this.checked ? 'true' : 'false';
+            submitForm();
+        });
+    }
+    
     // Initialize Bootstrap tooltips
     var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
     var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
         return new bootstrap.Tooltip(tooltipTriggerEl);
     });
     
-    // Update selected count
+    // Update selected count and send count (distinct email addresses)
     function updateSelectedCount() {
         const selected = document.querySelectorAll('.student-check:checked').length;
-        const studentsWithEmail = Array.from(studentCheckboxes).filter(cb => {
+        const selectedCheckboxes = Array.from(studentCheckboxes).filter(cb => cb.checked);
+        
+        // Count distinct email addresses from selected students
+        const distinctEmails = new Set();
+        selectedCheckboxes.forEach(cb => {
             const row = cb.closest('tr');
-            const emailCell = row.querySelector('td:last-child');
-            return emailCell && !emailCell.textContent.includes('No email');
-        }).length;
+            const emailCell = row.querySelector('.parent-email-cell');
+            if (emailCell) {
+                const emailSpans = emailCell.querySelectorAll('span[data-email]');
+                emailSpans.forEach(span => {
+                    const email = span.getAttribute('data-email');
+                    if (email && email.trim()) {
+                        distinctEmails.add(email.trim());
+                    }
+                });
+            }
+        });
+        
+        const distinctEmailCount = distinctEmails.size;
         
         selectedCountSpan.textContent = selected;
-        sendCountSpan.textContent = selected;
+        sendCountSpan.textContent = distinctEmailCount;
         
-        // Disable send button if no students selected or no email field
-        sendBtn.disabled = selected === 0 || !subjectInput.value.trim() || !contentTextarea.value.trim();
+        // Disable send button if no students selected or no email field or no distinct emails
+        sendBtn.disabled = selected === 0 || !subjectInput.value.trim() || !contentTextarea.value.trim() || distinctEmailCount === 0;
     }
     
     // Select all checkbox
@@ -353,6 +401,9 @@ document.addEventListener('DOMContentLoaded', function() {
             cell.appendChild(noEmailSpan);
         }
     });
+    
+    // Update count after deduplication
+    updateSelectedCount();
 });
 </script>
 {% endblock %}
