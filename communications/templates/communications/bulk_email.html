@@ -143,9 +143,19 @@
                                             <td>{{ student.full_name }}</td>
                                             <td>{% if student.grade %}{{ student.grade.name }}{% else %}-{% endif %}</td>
                                             <td>{% if student.school_class %}{{ student.school_class.name }}{% else %}-{% endif %}</td>
-                                            <td>
+                                            <td class="parent-email-cell">
                                                 {% if student.parent_email %}
                                                     <span class="text-success">{{ student.parent_email }}</span>
+                                                {% elif student.parents.exists %}
+                                                    {% for parent in student.parents.all %}
+                                                        {% if parent.email %}
+                                                            <span class="text-success">{{ parent.email }}</span>{% if not forloop.last %}, {% endif %}
+                                                        {% elif parent.user.email %}
+                                                            <span class="text-success">{{ parent.user.email }}</span>{% if not forloop.last %}, {% endif %}
+                                                        {% endif %}
+                                                    {% empty %}
+                                                        <span class="text-danger">No email</span>
+                                                    {% endfor %}
                                                 {% else %}
                                                     <span class="text-danger">No email</span>
                                                 {% endif %}
@@ -304,6 +314,16 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Initial count update
     updateSelectedCount();
+    
+    // Check for empty parent email cells and add "No email" if needed
+    document.querySelectorAll('.parent-email-cell').forEach(cell => {
+        if (!cell.textContent.trim() || cell.textContent.trim() === '') {
+            const noEmailSpan = document.createElement('span');
+            noEmailSpan.className = 'text-danger';
+            noEmailSpan.textContent = 'No email';
+            cell.appendChild(noEmailSpan);
+        }
+    });
 });
 </script>
 {% endblock %}
