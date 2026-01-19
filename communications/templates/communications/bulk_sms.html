@@ -13,6 +13,14 @@
         background-color: #f8f9fa;
     }
     
+    /* Hide filter form until Select2 is initialized to prevent flicker */
+    #filterForm {
+        visibility: hidden;
+    }
+    #filterForm.select2-ready {
+        visibility: visible;
+    }
+    
     /* Match working Select2 example styles for Bootstrap 5 theme */
     .select2-container--bootstrap-5 .select2-selection--multiple {
         background-color: white !important;
@@ -78,7 +86,7 @@
                 </div>
                 <div class="card-body">
                     <!-- Filters -->
-                    <form method="post" class="mb-4" id="filterForm" style="opacity: 0;">
+                    <form method="post" class="mb-4" id="filterForm">
                         {% csrf_token %}
                         <input type="hidden" name="filter_action" value="apply">
                         <div class="row g-3">
@@ -230,12 +238,13 @@ $(document).ready(function() {
     const studentsTableBody = document.getElementById('studentsTableBody');
     const clearFiltersBtn = document.getElementById('clearFiltersBtn');
     
-    // Clear any selected values first to prevent flickering on page load
-    // Do this immediately using native DOM, before Select2 initialization
+    // Clear any selected values immediately using native DOM, before Select2 initialization
+    // Do this synchronously to prevent any visible flicker
     const gradeSelect = document.getElementById('grade');
     const classSelect = document.getElementById('class');
     const routeSelect = document.getElementById('route');
     
+    // Clear values immediately (synchronously)
     if (gradeSelect) {
         Array.from(gradeSelect.options).forEach(option => option.selected = false);
     }
@@ -252,7 +261,7 @@ $(document).ready(function() {
         showInactiveHidden.value = 'false';
     }
     
-    // Now initialize Select2 - this will show the cleared state
+    // Initialize Select2 immediately after clearing
     $('#grade').select2({
         theme: 'bootstrap-5',
         placeholder: 'All Grades',
@@ -274,11 +283,13 @@ $(document).ready(function() {
         width: '100%'
     });
     
-    // Show the filter form after initialization (fade in)
-    if (filterForm) {
-        filterForm.style.opacity = '1';
-        filterForm.style.transition = 'opacity 0.2s';
-    }
+    // Mark filter form as ready to show Select2 elements
+    // Use setTimeout to ensure Select2 has fully rendered
+    setTimeout(function() {
+        if (filterForm) {
+            filterForm.classList.add('select2-ready');
+        }
+    }, 0);
     
     // Function to apply filters via AJAX
     const applyFilters = async () => {
