@@ -145,13 +145,13 @@
                                             <td>{% if student.school_class %}{{ student.school_class.name }}{% else %}-{% endif %}</td>
                                             <td class="parent-email-cell">
                                                 {% if student.parent_email %}
-                                                    <span class="text-success">{{ student.parent_email }}</span>
+                                                    <span class="text-success" data-email="{{ student.parent_email }}">{{ student.parent_email }}</span>
                                                 {% elif student.parents.exists %}
                                                     {% for parent in student.parents.all %}
                                                         {% if parent.email %}
-                                                            <span class="text-success">{{ parent.email }}</span>{% if not forloop.last %}, {% endif %}
+                                                            <span class="text-success" data-email="{{ parent.email }}">{{ parent.email }}</span>{% if not forloop.last %}, {% endif %}
                                                         {% elif parent.user.email %}
-                                                            <span class="text-success">{{ parent.user.email }}</span>{% if not forloop.last %}, {% endif %}
+                                                            <span class="text-success" data-email="{{ parent.user.email }}">{{ parent.user.email }}</span>{% if not forloop.last %}, {% endif %}
                                                         {% endif %}
                                                     {% empty %}
                                                         <span class="text-danger">No email</span>
@@ -315,8 +315,37 @@ document.addEventListener('DOMContentLoaded', function() {
     // Initial count update
     updateSelectedCount();
     
-    // Check for empty parent email cells and add "No email" if needed
+    // Deduplicate emails and handle empty cells
     document.querySelectorAll('.parent-email-cell').forEach(cell => {
+        const emailSpans = Array.from(cell.querySelectorAll('span[data-email]'));
+        const seenEmails = new Set();
+        const uniqueEmails = [];
+        
+        emailSpans.forEach(span => {
+            const email = span.getAttribute('data-email');
+            if (email && !seenEmails.has(email)) {
+                seenEmails.add(email);
+                uniqueEmails.push(span);
+            } else if (email && seenEmails.has(email)) {
+                // Remove duplicate and any trailing comma/space
+                const nextSibling = span.nextSibling;
+                if (nextSibling && nextSibling.nodeType === Node.TEXT_NODE && nextSibling.textContent.trim() === ',') {
+                    nextSibling.remove();
+                }
+                span.remove();
+            }
+        });
+        
+        // Clean up and update commas between remaining emails
+        cell.innerHTML = ''; // Clear cell
+        uniqueEmails.forEach((span, index) => {
+            cell.appendChild(span);
+            if (index < uniqueEmails.length - 1) {
+                cell.appendChild(document.createTextNode(', '));
+            }
+        });
+        
+        // Check if cell is empty and add "No email" if needed
         if (!cell.textContent.trim() || cell.textContent.trim() === '') {
             const noEmailSpan = document.createElement('span');
             noEmailSpan.className = 'text-danger';

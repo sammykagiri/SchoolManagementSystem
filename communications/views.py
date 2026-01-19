@@ -722,8 +722,8 @@ def bulk_sms(request):
     class_id = request.GET.get('class', '')
     show_inactive = request.GET.get('show_inactive', 'false').lower() == 'true'
     
-    # Get all students
-    students = Student.objects.filter(school=school).select_related('grade', 'school_class')
+    # Get all students with prefetched parents for efficient template access
+    students = Student.objects.filter(school=school).select_related('grade', 'school_class').prefetch_related('parents', 'parents__user')
     
     # Apply filters
     if not show_inactive:
