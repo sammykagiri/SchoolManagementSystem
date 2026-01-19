@@ -78,7 +78,7 @@
                 </div>
                 <div class="card-body">
                     <!-- Filters -->
-                    <form method="post" class="mb-4" id="filterForm">
+                    <form method="post" class="mb-4" id="filterForm" style="opacity: 0;">
                         {% csrf_token %}
                         <input type="hidden" name="filter_action" value="apply">
                         <div class="row g-3">
@@ -86,7 +86,7 @@
                                 <label for="grade" class="form-label">Filter by Grade</label>
                                 <select class="form-select select2" id="grade" name="grade" multiple="multiple">
                                     {% for grade in grades %}
-                                        <option value="{{ grade.id }}" {% if grade.id in selected_grades %}selected{% endif %}>{{ grade.name }}</option>
+                                        <option value="{{ grade.id }}">{{ grade.name }}</option>
                                     {% endfor %}
                                 </select>
                             </div>
@@ -94,7 +94,7 @@
                                 <label for="class" class="form-label">Filter by Class</label>
                                 <select class="form-select select2" id="class" name="class" multiple="multiple">
                                     {% for class in classes %}
-                                        <option value="{{ class.id }}" {% if class.id in selected_classes %}selected{% endif %}>{{ class.name }}</option>
+                                        <option value="{{ class.id }}">{{ class.name }}</option>
                                     {% endfor %}
                                 </select>
                             </div>
@@ -102,17 +102,17 @@
                                 <label for="route" class="form-label">Filter by Transport Route</label>
                                 <select class="form-select select2" id="route" name="route" multiple="multiple">
                                     {% for route in routes %}
-                                        <option value="{{ route.id }}" {% if route.id in selected_routes %}selected{% endif %}>{{ route.name }}</option>
+                                        <option value="{{ route.id }}">{{ route.name }}</option>
                                     {% endfor %}
                                 </select>
                             </div>
                             <div class="col-md-3">
                                 <label class="form-label d-block">&nbsp;</label>
                                 <div class="form-check form-switch d-flex align-items-center h-100 mb-2">
-                                    <input class="form-check-input" type="checkbox" id="show_inactive" {% if show_inactive %}checked{% endif %}>
+                                    <input class="form-check-input" type="checkbox" id="show_inactive">
                                     <label class="form-check-label ms-2" for="show_inactive">Show Inactive</label>
                                 </div>
-                                <input type="hidden" id="showInactiveHidden" name="show_inactive" value="{% if show_inactive %}true{% else %}false{% endif %}">
+                                <input type="hidden" id="showInactiveHidden" name="show_inactive" value="false">
                                 <button type="button" class="btn btn-sm btn-outline-secondary w-100" id="clearFiltersBtn">
                                     <i class="fas fa-times"></i> Clear Filters
                                 </button>
@@ -224,7 +224,36 @@ $(document).ready(function() {
     const contentTextarea = document.getElementById('content');
     const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
     
-    // Initialize Select2 for multiselect filters
+    // Auto-filter functionality with AJAX
+    const filterForm = document.getElementById('filterForm');
+    const showInactiveCheckbox = document.getElementById('show_inactive');
+    const showInactiveHidden = document.getElementById('showInactiveHidden');
+    const studentsTableBody = document.getElementById('studentsTableBody');
+    const clearFiltersBtn = document.getElementById('clearFiltersBtn');
+    
+    // Clear any selected values first to prevent flickering on page load
+    // Do this immediately using native DOM, before Select2 initialization
+    const gradeSelect = document.getElementById('grade');
+    const classSelect = document.getElementById('class');
+    const routeSelect = document.getElementById('route');
+    
+    if (gradeSelect) {
+        Array.from(gradeSelect.options).forEach(option => option.selected = false);
+    }
+    if (classSelect) {
+        Array.from(classSelect.options).forEach(option => option.selected = false);
+    }
+    if (routeSelect) {
+        Array.from(routeSelect.options).forEach(option => option.selected = false);
+    }
+    if (showInactiveCheckbox) {
+        showInactiveCheckbox.checked = false;
+    }
+    if (showInactiveHidden) {
+        showInactiveHidden.value = 'false';
+    }
+    
+    // Now initialize Select2 - this will show the cleared state
     $('#grade').select2({
         theme: 'bootstrap-5',
         placeholder: 'All Grades',
@@ -246,12 +275,11 @@ $(document).ready(function() {
         width: '100%'
     });
     
-    // Auto-filter functionality with AJAX
-    const filterForm = document.getElementById('filterForm');
-    const showInactiveCheckbox = document.getElementById('show_inactive');
-    const showInactiveHidden = document.getElementById('showInactiveHidden');
-    const studentsTableBody = document.getElementById('studentsTableBody');
-    const clearFiltersBtn = document.getElementById('clearFiltersBtn');
+    // Show the filter form after initialization (fade in)
+    if (filterForm) {
+        filterForm.style.opacity = '1';
+        filterForm.style.transition = 'opacity 0.2s';
+    }
     
     // Function to apply filters via AJAX
     const applyFilters = async () => {
