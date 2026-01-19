@@ -13,11 +13,24 @@
         background-color: #f8f9fa;
     }
     
-    /* Hide filter form until Select2 is initialized to prevent flicker */
-    #filterForm {
+    /* Hide native select elements immediately - Select2 will replace them */
+    #filterForm select.select2 {
+        position: absolute !important;
+        width: 1px !important;
+        height: 1px !important;
+        opacity: 0 !important;
+        overflow: hidden !important;
+        clip: rect(0, 0, 0, 0) !important;
+        margin: 0 !important;
+        padding: 0 !important;
+    }
+    /* Hide Select2 containers until initialized - keep them in normal flow to prevent jump */
+    #filterForm .select2-container {
+        opacity: 0;
         visibility: hidden;
     }
-    #filterForm.select2-ready {
+    #filterForm.select2-ready .select2-container {
+        opacity: 1;
         visibility: visible;
     }
     
@@ -90,25 +103,25 @@
                         {% csrf_token %}
                         <input type="hidden" name="filter_action" value="apply">
                         <div class="row g-3">
-                            <div class="col-md-3">
+                            <div class="col-md-3" style="min-height: 60px; position: relative;">
                                 <label for="grade" class="form-label">Filter by Grade</label>
-                                <select class="form-select select2" id="grade" name="grade" multiple="multiple">
+                                <select class="form-select select2" id="grade" name="grade" multiple="multiple" style="position: absolute; width: 1px; height: 1px; opacity: 0; overflow: hidden; margin: 0; padding: 0;">
                                     {% for grade in grades %}
                                         <option value="{{ grade.id }}">{{ grade.name }}</option>
                                     {% endfor %}
                                 </select>
                             </div>
-                            <div class="col-md-3">
+                            <div class="col-md-3" style="min-height: 60px; position: relative;">
                                 <label for="class" class="form-label">Filter by Class</label>
-                                <select class="form-select select2" id="class" name="class" multiple="multiple">
+                                <select class="form-select select2" id="class" name="class" multiple="multiple" style="position: absolute; width: 1px; height: 1px; opacity: 0; overflow: hidden; margin: 0; padding: 0;">
                                     {% for class in classes %}
                                         <option value="{{ class.id }}">{{ class.name }}</option>
                                     {% endfor %}
                                 </select>
                             </div>
-                            <div class="col-md-3">
+                            <div class="col-md-3" style="min-height: 60px; position: relative;">
                                 <label for="route" class="form-label">Filter by Transport Route</label>
-                                <select class="form-select select2" id="route" name="route" multiple="multiple">
+                                <select class="form-select select2" id="route" name="route" multiple="multiple" style="position: absolute; width: 1px; height: 1px; opacity: 0; overflow: hidden; margin: 0; padding: 0;">
                                     {% for route in routes %}
                                         <option value="{{ route.id }}">{{ route.name }}</option>
                                     {% endfor %}
@@ -261,7 +274,7 @@ $(document).ready(function() {
         showInactiveHidden.value = 'false';
     }
     
-    // Initialize Select2 immediately after clearing
+    // Initialize Select2 immediately after clearing - initialize separately for better control
     $('#grade').select2({
         theme: 'bootstrap-5',
         placeholder: 'All Grades',
@@ -283,13 +296,13 @@ $(document).ready(function() {
         width: '100%'
     });
     
-    // Mark filter form as ready to show Select2 elements
-    // Use setTimeout to ensure Select2 has fully rendered
-    setTimeout(function() {
-        if (filterForm) {
-            filterForm.classList.add('select2-ready');
-        }
-    }, 0);
+    // Force a reflow to ensure Select2 containers are fully rendered
+    void filterForm.offsetHeight;
+    
+    // Mark filter form as ready - containers are now in place
+    if (filterForm) {
+        filterForm.classList.add('select2-ready');
+    }
     
     // Function to apply filters via AJAX
     const applyFilters = async () => {
@@ -480,7 +493,8 @@ $(document).ready(function() {
     
     contentTextarea.addEventListener('input', updateCharCount);
     
-    // Update selected count and send count (distinct phone numbers)
+    // Display-only function: Updates UI counters for user feedback
+    // Backend validates actual data independently when sending SMS
     function updateSelectedCount() {
         const selected = document.querySelectorAll('.student-check:checked').length;
         const selectedCheckboxes = Array.from(studentCheckboxes).filter(cb => cb.checked);
@@ -601,7 +615,8 @@ $(document).ready(function() {
     updateCharCount();
     updateSelectedCount();
     
-    // Function to deduplicate phones and handle empty cells
+    // Display-only function: Formats phone display in table cells (removes duplicates for UX)
+    // Backend handles actual recipient collection independently
     function deduplicatePhones() {
         document.querySelectorAll('.parent-phone-cell').forEach(cell => {
             const phoneSpans = Array.from(cell.querySelectorAll('span[data-phone]'));
