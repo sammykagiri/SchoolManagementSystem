@@ -1,0 +1,34 @@
+{% for student in students %}
+<tr class="student-row">
+    <td>
+        <input type="checkbox" 
+               name="students" 
+               value="{{ student.id }}" 
+               class="form-check-input student-checkbox student-check"
+               checked>
+    </td>
+    <td>{{ student.student_id }}</td>
+    <td>{{ student.full_name }}</td>
+    <td>{% if student.grade %}{{ student.grade.name }}{% else %}-{% endif %}</td>
+    <td>{% if student.school_class %}{{ student.school_class.name }}{% else %}-{% endif %}</td>
+    <td class="parent-phone-cell">
+        {% if student.parent_phone %}
+            <span class="text-success" data-phone="{{ student.parent_phone }}">{{ student.parent_phone }}</span>
+        {% elif student.parents.exists %}
+            {% for parent in student.parents.all %}
+                {% if parent.phone %}
+                    <span class="text-success" data-phone="{{ parent.phone }}">{{ parent.phone }}</span>{% if not forloop.last %}, {% endif %}
+                {% endif %}
+            {% empty %}
+                <span class="text-danger">No phone</span>
+            {% endfor %}
+        {% else %}
+            <span class="text-danger">No phone</span>
+        {% endif %}
+    </td>
+</tr>
+{% empty %}
+<tr>
+    <td colspan="6" class="text-center text-muted py-4">No students found. Try adjusting your filters.</td>
+</tr>
+{% endfor %}

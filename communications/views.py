@@ -527,26 +527,56 @@ def bulk_email(request):
     """Bulk email to multiple students"""
     school = request.user.profile.school
     
-    # Get filters from GET parameters
-    grade_id = request.GET.get('grade', '')
-    class_id = request.GET.get('class', '')
-    show_inactive = request.GET.get('show_inactive', 'false').lower() == 'true'
+    # Check if this is a filter POST request (AJAX) vs email send POST
+    is_filter_request = request.method == 'POST' and request.POST.get('filter_action') == 'apply'
+    # Check for AJAX request - try both headers and META
+    # Note: request.headers is Django 2.2+, request.META is more reliable
+    x_requested_with = request.META.get('HTTP_X_REQUESTED_WITH', '')
+    is_ajax = x_requested_with == 'XMLHttpRequest'
+    
+    # Get filters from POST (filtering) or empty (initial load/refresh)
+    # Filters do NOT persist across page reloads - they reset on each fresh page load
+    if is_filter_request:
+        # Get filters from POST
+        grade_ids = request.POST.getlist('grade', [])
+        class_ids = request.POST.getlist('class', [])
+        route_ids = request.POST.getlist('route', [])
+        show_inactive = request.POST.get('show_inactive', 'false').lower() == 'true'
+    else:
+        # Fresh page load - reset all filters to defaults
+        grade_ids = []
+        class_ids = []
+        route_ids = []
+        show_inactive = False
     
     # Get all students with prefetched parents for efficient template access
-    students = Student.objects.filter(school=school).select_related('grade', 'school_class').prefetch_related('parents', 'parents__user')
+    students = Student.objects.filter(school=school).select_related('grade', 'school_class', 'transport_route').prefetch_related('parents', 'parents__user')
     
     # Apply filters
     if not show_inactive:
         students = students.filter(is_active=True)
-    if grade_id:
-        students = students.filter(grade_id=grade_id)
-    if class_id:
-        students = students.filter(school_class_id=class_id)
+    if grade_ids:
+        students = students.filter(grade_id__in=[int(g) for g in grade_ids if g.isdigit()])
+    if class_ids:
+        students = students.filter(school_class_id__in=[int(c) for c in class_ids if c.isdigit()])
+    if route_ids:
+        students = students.filter(transport_route_id__in=[int(r) for r in route_ids if r.isdigit()])
     
-    # Get grades and classes for filters
-    from core.models import Grade, SchoolClass
+    # Get grades, classes, and transport routes for filters
+    from core.models import Grade, SchoolClass, TransportRoute
+    from django.utils import timezone
+    from django.db.models import Q
     grades = Grade.objects.filter(school=school)
     classes = SchoolClass.objects.filter(school=school, is_active=True)
+    today = timezone.now().date()
+    routes = TransportRoute.objects.filter(
+        school=school,
+        is_active=True
+    ).filter(
+        Q(active_start_date__isnull=True) | Q(active_start_date__lte=today)
+    ).filter(
+        Q(active_end_date__isnull=True) | Q(active_end_date__gte=today)
+    )
     
     # Get templates
     templates = CommunicationTemplate.objects.filter(
@@ -555,7 +585,8 @@ def bulk_email(request):
         is_active=True
     )
     
-    if request.method == 'POST':
+    # Handle email sending POST (not filtering)
+    if request.method == 'POST' and not is_filter_request:
         subject = request.POST.get('subject')
         content = request.POST.get('content')
         template_id = request.POST.get('template')
@@ -700,16 +731,38 @@ def bulk_email(request):
                     
             except Exception as e:
                 messages.error(request, f'Error sending bulk emails: {str(e)}')
+            # Redirect to avoid resubmission on refresh
+            return redirect('communications:bulk_email')
     
+    # Prepare context
     context = {
         'students': students.order_by('first_name', 'last_name'),
         'grades': grades,
         'classes': classes,
+        'routes': routes,
         'templates': templates,
-        'selected_grade': grade_id,
-        'selected_class': class_id,
+        'selected_grades': [int(g) for g in grade_ids if g.isdigit()],
+        'selected_classes': [int(c) for c in class_ids if c.isdigit()],
+        'selected_routes': [int(r) for r in route_ids if r.isdigit()],
         'show_inactive': show_inactive,
     }
+    
+    # If AJAX filter request, return only the table HTML
+    # Check this BEFORE rendering the full template
+    if is_filter_request:
+        if is_ajax:
+            try:
+                from django.template.loader import render_to_string
+                table_html = render_to_string('communications/partials/bulk_email_table.html', context, request=request)
+                return JsonResponse({'table_html': table_html})
+            except Exception as e:
+                logger.error(f'Error rendering bulk email table: {str(e)}', exc_info=True)
+                return JsonResponse({'error': f'Error loading students: {str(e)}'}, status=500)
+        else:
+            # Filter request but not AJAX - might be a form submission, redirect to avoid duplicate
+            logger.warning(f'Filter request without AJAX header - redirecting')
+            return redirect('communications:bulk_email')
+    
     return render(request, 'communications/bulk_email.html', context)
 
 
@@ -719,26 +772,56 @@ def bulk_sms(request):
     """Bulk SMS to multiple students"""
     school = request.user.profile.school
     
-    # Get filters from GET parameters
-    grade_id = request.GET.get('grade', '')
-    class_id = request.GET.get('class', '')
-    show_inactive = request.GET.get('show_inactive', 'false').lower() == 'true'
+    # Check if this is a filter POST request (AJAX) vs SMS send POST
+    is_filter_request = request.method == 'POST' and request.POST.get('filter_action') == 'apply'
+    # Check for AJAX request - try both headers and META
+    # Note: request.headers is Django 2.2+, request.META is more reliable
+    x_requested_with = request.META.get('HTTP_X_REQUESTED_WITH', '')
+    is_ajax = x_requested_with == 'XMLHttpRequest'
+    
+    # Get filters from POST (filtering) or empty (initial load/refresh)
+    # Filters do NOT persist across page reloads - they reset on each fresh page load
+    if is_filter_request:
+        # Get filters from POST
+        grade_ids = request.POST.getlist('grade', [])
+        class_ids = request.POST.getlist('class', [])
+        route_ids = request.POST.getlist('route', [])
+        show_inactive = request.POST.get('show_inactive', 'false').lower() == 'true'
+    else:
+        # Fresh page load - reset all filters to defaults
+        grade_ids = []
+        class_ids = []
+        route_ids = []
+        show_inactive = False
     
     # Get all students with prefetched parents for efficient template access
-    students = Student.objects.filter(school=school).select_related('grade', 'school_class').prefetch_related('parents', 'parents__user')
+    students = Student.objects.filter(school=school).select_related('grade', 'school_class', 'transport_route').prefetch_related('parents', 'parents__user')
     
     # Apply filters
     if not show_inactive:
         students = students.filter(is_active=True)
-    if grade_id:
-        students = students.filter(grade_id=grade_id)
-    if class_id:
-        students = students.filter(school_class_id=class_id)
+    if grade_ids:
+        students = students.filter(grade_id__in=[int(g) for g in grade_ids if g.isdigit()])
+    if class_ids:
+        students = students.filter(school_class_id__in=[int(c) for c in class_ids if c.isdigit()])
+    if route_ids:
+        students = students.filter(transport_route_id__in=[int(r) for r in route_ids if r.isdigit()])
     
-    # Get grades and classes for filters
-    from core.models import Grade, SchoolClass
+    # Get grades, classes, and transport routes for filters
+    from core.models import Grade, SchoolClass, TransportRoute
+    from django.utils import timezone
+    from django.db.models import Q
     grades = Grade.objects.filter(school=school)
     classes = SchoolClass.objects.filter(school=school, is_active=True)
+    today = timezone.now().date()
+    routes = TransportRoute.objects.filter(
+        school=school,
+        is_active=True
+    ).filter(
+        Q(active_start_date__isnull=True) | Q(active_start_date__lte=today)
+    ).filter(
+        Q(active_end_date__isnull=True) | Q(active_end_date__gte=today)
+    )
     
     # Get templates
     templates = CommunicationTemplate.objects.filter(
@@ -747,7 +830,8 @@ def bulk_sms(request):
         is_active=True
     )
     
-    if request.method == 'POST':
+    # Handle SMS sending POST (not filtering)
+    if request.method == 'POST' and not is_filter_request:
         content = request.POST.get('content')
         template_id = request.POST.get('template')
         selected_students = request.POST.getlist('students')
@@ -871,14 +955,36 @@ def bulk_sms(request):
                     
             except Exception as e:
                 messages.error(request, f'Error sending bulk SMS: {str(e)}')
+            # Redirect to avoid resubmission on refresh
+            return redirect('communications:bulk_sms')
     
+    # Prepare context
     context = {
         'students': students.order_by('first_name', 'last_name'),
         'grades': grades,
         'classes': classes,
+        'routes': routes,
         'templates': templates,
-        'selected_grade': grade_id,
-        'selected_class': class_id,
+        'selected_grades': [int(g) for g in grade_ids if g.isdigit()],
+        'selected_classes': [int(c) for c in class_ids if c.isdigit()],
+        'selected_routes': [int(r) for r in route_ids if r.isdigit()],
         'show_inactive': show_inactive,
     }
+    
+    # If AJAX filter request, return only the table HTML
+    # Check this BEFORE rendering the full template
+    if is_filter_request:
+        if is_ajax:
+            try:
+                from django.template.loader import render_to_string
+                table_html = render_to_string('communications/partials/bulk_sms_table.html', context, request=request)
+                return JsonResponse({'table_html': table_html})
+            except Exception as e:
+                logger.error(f'Error rendering bulk SMS table: {str(e)}', exc_info=True)
+                return JsonResponse({'error': f'Error loading students: {str(e)}'}, status=500)
+        else:
+            # Filter request but not AJAX - might be a form submission, redirect to avoid duplicate
+            logger.warning(f'Filter request without AJAX header - redirecting')
+            return redirect('communications:bulk_sms')
+    
     return render(request, 'communications/bulk_sms.html', context)

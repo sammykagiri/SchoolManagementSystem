@@ -1,5 +1,6 @@
 {% extends 'base.html' %}
 {% load static %}
+{% load widget_tweaks %}
 
 {% block title %}Bulk SMS | Communications{% endblock %}
 
@@ -10,6 +11,56 @@
     }
     .student-row:hover {
         background-color: #f8f9fa;
+    }
+    
+    /* Match working Select2 example styles for Bootstrap 5 theme */
+    .select2-container--bootstrap-5 .select2-selection--multiple {
+        background-color: white !important;
+        border: 1px solid #aaa !important;
+        border-radius: 4px !important;
+        cursor: text !important;
+        padding-bottom: 5px !important;
+        padding-right: 5px !important;
+        position: relative !important;
+        box-sizing: border-box !important;
+        display: block !important;
+        min-height: 32px !important;
+        user-select: none !important;
+        -webkit-user-select: none !important;
+    }
+    
+    .select2-container--bootstrap-5.select2-container--focus .select2-selection--multiple {
+        border: solid black 1px !important;
+        outline: 0 !important;
+    }
+    
+    /* Remove empty line at bottom - make ul inline */
+    .select2-container--bootstrap-5 .select2-selection--multiple ul.select2-selection__rendered {
+        padding: 0 !important;
+        margin: 0 !important;
+        list-style: none !important;
+        display: inline !important;
+    }
+    
+    /* List items - inline-block to prevent line breaks with spacing between them */
+    .select2-container--bootstrap-5 .select2-selection--multiple .select2-selection__rendered li.select2-selection__choice {
+        margin: 2px 5px 2px 0 !important;  /* Top and bottom margin for spacing, right margin between items */
+        padding: 0 !important;
+        display: inline-block !important;
+        vertical-align: top !important;
+    }
+    
+    /* Search field - inline to stay on same line */
+    .select2-container--bootstrap-5 .select2-selection__search--inline,
+    .select2-container--bootstrap-5 .select2-search--inline {
+        margin: 0 !important;
+        padding: 0 !important;
+        display: inline !important;
+    }
+    
+    .select2-container--bootstrap-5 .select2-search__field {
+        margin: 0 !important;
+        padding: 0 !important;
     }
 </style>
 {% endblock %}
@@ -27,40 +78,46 @@
                 </div>
                 <div class="card-body">
                     <!-- Filters -->
-                    <form method="get" class="mb-4" id="filterForm">
+                    <form method="post" class="mb-4" id="filterForm">
+                        {% csrf_token %}
+                        <input type="hidden" name="filter_action" value="apply">
                         <div class="row g-3">
                             <div class="col-md-3">
                                 <label for="grade" class="form-label">Filter by Grade</label>
-                                <select class="form-select" id="grade" name="grade">
-                                    <option value="">All Grades</option>
+                                <select class="form-select select2" id="grade" name="grade" multiple="multiple">
                                     {% for grade in grades %}
-                                        <option value="{{ grade.id }}" {% if selected_grade|default:'' == grade.id|stringformat:'s' %}selected{% endif %}>{{ grade.name }}</option>
+                                        <option value="{{ grade.id }}" {% if grade.id in selected_grades %}selected{% endif %}>{{ grade.name }}</option>
                                     {% endfor %}
                                 </select>
                             </div>
                             <div class="col-md-3">
                                 <label for="class" class="form-label">Filter by Class</label>
-                                <select class="form-select" id="class" name="class">
-                                    <option value="">All Classes</option>
+                                <select class="form-select select2" id="class" name="class" multiple="multiple">
                                     {% for class in classes %}
-                                        <option value="{{ class.id }}" {% if selected_class|default:'' == class.id|stringformat:'s' %}selected{% endif %}>{{ class.name }}</option>
+                                        <option value="{{ class.id }}" {% if class.id in selected_classes %}selected{% endif %}>{{ class.name }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="col-md-3">
+                                <label for="route" class="form-label">Filter by Transport Route</label>
+                                <select class="form-select select2" id="route" name="route" multiple="multiple">
+                                    {% for route in routes %}
+                                        <option value="{{ route.id }}" {% if route.id in selected_routes %}selected{% endif %}>{{ route.name }}</option>
                                     {% endfor %}
                                 </select>
                             </div>
                             <div class="col-md-3">
                                 <label class="form-label d-block">&nbsp;</label>
-                                <div class="form-check form-switch d-flex align-items-center h-100">
-                                    <input class="form-check-input" type="checkbox" id="show_inactive" name="show_inactive" {% if show_inactive %}checked{% endif %}>
+                                <div class="form-check form-switch d-flex align-items-center h-100 mb-2">
+                                    <input class="form-check-input" type="checkbox" id="show_inactive" {% if show_inactive %}checked{% endif %}>
                                     <label class="form-check-label ms-2" for="show_inactive">Show Inactive</label>
                                 </div>
-                            </div>
-                            <div class="col-md-3 d-flex align-items-end">
-                                <a href="{% url 'communications:bulk_sms' %}" class="btn btn-outline-secondary w-100">
-                                    <i class="fas fa-times me-2"></i>Clear Filters
-                                </a>
+                                <input type="hidden" id="showInactiveHidden" name="show_inactive" value="{% if show_inactive %}true{% else %}false{% endif %}">
+                                <button type="button" class="btn btn-sm btn-outline-secondary w-100" id="clearFiltersBtn">
+                                    <i class="fas fa-times"></i> Clear Filters
+                                </button>
                             </div>
                         </div>
-                        <input type="hidden" name="show_inactive" id="showInactiveHidden" value="{% if show_inactive %}true{% else %}false{% endif %}">
                     </form>
 
                     <form method="post" id="bulkSMSForm">
@@ -121,7 +178,7 @@
                                     <thead class="table-light sticky-top">
                                         <tr>
                                             <th width="50">
-                                                <input type="checkbox" id="selectAllCheckbox" class="form-check-input">
+                                                <input type="checkbox" id="selectAllCheckbox" class="form-check-input" checked>
                                             </th>
                                             <th>Student ID</th>
                                             <th>Name</th>
@@ -130,40 +187,8 @@
                                             <th>Parent Phone</th>
                                         </tr>
                                     </thead>
-                                    <tbody>
-                                        {% for student in students %}
-                                        <tr class="student-row">
-                                            <td>
-                                                <input type="checkbox" 
-                                                       name="students" 
-                                                       value="{{ student.id }}" 
-                                                       class="form-check-input student-checkbox student-check">
-                                            </td>
-                                            <td>{{ student.student_id }}</td>
-                                            <td>{{ student.full_name }}</td>
-                                            <td>{% if student.grade %}{{ student.grade.name }}{% else %}-{% endif %}</td>
-                                            <td>{% if student.school_class %}{{ student.school_class.name }}{% else %}-{% endif %}</td>
-                                            <td class="parent-phone-cell">
-                                                {% if student.parent_phone %}
-                                                    <span class="text-success" data-phone="{{ student.parent_phone }}">{{ student.parent_phone }}</span>
-                                                {% elif student.parents.exists %}
-                                                    {% for parent in student.parents.all %}
-                                                        {% if parent.phone %}
-                                                            <span class="text-success" data-phone="{{ parent.phone }}">{{ parent.phone }}</span>{% if not forloop.last %}, {% endif %}
-                                                        {% endif %}
-                                                    {% empty %}
-                                                        <span class="text-danger">No phone</span>
-                                                    {% endfor %}
-                                                {% else %}
-                                                    <span class="text-danger">No phone</span>
-                                                {% endif %}
-                                            </td>
-                                        </tr>
-                                        {% empty %}
-                                        <tr>
-                                            <td colspan="6" class="text-center text-muted py-4">No students found. Try adjusting your filters.</td>
-                                        </tr>
-                                        {% endfor %}
+                                    <tbody id="studentsTableBody">
+                                        {% include 'communications/partials/bulk_sms_table.html' %}
                                     </tbody>
                                 </table>
                             </div>
@@ -185,9 +210,9 @@
 </div>
 
 <script>
-document.addEventListener('DOMContentLoaded', function() {
+$(document).ready(function() {
     const selectAllCheckbox = document.getElementById('selectAllCheckbox');
-    const studentCheckboxes = document.querySelectorAll('.student-check');
+    let studentCheckboxes = document.querySelectorAll('.student-check');
     const selectAllBtn = document.getElementById('selectAll');
     const deselectAllBtn = document.getElementById('deselectAll');
     const selectedCountSpan = document.getElementById('selectedCount');
@@ -198,36 +223,196 @@ document.addEventListener('DOMContentLoaded', function() {
     const templateSelect = document.getElementById('template');
     const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
     
-    // Auto-filter functionality
+    // Initialize Select2 for multiselect filters
+    $('#grade').select2({
+        theme: 'bootstrap-5',
+        placeholder: 'All Grades',
+        allowClear: true,
+        width: '100%'
+    });
+    
+    $('#class').select2({
+        theme: 'bootstrap-5',
+        placeholder: 'All Classes',
+        allowClear: true,
+        width: '100%'
+    });
+    
+    $('#route').select2({
+        theme: 'bootstrap-5',
+        placeholder: 'All Transport Routes',
+        allowClear: true,
+        width: '100%'
+    });
+    
+    // Auto-filter functionality with AJAX
     const filterForm = document.getElementById('filterForm');
-    const gradeSelect = document.getElementById('grade');
-    const classSelect = document.getElementById('class');
     const showInactiveCheckbox = document.getElementById('show_inactive');
     const showInactiveHidden = document.getElementById('showInactiveHidden');
+    const studentsTableBody = document.getElementById('studentsTableBody');
+    const clearFiltersBtn = document.getElementById('clearFiltersBtn');
     
-    const submitForm = () => {
-        if (typeof filterForm.requestSubmit === 'function') {
-            filterForm.requestSubmit();
+    // Function to apply filters via AJAX
+    const applyFilters = async () => {
+        if (!filterForm) return;
+        
+        // Update show_inactive hidden input
+        if (showInactiveCheckbox && showInactiveHidden) {
+            showInactiveHidden.value = showInactiveCheckbox.checked ? 'true' : 'false';
+        }
+        
+        // Get form data
+        const formData = new FormData(filterForm);
+        
+        // Ensure filter_action is set (in case it's missing from form)
+        if (!formData.has('filter_action')) {
+            formData.append('filter_action', 'apply');
+        }
+        
+        // Get CSRF token from the filter form or cookies
+        let csrfToken = null;
+        const csrfInput = filterForm.querySelector('[name=csrfmiddlewaretoken]');
+        if (csrfInput) {
+            csrfToken = csrfInput.value;
         } else {
-            filterForm.submit();
+            // Fallback: get from cookies (Django's default CSRF cookie name)
+            const name = 'csrftoken';
+            const cookies = document.cookie.split(';');
+            for (let cookie of cookies) {
+                const [key, value] = cookie.trim().split('=');
+                if (key === name) {
+                    csrfToken = value;
+                    break;
+                }
+            }
+        }
+        
+        try {
+            // Show loading state
+            studentsTableBody.innerHTML = '<tr><td colspan="6" class="text-center py-4"><i class="fas fa-spinner fa-spin me-2"></i>Loading...</td></tr>';
+            
+            // Send AJAX request
+            const headers = {
+                'X-Requested-With': 'XMLHttpRequest',
+            };
+            
+            // Add CSRF token to header if available
+            if (csrfToken) {
+                headers['X-CSRFToken'] = csrfToken;
+            }
+            
+            const response = await fetch(window.location.href, {
+                method: 'POST',
+                headers: headers,
+                body: formData,
+                credentials: 'same-origin'  // Include cookies for CSRF
+            });
+            
+            if (!response.ok) {
+                // Try to get error details
+                let errorMessage = `HTTP ${response.status}: ${response.statusText}`;
+                try {
+                    const errorData = await response.json();
+                    errorMessage = errorData.error || errorData.message || errorMessage;
+                } catch (e) {
+                    const errorText = await response.text();
+                    if (errorText) {
+                        errorMessage += ` - ${errorText.substring(0, 100)}`;
+                    }
+                }
+                throw new Error(errorMessage);
+            }
+            
+            // Check if response is JSON
+            const contentType = response.headers.get('content-type');
+            if (!contentType || !contentType.includes('application/json')) {
+                const text = await response.text();
+                console.error('Non-JSON response received:', text.substring(0, 200));
+                throw new Error('Server returned HTML instead of JSON. This might be a redirect or error page.');
+            }
+            
+            const data = await response.json();
+            
+            // Check for error in response
+            if (data.error) {
+                throw new Error(data.error);
+            }
+            
+            // Update table body
+            if (data.table_html) {
+                studentsTableBody.innerHTML = data.table_html;
+                
+                // Re-initialize checkboxes and update counts
+                const newCheckboxes = document.querySelectorAll('.student-check');
+                newCheckboxes.forEach(cb => {
+                    cb.addEventListener('change', function() {
+                        if (selectAllCheckbox) {
+                            selectAllCheckbox.checked = Array.from(newCheckboxes).every(c => c.checked);
+                        }
+                        updateSelectedCount();
+                    });
+                });
+                
+                // Update global studentCheckboxes reference
+                studentCheckboxes = newCheckboxes;
+                
+                // Re-run deduplication and update counts
+                deduplicatePhones();
+                updateSelectedCount();
+                
+                // Re-initialize select all checkbox
+                const newSelectAllCheckbox = document.getElementById('selectAllCheckbox');
+                if (newSelectAllCheckbox) {
+                    newSelectAllCheckbox.addEventListener('change', function() {
+                        newCheckboxes.forEach(cb => {
+                            cb.checked = this.checked;
+                        });
+                        updateSelectedCount();
+                    });
+                }
+            }
+        } catch (error) {
+            console.error('Error applying filters:', error);
+            studentsTableBody.innerHTML = '<tr><td colspan="6" class="text-center text-danger py-4">Error loading students. Please try again.</td></tr>';
         }
     };
     
-    // Auto-submit on grade change
-    if (gradeSelect) {
-        gradeSelect.addEventListener('change', submitForm);
-    }
+    // Auto-apply filters on grade change
+    $('#grade').on('change', applyFilters);
     
-    // Auto-submit on class change
-    if (classSelect) {
-        classSelect.addEventListener('change', submitForm);
-    }
+    // Auto-apply filters on class change
+    $('#class').on('change', applyFilters);
     
-    // Auto-submit on show inactive checkbox change
+    // Auto-apply filters on route change
+    $('#route').on('change', applyFilters);
+    
+    // Auto-apply filters on show inactive checkbox change
     if (showInactiveCheckbox && showInactiveHidden) {
         showInactiveCheckbox.addEventListener('change', function() {
-            showInactiveHidden.value = this.checked ? 'true' : 'false';
-            submitForm();
+            applyFilters();
+        });
+    }
+    
+    // Clear filters button
+    if (clearFiltersBtn) {
+        clearFiltersBtn.addEventListener('click', function() {
+            // Clear Select2 selections
+            $('#grade').val(null).trigger('change');
+            $('#class').val(null).trigger('change');
+            $('#route').val(null).trigger('change');
+            
+            // Uncheck show inactive
+            if (showInactiveCheckbox) {
+                showInactiveCheckbox.checked = false;
+            }
+            
+            // Clear session by submitting empty filters
+            if (showInactiveHidden) {
+                showInactiveHidden.value = 'false';
+            }
+            
+            // Apply filters (will clear session)
+            applyFilters();
         });
     }
     
@@ -377,47 +562,56 @@ document.addEventListener('DOMContentLoaded', function() {
     updateCharCount();
     updateSelectedCount();
     
-    // Deduplicate phone numbers and handle empty cells
-    document.querySelectorAll('.parent-phone-cell').forEach(cell => {
-        const phoneSpans = Array.from(cell.querySelectorAll('span[data-phone]'));
-        const seenPhones = new Set();
-        const uniquePhones = [];
-        
-        phoneSpans.forEach(span => {
-            const phone = span.getAttribute('data-phone');
-            if (phone && !seenPhones.has(phone)) {
-                seenPhones.add(phone);
-                uniquePhones.push(span);
-            } else if (phone && seenPhones.has(phone)) {
-                // Remove duplicate and any trailing comma/space
-                const nextSibling = span.nextSibling;
-                if (nextSibling && nextSibling.nodeType === Node.TEXT_NODE && nextSibling.textContent.trim() === ',') {
-                    nextSibling.remove();
+    // Function to deduplicate phones and handle empty cells
+    function deduplicatePhones() {
+        document.querySelectorAll('.parent-phone-cell').forEach(cell => {
+            const phoneSpans = Array.from(cell.querySelectorAll('span[data-phone]'));
+            const seenPhones = new Set();
+            const uniquePhones = [];
+            
+            phoneSpans.forEach(span => {
+                const phone = span.getAttribute('data-phone');
+                if (phone && !seenPhones.has(phone)) {
+                    seenPhones.add(phone);
+                    uniquePhones.push(span);
+                } else if (phone && seenPhones.has(phone)) {
+                    // Remove duplicate and any trailing comma/space
+                    const nextSibling = span.nextSibling;
+                    if (nextSibling && nextSibling.nodeType === Node.TEXT_NODE && nextSibling.textContent.trim() === ',') {
+                        nextSibling.remove();
+                    }
+                    span.remove();
                 }
-                span.remove();
+            });
+            
+            // Clean up and update commas between remaining phones
+            cell.innerHTML = ''; // Clear cell
+            uniquePhones.forEach((span, index) => {
+                cell.appendChild(span);
+                if (index < uniquePhones.length - 1) {
+                    cell.appendChild(document.createTextNode(', '));
+                }
+            });
+            
+            // Check if cell is empty and add "No phone" if needed
+            if (!cell.textContent.trim() || cell.textContent.trim() === '') {
+                const noPhoneSpan = document.createElement('span');
+                noPhoneSpan.className = 'text-danger';
+                noPhoneSpan.textContent = 'No phone';
+                cell.appendChild(noPhoneSpan);
             }
         });
-        
-        // Clean up and update commas between remaining phones
-        cell.innerHTML = ''; // Clear cell
-        uniquePhones.forEach((span, index) => {
-            cell.appendChild(span);
-            if (index < uniquePhones.length - 1) {
-                cell.appendChild(document.createTextNode(', '));
-            }
-        });
-        
-        // Check if cell is empty and add "No phone" if needed
-        if (!cell.textContent.trim() || cell.textContent.trim() === '') {
-            const noPhoneSpan = document.createElement('span');
-            noPhoneSpan.className = 'text-danger';
-            noPhoneSpan.textContent = 'No phone';
-            cell.appendChild(noPhoneSpan);
-        }
-    });
+    }
     
-    // Update count after deduplication
+    // Initial deduplication and count update
+    deduplicatePhones();
     updateSelectedCount();
+    
+    // Update select all checkbox state based on current selections
+    if (selectAllCheckbox) {
+        const allChecked = Array.from(studentCheckboxes).every(cb => cb.checked);
+        selectAllCheckbox.checked = allChecked;
+    }
 });
 </script>
 {% endblock %}
