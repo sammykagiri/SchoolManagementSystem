@@ -1029,12 +1029,13 @@ def generate_student_statement_pdf(student, school, start_date=None, end_date=No
     ).select_related('student_fee__term', 'student_fee__fee_category').order_by('payment_date')
     
     # Calculate opening balance
+    # Use due_date for fees to match the transaction date filtering
     opening_balance = Decimal('0.00')
     if start_date:
         opening_fees = StudentFee.objects.filter(
             school=school,
             student=student,
-            term__start_date__lt=start_date
+            due_date__lt=start_date
         ).aggregate(total=Sum('amount_charged'))['total'] or Decimal('0.00')
         
         opening_payments = Payment.objects.filter(
@@ -1050,14 +1051,16 @@ def generate_student_statement_pdf(student, school, start_date=None, end_date=No
     transactions = []
     
     # Add fee transactions (debits)
+    # Use due_date for filtering as it represents when the fee is due/charged
     for fee in student_fees:
-        if start_date and fee.term.start_date < start_date:
+        fee_date = fee.due_date
+        if start_date and fee_date < start_date:
             continue
-        if end_date and fee.term.start_date > end_date:
+        if end_date and fee_date > end_date:
             continue
         
         transactions.append({
-            'date': fee.term.start_date,
+            'date': fee_date,
             'description': f"{fee.fee_category.name} - {fee.term.academic_year} Term {fee.term.term_number}",
             'reference': f"Fee-{fee.id}",
             'debit': fee.amount_charged,
@@ -1255,9 +1258,50 @@ def bulk_estatement_email(request):
                 success_count = 0
                 error_count = 0
                 
+                skipped_count = 0
+                skipped_students = []
+                
                 for student_id in selected_student_ids:
                     try:
                         student = Student.objects.get(school=school, id=int(student_id))
+                        
+                        # Check if there are any transactions in the date range before generating PDF
+                        fee_count = 0
+                        payment_count = 0
+                        
+                        if start_date or end_date:
+                            # Filter by date range
+                            fee_query = StudentFee.objects.filter(school=school, student=student)
+                            if start_date:
+                                fee_query = fee_query.filter(due_date__gte=start_date)
+                            if end_date:
+                                fee_query = fee_query.filter(due_date__lte=end_date)
+                            fee_count = fee_query.count()
+                            
+                            payment_query = Payment.objects.filter(
+                                school=school,
+                                student=student,
+                                status='completed'
+                            )
+                            if start_date:
+                                payment_query = payment_query.filter(payment_date__date__gte=start_date)
+                            if end_date:
+                                payment_query = payment_query.filter(payment_date__date__lte=end_date)
+                            payment_count = payment_query.count()
+                        else:
+                            # No date filter - check if student has any fees/payments at all
+                            fee_count = StudentFee.objects.filter(school=school, student=student).count()
+                            payment_count = Payment.objects.filter(
+                                school=school,
+                                student=student,
+                                status='completed'
+                            ).count()
+                        
+                        # Skip if no transactions in date range
+                        if fee_count == 0 and payment_count == 0:
+                            skipped_count += 1
+                            skipped_students.append(student.full_name)
+                            continue
                         
                         # Generate PDF
                         pdf_bytes = generate_student_statement_pdf(
@@ -1326,6 +1370,14 @@ def bulk_estatement_email(request):
                         messages.success(request, 'Successfully sent 1 e-statement.')
                     else:
                         messages.success(request, f'Successfully sent {success_count} e-statements.')
+                if skipped_count > 0:
+                    if skipped_count == 1:
+                        messages.warning(request, f'Skipped 1 student (no transactions in selected date range): {skipped_students[0]}.')
+                    else:
+                        students_list = ', '.join(skipped_students[:5])
+                        if len(skipped_students) > 5:
+                            students_list += f' and {len(skipped_students) - 5} more'
+                        messages.warning(request, f'Skipped {skipped_count} student(s) with no transactions in selected date range: {students_list}.')
                 if error_count > 0:
                     if error_count == 1:
                         messages.warning(request, 'Failed to send 1 e-statement.')

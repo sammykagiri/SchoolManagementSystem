@@ -8,11 +8,23 @@ ENV PORT=8080
 # Set work directory
 WORKDIR /app
 
-# Install system dependencies
+
+# Install system dependencies for WeasyPrint
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
     python3-dev \
-    libpq-dev \
+	libpq-dev \
+    libcairo2 \
+    libpango-1.0-0 \
+    libpangocairo-1.0-0 \
+    libpangoft2-1.0-0 \
+    libgdk-pixbuf-2.0-0 \
+    libffi-dev \
+    shared-mime-info \
+    libglib2.0-0 \
+    libxml2 \
+    libxslt1.1 \
+    fontconfig \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy requirements first for better caching
