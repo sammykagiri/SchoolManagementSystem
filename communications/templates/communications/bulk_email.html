@@ -144,7 +144,7 @@
                     <form method="post" class="mb-4" id="filterForm">
                         {% csrf_token %}
                         <input type="hidden" name="filter_action" value="apply">
-                        <div class="row g-3">
+                        <div class="row g-3 align-items-end">
                             <div class="col-md-3">
                                 <div class="form-floating" style="min-height: 60px; position: relative;">
                                     <select class="form-select select2" id="grade" name="grade" multiple="multiple" placeholder="Filter by Grade" style="position: absolute; width: 1px; height: 1px; opacity: 0; overflow: hidden; margin: 0; padding: 0;">
@@ -175,14 +175,13 @@
                                     <label for="route">Filter by Transport Route</label>
                                 </div>
                             </div>
-                            <div class="col-md-3">
-                                <label class="form-label d-block">&nbsp;</label>
-                                <div class="form-check form-switch d-flex align-items-center h-100 mb-2">
+                            <div class="col-md-3 d-flex align-items-center justify-content-end gap-3" style="min-height: 60px;">
+                                <div class="form-check form-switch d-flex align-items-center">
                                     <input class="form-check-input" type="checkbox" id="show_inactive">
-                                    <label class="form-check-label ms-2" for="show_inactive">Show Inactive</label>
+                                    <label class="form-check-label ms-2 mb-0" for="show_inactive">Show Inactive</label>
                                 </div>
                                 <input type="hidden" id="showInactiveHidden" name="show_inactive" value="false">
-                                <button type="button" class="btn btn-sm btn-outline-secondary w-100" id="clearFiltersBtn">
+                                <button type="button" class="btn btn-outline-secondary" id="clearFiltersBtn" style="min-height: 58px; width: 100%;">
                                     <i class="fas fa-times"></i> Clear Filters
                                 </button>
                             </div>
