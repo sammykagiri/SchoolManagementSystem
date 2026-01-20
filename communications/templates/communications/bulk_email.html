@@ -34,6 +34,48 @@
         visibility: visible;
     }
     
+    /* Floating labels with Select2 */
+    #filterForm .form-floating {
+        min-height: 58px;
+        position: relative;
+    }
+    #filterForm .form-floating > label {
+        position: absolute;
+        top: 0;
+        left: 0;
+        height: 100%;
+        padding: 1rem 0.75rem;
+        pointer-events: none;
+        border: 1px solid transparent;
+        transform-origin: 0 0;
+        transition: opacity 0.1s ease-in-out, transform 0.1s ease-in-out;
+        z-index: 2;
+    }
+    #filterForm .form-floating > .select2-container {
+        min-height: 58px;
+        position: relative;
+        z-index: 1;
+    }
+    #filterForm .form-floating > .select2-container .select2-selection {
+        min-height: 58px;
+        padding-top: 1.625rem;
+        padding-bottom: 0.625rem;
+    }
+    #filterForm .form-floating.has-value > label,
+    #filterForm .form-floating .select2-container--focus ~ label,
+    #filterForm .form-floating .select2-container--open ~ label {
+        opacity: 0.65;
+        transform: scale(0.85) translateY(-0.5rem) translateX(0.15rem);
+    }
+    #filterForm .form-floating > label::after {
+        position: absolute;
+        inset: 1rem 0.375rem;
+        z-index: -1;
+        height: 1.5em;
+        content: "";
+        background-color: #fff;
+    }
+    
     /* Match working Select2 example styles for Bootstrap 5 theme */
     .select2-container--bootstrap-5 .select2-selection--multiple {
         background-color: white !important;
@@ -103,29 +145,35 @@
                         {% csrf_token %}
                         <input type="hidden" name="filter_action" value="apply">
                         <div class="row g-3">
-                            <div class="col-md-3" style="min-height: 60px; position: relative;">
-                                <label for="grade" class="form-label">Filter by Grade</label>
-                                <select class="form-select select2" id="grade" name="grade" multiple="multiple" style="position: absolute; width: 1px; height: 1px; opacity: 0; overflow: hidden; margin: 0; padding: 0;">
-                                    {% for grade in grades %}
-                                        <option value="{{ grade.id }}">{{ grade.name }}</option>
-                                    {% endfor %}
-                                </select>
+                            <div class="col-md-3">
+                                <div class="form-floating" style="min-height: 60px; position: relative;">
+                                    <select class="form-select select2" id="grade" name="grade" multiple="multiple" placeholder="Filter by Grade" style="position: absolute; width: 1px; height: 1px; opacity: 0; overflow: hidden; margin: 0; padding: 0;">
+                                        {% for grade in grades %}
+                                            <option value="{{ grade.id }}">{{ grade.name }}</option>
+                                        {% endfor %}
+                                    </select>
+                                    <label for="grade">Filter by Grade</label>
+                                </div>
                             </div>
-                            <div class="col-md-3" style="min-height: 60px; position: relative;">
-                                <label for="class" class="form-label">Filter by Class</label>
-                                <select class="form-select select2" id="class" name="class" multiple="multiple" style="position: absolute; width: 1px; height: 1px; opacity: 0; overflow: hidden; margin: 0; padding: 0;">
-                                    {% for class in classes %}
-                                        <option value="{{ class.id }}">{{ class.name }}</option>
-                                    {% endfor %}
-                                </select>
+                            <div class="col-md-3">
+                                <div class="form-floating" style="min-height: 60px; position: relative;">
+                                    <select class="form-select select2" id="class" name="class" multiple="multiple" placeholder="Filter by Class" style="position: absolute; width: 1px; height: 1px; opacity: 0; overflow: hidden; margin: 0; padding: 0;">
+                                        {% for class in classes %}
+                                            <option value="{{ class.id }}">{{ class.name }}</option>
+                                        {% endfor %}
+                                    </select>
+                                    <label for="class">Filter by Class</label>
+                                </div>
                             </div>
-                            <div class="col-md-3" style="min-height: 60px; position: relative;">
-                                <label for="route" class="form-label">Filter by Transport Route</label>
-                                <select class="form-select select2" id="route" name="route" multiple="multiple" style="position: absolute; width: 1px; height: 1px; opacity: 0; overflow: hidden; margin: 0; padding: 0;">
-                                    {% for route in routes %}
-                                        <option value="{{ route.id }}">{{ route.name }}</option>
-                                    {% endfor %}
-                                </select>
+                            <div class="col-md-3">
+                                <div class="form-floating" style="min-height: 60px; position: relative;">
+                                    <select class="form-select select2" id="route" name="route" multiple="multiple" placeholder="Filter by Transport Route" style="position: absolute; width: 1px; height: 1px; opacity: 0; overflow: hidden; margin: 0; padding: 0;">
+                                        {% for route in routes %}
+                                            <option value="{{ route.id }}">{{ route.name }}</option>
+                                        {% endfor %}
+                                    </select>
+                                    <label for="route">Filter by Transport Route</label>
+                                </div>
                             </div>
                             <div class="col-md-3">
                                 <label class="form-label d-block">&nbsp;</label>
@@ -147,19 +195,19 @@
                         <!-- Template Selection -->
                         <div class="row mb-4">
                             <div class="col-md-6">
-                                <div class="mb-3">
-                                    <label for="template" class="form-label">
-                                        Use Template (Optional) 
-                                        <i class="fas fa-info-circle text-primary" 
-                                           data-bs-toggle="tooltip" 
-                                           title="Select a template to load its content. You can still edit the content before sending."></i>
-                                    </label>
+                                <div class="form-floating mb-3">
                                     <select class="form-select" id="template" name="template">
                                         <option value="">-- Select a Template --</option>
                                         {% for template in templates %}
                                         <option value="{{ template.id }}">{{ template.name }} ({{ template.get_message_type_display }})</option>
                                         {% endfor %}
                                     </select>
+                                    <label for="template">
+                                        Use Template (Optional) 
+                                        <i class="fas fa-info-circle text-primary" 
+                                           data-bs-toggle="tooltip" 
+                                           title="Select a template to load its content. You can still edit the content before sending."></i>
+                                    </label>
                                     <div class="form-text">
                                         <i class="fas fa-lightbulb me-1"></i>
                                         <strong>Tip:</strong> Selecting a template will automatically load its subject and content.
@@ -169,13 +217,13 @@
                         </div>
 
                         <!-- Email Fields -->
-                        <div class="mb-3">
-                            <label for="subject" class="form-label">Email Subject <span class="text-danger">*</span></label>
-                            <input type="text" class="form-control" id="subject" name="subject" required>
+                        <div class="form-floating mb-3">
+                            <input type="text" class="form-control" id="subject" name="subject" placeholder="Email Subject" required>
+                            <label for="subject">Email Subject <span class="text-danger">*</span></label>
                         </div>
-                        <div class="mb-4">
-                            <label for="content" class="form-label">Email Content <span class="text-danger">*</span></label>
-                            <textarea class="form-control" id="content" name="content" rows="8" required></textarea>
+                        <div class="form-floating mb-4">
+                            <textarea class="form-control" id="content" name="content" rows="8" placeholder="Email Content" style="height: 200px;" required></textarea>
+                            <label for="content">Email Content <span class="text-danger">*</span></label>
                             <div class="form-text">
                                 Use placeholders: {student_name}, {parent_name}, {amount}, {due_date}, {school_name}
                             </div>
@@ -295,6 +343,61 @@ $(document).ready(function() {
         placeholder: 'All Transport Routes',
         allowClear: true,
         width: '100%'
+    });
+    
+    // Function to update floating label state for Select2
+    const updateFloatingLabel = function(selectId) {
+        const select = $(selectId);
+        const floatingDiv = select.closest('.form-floating');
+        const data = select.select2('data');
+        const hasSelections = data && data.length > 0;
+        
+        if (hasSelections) {
+            floatingDiv.addClass('has-value');
+        } else {
+            // Only remove has-value if not focused
+            const container = select.next('.select2-container');
+            if (!container.hasClass('select2-container--focus') && !container.hasClass('select2-container--open')) {
+                floatingDiv.removeClass('has-value');
+            }
+        }
+    };
+    
+    // Handle Select2 events to update floating labels
+    $('#grade').on('select2:select select2:unselect select2:clear', function() {
+        updateFloatingLabel('#grade');
+    });
+    
+    $('#grade').on('select2:open', function() {
+        $(this).closest('.form-floating').addClass('has-value');
+    });
+    
+    $('#grade').on('select2:close', function() {
+        updateFloatingLabel('#grade');
+    });
+    
+    $('#class').on('select2:select select2:unselect select2:clear', function() {
+        updateFloatingLabel('#class');
+    });
+    
+    $('#class').on('select2:open', function() {
+        $(this).closest('.form-floating').addClass('has-value');
+    });
+    
+    $('#class').on('select2:close', function() {
+        updateFloatingLabel('#class');
+    });
+    
+    $('#route').on('select2:select select2:unselect select2:clear', function() {
+        updateFloatingLabel('#route');
+    });
+    
+    $('#route').on('select2:open', function() {
+        $(this).closest('.form-floating').addClass('has-value');
+    });
+    
+    $('#route').on('select2:close', function() {
+        updateFloatingLabel('#route');
     });
     
     // Force a reflow to ensure Select2 containers are fully rendered
