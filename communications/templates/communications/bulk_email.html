@@ -141,7 +141,7 @@
                 </div>
                 <div class="card-body">
                     <!-- Filters -->
-                    <form method="post" class="mb-4" id="filterForm">
+                    <form method="post" class="mb-5" id="filterForm">
                         {% csrf_token %}
                         <input type="hidden" name="filter_action" value="apply">
                         <div class="row g-3 align-items-end">
@@ -188,7 +188,7 @@
                         </div>
                     </form>
 
-                    <form method="post" id="bulkEmailForm">
+                    <form method="post" id="bulkEmailForm" class="mt-4">
                         {% csrf_token %}
                         
                         <!-- Template Selection -->
