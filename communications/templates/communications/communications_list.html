@@ -1,0 +1,123 @@
+{% extends 'base.html' %}
+{% load permissions %}
+{% load static %}
+
+{% block title %}Communications | School Management System{% endblock %}
+
+{% block content %}
+{% if user.is_authenticated %}
+<div class="container py-4">
+    <div class="row mb-4">
+        <div class="col-12">
+            <h2 class="mb-2">Communications</h2>
+            <p class="text-muted">Send emails, SMS, and manage communication templates</p>
+        </div>
+    </div>
+
+    <div class="row mb-4">
+        <!-- Dashboard Card -->
+        <div class="col-md-4 mb-3">
+            <div class="card h-100 shadow-sm">
+                <div class="card-body text-center">
+                    <i class="fas fa-tachometer-alt fa-3x text-primary mb-3"></i>
+                    <h5 class="card-title">Communications Dashboard</h5>
+                    <p class="card-text text-muted small">View communications overview and statistics</p>
+                    <a href="{% url 'communications:dashboard' %}" class="btn btn-primary btn-sm">View Dashboard</a>
+                </div>
+            </div>
+        </div>
+        
+        {% if user|has_permission:'view_template' %}
+        <!-- Templates Card -->
+        <div class="col-md-4 mb-3">
+            <div class="card h-100 shadow-sm">
+                <div class="card-body text-center">
+                    <i class="fas fa-file-alt fa-3x text-info mb-3"></i>
+                    <h5 class="card-title">Templates</h5>
+                    <p class="card-text text-muted small">Manage email and SMS templates</p>
+                    <a href="{% url 'communications:template_list' %}" class="btn btn-primary btn-sm">View Templates</a>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+        
+        {% if user|has_permission:'view_email' %}
+        <!-- Emails Card -->
+        <div class="col-md-4 mb-3">
+            <div class="card h-100 shadow-sm">
+                <div class="card-body text-center">
+                    <i class="fas fa-envelope fa-3x text-success mb-3"></i>
+                    <h5 class="card-title">Emails</h5>
+                    <p class="card-text text-muted small">View and manage email messages</p>
+                    <a href="{% url 'communications:email_list' %}" class="btn btn-primary btn-sm">View Emails</a>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+        
+        {% if user|has_permission:'view_sms' %}
+        <!-- SMS Messages Card -->
+        <div class="col-md-4 mb-3">
+            <div class="card h-100 shadow-sm">
+                <div class="card-body text-center">
+                    <i class="fas fa-sms fa-3x text-warning mb-3"></i>
+                    <h5 class="card-title">SMS Messages</h5>
+                    <p class="card-text text-muted small">View and manage SMS messages</p>
+                    <a href="{% url 'communications:sms_list' %}" class="btn btn-primary btn-sm">View SMS</a>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+        
+        {% if user|has_permission:'view_email' or user|has_permission:'view_sms' %}
+        <!-- Bulk Email Card -->
+        <div class="col-md-4 mb-3">
+            <div class="card h-100 shadow-sm">
+                <div class="card-body text-center">
+                    <i class="fas fa-paper-plane fa-3x text-danger mb-3"></i>
+                    <h5 class="card-title">Bulk Email</h5>
+                    <p class="card-text text-muted small">Send emails to multiple recipients</p>
+                    <a href="{% url 'communications:bulk_email' %}" class="btn btn-primary btn-sm">Send Bulk Email</a>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Bulk SMS Card -->
+        <div class="col-md-4 mb-3">
+            <div class="card h-100 shadow-sm">
+                <div class="card-body text-center">
+                    <i class="fas fa-comments fa-3x text-secondary mb-3"></i>
+                    <h5 class="card-title">Bulk SMS</h5>
+                    <p class="card-text text-muted small">Send SMS to multiple recipients</p>
+                    <a href="{% url 'communications:bulk_sms' %}" class="btn btn-primary btn-sm">Send Bulk SMS</a>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+        
+        {% if user|has_permission:'view_log' %}
+        <!-- Communication Logs Card -->
+        <div class="col-md-4 mb-3">
+            <div class="card h-100 shadow-sm">
+                <div class="card-body text-center">
+                    <i class="fas fa-list fa-3x text-info mb-3"></i>
+                    <h5 class="card-title">Communication Logs</h5>
+                    <p class="card-text text-muted small">View communication history and logs</p>
+                    <a href="{% url 'communications:log_list' %}" class="btn btn-primary btn-sm">View Logs</a>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% else %}
+<div class="container py-4">
+    <div class="row">
+        <div class="col-md-12 text-center">
+            <h2>Communications</h2>
+            <p class="text-muted">Please <a href="{% url 'login' %}">login</a> to access communications.</p>
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endblock %}

@@ -4,6 +4,8 @@ from . import views
 app_name = 'communications'
 
 urlpatterns = [
+    # Communications list page
+    path('list/', views.communications_list, name='communications_list'),
     # Communications dashboard
     path('', views.communications_dashboard, name='dashboard'),
     

@@ -16,6 +16,13 @@ logger = logging.getLogger(__name__)
 
 @login_required
 @role_required('super_admin', 'school_admin', 'teacher', 'accountant')
+def communications_list(request):
+    """Communications list page showing all communication options"""
+    return render(request, 'communications/communications_list.html')
+
+
+@login_required
+@role_required('super_admin', 'school_admin', 'teacher', 'accountant')
 def communications_dashboard(request):
     """Communications dashboard"""
     school = request.user.profile.school
