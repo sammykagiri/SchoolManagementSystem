@@ -1,0 +1,622 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load widget_tweaks %}
+
+{% block title %}Bulk E-Statement Email | Communications{% endblock %}
+
+{% block extra_css %}
+<style>
+    .student-checkbox {
+        cursor: pointer;
+    }
+    .student-row:hover {
+        background-color: #f8f9fa;
+    }
+    
+    /* Hide native select elements immediately - Select2 will replace them */
+    #filterForm select.select2 {
+        position: absolute !important;
+        width: 1px !important;
+        height: 1px !important;
+        opacity: 0 !important;
+        overflow: hidden !important;
+        clip: rect(0, 0, 0, 0) !important;
+        margin: 0 !important;
+        padding: 0 !important;
+    }
+    /* Hide Select2 containers until initialized - keep them in normal flow to prevent jump */
+    #filterForm .select2-container {
+        opacity: 0;
+        visibility: hidden;
+    }
+    #filterForm.select2-ready .select2-container {
+        opacity: 1;
+        visibility: visible;
+    }
+    
+    /* Floating labels with Select2 */
+    #filterForm .form-floating {
+        min-height: 58px;
+        position: relative;
+    }
+    #filterForm .form-floating > label {
+        position: absolute;
+        top: 0;
+        left: 0;
+        height: 100%;
+        padding: 1rem 0.75rem;
+        pointer-events: none;
+        border: 1px solid transparent;
+        transform-origin: 0 0;
+        transition: opacity 0.1s ease-in-out, transform 0.1s ease-in-out;
+        z-index: 2;
+    }
+    #filterForm .form-floating > .select2-container {
+        min-height: 58px;
+        position: relative;
+        z-index: 1;
+    }
+    #filterForm .form-floating > .select2-container .select2-selection {
+        min-height: 58px;
+        padding-top: 1.625rem;
+        padding-bottom: 0.625rem;
+    }
+    #filterForm .form-floating.has-value > label,
+    #filterForm .form-floating .select2-container--focus ~ label,
+    #filterForm .form-floating .select2-container--open ~ label {
+        opacity: 0.65;
+        transform: scale(0.85) translateY(-0.5rem) translateX(0.15rem);
+    }
+    #filterForm .form-floating > label::after {
+        position: absolute;
+        inset: 1rem 0.375rem;
+        z-index: -1;
+        height: 1.5em;
+        content: "";
+        background-color: #fff;
+    }
+    
+    /* Match working Select2 example styles for Bootstrap 5 theme */
+    .select2-container--bootstrap-5 .select2-selection--multiple {
+        background-color: white !important;
+        border: 1px solid #aaa !important;
+        border-radius: 4px !important;
+        cursor: text !important;
+        padding-bottom: 5px !important;
+        padding-right: 5px !important;
+        position: relative !important;
+        box-sizing: border-box !important;
+        display: block !important;
+        min-height: 32px !important;
+        user-select: none !important;
+        -webkit-user-select: none !important;
+    }
+    
+    .select2-container--bootstrap-5.select2-container--focus .select2-selection--multiple {
+        border: solid black 1px !important;
+        outline: 0 !important;
+    }
+    
+    /* Remove empty line at bottom - make ul inline */
+    .select2-container--bootstrap-5 .select2-selection--multiple ul.select2-selection__rendered {
+        padding: 0 !important;
+        margin: 0 !important;
+        list-style: none !important;
+        display: inline !important;
+    }
+    
+    /* List items - inline-block to prevent line breaks with spacing between them */
+    .select2-container--bootstrap-5 .select2-selection--multiple .select2-selection__rendered li.select2-selection__choice {
+        margin: 2px 5px 2px 0 !important;
+        padding: 0 !important;
+        display: inline-block !important;
+        vertical-align: top !important;
+    }
+    
+    /* Search field - inline to stay on same line */
+    .select2-container--bootstrap-5 .select2-selection--search--inline,
+    .select2-container--bootstrap-5 .select2-search--inline {
+        margin: 0 !important;
+        padding: 0 !important;
+        display: inline !important;
+    }
+    
+    .select2-container--bootstrap-5 .select2-search__field {
+        margin: 0 !important;
+        padding: 0 !important;
+    }
+    
+    #pdfPasswordGroup {
+        display: none;
+    }
+    #encryptPdf:checked ~ #pdfPasswordGroup {
+        display: block;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h3 class="card-title"><i class="fas fa-file-pdf me-2"></i>Bulk E-Statement Email</h3>
+                    <a href="{% url 'communications:dashboard' %}" class="btn btn-secondary">
+                        <i class="fas fa-arrow-left"></i> Back to Dashboard
+                    </a>
+                </div>
+                <div class="card-body">
+                    <!-- Filters -->
+                    <form method="post" class="mb-5" id="filterForm">
+                        {% csrf_token %}
+                        <input type="hidden" name="filter_action" value="apply">
+                        <div class="row g-3 align-items-end">
+                            <div class="col-md-2">
+                                <div class="form-floating" style="min-height: 60px; position: relative;">
+                                    <select class="form-select select2" id="grade" name="grade" multiple="multiple" placeholder="Filter by Grade" style="position: absolute; width: 1px; height: 1px; opacity: 0; overflow: hidden; margin: 0; padding: 0;">
+                                        {% for grade in grades %}
+                                            <option value="{{ grade.id }}" {% if grade.id in selected_grades %}selected{% endif %}>{{ grade.name }}</option>
+                                        {% endfor %}
+                                    </select>
+                                    <label for="grade">Filter by Grade</label>
+                                </div>
+                            </div>
+                            <div class="col-md-2">
+                                <div class="form-floating" style="min-height: 60px; position: relative;">
+                                    <select class="form-select select2" id="class" name="class" multiple="multiple" placeholder="Filter by Class" style="position: absolute; width: 1px; height: 1px; opacity: 0; overflow: hidden; margin: 0; padding: 0;">
+                                        {% for class in classes %}
+                                            <option value="{{ class.id }}" {% if class.id in selected_classes %}selected{% endif %}>{{ class.name }}</option>
+                                        {% endfor %}
+                                    </select>
+                                    <label for="class">Filter by Class</label>
+                                </div>
+                            </div>
+                            <div class="col-md-2">
+                                <div class="form-floating" style="min-height: 60px; position: relative;">
+                                    <select class="form-select select2" id="route" name="route" multiple="multiple" placeholder="Filter by Transport Route" style="position: absolute; width: 1px; height: 1px; opacity: 0; overflow: hidden; margin: 0; padding: 0;">
+                                        {% for route in routes %}
+                                            <option value="{{ route.id }}" {% if route.id in selected_routes %}selected{% endif %}>{{ route.name }}</option>
+                                        {% endfor %}
+                                    </select>
+                                    <label for="route">Filter by Transport Route</label>
+                                </div>
+                            </div>
+                            <div class="col-md-2">
+                                <div class="form-floating" style="min-height: 60px;">
+                                    <input type="date" class="form-control" id="start_date" name="start_date" value="{{ start_date }}" placeholder="Start Date">
+                                    <label for="start_date">Start Date</label>
+                                </div>
+                            </div>
+                            <div class="col-md-2">
+                                <div class="form-floating" style="min-height: 60px;">
+                                    <input type="date" class="form-control" id="end_date" name="end_date" value="{{ end_date }}" placeholder="End Date">
+                                    <label for="end_date">End Date</label>
+                                </div>
+                            </div>
+                            <div class="col-md-2 d-flex align-items-center justify-content-end gap-3" style="min-height: 60px;">
+                                <div class="form-check form-switch d-flex align-items-center">
+                                    <input class="form-check-input" type="checkbox" id="show_inactive" {% if show_inactive %}checked{% endif %}>
+                                    <label class="form-check-label ms-2 mb-0" for="show_inactive">Show Inactive</label>
+                                </div>
+                                <input type="hidden" id="showInactiveHidden" name="show_inactive" value="{% if show_inactive %}true{% else %}false{% endif %}">
+                                <button type="button" class="btn btn-outline-secondary" id="clearFiltersBtn" style="min-height: 58px; width: 100%;">
+                                    <i class="fas fa-times"></i> Clear Filters
+                                </button>
+                            </div>
+                        </div>
+                    </form>
+
+                    <form method="post" id="bulkEstatementForm" class="mt-4">
+                        {% csrf_token %}
+                        
+                        <!-- Email Fields -->
+                        <div class="form-floating mb-3">
+                            <input type="text" class="form-control" id="subject" name="subject" placeholder="Email Subject" value="Fee Statement" autocomplete="off" required>
+                            <label for="subject">Email Subject <span class="text-danger">*</span></label>
+                        </div>
+                        <div class="form-floating mb-3">
+                            <textarea class="form-control" id="content" name="content" rows="4" placeholder="Email Content" style="height: 120px;" autocomplete="off" required>Please find attached your fee statement.</textarea>
+                            <label for="content">Email Content <span class="text-danger">*</span></label>
+                        </div>
+                        
+                        <!-- PDF Encryption Options -->
+                        <div class="mb-3">
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" type="checkbox" id="encryptPdf" name="encrypt_pdf" value="true">
+                                <label class="form-check-label" for="encryptPdf">
+                                    <strong>Encrypt PDF</strong> <i class="fas fa-lock text-info"></i>
+                                </label>
+                            </div>
+                            <div id="pdfPasswordGroup" class="mt-2">
+                                <div class="form-floating">
+                                    <input type="password" class="form-control" id="pdf_password" name="pdf_password" placeholder="PDF Password" autocomplete="new-password">
+                                    <label for="pdf_password">PDF Password</label>
+                                    <div class="form-text">Password to protect the PDF file</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Student Selection -->
+                        <div class="mb-4">
+                            <div class="d-flex justify-content-between align-items-center mb-3">
+                                <h5>Select Students <span class="text-muted">(<span id="selectedCount">0</span> selected)</span></h5>
+                                <div class="btn-group" role="group">
+                                    <button type="button" class="btn btn-sm btn-outline-primary" id="selectAll">
+                                        <i class="fas fa-check-square me-1"></i>Select All
+                                    </button>
+                                    <button type="button" class="btn btn-sm btn-outline-secondary" id="deselectAll">
+                                        <i class="fas fa-square me-1"></i>Deselect All
+                                    </button>
+                                </div>
+                            </div>
+                            
+                            <div class="table-responsive" style="max-height: 400px; overflow-y: auto;">
+                                <table class="table table-hover table-sm">
+                                    <thead class="table-light sticky-top">
+                                        <tr>
+                                            <th width="50">
+                                                <input type="checkbox" id="selectAllCheckbox" class="form-check-input" checked>
+                                            </th>
+                                            <th>Student ID</th>
+                                            <th>Name</th>
+                                            <th>Grade</th>
+                                            <th>Class</th>
+                                            <th>Parent Email</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="studentsTableBody">
+                                        {% include 'communications/partials/bulk_estatement_table.html' %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        <div class="d-flex justify-content-between">
+                            <a href="{% url 'communications:dashboard' %}" class="btn btn-secondary">
+                                <i class="fas fa-times"></i> Cancel
+                            </a>
+                            <button type="submit" class="btn btn-primary" id="sendBulkEstatementBtn">
+                                <i class="fas fa-paper-plane me-2"></i>Send E-Statements (<span id="sendCount">0</span>)
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+$(document).ready(function() {
+    const selectAllCheckbox = document.getElementById('selectAllCheckbox');
+    let studentCheckboxes = document.querySelectorAll('.student-check');
+    const selectAllBtn = document.getElementById('selectAll');
+    const deselectAllBtn = document.getElementById('deselectAll');
+    const selectedCountSpan = document.getElementById('selectedCount');
+    const sendCountSpan = document.getElementById('sendCount');
+    const sendBtn = document.getElementById('sendBulkEstatementBtn');
+    const filterForm = document.getElementById('filterForm');
+    const showInactiveCheckbox = document.getElementById('show_inactive');
+    const showInactiveHidden = document.getElementById('showInactiveHidden');
+    const studentsTableBody = document.getElementById('studentsTableBody');
+    const clearFiltersBtn = document.getElementById('clearFiltersBtn');
+    const encryptPdfCheckbox = document.getElementById('encryptPdf');
+    const pdfPasswordGroup = document.getElementById('pdfPasswordGroup');
+    const pdfPasswordInput = document.getElementById('pdf_password');
+    
+    // Clear any selected values immediately using native DOM, before Select2 initialization
+    const gradeSelect = document.getElementById('grade');
+    const classSelect = document.getElementById('class');
+    const routeSelect = document.getElementById('route');
+    
+    // Clear values immediately (synchronously)
+    if (gradeSelect) {
+        Array.from(gradeSelect.options).forEach(option => {
+            if (!option.hasAttribute('selected')) {
+                option.selected = false;
+            }
+        });
+    }
+    if (classSelect) {
+        Array.from(classSelect.options).forEach(option => {
+            if (!option.hasAttribute('selected')) {
+                option.selected = false;
+            }
+        });
+    }
+    if (routeSelect) {
+        Array.from(routeSelect.options).forEach(option => {
+            if (!option.hasAttribute('selected')) {
+                option.selected = false;
+            }
+        });
+    }
+    if (showInactiveCheckbox && !showInactiveCheckbox.checked) {
+        showInactiveCheckbox.checked = false;
+    }
+    if (showInactiveHidden) {
+        showInactiveHidden.value = showInactiveCheckbox.checked ? 'true' : 'false';
+    }
+    
+    // Initialize Select2
+    $('#grade').select2({
+        theme: 'bootstrap-5',
+        placeholder: 'All Grades',
+        allowClear: true,
+        width: '100%'
+    });
+    
+    $('#class').select2({
+        theme: 'bootstrap-5',
+        placeholder: 'All Classes',
+        allowClear: true,
+        width: '100%'
+    });
+    
+    $('#route').select2({
+        theme: 'bootstrap-5',
+        placeholder: 'All Transport Routes',
+        allowClear: true,
+        width: '100%'
+    });
+    
+    // Function to update floating label state for Select2
+    const updateFloatingLabel = function(selectId) {
+        const select = $(selectId);
+        const floatingDiv = select.closest('.form-floating');
+        const data = select.select2('data');
+        const hasSelections = data && data.length > 0;
+        
+        if (hasSelections) {
+            floatingDiv.addClass('has-value');
+        } else {
+            const container = select.next('.select2-container');
+            if (!container.hasClass('select2-container--focus') && !container.hasClass('select2-container--open')) {
+                floatingDiv.removeClass('has-value');
+            }
+        }
+    };
+    
+    // Handle Select2 events to update floating labels
+    $('#grade').on('select2:select select2:unselect select2:clear', function() {
+        updateFloatingLabel('#grade');
+    });
+    $('#grade').on('select2:open', function() {
+        $(this).closest('.form-floating').addClass('has-value');
+    });
+    $('#grade').on('select2:close', function() {
+        updateFloatingLabel('#grade');
+    });
+    
+    $('#class').on('select2:select select2:unselect select2:clear', function() {
+        updateFloatingLabel('#class');
+    });
+    $('#class').on('select2:open', function() {
+        $(this).closest('.form-floating').addClass('has-value');
+    });
+    $('#class').on('select2:close', function() {
+        updateFloatingLabel('#class');
+    });
+    
+    $('#route').on('select2:select select2:unselect select2:clear', function() {
+        updateFloatingLabel('#route');
+    });
+    $('#route').on('select2:open', function() {
+        $(this).closest('.form-floating').addClass('has-value');
+    });
+    $('#route').on('select2:close', function() {
+        updateFloatingLabel('#route');
+    });
+    
+    // Force a reflow to ensure Select2 containers are fully rendered
+    void filterForm.offsetHeight;
+    
+    // Mark filter form as ready
+    if (filterForm) {
+        filterForm.classList.add('select2-ready');
+    }
+    
+    // PDF Encryption toggle
+    if (encryptPdfCheckbox && pdfPasswordGroup) {
+        encryptPdfCheckbox.addEventListener('change', function() {
+            if (this.checked) {
+                pdfPasswordGroup.style.display = 'block';
+                pdfPasswordInput.required = true;
+            } else {
+                pdfPasswordGroup.style.display = 'none';
+                pdfPasswordInput.required = false;
+                pdfPasswordInput.value = '';
+            }
+        });
+    }
+    
+    // Function to apply filters via AJAX
+    const applyFilters = async () => {
+        if (!filterForm) return;
+        
+        if (showInactiveCheckbox && showInactiveHidden) {
+            showInactiveHidden.value = showInactiveCheckbox.checked ? 'true' : 'false';
+        }
+        
+        const formData = new FormData(filterForm);
+        
+        if (!formData.has('filter_action')) {
+            formData.append('filter_action', 'apply');
+        }
+        
+        let csrfToken = null;
+        const csrfInput = filterForm.querySelector('[name=csrfmiddlewaretoken]');
+        if (csrfInput) {
+            csrfToken = csrfInput.value;
+        } else {
+            const name = 'csrftoken';
+            const cookies = document.cookie.split(';');
+            for (let cookie of cookies) {
+                const [key, value] = cookie.trim().split('=');
+                if (key === name) {
+                    csrfToken = value;
+                    break;
+                }
+            }
+        }
+        
+        try {
+            studentsTableBody.innerHTML = '<tr><td colspan="6" class="text-center py-4"><i class="fas fa-spinner fa-spin me-2"></i>Loading...</td></tr>';
+            
+            const headers = {
+                'X-Requested-With': 'XMLHttpRequest',
+                'X-CSRFToken': csrfToken
+            };
+            
+            const response = await fetch('{% url "communications:bulk_estatement_email" %}', {
+                method: 'POST',
+                headers: headers,
+                body: formData,
+                credentials: 'same-origin'
+            });
+            
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            
+            const contentType = response.headers.get('content-type');
+            if (contentType && contentType.includes('application/json')) {
+                const data = await response.json();
+                if (data.table_html) {
+                    studentsTableBody.innerHTML = data.table_html;
+                    // Re-initialize checkboxes
+                    studentCheckboxes = document.querySelectorAll('.student-check');
+                    setupCheckboxListeners();
+                    updateSelectedCount();
+                } else if (data.error) {
+                    studentsTableBody.innerHTML = `<tr><td colspan="6" class="text-center text-danger py-4">${data.error}</td></tr>`;
+                }
+            } else {
+                throw new Error('Invalid response format');
+            }
+        } catch (error) {
+            console.error('Error applying filters:', error);
+            studentsTableBody.innerHTML = '<tr><td colspan="6" class="text-center text-danger py-4">Error loading students. Please try again.</td></tr>';
+        }
+    };
+    
+    // Auto-apply filters on change
+    $('#grade, #class, #route, #start_date, #end_date').on('change', function() {
+        applyFilters();
+    });
+    
+    if (showInactiveCheckbox) {
+        showInactiveCheckbox.addEventListener('change', function() {
+            applyFilters();
+        });
+    }
+    
+    // Clear filters
+    if (clearFiltersBtn) {
+        clearFiltersBtn.addEventListener('click', function() {
+            $('#grade').val(null).trigger('change');
+            $('#class').val(null).trigger('change');
+            $('#route').val(null).trigger('change');
+            document.getElementById('start_date').value = '';
+            document.getElementById('end_date').value = '';
+            if (showInactiveCheckbox) {
+                showInactiveCheckbox.checked = false;
+                if (showInactiveHidden) {
+                    showInactiveHidden.value = 'false';
+                }
+            }
+            applyFilters();
+        });
+    }
+    
+    // Checkbox management
+    function setupCheckboxListeners() {
+        if (selectAllCheckbox) {
+            selectAllCheckbox.addEventListener('change', function() {
+                studentCheckboxes.forEach(cb => {
+                    cb.checked = this.checked;
+                });
+                updateSelectedCount();
+            });
+        }
+        
+        studentCheckboxes.forEach(cb => {
+            cb.addEventListener('change', function() {
+                updateSelectedCount();
+                if (selectAllCheckbox) {
+                    const allChecked = Array.from(studentCheckboxes).every(cb => cb.checked);
+                    const noneChecked = Array.from(studentCheckboxes).every(cb => !cb.checked);
+                    selectAllCheckbox.checked = allChecked;
+                    selectAllCheckbox.indeterminate = !allChecked && !noneChecked;
+                }
+            });
+        });
+    }
+    
+    function updateSelectedCount() {
+        const checked = Array.from(studentCheckboxes).filter(cb => cb.checked);
+        const count = checked.length;
+        if (selectedCountSpan) {
+            selectedCountSpan.textContent = count;
+        }
+        if (sendCountSpan) {
+            sendCountSpan.textContent = count;
+        }
+        if (sendBtn) {
+            sendBtn.disabled = count === 0;
+        }
+    }
+    
+    if (selectAllBtn) {
+        selectAllBtn.addEventListener('click', function() {
+            studentCheckboxes.forEach(cb => {
+                cb.checked = true;
+            });
+            if (selectAllCheckbox) {
+                selectAllCheckbox.checked = true;
+            }
+            updateSelectedCount();
+        });
+    }
+    
+    if (deselectAllBtn) {
+        deselectAllBtn.addEventListener('click', function() {
+            studentCheckboxes.forEach(cb => {
+                cb.checked = false;
+            });
+            if (selectAllCheckbox) {
+                selectAllCheckbox.checked = false;
+            }
+            updateSelectedCount();
+        });
+    }
+    
+    // Update form to include selected students
+    const bulkEstatementForm = document.getElementById('bulkEstatementForm');
+    if (bulkEstatementForm) {
+        bulkEstatementForm.addEventListener('submit', function(e) {
+            const checked = Array.from(studentCheckboxes).filter(cb => cb.checked);
+            if (checked.length === 0) {
+                e.preventDefault();
+                alert('Please select at least one student.');
+                return false;
+            }
+            
+            // Add selected student IDs to form
+            checked.forEach(cb => {
+                const input = document.createElement('input');
+                input.type = 'hidden';
+                input.name = 'selected_students';
+                input.value = cb.value;
+                this.appendChild(input);
+            });
+        });
+    }
+    
+    // Initialize
+    setupCheckboxListeners();
+    updateSelectedCount();
+});
+</script>
+{% endblock %}

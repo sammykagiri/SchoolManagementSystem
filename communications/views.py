@@ -2,14 +2,27 @@ from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.core.paginator import Paginator
-from django.db.models import Q
-from django.http import JsonResponse
+from django.db.models import Q, Sum
+from django.http import JsonResponse, HttpResponse
+from django.template.loader import render_to_string
+from django.utils import timezone
 from .models import CommunicationTemplate, EmailMessage, SMSMessage, CommunicationLog
 from .services import CommunicationService
-from core.models import Student
+from core.models import Student, StudentFee, Grade, SchoolClass, TransportRoute
 from core.decorators import role_required
+from payments.models import Payment
+from decimal import Decimal
+from datetime import datetime
 import json
 import logging
+import io
+import os
+try:
+    from weasyprint import HTML, CSS
+    WEASYPRINT_AVAILABLE = True
+except ImportError as e:
+    WEASYPRINT_AVAILABLE = False
+    logger.warning(f'WeasyPrint import failed: {str(e)}')
 
 logger = logging.getLogger(__name__)
 
@@ -995,3 +1008,357 @@ def bulk_sms(request):
             return redirect('communications:bulk_sms')
     
     return render(request, 'communications/bulk_sms.html', context)
+
+
+def generate_student_statement_pdf(student, school, start_date=None, end_date=None, encrypt=False, password=None):
+    """Generate PDF statement for a student"""
+    if not WEASYPRINT_AVAILABLE:
+        raise ImportError("WeasyPrint is not installed. Please install it using: pip install weasyprint. You may also need to install system dependencies. See: https://weasyprint.org/install/")
+    
+    # Get all student fees (debits)
+    student_fees = StudentFee.objects.filter(
+        school=school,
+        student=student
+    ).select_related('term', 'fee_category').order_by('term__academic_year', 'term__term_number', 'fee_category__name')
+    
+    # Get all payments (credits)
+    payments = Payment.objects.filter(
+        school=school,
+        student=student,
+        status='completed'
+    ).select_related('student_fee__term', 'student_fee__fee_category').order_by('payment_date')
+    
+    # Calculate opening balance
+    opening_balance = Decimal('0.00')
+    if start_date:
+        opening_fees = StudentFee.objects.filter(
+            school=school,
+            student=student,
+            term__start_date__lt=start_date
+        ).aggregate(total=Sum('amount_charged'))['total'] or Decimal('0.00')
+        
+        opening_payments = Payment.objects.filter(
+            school=school,
+            student=student,
+            status='completed',
+            payment_date__date__lt=start_date
+        ).aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
+        
+        opening_balance = opening_fees - opening_payments
+    
+    # Filter by date range if provided
+    transactions = []
+    
+    # Add fee transactions (debits)
+    for fee in student_fees:
+        if start_date and fee.term.start_date < start_date:
+            continue
+        if end_date and fee.term.start_date > end_date:
+            continue
+        
+        transactions.append({
+            'date': fee.term.start_date,
+            'description': f"{fee.fee_category.name} - {fee.term.academic_year} Term {fee.term.term_number}",
+            'reference': f"Fee-{fee.id}",
+            'debit': fee.amount_charged,
+            'credit': Decimal('0.00'),
+            'type': 'fee'
+        })
+    
+    # Add payment transactions (credits)
+    for payment in payments:
+        payment_date = payment.payment_date.date()
+        if start_date and payment_date < start_date:
+            continue
+        if end_date and payment_date > end_date:
+            continue
+        
+        transactions.append({
+            'date': payment_date,
+            'description': f"Payment - {payment.student_fee.fee_category.name}",
+            'reference': payment.reference_number or str(payment.payment_id),
+            'debit': Decimal('0.00'),
+            'credit': payment.amount,
+            'type': 'payment',
+            'payment_method': payment.get_payment_method_display()
+        })
+    
+    # Sort transactions by date
+    transactions.sort(key=lambda x: x['date'])
+    
+    # Calculate running balance
+    running_balance = opening_balance
+    for transaction in transactions:
+        running_balance += transaction['debit'] - transaction['credit']
+        transaction['balance'] = running_balance
+    
+    # Calculate totals
+    total_debits = sum(t['debit'] for t in transactions)
+    total_credits = sum(t['credit'] for t in transactions)
+    closing_balance = opening_balance + total_debits - total_credits
+    
+    context = {
+        'student': student,
+        'school': school,
+        'transactions': transactions,
+        'opening_balance': opening_balance,
+        'total_debits': total_debits,
+        'total_credits': total_credits,
+        'closing_balance': closing_balance,
+        'closing_balance_abs': abs(closing_balance),
+        'start_date': start_date,
+        'end_date': end_date,
+        'statement_date': timezone.now().date(),
+    }
+    
+    # Render HTML template
+    html_string = render_to_string('core/student_statement_pdf.html', context)
+    
+    # Generate PDF
+    html = HTML(string=html_string, base_url=os.path.dirname(__file__))
+    pdf_bytes = html.write_pdf()
+    
+    # Apply encryption if requested
+    if encrypt and password:
+        try:
+            from pypdf import PdfWriter, PdfReader
+        except ImportError:
+            try:
+                from PyPDF2 import PdfWriter, PdfReader
+            except ImportError:
+                raise ImportError("pypdf or PyPDF2 is required for PDF encryption. Install with: pip install pypdf")
+        
+        pdf_reader = PdfReader(io.BytesIO(pdf_bytes))
+        pdf_writer = PdfWriter()
+        
+        for page in pdf_reader.pages:
+            pdf_writer.add_page(page)
+        
+        pdf_writer.encrypt(password)
+        output_buffer = io.BytesIO()
+        pdf_writer.write(output_buffer)
+        pdf_bytes = output_buffer.getvalue()
+    
+    return pdf_bytes
+
+
+@login_required
+@role_required('super_admin', 'school_admin', 'teacher', 'accountant')
+def bulk_estatement_email(request):
+    """Bulk email e-statements (PDF) to multiple students"""
+    school = request.user.profile.school
+    
+    if not WEASYPRINT_AVAILABLE:
+        messages.error(request, 'WeasyPrint is not installed. Please install it using: pip install weasyprint')
+        # Still render the page so user can see the error message
+        today = timezone.now().date()
+        grades = Grade.objects.filter(school=school)
+        classes = SchoolClass.objects.filter(school=school, is_active=True)
+        routes = TransportRoute.objects.filter(
+            school=school,
+            is_active=True
+        ).filter(
+            Q(active_start_date__isnull=True) | Q(active_start_date__lte=today)
+        ).filter(
+            Q(active_end_date__isnull=True) | Q(active_end_date__gte=today)
+        )
+        context = {
+            'students': [],
+            'grades': grades,
+            'classes': classes,
+            'routes': routes,
+            'selected_grades': [],
+            'selected_classes': [],
+            'selected_routes': [],
+            'show_inactive': False,
+            'start_date': '',
+            'end_date': '',
+        }
+        return render(request, 'communications/bulk_estatement_email.html', context)
+    
+    school = request.user.profile.school
+    
+    # Check if this is a filter POST request (AJAX) vs email send POST
+    is_filter_request = request.method == 'POST' and request.POST.get('filter_action') == 'apply'
+    x_requested_with = request.META.get('HTTP_X_REQUESTED_WITH', '')
+    is_ajax = x_requested_with == 'XMLHttpRequest'
+    
+    # Get filters from POST (filtering) or empty (initial load/refresh)
+    if is_filter_request:
+        grade_ids = request.POST.getlist('grade', [])
+        class_ids = request.POST.getlist('class', [])
+        route_ids = request.POST.getlist('route', [])
+        show_inactive = request.POST.get('show_inactive', 'false').lower() == 'true'
+        start_date_str = request.POST.get('start_date', '')
+        end_date_str = request.POST.get('end_date', '')
+    else:
+        grade_ids = []
+        class_ids = []
+        route_ids = []
+        show_inactive = False
+        start_date_str = ''
+        end_date_str = ''
+    
+    # Parse date range
+    start_date = None
+    end_date = None
+    if start_date_str:
+        try:
+            start_date = datetime.strptime(start_date_str, '%Y-%m-%d').date()
+        except ValueError:
+            pass
+    if end_date_str:
+        try:
+            end_date = datetime.strptime(end_date_str, '%Y-%m-%d').date()
+        except ValueError:
+            pass
+    
+    # Get all students with prefetched parents
+    students = Student.objects.filter(school=school).select_related('grade', 'school_class', 'transport_route').prefetch_related('parents', 'parents__user')
+    
+    # Apply filters
+    if not show_inactive:
+        students = students.filter(is_active=True)
+    if grade_ids:
+        students = students.filter(grade_id__in=[int(g) for g in grade_ids if g.isdigit()])
+    if class_ids:
+        students = students.filter(school_class_id__in=[int(c) for c in class_ids if c.isdigit()])
+    if route_ids:
+        students = students.filter(transport_route_id__in=[int(r) for r in route_ids if r.isdigit()])
+    
+    # Get grades, classes, and transport routes for filters
+    grades = Grade.objects.filter(school=school)
+    classes = SchoolClass.objects.filter(school=school, is_active=True)
+    today = timezone.now().date()
+    routes = TransportRoute.objects.filter(
+        school=school,
+        is_active=True
+    ).filter(
+        Q(active_start_date__isnull=True) | Q(active_start_date__lte=today)
+    ).filter(
+        Q(active_end_date__isnull=True) | Q(active_end_date__gte=today)
+    )
+    
+    # Handle email sending POST (not filtering)
+    if request.method == 'POST' and not is_filter_request:
+        selected_student_ids = request.POST.getlist('selected_students', [])
+        encrypt_pdf = request.POST.get('encrypt_pdf', 'false').lower() == 'true'
+        pdf_password = request.POST.get('pdf_password', '')
+        email_subject = request.POST.get('subject', 'Fee Statement')
+        email_content = request.POST.get('content', 'Please find attached your fee statement.')
+        
+        if not selected_student_ids:
+            messages.error(request, 'Please select at least one student.')
+        else:
+            try:
+                communication_service = CommunicationService()
+                success_count = 0
+                error_count = 0
+                
+                for student_id in selected_student_ids:
+                    try:
+                        student = Student.objects.get(school=school, id=int(student_id))
+                        
+                        # Generate PDF
+                        pdf_bytes = generate_student_statement_pdf(
+                            student=student,
+                            school=school,
+                            start_date=start_date,
+                            end_date=end_date,
+                            encrypt=encrypt_pdf,
+                            password=pdf_password if encrypt_pdf else None
+                        )
+                        
+                        # Get recipient emails
+                        email_to_parent = {}
+                        if student.parent_email:
+                            email_to_parent[student.parent_email] = student.parent_email
+                        
+                        for parent in student.parents.all():
+                            parent_email = parent.email or (parent.user.email if parent.user else None)
+                            if parent_email:
+                                email_to_parent[parent_email] = parent_email
+                        
+                        if not email_to_parent:
+                            error_count += 1
+                            continue
+                        
+                        # Send email with PDF attachment
+                        for recipient_email in email_to_parent.values():
+                            try:
+                                from django.core.mail import EmailMessage as DjangoEmailMessage
+                                from django.conf import settings
+                                
+                                email_msg = DjangoEmailMessage(
+                                    subject=email_subject,
+                                    body=email_content,
+                                    from_email=settings.EMAIL_HOST_USER,
+                                    to=[recipient_email]
+                                )
+                                
+                                # Attach PDF
+                                filename = f"Statement_{student.student_id}_{timezone.now().strftime('%Y%m%d')}.pdf"
+                                email_msg.attach(filename, pdf_bytes, 'application/pdf')
+                                
+                                email_msg.send()
+                                
+                                # Log the email
+                                EmailMessage.objects.create(
+                                    school=school,
+                                    student=student,
+                                    recipient_email=recipient_email,
+                                    subject=email_subject,
+                                    content=email_content,
+                                    status='sent',
+                                    sent_by=request.user
+                                )
+                                
+                                success_count += 1
+                            except Exception as e:
+                                logger.error(f'Error sending e-statement email to {recipient_email}: {str(e)}')
+                                error_count += 1
+                    except Exception as e:
+                        logger.error(f'Error processing student {student_id}: {str(e)}')
+                        error_count += 1
+                
+                if success_count > 0:
+                    if success_count == 1:
+                        messages.success(request, 'Successfully sent 1 e-statement.')
+                    else:
+                        messages.success(request, f'Successfully sent {success_count} e-statements.')
+                if error_count > 0:
+                    if error_count == 1:
+                        messages.warning(request, 'Failed to send 1 e-statement.')
+                    else:
+                        messages.warning(request, f'Failed to send {error_count} e-statements.')
+            except Exception as e:
+                messages.error(request, f'Error sending bulk e-statements: {str(e)}')
+            return redirect('communications:bulk_estatement_email')
+    
+    # Prepare context
+    context = {
+        'students': students.order_by('first_name', 'last_name'),
+        'grades': grades,
+        'classes': classes,
+        'routes': routes,
+        'selected_grades': [int(g) for g in grade_ids if g.isdigit()],
+        'selected_classes': [int(c) for c in class_ids if c.isdigit()],
+        'selected_routes': [int(r) for r in route_ids if r.isdigit()],
+        'show_inactive': show_inactive,
+        'start_date': start_date_str,
+        'end_date': end_date_str,
+    }
+    
+    # If AJAX filter request, return only the table HTML
+    if is_filter_request:
+        if is_ajax:
+            try:
+                table_html = render_to_string('communications/partials/bulk_estatement_table.html', context, request=request)
+                return JsonResponse({'table_html': table_html})
+            except Exception as e:
+                logger.error(f'Error rendering bulk e-statement table: {str(e)}', exc_info=True)
+                return JsonResponse({'error': f'Error loading students: {str(e)}'}, status=500)
+        else:
+            return redirect('communications:bulk_estatement_email')
+    
+    return render(request, 'communications/bulk_estatement_email.html', context)

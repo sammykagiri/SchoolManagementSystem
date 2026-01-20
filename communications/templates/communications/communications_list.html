@@ -95,6 +95,20 @@
         </div>
         {% endif %}
         
+        {% if user|has_permission:'view_email' or user|has_permission:'view_report' %}
+        <!-- Bulk E-Statement Card -->
+        <div class="col-md-4 mb-3">
+            <div class="card h-100 shadow-sm">
+                <div class="card-body text-center">
+                    <i class="fas fa-file-pdf fa-3x text-danger mb-3"></i>
+                    <h5 class="card-title">Bulk E-Statement</h5>
+                    <p class="card-text text-muted small">Send PDF statements to multiple recipients</p>
+                    <a href="{% url 'communications:bulk_estatement_email' %}" class="btn btn-primary btn-sm">Send E-Statements</a>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+        
         {% if user|has_permission:'view_log' %}
         <!-- Communication Logs Card -->
         <div class="col-md-4 mb-3">
