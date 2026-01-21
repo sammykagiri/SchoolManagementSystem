@@ -1107,7 +1107,7 @@ def generate_student_statement_pdf(student, school, start_date=None, end_date=No
     
     # Determine balance label and type
     if closing_balance > 0:
-        balance_label = 'Outstanding Balance'
+        balance_label = 'Balance Due'
         balance_type = 'outstanding'
     elif closing_balance < 0:
         balance_label = 'Credit Balance'
@@ -1115,6 +1115,30 @@ def generate_student_statement_pdf(student, school, start_date=None, end_date=No
     else:
         balance_label = 'Closing Balance'
         balance_type = 'zero'
+    
+    # Get logo path for WeasyPrint (needs absolute file path)
+    logo_path = None
+    if school.logo:
+        from django.conf import settings
+        import os
+        # Check if using local file storage (not S3)
+        if settings.MEDIA_ROOT:
+            logo_path = os.path.join(settings.MEDIA_ROOT, school.logo.name)
+            if os.path.exists(logo_path):
+                # Normalize path for WeasyPrint (convert backslashes to forward slashes on Windows)
+                logo_path = os.path.normpath(logo_path).replace('\\', '/')
+                # Ensure it's an absolute path
+                if not os.path.isabs(logo_path):
+                    logo_path = os.path.abspath(logo_path).replace('\\', '/')
+            else:
+                logo_path = None
+                logger.warning(f'Logo file not found at: {os.path.join(settings.MEDIA_ROOT, school.logo.name)}')
+        else:
+            # If using S3 or remote storage, try to get the file locally
+            # For now, we'll skip logo if using remote storage
+            # In production, you might want to download the file temporarily
+            logo_path = None
+            logger.debug('MEDIA_ROOT is None, skipping logo (likely using S3 storage)')
     
     context = {
         'student': student,
@@ -1130,13 +1154,23 @@ def generate_student_statement_pdf(student, school, start_date=None, end_date=No
         'start_date': start_date,
         'end_date': end_date,
         'statement_date': timezone.now().date(),
+        'logo_path': logo_path,
     }
     
     # Render HTML template
     html_string = render_to_string('core/student_statement_pdf.html', context)
     
     # Generate PDF
-    html = HTML(string=html_string, base_url=os.path.dirname(__file__))
+    # Set base_url to MEDIA_ROOT if available, otherwise use current directory
+    # This helps WeasyPrint resolve relative paths and file:// URLs
+    from django.conf import settings
+    base_url = None
+    if settings.MEDIA_ROOT:
+        base_url = os.path.normpath(settings.MEDIA_ROOT).replace('\\', '/')
+        if not os.path.isabs(base_url):
+            base_url = os.path.abspath(base_url).replace('\\', '/')
+    
+    html = HTML(string=html_string, base_url=base_url)
     pdf_bytes = html.write_pdf()
     
     # Apply encryption if requested

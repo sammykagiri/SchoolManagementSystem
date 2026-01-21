@@ -33,14 +33,21 @@
         }
         
         .school-info {
-            text-align: center;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 25px;
             margin-bottom: 15px;
         }
         
         .school-logo {
             max-height: 70px;
             max-width: 180px;
-            margin-bottom: 8px;
+            flex-shrink: 0;
+        }
+        
+        .school-details {
+            text-align: center;
         }
         
         .school-name {
@@ -202,16 +209,21 @@
     <!-- Header -->
     <div class="header">
         <div class="school-info">
-            <div class="school-name">{{ school.name }}</div>
-            {% if school.address %}
-            <div style="font-size: 10px;">{{ school.address }}</div>
+            {% if logo_path %}
+            <img src="file:///{{ logo_path }}" alt="{{ school.name }} Logo" class="school-logo">
             {% endif %}
-            {% if school.phone %}
-            <div style="font-size: 10px;">Phone: {{ school.phone }}</div>
-            {% endif %}
-            {% if school.email %}
-            <div style="font-size: 10px;">Email: {{ school.email }}</div>
-            {% endif %}
+            <div class="school-details">
+                <div class="school-name">{{ school.name }}</div>
+                {% if school.address %}
+                <div style="font-size: 10px;">{{ school.address }}</div>
+                {% endif %}
+                {% if school.phone %}
+                <div style="font-size: 10px;">Phone: {{ school.phone }}</div>
+                {% endif %}
+                {% if school.email %}
+                <div style="font-size: 10px;">Email: {{ school.email }}</div>
+                {% endif %}
+            </div>
         </div>
     </div>
 
@@ -289,6 +301,9 @@
                 <div class="summary-amount balance {% if closing_balance > 0 %}debit{% else %}credit{% endif %}">
                     KES {{ closing_balance|floatformat:2|intcomma }}
                 </div>
+                {% if closing_balance > 0 %}
+                <div style="font-size: 7px; color: #666; margin-top: 2px;">Outstanding</div>
+                {% endif %}
             </div>
         </div>
     </div>
