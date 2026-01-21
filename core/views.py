@@ -3773,11 +3773,32 @@ Best regards,
 {school.name}
 """
         
+        # Validate email settings before attempting to send
+        if not settings.EMAIL_HOST_USER or not settings.EMAIL_HOST_PASSWORD:
+            error_msg = "Email settings are not configured. Please set EMAIL_HOST_USER and EMAIL_HOST_PASSWORD in your environment variables."
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.error(error_msg)
+            messages.error(request, error_msg)
+            student = _get_student_from_token_or_id(request, student_id)
+            return redirect('core:student_statement', student_id=student.get_signed_token())
+        
+        # Determine from_email address
+        from_email = getattr(settings, 'DEFAULT_FROM_EMAIL', None) or settings.EMAIL_HOST_USER
+        if not from_email:
+            error_msg = "From email address is not configured. Please set DEFAULT_FROM_EMAIL or EMAIL_HOST_USER in your environment variables."
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.error(error_msg)
+            messages.error(request, error_msg)
+            student = _get_student_from_token_or_id(request, student_id)
+            return redirect('core:student_statement', student_id=student.get_signed_token())
+        
         # Create email with PDF attachment
         email_msg = EmailMessage(
             subject=subject,
             body=email_body,
-            from_email=settings.DEFAULT_FROM_EMAIL,
+            from_email=from_email,
             to=[parent_email],
         )
         
@@ -3785,17 +3806,32 @@ Best regards,
         filename = f"Statement_{student.student_id}_{timezone.now().strftime('%Y%m%d')}.pdf"
         email_msg.attach(filename, pdf_bytes, 'application/pdf')
         
-        # Send email
-        email_msg.send(fail_silently=False)
-        
-        messages.success(request, f'PDF statement sent successfully to {parent_email}')
+        # Send email with better error handling
+        try:
+            email_msg.send(fail_silently=False)
+            messages.success(request, f'PDF statement sent successfully to {parent_email}')
+        except OSError as e:
+            # Network-related errors (connection refused, unreachable, etc.)
+            import logging
+            logger = logging.getLogger(__name__)
+            error_msg = f"Network error: Unable to connect to email server ({settings.EMAIL_HOST}:{settings.EMAIL_PORT}). Please check your EMAIL_HOST and EMAIL_PORT settings. Error: {str(e)}"
+            logger.error(error_msg, exc_info=True)
+            messages.error(request, f"Unable to send email: Network connection failed. Please check email server configuration (host: {settings.EMAIL_HOST}, port: {settings.EMAIL_PORT}).")
+        except Exception as email_error:
+            import logging
+            logger = logging.getLogger(__name__)
+            error_msg = f"Error sending email: {str(email_error)}"
+            logger.error(error_msg, exc_info=True)
+            messages.error(request, f"Error sending email: {str(email_error)}")
+    
     except Exception as e:
         import logging
         logger = logging.getLogger(__name__)
-        logger.error(f'Error sending email with PDF: {str(e)}', exc_info=True)
-        messages.error(request, f'Error sending email: {str(e)}')
+        logger.error(f'Error generating PDF or preparing email: {str(e)}', exc_info=True)
+        messages.error(request, f'Error preparing email: {str(e)}')
     
-    return redirect('core:student_statement', student_id=student_id)
+    student = _get_student_from_token_or_id(request, student_id)
+    return redirect('core:student_statement', student_id=student.get_signed_token())
 
 
 def serve_media_file(request, path):
@@ -5165,11 +5201,32 @@ Best regards,
 {school.name}
 """
         
+        # Validate email settings before attempting to send
+        if not settings.EMAIL_HOST_USER or not settings.EMAIL_HOST_PASSWORD:
+            error_msg = "Email settings are not configured. Please set EMAIL_HOST_USER and EMAIL_HOST_PASSWORD in your environment variables."
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.error(error_msg)
+            messages.error(request, error_msg)
+            student = _get_student_from_token_or_id(request, student_id)
+            return redirect('core:student_statement', student_id=student.get_signed_token())
+        
+        # Determine from_email address
+        from_email = getattr(settings, 'DEFAULT_FROM_EMAIL', None) or settings.EMAIL_HOST_USER
+        if not from_email:
+            error_msg = "From email address is not configured. Please set DEFAULT_FROM_EMAIL or EMAIL_HOST_USER in your environment variables."
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.error(error_msg)
+            messages.error(request, error_msg)
+            student = _get_student_from_token_or_id(request, student_id)
+            return redirect('core:student_statement', student_id=student.get_signed_token())
+        
         # Create email with PDF attachment
         email_msg = EmailMessage(
             subject=subject,
             body=email_body,
-            from_email=settings.DEFAULT_FROM_EMAIL,
+            from_email=from_email,
             to=[parent_email],
         )
         
@@ -5177,17 +5234,32 @@ Best regards,
         filename = f"Statement_{student.student_id}_{timezone.now().strftime('%Y%m%d')}.pdf"
         email_msg.attach(filename, pdf_bytes, 'application/pdf')
         
-        # Send email
-        email_msg.send(fail_silently=False)
-        
-        messages.success(request, f'PDF statement sent successfully to {parent_email}')
+        # Send email with better error handling
+        try:
+            email_msg.send(fail_silently=False)
+            messages.success(request, f'PDF statement sent successfully to {parent_email}')
+        except OSError as e:
+            # Network-related errors (connection refused, unreachable, etc.)
+            import logging
+            logger = logging.getLogger(__name__)
+            error_msg = f"Network error: Unable to connect to email server ({settings.EMAIL_HOST}:{settings.EMAIL_PORT}). Please check your EMAIL_HOST and EMAIL_PORT settings. Error: {str(e)}"
+            logger.error(error_msg, exc_info=True)
+            messages.error(request, f"Unable to send email: Network connection failed. Please check email server configuration (host: {settings.EMAIL_HOST}, port: {settings.EMAIL_PORT}).")
+        except Exception as email_error:
+            import logging
+            logger = logging.getLogger(__name__)
+            error_msg = f"Error sending email: {str(email_error)}"
+            logger.error(error_msg, exc_info=True)
+            messages.error(request, f"Error sending email: {str(email_error)}")
+    
     except Exception as e:
         import logging
         logger = logging.getLogger(__name__)
-        logger.error(f'Error sending email with PDF: {str(e)}', exc_info=True)
-        messages.error(request, f'Error sending email: {str(e)}')
+        logger.error(f'Error generating PDF or preparing email: {str(e)}', exc_info=True)
+        messages.error(request, f'Error preparing email: {str(e)}')
     
-    return redirect('core:student_statement', student_id=student_id)
+    student = _get_student_from_token_or_id(request, student_id)
+    return redirect('core:student_statement', student_id=student.get_signed_token())
 
 
 def serve_media_file(request, path):
