@@ -3209,12 +3209,13 @@ def student_statement(request, student_id):
     ).select_related('student_fee__term', 'student_fee__fee_category').order_by('payment_date')
     
     # Calculate opening balance (all fees and payments before start_date)
+    # Use created_at (transaction date) for fees to match transaction date filtering
     opening_balance = Decimal('0.00')
     if start_date:
         opening_fees = StudentFee.objects.filter(
             school=school,
             student=student,
-            term__start_date__lt=start_date
+            created_at__date__lt=start_date
         ).aggregate(total=Sum('amount_charged'))['total'] or Decimal('0.00')
         
         opening_payments = Payment.objects.filter(
@@ -3230,15 +3231,22 @@ def student_statement(request, student_id):
     transactions = []
     
     # Add fee transactions (debits)
+    # Use created_at as transaction date (when fee was charged), due_date goes in description
     for fee in student_fees:
-        if start_date and fee.term.start_date < start_date:
+        # Transaction date is when the fee was created/charged - use this for filtering
+        transaction_date = fee.created_at.date()
+        fee_due_date = fee.due_date
+        
+        # Filter by transaction date (when fee was charged)
+        if start_date and transaction_date < start_date:
             continue
-        if end_date and fee.term.start_date > end_date:
+        if end_date and transaction_date > end_date:
             continue
         
         transactions.append({
-            'date': fee.term.start_date,
+            'date': transaction_date,
             'description': f"{fee.fee_category.name} - {fee.term.academic_year} Term {fee.term.term_number}",
+            'due_date': fee_due_date,
             'reference': f"Fee-{fee.id}",
             'debit': fee.amount_charged,
             'credit': Decimal('0.00'),
@@ -3277,6 +3285,17 @@ def student_statement(request, student_id):
     total_credits = sum(t['credit'] for t in transactions)
     closing_balance = opening_balance + total_debits - total_credits
     
+    # Determine balance label and type
+    if closing_balance > 0:
+        balance_label = 'Balance Due'
+        balance_type = 'outstanding'
+    elif closing_balance < 0:
+        balance_label = 'Credit Balance'
+        balance_type = 'credit'
+    else:
+        balance_label = 'Closing Balance'
+        balance_type = 'zero'
+    
     context = {
         'student': student,
         'school': school,
@@ -3285,6 +3304,9 @@ def student_statement(request, student_id):
         'total_debits': total_debits,
         'total_credits': total_credits,
         'closing_balance': closing_balance,
+        'closing_balance_abs': abs(closing_balance),
+        'balance_label': balance_label,
+        'balance_type': balance_type,
         'start_date': start_date,
         'end_date': end_date,
         'statement_date': timezone.now().date(),
@@ -3323,12 +3345,13 @@ def student_statement_pdf(request, student_id):
     ).select_related('student_fee__term', 'student_fee__fee_category').order_by('payment_date')
     
     # Calculate opening balance
+    # Use created_at (transaction date) for fees to match transaction date filtering
     opening_balance = Decimal('0.00')
     if start_date:
         opening_fees = StudentFee.objects.filter(
             school=school,
             student=student,
-            term__start_date__lt=start_date
+            created_at__date__lt=start_date
         ).aggregate(total=Sum('amount_charged'))['total'] or Decimal('0.00')
         
         opening_payments = Payment.objects.filter(
@@ -3344,15 +3367,22 @@ def student_statement_pdf(request, student_id):
     transactions = []
     
     # Add fee transactions (debits)
+    # Use created_at as transaction date (when fee was charged), due_date goes in description
     for fee in student_fees:
-        if start_date and fee.term.start_date < start_date:
+        # Transaction date is when the fee was created/charged - use this for filtering
+        transaction_date = fee.created_at.date()
+        fee_due_date = fee.due_date
+        
+        # Filter by transaction date (when fee was charged)
+        if start_date and transaction_date < start_date:
             continue
-        if end_date and fee.term.start_date > end_date:
+        if end_date and transaction_date > end_date:
             continue
         
         transactions.append({
-            'date': fee.term.start_date,
+            'date': transaction_date,
             'description': f"{fee.fee_category.name} - {fee.term.academic_year} Term {fee.term.term_number}",
+            'due_date': fee_due_date,
             'reference': f"Fee-{fee.id}",
             'debit': fee.amount_charged,
             'credit': Decimal('0.00'),
@@ -3391,6 +3421,40 @@ def student_statement_pdf(request, student_id):
     total_credits = sum(t['credit'] for t in transactions)
     closing_balance = opening_balance + total_debits - total_credits
     
+    # Determine balance label and type
+    if closing_balance > 0:
+        balance_label = 'Balance Due'
+        balance_type = 'outstanding'
+    elif closing_balance < 0:
+        balance_label = 'Credit Balance'
+        balance_type = 'credit'
+    else:
+        balance_label = 'Closing Balance'
+        balance_type = 'zero'
+    
+    # Get logo path for WeasyPrint (needs absolute file path)
+    logo_path = None
+    if school.logo:
+        from django.conf import settings
+        # Check if using local file storage (not S3)
+        if settings.MEDIA_ROOT:
+            logo_path = os.path.join(settings.MEDIA_ROOT, school.logo.name)
+            if os.path.exists(logo_path):
+                # Normalize path for WeasyPrint (convert backslashes to forward slashes on Windows)
+                logo_path = os.path.normpath(logo_path).replace('\\', '/')
+                # Ensure it's an absolute path
+                if not os.path.isabs(logo_path):
+                    logo_path = os.path.abspath(logo_path).replace('\\', '/')
+            else:
+                logo_path = None
+                logger.warning(f'Logo file not found at: {os.path.join(settings.MEDIA_ROOT, school.logo.name)}')
+        else:
+            # If using S3 or remote storage, try to get the file locally
+            # For now, we'll skip logo if using remote storage
+            # In production, you might want to download the file temporarily
+            logo_path = None
+            logger.debug('MEDIA_ROOT is None, skipping logo (likely using S3 storage)')
+    
     context = {
         'student': student,
         'school': school,
@@ -3399,13 +3463,59 @@ def student_statement_pdf(request, student_id):
         'total_debits': total_debits,
         'total_credits': total_credits,
         'closing_balance': closing_balance,
+        'closing_balance_abs': abs(closing_balance),
+        'balance_label': balance_label,
+        'balance_type': balance_type,
         'start_date': start_date,
         'end_date': end_date,
         'statement_date': timezone.now().date(),
+        'logo_path': logo_path,
     }
     
-    # For now, return HTML version. PDF generation can be added later with weasyprint or xhtml2pdf
-    return render(request, 'core/student_statement_pdf.html', context)
+    # Generate PDF using WeasyPrint
+    try:
+        from weasyprint import HTML
+        import os
+        import io
+    except ImportError:
+        messages.error(request, 'WeasyPrint is not installed. Please install it using: pip install weasyprint')
+        return redirect('core:student_statement', student_id=student_id)
+    
+    try:
+        # Render HTML template
+        html_string = render_to_string('core/student_statement_pdf.html', context)
+        
+        # Generate PDF
+        # Set base_url to MEDIA_ROOT if available, otherwise use current directory
+        # This helps WeasyPrint resolve relative paths and file:// URLs
+        base_url = None
+        if settings.MEDIA_ROOT:
+            base_url = os.path.normpath(settings.MEDIA_ROOT).replace('\\', '/')
+            if not os.path.isabs(base_url):
+                base_url = os.path.abspath(base_url).replace('\\', '/')
+        
+        html = HTML(string=html_string, base_url=base_url)
+        pdf_bytes = html.write_pdf()
+        
+        # Check if this is a download request
+        is_download = request.GET.get('download') == '1'
+        disposition = 'attachment' if is_download else 'inline'
+        
+        # Return PDF response
+        filename = f"statement_{student.student_id}_{timezone.now().date()}.pdf"
+        response = HttpResponse(pdf_bytes, content_type='application/pdf')
+        response['Content-Disposition'] = f'{disposition}; filename="{filename}"'
+        # Ensure browser doesn't cache this as HTML
+        response['Cache-Control'] = 'no-cache, no-store, must-revalidate'
+        response['Pragma'] = 'no-cache'
+        response['Expires'] = '0'
+        return response
+    except Exception as e:
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.error(f'Error generating PDF: {str(e)}', exc_info=True)
+        messages.error(request, f'Error generating PDF: {str(e)}')
+        return redirect('core:student_statement', student_id=student_id)
 
 
 @login_required
@@ -3415,7 +3525,9 @@ def student_statement_email(request, student_id):
     school = request.user.profile.school
     student = get_object_or_404(Student, student_id=student_id, school=school)
     
-    if not student.parent_email:
+    # Get parent email from student.parent_email or linked Parent objects
+    parent_email = student.get_parent_email()
+    if not parent_email:
         messages.error(request, 'Student has no email address on file.')
         return redirect('core:student_statement', student_id=student_id)
     
@@ -3447,7 +3559,7 @@ def student_statement_email(request, student_id):
         opening_fees = StudentFee.objects.filter(
             school=school,
             student=student,
-            term__start_date__lt=start_date
+            created_at__date__lt=start_date
         ).aggregate(total=Sum('amount_charged'))['total'] or Decimal('0.00')
         
         opening_payments = Payment.objects.filter(
@@ -3464,14 +3576,20 @@ def student_statement_email(request, student_id):
     
     # Add fee transactions (debits)
     for fee in student_fees:
-        if start_date and fee.term.start_date < start_date:
+        # Transaction date is when the fee was created/charged - use this for filtering
+        transaction_date = fee.created_at.date()
+        fee_due_date = fee.due_date
+        
+        # Filter by transaction date (when fee was charged)
+        if start_date and transaction_date < start_date:
             continue
-        if end_date and fee.term.start_date > end_date:
+        if end_date and transaction_date > end_date:
             continue
         
         transactions.append({
-            'date': fee.term.start_date,
+            'date': transaction_date,
             'description': f"{fee.fee_category.name} - {fee.term.academic_year} Term {fee.term.term_number}",
+            'due_date': fee_due_date,
             'reference': f"Fee-{fee.id}",
             'debit': fee.amount_charged,
             'credit': Decimal('0.00'),
@@ -3510,6 +3628,41 @@ def student_statement_email(request, student_id):
     total_credits = sum(t['credit'] for t in transactions)
     closing_balance = opening_balance + total_debits - total_credits
     
+    # Determine balance label and type
+    if closing_balance > 0:
+        balance_label = 'Balance Due'
+        balance_type = 'outstanding'
+    elif closing_balance < 0:
+        balance_label = 'Credit Balance'
+        balance_type = 'credit'
+    else:
+        balance_label = 'Closing Balance'
+        balance_type = 'zero'
+    
+    # Determine balance label and type
+    if closing_balance > 0:
+        balance_label = 'Balance Due'
+        balance_type = 'outstanding'
+    elif closing_balance < 0:
+        balance_label = 'Credit Balance'
+        balance_type = 'credit'
+    else:
+        balance_label = 'Closing Balance'
+        balance_type = 'zero'
+    
+    # Get logo path for WeasyPrint
+    logo_path = None
+    if school.logo:
+        import os
+        if settings.MEDIA_ROOT:
+            logo_path = os.path.join(settings.MEDIA_ROOT, school.logo.name)
+            if os.path.exists(logo_path):
+                logo_path = os.path.normpath(logo_path).replace('\\', '/')
+                if not os.path.isabs(logo_path):
+                    logo_path = os.path.abspath(logo_path).replace('\\', '/')
+            else:
+                logo_path = None
+    
     context = {
         'student': student,
         'school': school,
@@ -3519,27 +3672,85 @@ def student_statement_email(request, student_id):
         'total_credits': total_credits,
         'closing_balance': closing_balance,
         'closing_balance_abs': abs(closing_balance),
+        'balance_label': balance_label,
+        'balance_type': balance_type,
         'start_date': start_date,
         'end_date': end_date,
         'statement_date': timezone.now().date(),
+        'logo_path': logo_path,
     }
     
-    # Render email template
-    html_message = render_to_string('core/student_statement_email.html', context)
-    
-    # Send email
-    subject = f'Fee Statement - {student.full_name} - {school.name}'
+    # Generate PDF using WeasyPrint
     try:
-        send_mail(
+        from weasyprint import HTML
+        import os
+        from django.core.mail import EmailMessage
+    except ImportError:
+        messages.error(request, 'WeasyPrint is not installed. Please install it using: pip install weasyprint')
+        return redirect('core:student_statement', student_id=student_id)
+    
+    try:
+        # Render HTML template for PDF
+        html_string = render_to_string('core/student_statement_pdf.html', context)
+        
+        # Generate PDF
+        base_url = None
+        if settings.MEDIA_ROOT:
+            base_url = os.path.normpath(settings.MEDIA_ROOT).replace('\\', '/')
+            if not os.path.isabs(base_url):
+                base_url = os.path.abspath(base_url).replace('\\', '/')
+        
+        html = HTML(string=html_string, base_url=base_url)
+        pdf_bytes = html.write_pdf()
+        
+        # Create email message with PDF attachment
+        subject = f'Fee Statement - {student.full_name} - {school.name}'
+        period_text = ''
+        if start_date and end_date:
+            period_text = f' for the period {start_date.strftime("%d %b %Y")} to {end_date.strftime("%d %b %Y")}'
+        elif start_date:
+            period_text = f' from {start_date.strftime("%d %b %Y")}'
+        
+        email_body = f"""Dear Parent/Guardian,
+
+Please find attached the fee statement for {student.full_name} (Student ID: {student.student_id}){period_text}.
+
+"""
+        if closing_balance > 0:
+            email_body += f"Outstanding Balance: KES {closing_balance:,.2f}\n\n"
+        elif closing_balance < 0:
+            email_body += f"Credit Balance: KES {abs(closing_balance):,.2f}\n\n"
+        else:
+            email_body += "Account Status: Fully Paid\n\n"
+        
+        email_body += f"""The detailed statement is attached as a PDF document.
+
+If you have any questions or concerns, please contact the school office.
+
+Best regards,
+{school.name}
+"""
+        
+        # Create email with PDF attachment
+        email_msg = EmailMessage(
             subject=subject,
-            message='',  # Plain text version (empty, using HTML)
+            body=email_body,
             from_email=settings.DEFAULT_FROM_EMAIL,
-            recipient_list=[student.parent_email],
-            html_message=html_message,
-            fail_silently=False,
+            to=[parent_email],
         )
-        messages.success(request, f'Statement sent successfully to {student.parent_email}')
+        
+        # Attach PDF
+        filename = f"Statement_{student.student_id}_{timezone.now().strftime('%Y%m%d')}.pdf"
+        email_msg.attach(filename, pdf_bytes, 'application/pdf')
+        
+        # Send email
+        email_msg.send(fail_silently=False)
+        
+        messages.success(request, f'PDF statement sent successfully to {parent_email}')
     except Exception as e:
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.error(f'Error sending email with PDF: {str(e)}', exc_info=True)
         messages.error(request, f'Error sending email: {str(e)}')
     
     return redirect('core:student_statement', student_id=student_id)
@@ -4399,7 +4610,7 @@ def student_statement(request, student_id):
         opening_fees = StudentFee.objects.filter(
             school=school,
             student=student,
-            term__start_date__lt=start_date
+            created_at__date__lt=start_date
         ).aggregate(total=Sum('amount_charged'))['total'] or Decimal('0.00')
         
         opening_payments = Payment.objects.filter(
@@ -4416,14 +4627,20 @@ def student_statement(request, student_id):
     
     # Add fee transactions (debits)
     for fee in student_fees:
-        if start_date and fee.term.start_date < start_date:
+        # Transaction date is when the fee was created/charged - use this for filtering
+        transaction_date = fee.created_at.date()
+        fee_due_date = fee.due_date
+        
+        # Filter by transaction date (when fee was charged)
+        if start_date and transaction_date < start_date:
             continue
-        if end_date and fee.term.start_date > end_date:
+        if end_date and transaction_date > end_date:
             continue
         
         transactions.append({
-            'date': fee.term.start_date,
+            'date': transaction_date,
             'description': f"{fee.fee_category.name} - {fee.term.academic_year} Term {fee.term.term_number}",
+            'due_date': fee_due_date,
             'reference': f"Fee-{fee.id}",
             'debit': fee.amount_charged,
             'credit': Decimal('0.00'),
@@ -4514,7 +4731,7 @@ def student_statement_pdf(request, student_id):
         opening_fees = StudentFee.objects.filter(
             school=school,
             student=student,
-            term__start_date__lt=start_date
+            created_at__date__lt=start_date
         ).aggregate(total=Sum('amount_charged'))['total'] or Decimal('0.00')
         
         opening_payments = Payment.objects.filter(
@@ -4531,14 +4748,20 @@ def student_statement_pdf(request, student_id):
     
     # Add fee transactions (debits)
     for fee in student_fees:
-        if start_date and fee.term.start_date < start_date:
+        # Transaction date is when the fee was created/charged - use this for filtering
+        transaction_date = fee.created_at.date()
+        fee_due_date = fee.due_date
+        
+        # Filter by transaction date (when fee was charged)
+        if start_date and transaction_date < start_date:
             continue
-        if end_date and fee.term.start_date > end_date:
+        if end_date and transaction_date > end_date:
             continue
         
         transactions.append({
-            'date': fee.term.start_date,
+            'date': transaction_date,
             'description': f"{fee.fee_category.name} - {fee.term.academic_year} Term {fee.term.term_number}",
+            'due_date': fee_due_date,
             'reference': f"Fee-{fee.id}",
             'debit': fee.amount_charged,
             'credit': Decimal('0.00'),
@@ -4577,6 +4800,34 @@ def student_statement_pdf(request, student_id):
     total_credits = sum(t['credit'] for t in transactions)
     closing_balance = opening_balance + total_debits - total_credits
     
+    # Determine balance label and type
+    if closing_balance > 0:
+        balance_label = 'Balance Due'
+        balance_type = 'outstanding'
+    elif closing_balance < 0:
+        balance_label = 'Credit Balance'
+        balance_type = 'credit'
+    else:
+        balance_label = 'Closing Balance'
+        balance_type = 'zero'
+    
+    # Get logo path for WeasyPrint (needs absolute file path)
+    logo_path = None
+    if school.logo:
+        from django.conf import settings
+        import os
+        # Check if using local file storage (not S3)
+        if settings.MEDIA_ROOT:
+            logo_path = os.path.join(settings.MEDIA_ROOT, school.logo.name)
+            if os.path.exists(logo_path):
+                # Normalize path for WeasyPrint (convert backslashes to forward slashes on Windows)
+                logo_path = os.path.normpath(logo_path).replace('\\', '/')
+                # Ensure it's an absolute path
+                if not os.path.isabs(logo_path):
+                    logo_path = os.path.abspath(logo_path).replace('\\', '/')
+            else:
+                logo_path = None
+    
     context = {
         'student': student,
         'school': school,
@@ -4586,13 +4837,58 @@ def student_statement_pdf(request, student_id):
         'total_credits': total_credits,
         'closing_balance': closing_balance,
         'closing_balance_abs': abs(closing_balance),
+        'balance_label': balance_label,
+        'balance_type': balance_type,
         'start_date': start_date,
         'end_date': end_date,
         'statement_date': timezone.now().date(),
+        'logo_path': logo_path,
     }
     
-    # For now, return HTML version. PDF generation can be added later with weasyprint or xhtml2pdf
-    return render(request, 'core/student_statement_pdf.html', context)
+    # Generate PDF using WeasyPrint
+    try:
+        from weasyprint import HTML
+        import os
+        import io
+    except ImportError:
+        messages.error(request, 'WeasyPrint is not installed. Please install it using: pip install weasyprint')
+        return redirect('core:student_statement', student_id=student_id)
+    
+    try:
+        # Render HTML template
+        html_string = render_to_string('core/student_statement_pdf.html', context)
+        
+        # Generate PDF
+        # Set base_url to MEDIA_ROOT if available, otherwise use current directory
+        # This helps WeasyPrint resolve relative paths and file:// URLs
+        base_url = None
+        if settings.MEDIA_ROOT:
+            base_url = os.path.normpath(settings.MEDIA_ROOT).replace('\\', '/')
+            if not os.path.isabs(base_url):
+                base_url = os.path.abspath(base_url).replace('\\', '/')
+        
+        html = HTML(string=html_string, base_url=base_url)
+        pdf_bytes = html.write_pdf()
+        
+        # Check if this is a download request
+        is_download = request.GET.get('download') == '1'
+        disposition = 'attachment' if is_download else 'inline'
+        
+        # Return PDF response
+        filename = f"statement_{student.student_id}_{timezone.now().date()}.pdf"
+        response = HttpResponse(pdf_bytes, content_type='application/pdf')
+        response['Content-Disposition'] = f'{disposition}; filename="{filename}"'
+        # Ensure browser doesn't cache this as HTML
+        response['Cache-Control'] = 'no-cache, no-store, must-revalidate'
+        response['Pragma'] = 'no-cache'
+        response['Expires'] = '0'
+        return response
+    except Exception as e:
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.error(f'Error generating PDF: {str(e)}', exc_info=True)
+        messages.error(request, f'Error generating PDF: {str(e)}')
+        return redirect('core:student_statement', student_id=student_id)
 
 
 @login_required
@@ -4602,7 +4898,9 @@ def student_statement_email(request, student_id):
     school = request.user.profile.school
     student = get_object_or_404(Student, student_id=student_id, school=school)
     
-    if not student.parent_email:
+    # Get parent email from student.parent_email or linked Parent objects
+    parent_email = student.get_parent_email()
+    if not parent_email:
         messages.error(request, 'Student has no email address on file.')
         return redirect('core:student_statement', student_id=student_id)
     
@@ -4634,7 +4932,7 @@ def student_statement_email(request, student_id):
         opening_fees = StudentFee.objects.filter(
             school=school,
             student=student,
-            term__start_date__lt=start_date
+            created_at__date__lt=start_date
         ).aggregate(total=Sum('amount_charged'))['total'] or Decimal('0.00')
         
         opening_payments = Payment.objects.filter(
@@ -4651,14 +4949,20 @@ def student_statement_email(request, student_id):
     
     # Add fee transactions (debits)
     for fee in student_fees:
-        if start_date and fee.term.start_date < start_date:
+        # Transaction date is when the fee was created/charged - use this for filtering
+        transaction_date = fee.created_at.date()
+        fee_due_date = fee.due_date
+        
+        # Filter by transaction date (when fee was charged)
+        if start_date and transaction_date < start_date:
             continue
-        if end_date and fee.term.start_date > end_date:
+        if end_date and transaction_date > end_date:
             continue
         
         transactions.append({
-            'date': fee.term.start_date,
+            'date': transaction_date,
             'description': f"{fee.fee_category.name} - {fee.term.academic_year} Term {fee.term.term_number}",
+            'due_date': fee_due_date,
             'reference': f"Fee-{fee.id}",
             'debit': fee.amount_charged,
             'credit': Decimal('0.00'),
@@ -4697,6 +5001,41 @@ def student_statement_email(request, student_id):
     total_credits = sum(t['credit'] for t in transactions)
     closing_balance = opening_balance + total_debits - total_credits
     
+    # Determine balance label and type
+    if closing_balance > 0:
+        balance_label = 'Balance Due'
+        balance_type = 'outstanding'
+    elif closing_balance < 0:
+        balance_label = 'Credit Balance'
+        balance_type = 'credit'
+    else:
+        balance_label = 'Closing Balance'
+        balance_type = 'zero'
+    
+    # Determine balance label and type
+    if closing_balance > 0:
+        balance_label = 'Balance Due'
+        balance_type = 'outstanding'
+    elif closing_balance < 0:
+        balance_label = 'Credit Balance'
+        balance_type = 'credit'
+    else:
+        balance_label = 'Closing Balance'
+        balance_type = 'zero'
+    
+    # Get logo path for WeasyPrint
+    logo_path = None
+    if school.logo:
+        import os
+        if settings.MEDIA_ROOT:
+            logo_path = os.path.join(settings.MEDIA_ROOT, school.logo.name)
+            if os.path.exists(logo_path):
+                logo_path = os.path.normpath(logo_path).replace('\\', '/')
+                if not os.path.isabs(logo_path):
+                    logo_path = os.path.abspath(logo_path).replace('\\', '/')
+            else:
+                logo_path = None
+    
     context = {
         'student': student,
         'school': school,
@@ -4706,27 +5045,85 @@ def student_statement_email(request, student_id):
         'total_credits': total_credits,
         'closing_balance': closing_balance,
         'closing_balance_abs': abs(closing_balance),
+        'balance_label': balance_label,
+        'balance_type': balance_type,
         'start_date': start_date,
         'end_date': end_date,
         'statement_date': timezone.now().date(),
+        'logo_path': logo_path,
     }
     
-    # Render email template
-    html_message = render_to_string('core/student_statement_email.html', context)
-    
-    # Send email
-    subject = f'Fee Statement - {student.full_name} - {school.name}'
+    # Generate PDF using WeasyPrint
     try:
-        send_mail(
+        from weasyprint import HTML
+        import os
+        from django.core.mail import EmailMessage
+    except ImportError:
+        messages.error(request, 'WeasyPrint is not installed. Please install it using: pip install weasyprint')
+        return redirect('core:student_statement', student_id=student_id)
+    
+    try:
+        # Render HTML template for PDF
+        html_string = render_to_string('core/student_statement_pdf.html', context)
+        
+        # Generate PDF
+        base_url = None
+        if settings.MEDIA_ROOT:
+            base_url = os.path.normpath(settings.MEDIA_ROOT).replace('\\', '/')
+            if not os.path.isabs(base_url):
+                base_url = os.path.abspath(base_url).replace('\\', '/')
+        
+        html = HTML(string=html_string, base_url=base_url)
+        pdf_bytes = html.write_pdf()
+        
+        # Create email message with PDF attachment
+        subject = f'Fee Statement - {student.full_name} - {school.name}'
+        period_text = ''
+        if start_date and end_date:
+            period_text = f' for the period {start_date.strftime("%d %b %Y")} to {end_date.strftime("%d %b %Y")}'
+        elif start_date:
+            period_text = f' from {start_date.strftime("%d %b %Y")}'
+        
+        email_body = f"""Dear Parent/Guardian,
+
+Please find attached the fee statement for {student.full_name} (Student ID: {student.student_id}){period_text}.
+
+"""
+        if closing_balance > 0:
+            email_body += f"Outstanding Balance: KES {closing_balance:,.2f}\n\n"
+        elif closing_balance < 0:
+            email_body += f"Credit Balance: KES {abs(closing_balance):,.2f}\n\n"
+        else:
+            email_body += "Account Status: Fully Paid\n\n"
+        
+        email_body += f"""The detailed statement is attached as a PDF document.
+
+If you have any questions or concerns, please contact the school office.
+
+Best regards,
+{school.name}
+"""
+        
+        # Create email with PDF attachment
+        email_msg = EmailMessage(
             subject=subject,
-            message='',  # Plain text version (empty, using HTML)
+            body=email_body,
             from_email=settings.DEFAULT_FROM_EMAIL,
-            recipient_list=[student.parent_email],
-            html_message=html_message,
-            fail_silently=False,
+            to=[parent_email],
         )
-        messages.success(request, f'Statement sent successfully to {student.parent_email}')
+        
+        # Attach PDF
+        filename = f"Statement_{student.student_id}_{timezone.now().strftime('%Y%m%d')}.pdf"
+        email_msg.attach(filename, pdf_bytes, 'application/pdf')
+        
+        # Send email
+        email_msg.send(fail_silently=False)
+        
+        messages.success(request, f'PDF statement sent successfully to {parent_email}')
     except Exception as e:
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.error(f'Error sending email with PDF: {str(e)}', exc_info=True)
         messages.error(request, f'Error sending email: {str(e)}')
     
     return redirect('core:student_statement', student_id=student_id)
@@ -4989,12 +5386,13 @@ def parent_portal_student_statement(request, student_id):
     ).select_related('student_fee__term', 'student_fee__fee_category').order_by('payment_date')
     
     # Calculate opening balance (all fees and payments before start_date)
+    # Use created_at (transaction date) for fees to match transaction date filtering
     opening_balance = Decimal('0.00')
     if start_date:
         opening_fees = StudentFee.objects.filter(
             school=school,
             student=student,
-            term__start_date__lt=start_date
+            created_at__date__lt=start_date
         ).aggregate(total=Sum('amount_charged'))['total'] or Decimal('0.00')
         
         opening_payments = Payment.objects.filter(
@@ -5010,15 +5408,22 @@ def parent_portal_student_statement(request, student_id):
     transactions = []
     
     # Add fee transactions (debits)
+    # Use created_at as transaction date (when fee was charged), due_date goes in description
     for fee in student_fees:
-        if start_date and fee.term.start_date < start_date:
+        # Transaction date is when the fee was created/charged - use this for filtering
+        transaction_date = fee.created_at.date()
+        fee_due_date = fee.due_date
+        
+        # Filter by transaction date (when fee was charged)
+        if start_date and transaction_date < start_date:
             continue
-        if end_date and fee.term.start_date > end_date:
+        if end_date and transaction_date > end_date:
             continue
         
         transactions.append({
-            'date': fee.term.start_date,
+            'date': transaction_date,
             'description': f"{fee.fee_category.name} - {fee.term.academic_year} Term {fee.term.term_number}",
+            'due_date': fee_due_date,
             'reference': f"Fee-{fee.id}",
             'debit': fee.amount_charged,
             'credit': Decimal('0.00'),
@@ -5057,6 +5462,17 @@ def parent_portal_student_statement(request, student_id):
     total_credits = sum(t['credit'] for t in transactions)
     closing_balance = opening_balance + total_debits - total_credits
     
+    # Determine balance label and type
+    if closing_balance > 0:
+        balance_label = 'Balance Due'
+        balance_type = 'outstanding'
+    elif closing_balance < 0:
+        balance_label = 'Credit Balance'
+        balance_type = 'credit'
+    else:
+        balance_label = 'Closing Balance'
+        balance_type = 'zero'
+    
     context = {
         'parent': parent,
         'student': student,
@@ -5067,6 +5483,8 @@ def parent_portal_student_statement(request, student_id):
         'total_credits': total_credits,
         'closing_balance': closing_balance,
         'closing_balance_abs': abs(closing_balance),
+        'balance_label': balance_label,
+        'balance_type': balance_type,
         'start_date': start_date,
         'end_date': end_date,
         'statement_date': timezone.now().date(),

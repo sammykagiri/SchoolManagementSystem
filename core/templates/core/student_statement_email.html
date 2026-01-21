@@ -30,7 +30,8 @@
         }
         
         .logo {
-            max-height: 80px;
+            max-height: 70px;
+            max-width: 180px;
             margin-bottom: 10px;
         }
         
@@ -162,9 +163,18 @@
     <div class="email-container">
         <!-- Header -->
         <div class="header">
+            {% if school.logo %}
+            <img src="{{ school.logo.url }}" alt="{{ school.name }}" class="logo">
+            {% endif %}
             <div class="school-name">{{ school.name }}</div>
+            {% if school.address %}
+            <div style="font-size: 12px; margin-top: 5px;">{{ school.address }}</div>
+            {% endif %}
+            {% if school.phone %}
+            <div style="font-size: 12px;">Phone: {{ school.phone }}</div>
+            {% endif %}
             {% if school.email %}
-            <div style="font-size: 14px; margin-top: 5px;">{{ school.email }}</div>
+            <div style="font-size: 12px;">Email: {{ school.email }}</div>
             {% endif %}
         </div>
 
@@ -224,8 +234,11 @@
                 <div class="summary-value credit">KES {{ total_credits|floatformat:2|intcomma }}</div>
             </div>
             <div class="summary-item">
-                <div class="summary-label">Closing Balance</div>
+                <div class="summary-label">{% if balance_label %}{{ balance_label }}{% else %}Closing Balance{% endif %}</div>
                 <div class="summary-value balance">KES {{ closing_balance|floatformat:2|intcomma }}</div>
+                {% if closing_balance > 0 %}
+                <div style="font-size: 10px; color: #666; margin-top: 3px;">Outstanding</div>
+                {% endif %}
             </div>
         </div>
 
@@ -233,7 +246,7 @@
         <table>
             <thead>
                 <tr>
-                    <th>Date</th>
+                    <th>Transaction Date</th>
                     <th>Description</th>
                     <th>Reference</th>
                     <th class="text-right">Debit (KES)</th>
@@ -256,7 +269,12 @@
                 {% for transaction in transactions %}
                 <tr>
                     <td>{{ transaction.date|date:"d M, Y" }}</td>
-                    <td>{{ transaction.description }}</td>
+                    <td>
+                        {{ transaction.description }}
+                        {% if transaction.due_date %}
+                            <br><small style="color: #666;">Due Date: {{ transaction.due_date|date:"d M, Y" }}</small>
+                        {% endif %}
+                    </td>
                     <td>{{ transaction.reference }}</td>
                     <td class="text-right debit-cell">
                         {% if transaction.debit > 0 %}
@@ -295,6 +313,7 @@
         <!-- Note -->
         <div class="note-box">
             <strong>Important:</strong><br>
+            This statement shows all fee charges and payments. Transaction dates reflect when fees were charged or payments were made. Due dates for fees are shown in the transaction description.
             {% if closing_balance > 0 %}
             Your current outstanding balance is <strong>KES {{ closing_balance|floatformat:2|intcomma }}</strong>. 
             Please make payment at your earliest convenience.

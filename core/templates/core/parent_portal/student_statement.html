@@ -211,7 +211,7 @@
                     </div>
                     <div class="col-6">
                         <div class="summary-box balance">
-                            <div class="summary-label">Balance Due</div>
+                            <div class="summary-label">{% if balance_label %}{{ balance_label }}{% else %}Balance Due{% endif %}</div>
                             <div class="summary-value {% if closing_balance > 0 %}text-danger{% else %}text-success{% endif %}">
                                 KES {{ closing_balance|floatformat:2|intcomma }}
                             </div>
@@ -300,7 +300,12 @@
                             {% for transaction in transactions %}
                             <tr>
                                 <td>{{ transaction.date|date:"d M, Y" }}</td>
-                                <td>{{ transaction.description }}</td>
+                                <td>
+                                    {{ transaction.description }}
+                                    {% if transaction.due_date %}
+                                        <br><small class="text-muted">Due Date: {{ transaction.due_date|date:"d M, Y" }}</small>
+                                    {% endif %}
+                                </td>
                                 <td>{{ transaction.reference }}</td>
                                 <td class="text-end debit-cell">
                                     {% if transaction.debit > 0 %}
@@ -349,6 +354,7 @@
         <small>
             <i class="fas fa-info-circle"></i>
             <strong>Note:</strong> 
+            This statement shows all fee charges and payments. Transaction dates reflect when fees were charged or payments were made. Due dates for fees are shown in the transaction description.
             {% if closing_balance > 0 %}
             Outstanding balance: <strong>KES {{ closing_balance|floatformat:2|intcomma }}</strong>.
             {% elif closing_balance < 0 %}

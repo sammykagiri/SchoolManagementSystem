@@ -398,6 +398,22 @@ class Student(models.Model):
         name_parts.append(self.last_name)
         return ' '.join(name_parts)
     
+    def get_parent_email(self):
+        """Get parent email from student.parent_email or linked Parent objects"""
+        # First check student.parent_email field
+        if self.parent_email:
+            return self.parent_email
+        
+        # Then check linked Parent objects
+        if self.parents.exists():
+            for parent in self.parents.all():
+                if parent.email:
+                    return parent.email
+                elif parent.user and parent.user.email:
+                    return parent.user.email
+        
+        return None
+    
     def get_school_classes(self):
         """Get all school classes for this student's grade"""
         return self.grade.school_classes.filter(is_active=True)
