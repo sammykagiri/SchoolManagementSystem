@@ -3469,8 +3469,8 @@ def student_statement_pdf(request, student_id):
     # Get logo path for WeasyPrint (needs absolute file path)
     logo_path = None
     if school.logo:
-        from django.conf import settings
         # Check if using local file storage (not S3)
+        # settings is already imported at the top of the file
         if settings.MEDIA_ROOT:
             logo_path = os.path.join(settings.MEDIA_ROOT, school.logo.name)
             if os.path.exists(logo_path):
@@ -3511,9 +3511,6 @@ def student_statement_pdf(request, student_id):
         from weasyprint import HTML
         import os
         import io
-        from django.conf import settings
-        from django.conf import settings
-        from django.conf import settings
     except ImportError:
         messages.error(request, 'WeasyPrint is not installed. Please install it using: pip install weasyprint')
         # Get student to generate token for redirect
@@ -3806,8 +3803,7 @@ def serve_media_file(request, path):
     Serve media files from Railway storage (S3-compatible)
     This view proxies files from private Railway buckets to make them publicly accessible
     """
-    from django.conf import settings
-    
+    # settings is already imported at the top of the file
     # Only serve files when using S3 storage
     if not getattr(settings, 'USE_S3', False):
         raise Http404("Media file not found")
@@ -4871,9 +4867,9 @@ def student_statement_pdf(request, student_id):
     # Get logo path for WeasyPrint (needs absolute file path)
     logo_path = None
     if school.logo:
-        from django.conf import settings
         import os
         # Check if using local file storage (not S3)
+        # settings is already imported at the top of the file
         if settings.MEDIA_ROOT:
             logo_path = os.path.join(settings.MEDIA_ROOT, school.logo.name)
             if os.path.exists(logo_path):
@@ -5199,8 +5195,7 @@ def serve_media_file(request, path):
     Serve media files from Railway storage (S3-compatible)
     This view proxies files from private Railway buckets to make them publicly accessible
     """
-    from django.conf import settings
-    
+    # settings is already imported at the top of the file
     # Only serve files when using S3 storage
     if not getattr(settings, 'USE_S3', False):
         raise Http404("Media file not found")
