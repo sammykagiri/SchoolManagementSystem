@@ -285,7 +285,7 @@
                 <div class="summary-amount credit">KES {{ total_credits|floatformat:2|intcomma }}</div>
             </div>
             <div class="summary-box">
-                <div class="summary-label">Closing Balance</div>
+                <div class="summary-label">{% if balance_label %}{{ balance_label }}{% else %}Closing Balance{% endif %}</div>
                 <div class="summary-amount balance {% if closing_balance > 0 %}debit{% else %}credit{% endif %}">
                     KES {{ closing_balance|floatformat:2|intcomma }}
                 </div>
@@ -317,7 +317,7 @@
         <table>
             <thead>
                 <tr>
-                    <th style="width: 12%;">Date</th>
+                    <th style="width: 12%;">Transaction Date</th>
                     <th style="width: 38%;">Description</th>
                     <th style="width: 15%;">Reference</th>
                     <th class="text-right" style="width: 12%;">Debit (KES)</th>
@@ -329,7 +329,12 @@
                 {% for transaction in transactions %}
                 <tr>
                     <td>{{ transaction.date|date:"d M, Y" }}</td>
-                    <td>{{ transaction.description }}</td>
+                    <td>
+                        {{ transaction.description }}
+                        {% if transaction.due_date %}
+                            <br><small style="color: #666;">Due Date: {{ transaction.due_date|date:"d M, Y" }}</small>
+                        {% endif %}
+                    </td>
                     <td>{{ transaction.reference }}</td>
                     <td class="text-right debit-amount">
                         {% if transaction.debit > 0 %}
@@ -376,7 +381,7 @@
     <!-- Note Box -->
     <div class="note-box">
         <strong>NOTE:</strong> 
-        This statement shows all fee charges and payments.
+        This statement shows all fee charges and payments. Transaction dates reflect when fees were charged or payments were made. Due dates for fees are shown in the transaction description.
         {% if closing_balance > 0 %}
         Your current outstanding balance is <strong>KES {{ closing_balance|floatformat:2|intcomma }}</strong>.
         Please make payment to clear your account.

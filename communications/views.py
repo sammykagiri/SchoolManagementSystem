@@ -1051,17 +1051,22 @@ def generate_student_statement_pdf(student, school, start_date=None, end_date=No
     transactions = []
     
     # Add fee transactions (debits)
-    # Use due_date for filtering as it represents when the fee is due/charged
+    # Use created_at as transaction date (when fee was charged), due_date goes in description
     for fee in student_fees:
-        fee_date = fee.due_date
-        if start_date and fee_date < start_date:
+        # Transaction date is when the fee was created/charged - use this for filtering
+        transaction_date = fee.created_at.date()
+        fee_due_date = fee.due_date
+        
+        # Filter by transaction date (when fee was charged)
+        if start_date and transaction_date < start_date:
             continue
-        if end_date and fee_date > end_date:
+        if end_date and transaction_date > end_date:
             continue
         
         transactions.append({
-            'date': fee_date,
+            'date': transaction_date,
             'description': f"{fee.fee_category.name} - {fee.term.academic_year} Term {fee.term.term_number}",
+            'due_date': fee_due_date,
             'reference': f"Fee-{fee.id}",
             'debit': fee.amount_charged,
             'credit': Decimal('0.00'),
@@ -1100,6 +1105,17 @@ def generate_student_statement_pdf(student, school, start_date=None, end_date=No
     total_credits = sum(t['credit'] for t in transactions)
     closing_balance = opening_balance + total_debits - total_credits
     
+    # Determine balance label and type
+    if closing_balance > 0:
+        balance_label = 'Outstanding Balance'
+        balance_type = 'outstanding'
+    elif closing_balance < 0:
+        balance_label = 'Credit Balance'
+        balance_type = 'credit'
+    else:
+        balance_label = 'Closing Balance'
+        balance_type = 'zero'
+    
     context = {
         'student': student,
         'school': school,
@@ -1109,6 +1125,8 @@ def generate_student_statement_pdf(student, school, start_date=None, end_date=No
         'total_credits': total_credits,
         'closing_balance': closing_balance,
         'closing_balance_abs': abs(closing_balance),
+        'balance_label': balance_label,
+        'balance_type': balance_type,
         'start_date': start_date,
         'end_date': end_date,
         'statement_date': timezone.now().date(),
@@ -1250,6 +1268,28 @@ def bulk_estatement_email(request):
         email_subject = request.POST.get('subject', 'Fee Statement')
         email_content = request.POST.get('content', 'Please find attached your fee statement.')
         
+        # Get date range from POST when sending emails
+        start_date_str = request.POST.get('start_date', '')
+        end_date_str = request.POST.get('end_date', '')
+        
+        # Re-parse dates for email sending
+        start_date = None
+        end_date = None
+        if start_date_str:
+            try:
+                start_date = datetime.strptime(start_date_str, '%Y-%m-%d').date()
+                logger.debug(f'Parsed start_date from POST: {start_date}')
+            except ValueError as e:
+                logger.warning(f'Failed to parse start_date "{start_date_str}": {e}')
+        if end_date_str:
+            try:
+                end_date = datetime.strptime(end_date_str, '%Y-%m-%d').date()
+                logger.debug(f'Parsed end_date from POST: {end_date}')
+            except ValueError as e:
+                logger.warning(f'Failed to parse end_date "{end_date_str}": {e}')
+        
+        logger.debug(f'Date range for email sending: {start_date} to {end_date}')
+        
         if not selected_student_ids:
             messages.error(request, 'Please select at least one student.')
         else:
@@ -1270,12 +1310,14 @@ def bulk_estatement_email(request):
                         payment_count = 0
                         
                         if start_date or end_date:
-                            # Filter by date range
+                            # Filter by date range - use transaction date (created_at) to match PDF generation
+                            # PDF generation uses: skip if transaction_date < start_date or transaction_date > end_date
+                            # So include if: transaction_date >= start_date AND transaction_date <= end_date
                             fee_query = StudentFee.objects.filter(school=school, student=student)
                             if start_date:
-                                fee_query = fee_query.filter(due_date__gte=start_date)
+                                fee_query = fee_query.filter(created_at__date__gte=start_date)
                             if end_date:
-                                fee_query = fee_query.filter(due_date__lte=end_date)
+                                fee_query = fee_query.filter(created_at__date__lte=end_date)
                             fee_count = fee_query.count()
                             
                             payment_query = Payment.objects.filter(
@@ -1288,6 +1330,10 @@ def bulk_estatement_email(request):
                             if end_date:
                                 payment_query = payment_query.filter(payment_date__date__lte=end_date)
                             payment_count = payment_query.count()
+                            
+                            # Debug logging (can be removed later)
+                            if fee_count > 0 or payment_count > 0:
+                                logger.debug(f'Student {student.student_id} has {fee_count} fees and {payment_count} payments in range {start_date} to {end_date}')
                         else:
                             # No date filter - check if student has any fees/payments at all
                             fee_count = StudentFee.objects.filter(school=school, student=student).count()
@@ -1387,9 +1433,45 @@ def bulk_estatement_email(request):
                 messages.error(request, f'Error sending bulk e-statements: {str(e)}')
             return redirect('communications:bulk_estatement_email')
     
+    # Add transaction check for each student (for email count calculation)
+    students_list = list(students.order_by('first_name', 'last_name'))
+    for student in students_list:
+        has_transactions = False
+        if start_date or end_date:
+            fee_query = StudentFee.objects.filter(school=school, student=student)
+            if start_date:
+                fee_query = fee_query.filter(created_at__date__gte=start_date)
+            if end_date:
+                fee_query = fee_query.filter(created_at__date__lte=end_date)
+            fee_count = fee_query.count()
+            
+            payment_query = Payment.objects.filter(
+                school=school,
+                student=student,
+                status='completed'
+            )
+            if start_date:
+                payment_query = payment_query.filter(payment_date__date__gte=start_date)
+            if end_date:
+                payment_query = payment_query.filter(payment_date__date__lte=end_date)
+            payment_count = payment_query.count()
+            
+            has_transactions = fee_count > 0 or payment_count > 0
+        else:
+            # No date filter - check if student has any fees/payments at all
+            fee_count = StudentFee.objects.filter(school=school, student=student).count()
+            payment_count = Payment.objects.filter(
+                school=school,
+                student=student,
+                status='completed'
+            ).count()
+            has_transactions = fee_count > 0 or payment_count > 0
+        
+        student.has_transactions_in_range = has_transactions
+    
     # Prepare context
     context = {
-        'students': students.order_by('first_name', 'last_name'),
+        'students': students_list,
         'grades': grades,
         'classes': classes,
         'routes': routes,
@@ -1414,3 +1496,96 @@ def bulk_estatement_email(request):
             return redirect('communications:bulk_estatement_email')
     
     return render(request, 'communications/bulk_estatement_email.html', context)
+
+
+@login_required
+@role_required('super_admin', 'school_admin', 'teacher', 'accountant')
+def bulk_estatement_email_count(request):
+    """AJAX endpoint to calculate the number of emails that will be sent"""
+    if request.method != 'POST':
+        return JsonResponse({'error': 'Method not allowed'}, status=405)
+    
+    school = request.user.profile.school
+    
+    # Get selected student IDs
+    selected_student_ids = request.POST.getlist('selected_students', [])
+    if not selected_student_ids:
+        return JsonResponse({'email_count': 0})
+    
+    # Get date filters
+    start_date_str = request.POST.get('start_date', '')
+    end_date_str = request.POST.get('end_date', '')
+    
+    start_date = None
+    end_date = None
+    if start_date_str:
+        try:
+            start_date = datetime.strptime(start_date_str, '%Y-%m-%d').date()
+        except ValueError:
+            pass
+    if end_date_str:
+        try:
+            end_date = datetime.strptime(end_date_str, '%Y-%m-%d').date()
+        except ValueError:
+            pass
+    
+    total_email_count = 0
+    
+    for student_id in selected_student_ids:
+        try:
+            student = Student.objects.get(school=school, id=int(student_id))
+            
+            # Check if there are any transactions in the date range
+            fee_count = 0
+            payment_count = 0
+            
+            if start_date or end_date:
+                fee_query = StudentFee.objects.filter(school=school, student=student)
+                if start_date:
+                    fee_query = fee_query.filter(created_at__date__gte=start_date)
+                if end_date:
+                    fee_query = fee_query.filter(created_at__date__lte=end_date)
+                fee_count = fee_query.count()
+                
+                payment_query = Payment.objects.filter(
+                    school=school,
+                    student=student,
+                    status='completed'
+                )
+                if start_date:
+                    payment_query = payment_query.filter(payment_date__date__gte=start_date)
+                if end_date:
+                    payment_query = payment_query.filter(payment_date__date__lte=end_date)
+                payment_count = payment_query.count()
+            else:
+                fee_count = StudentFee.objects.filter(school=school, student=student).count()
+                payment_count = Payment.objects.filter(
+                    school=school,
+                    student=student,
+                    status='completed'
+                ).count()
+            
+            # Skip if no transactions in date range
+            if fee_count == 0 and payment_count == 0:
+                continue
+            
+            # Count email addresses for this student
+            email_to_parent = {}
+            if student.parent_email:
+                email_to_parent[student.parent_email] = student.parent_email
+            
+            for parent in student.parents.all():
+                parent_email = parent.email or (parent.user.email if parent.user else None)
+                if parent_email:
+                    email_to_parent[parent_email] = parent_email
+            
+            # Add count of unique emails for this student
+            total_email_count += len(email_to_parent)
+            
+        except Student.DoesNotExist:
+            continue
+        except Exception as e:
+            logger.error(f'Error calculating email count for student {student_id}: {str(e)}')
+            continue
+    
+    return JsonResponse({'email_count': total_email_count})

@@ -1,5 +1,5 @@
 {% for student in students %}
-<tr class="student-row">
+<tr class="student-row" data-has-transactions="{% if student.has_transactions_in_range %}true{% else %}false{% endif %}">
     <td>
         <input type="checkbox" 
                name="students" 

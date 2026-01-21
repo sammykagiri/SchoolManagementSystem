@@ -210,6 +210,10 @@
                     <form method="post" id="bulkEstatementForm" class="mt-4">
                         {% csrf_token %}
                         
+                        <!-- Hidden date fields (will be updated by JavaScript) -->
+                        <input type="hidden" id="hidden_start_date" name="start_date" value="{{ start_date }}">
+                        <input type="hidden" id="hidden_end_date" name="end_date" value="{{ end_date }}">
+                        
                         <!-- Email Fields -->
                         <div class="form-floating mb-3">
                             <input type="text" class="form-control" id="subject" name="subject" placeholder="Email Subject" value="Fee Statement" autocomplete="off" required>
@@ -555,16 +559,41 @@ $(document).ready(function() {
     }
     
     function updateSelectedCount() {
-        const checked = Array.from(studentCheckboxes).filter(cb => cb.checked);
-        const count = checked.length;
+        const selected = document.querySelectorAll('.student-check:checked').length;
+        const selectedCheckboxes = Array.from(studentCheckboxes).filter(cb => cb.checked);
+        
+        // Count distinct email addresses from selected students that have transactions
+        const distinctEmails = new Set();
+        selectedCheckboxes.forEach(cb => {
+            const row = cb.closest('tr');
+            // Only count emails if student has transactions in date range
+            const hasTransactions = row.getAttribute('data-has-transactions') === 'true';
+            if (!hasTransactions) {
+                return; // Skip students without transactions
+            }
+            
+            const emailCell = row.querySelector('.parent-email-cell');
+            if (emailCell) {
+                const emailSpans = emailCell.querySelectorAll('span[data-email]');
+                emailSpans.forEach(span => {
+                    const email = span.getAttribute('data-email');
+                    if (email && email.trim()) {
+                        distinctEmails.add(email.trim());
+                    }
+                });
+            }
+        });
+        
+        const distinctEmailCount = distinctEmails.size;
+        
         if (selectedCountSpan) {
-            selectedCountSpan.textContent = count;
+            selectedCountSpan.textContent = selected;
         }
         if (sendCountSpan) {
-            sendCountSpan.textContent = count;
+            sendCountSpan.textContent = distinctEmailCount;
         }
         if (sendBtn) {
-            sendBtn.disabled = count === 0;
+            sendBtn.disabled = selected === 0 || distinctEmailCount === 0;
         }
     }
     
@@ -592,7 +621,7 @@ $(document).ready(function() {
         });
     }
     
-    // Update form to include selected students
+    // Update form to include selected students and date filters
     const bulkEstatementForm = document.getElementById('bulkEstatementForm');
     if (bulkEstatementForm) {
         bulkEstatementForm.addEventListener('submit', function(e) {
@@ -611,6 +640,19 @@ $(document).ready(function() {
                 input.value = cb.value;
                 this.appendChild(input);
             });
+            
+            // Include date filters from filter form
+            const startDateInput = document.getElementById('start_date');
+            const endDateInput = document.getElementById('end_date');
+            const hiddenStartDate = document.getElementById('hidden_start_date');
+            const hiddenEndDate = document.getElementById('hidden_end_date');
+            
+            if (startDateInput && hiddenStartDate) {
+                hiddenStartDate.value = startDateInput.value || '';
+            }
+            if (endDateInput && hiddenEndDate) {
+                hiddenEndDate.value = endDateInput.value || '';
+            }
         });
     }
     

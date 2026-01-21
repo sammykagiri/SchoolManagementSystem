@@ -39,4 +39,5 @@ urlpatterns = [
     path('bulk/email/', views.bulk_email, name='bulk_email'),
     path('bulk/sms/', views.bulk_sms, name='bulk_sms'),
     path('bulk/estatement/', views.bulk_estatement_email, name='bulk_estatement_email'),
+    path('bulk/estatement/email-count/', views.bulk_estatement_email_count, name='bulk_estatement_email_count'),
 ] 
