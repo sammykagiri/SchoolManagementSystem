@@ -83,12 +83,12 @@
                             <i class="fas fa-print"></i> Print
                         </button>
                         {% if user|has_permission:'change_student' %}
-                        <a href="{% url 'core:student_update' student.student_id %}" class="btn btn-warning">
+                        <a href="{% url 'core:student_update' student.get_signed_token %}" class="btn btn-warning">
                             <i class="fas fa-edit"></i> Edit
                         </a>
                         {% endif %}
                         {% if user|has_permission:'delete_student' %}
-                        <a href="{% url 'core:student_delete' student.student_id %}" class="btn btn-danger">
+                        <a href="{% url 'core:student_delete' student.get_signed_token %}" class="btn btn-danger">
                             <i class="fas fa-trash"></i> Delete
                         </a>
                         {% endif %}

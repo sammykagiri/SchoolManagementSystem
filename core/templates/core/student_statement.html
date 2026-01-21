@@ -235,14 +235,14 @@
             <i class="fas fa-arrow-left"></i> Back
         </button>
         <div class="d-flex action-buttons">
-            <a href="{% url 'core:student_statement_pdf' student.student_id %}?{% if start_date %}start_date={{ start_date|date:'Y-m-d' }}&{% endif %}{% if end_date %}end_date={{ end_date|date:'Y-m-d' }}{% endif %}" target="_blank" class="btn btn-sm btn-primary">
+            <a href="{% url 'core:student_statement_pdf' student.get_signed_token %}?{% if start_date %}start_date={{ start_date|date:'Y-m-d' }}&{% endif %}{% if end_date %}end_date={{ end_date|date:'Y-m-d' }}{% endif %}" target="_blank" class="btn btn-sm btn-primary">
                 <i class="fas fa-print"></i> Print View
             </a>
-            <a href="{% url 'core:student_statement_pdf' student.student_id %}?{% if start_date %}start_date={{ start_date|date:'Y-m-d' }}&{% endif %}{% if end_date %}end_date={{ end_date|date:'Y-m-d' }}&{% endif %}download=1" class="btn btn-sm btn-info">
+            <a href="{% url 'core:student_statement_pdf' student.get_signed_token %}?{% if start_date %}start_date={{ start_date|date:'Y-m-d' }}&{% endif %}{% if end_date %}end_date={{ end_date|date:'Y-m-d' }}&{% endif %}download=1" class="btn btn-sm btn-info">
                 <i class="fas fa-download"></i> Download PDF
             </a>
             {% if student.get_parent_email %}
-            <a href="{% url 'core:student_statement_email' student.student_id %}?{% if start_date %}start_date={{ start_date|date:'Y-m-d' }}&{% endif %}{% if end_date %}end_date={{ end_date|date:'Y-m-d' }}{% endif %}" class="btn btn-sm btn-success" onclick="return confirm('Send statement to {{ student.get_parent_email }}?')">
+            <a href="{% url 'core:student_statement_email' student.get_signed_token %}?{% if start_date %}start_date={{ start_date|date:'Y-m-d' }}&{% endif %}{% if end_date %}end_date={{ end_date|date:'Y-m-d' }}{% endif %}" class="btn btn-sm btn-success" onclick="return confirm('Send statement to {{ student.get_parent_email }}?')">
                 <i class="fas fa-envelope"></i> Email
             </a>
             {% else %}
@@ -387,6 +387,11 @@
         window.onload = function() {
             window.print();
         };
+    }
+
+    // Clean URL by removing query parameters after the page loads (while keeping form values)
+    if (window.location.search) {
+        window.history.replaceState({}, document.title, window.location.pathname);
     }
 </script>
 {% endblock %}

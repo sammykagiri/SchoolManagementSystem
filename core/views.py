@@ -377,16 +377,34 @@ def student_list(request):
     return render(request, 'core/student_list.html', context)
 
 
+def _get_student_from_token_or_id(request, token_or_id):
+    """Helper function to resolve student from token or student_id (backward compatibility)"""
+    school = request.user.profile.school
+    # Try to resolve as token first
+    student = Student.from_signed_token(token_or_id)
+    if student and student.school == school:
+        return student
+    # Fallback to student_id for backward compatibility
+    return get_object_or_404(Student, student_id=token_or_id, school=school)
+
+
 @login_required
 @permission_required('view', 'student')
 def student_detail(request, student_id):
     """Student detail view"""
     school = request.user.profile.school
-    student = get_object_or_404(
-        Student.objects.select_related('grade', 'transport_route', 'school_class', 'school_class__class_teacher').prefetch_related('parents__user'),
-        student_id=student_id,
-        school=school
-    )
+    # Try to resolve as token first, then fallback to student_id
+    student = Student.from_signed_token(student_id)
+    if student and student.school == school:
+        # Use select_related and prefetch_related for optimization
+        student = Student.objects.select_related('grade', 'transport_route', 'school_class', 'school_class__class_teacher').prefetch_related('parents__user').get(pk=student.pk)
+    else:
+        # Fallback to student_id for backward compatibility
+        student = get_object_or_404(
+            Student.objects.select_related('grade', 'transport_route', 'school_class', 'school_class__class_teacher').prefetch_related('parents__user'),
+            student_id=student_id,
+            school=school
+        )
     student_fees = StudentFee.objects.filter(student=student).select_related(
         'fee_category', 'term'
     ).order_by('-term__academic_year', '-term__term_number')
@@ -442,7 +460,7 @@ def student_create(request):
                 form.save_m2m()
                 
                 messages.success(request, f'Student {student.full_name} created successfully.')
-                return redirect('core:student_detail', student_id=student.student_id)
+                return redirect('core:student_detail', student_id=student.get_signed_token())
                 
             except Exception as e:
                 messages.error(request, f'Error creating student: {str(e)}')
@@ -461,7 +479,7 @@ def student_create(request):
 def student_update(request, student_id):
     """Update student using Django form"""
     school = request.user.profile.school
-    student = get_object_or_404(Student, student_id=student_id, school=school)
+    student = _get_student_from_token_or_id(request, student_id)
     
     if request.method == 'POST':
         form = StudentForm(request.POST, request.FILES, instance=student, school=school)
@@ -665,7 +683,7 @@ def student_update(request, student_id):
                     # No route change and no optional fee changes processed
                     messages.success(request, f'Student {student.full_name} updated successfully.')
                 
-                return redirect('core:student_detail', student_id=student.student_id)
+                return redirect('core:student_detail', student_id=student.get_signed_token())
             except Exception as e:
                 messages.error(request, f'Error updating student: {str(e)}')
         else:
@@ -689,8 +707,8 @@ def student_update(request, student_id):
 @permission_required('delete', 'student')
 def student_delete(request, student_id):
     """Delete student"""
+    student = _get_student_from_token_or_id(request, student_id)
     school = request.user.profile.school
-    student = get_object_or_404(Student, student_id=student_id, school=school)
     
     if request.method == 'POST':
         student.is_active = False
@@ -3183,8 +3201,8 @@ def class_generate(request):
 @permission_required('view', 'report')
 def student_statement(request, student_id):
     """Generate fee statement for a student"""
+    student = _get_student_from_token_or_id(request, student_id)
     school = request.user.profile.school
-    student = get_object_or_404(Student, student_id=student_id, school=school)
     
     # Get date filters
     start_date = request.GET.get('start_date')
@@ -3319,8 +3337,8 @@ def student_statement(request, student_id):
 @permission_required('view', 'report')
 def student_statement_pdf(request, student_id):
     """Generate PDF version of student statement"""
+    student = _get_student_from_token_or_id(request, student_id)
     school = request.user.profile.school
-    student = get_object_or_404(Student, student_id=student_id, school=school)
     
     # Get date filters
     start_date = request.GET.get('start_date')
@@ -3479,7 +3497,9 @@ def student_statement_pdf(request, student_id):
         import io
     except ImportError:
         messages.error(request, 'WeasyPrint is not installed. Please install it using: pip install weasyprint')
-        return redirect('core:student_statement', student_id=student_id)
+        # Get student to generate token for redirect
+        student = _get_student_from_token_or_id(request, student_id)
+        return redirect('core:student_statement', student_id=student.get_signed_token())
     
     try:
         # Render HTML template
@@ -3515,21 +3535,25 @@ def student_statement_pdf(request, student_id):
         logger = logging.getLogger(__name__)
         logger.error(f'Error generating PDF: {str(e)}', exc_info=True)
         messages.error(request, f'Error generating PDF: {str(e)}')
-        return redirect('core:student_statement', student_id=student_id)
+        # Get student to generate token for redirect
+        student = _get_student_from_token_or_id(request, student_id)
+        return redirect('core:student_statement', student_id=student.get_signed_token())
 
 
 @login_required
 @permission_required('view', 'report')
 def student_statement_email(request, student_id):
     """Email student statement"""
+    student = _get_student_from_token_or_id(request, student_id)
     school = request.user.profile.school
-    student = get_object_or_404(Student, student_id=student_id, school=school)
     
     # Get parent email from student.parent_email or linked Parent objects
     parent_email = student.get_parent_email()
     if not parent_email:
         messages.error(request, 'Student has no email address on file.')
-        return redirect('core:student_statement', student_id=student_id)
+        # Get student to generate token for redirect
+        student = _get_student_from_token_or_id(request, student_id)
+        return redirect('core:student_statement', student_id=student.get_signed_token())
     
     # Get date filters
     start_date = request.GET.get('start_date')
@@ -3687,7 +3711,9 @@ def student_statement_email(request, student_id):
         from django.core.mail import EmailMessage
     except ImportError:
         messages.error(request, 'WeasyPrint is not installed. Please install it using: pip install weasyprint')
-        return redirect('core:student_statement', student_id=student_id)
+        # Get student to generate token for redirect
+        student = _get_student_from_token_or_id(request, student_id)
+        return redirect('core:student_statement', student_id=student.get_signed_token())
     
     try:
         # Render HTML template for PDF
@@ -4579,8 +4605,8 @@ def role_permissions(request, role_id):
 @permission_required('view', 'report')
 def student_statement(request, student_id):
     """Generate fee statement for a student"""
+    student = _get_student_from_token_or_id(request, student_id)
     school = request.user.profile.school
-    student = get_object_or_404(Student, student_id=student_id, school=school)
     
     # Get date filters
     start_date = request.GET.get('start_date')
@@ -4700,8 +4726,8 @@ def student_statement(request, student_id):
 @permission_required('view', 'report')
 def student_statement_pdf(request, student_id):
     """Generate PDF version of student statement"""
+    student = _get_student_from_token_or_id(request, student_id)
     school = request.user.profile.school
-    student = get_object_or_404(Student, student_id=student_id, school=school)
     
     # Get date filters
     start_date = request.GET.get('start_date')
@@ -4852,7 +4878,9 @@ def student_statement_pdf(request, student_id):
         import io
     except ImportError:
         messages.error(request, 'WeasyPrint is not installed. Please install it using: pip install weasyprint')
-        return redirect('core:student_statement', student_id=student_id)
+        # Get student to generate token for redirect
+        student = _get_student_from_token_or_id(request, student_id)
+        return redirect('core:student_statement', student_id=student.get_signed_token())
     
     try:
         # Render HTML template
@@ -4888,21 +4916,25 @@ def student_statement_pdf(request, student_id):
         logger = logging.getLogger(__name__)
         logger.error(f'Error generating PDF: {str(e)}', exc_info=True)
         messages.error(request, f'Error generating PDF: {str(e)}')
-        return redirect('core:student_statement', student_id=student_id)
+        # Get student to generate token for redirect
+        student = _get_student_from_token_or_id(request, student_id)
+        return redirect('core:student_statement', student_id=student.get_signed_token())
 
 
 @login_required
 @permission_required('view', 'report')
 def student_statement_email(request, student_id):
     """Email student statement"""
+    student = _get_student_from_token_or_id(request, student_id)
     school = request.user.profile.school
-    student = get_object_or_404(Student, student_id=student_id, school=school)
     
     # Get parent email from student.parent_email or linked Parent objects
     parent_email = student.get_parent_email()
     if not parent_email:
         messages.error(request, 'Student has no email address on file.')
-        return redirect('core:student_statement', student_id=student_id)
+        # Get student to generate token for redirect
+        student = _get_student_from_token_or_id(request, student_id)
+        return redirect('core:student_statement', student_id=student.get_signed_token())
     
     # Get date filters
     start_date = request.GET.get('start_date')
@@ -5060,7 +5092,9 @@ def student_statement_email(request, student_id):
         from django.core.mail import EmailMessage
     except ImportError:
         messages.error(request, 'WeasyPrint is not installed. Please install it using: pip install weasyprint')
-        return redirect('core:student_statement', student_id=student_id)
+        # Get student to generate token for redirect
+        student = _get_student_from_token_or_id(request, student_id)
+        return redirect('core:student_statement', student_id=student.get_signed_token())
     
     try:
         # Render HTML template for PDF

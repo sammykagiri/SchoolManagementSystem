@@ -414,6 +414,31 @@ class Student(models.Model):
         
         return None
     
+    def get_signed_token(self):
+        """Generate an opaque signed token for this student to use in URLs.
+        
+        The token intentionally does NOT expose the underlying student_id.
+        """
+        from django.core import signing
+        # Use Django's signing.dumps to create a signed, base64-encoded blob
+        payload = {'sid': self.student_id, 'sch': self.school_id}
+        return signing.dumps(payload)
+    
+    @classmethod
+    def from_signed_token(cls, token):
+        """Resolve a signed token back to a Student object"""
+        from django.core import signing
+        from django.core.signing import BadSignature
+        try:
+            data = signing.loads(token)
+            student_id = data.get('sid')
+            school_id = data.get('sch')
+            if not student_id or not school_id:
+                return None
+            return cls.objects.get(student_id=student_id, school_id=school_id)
+        except (BadSignature, ValueError, cls.DoesNotExist, TypeError):
+            return None
+    
     def get_school_classes(self):
         """Get all school classes for this student's grade"""
         return self.grade.school_classes.filter(is_active=True)
