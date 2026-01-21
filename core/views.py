@@ -3806,7 +3806,7 @@ Best regards,
         else:
             # Using SMTP - check for SMTP credentials
             if not getattr(settings, 'EMAIL_HOST_USER', None) or not getattr(settings, 'EMAIL_HOST_PASSWORD', None):
-                error_msg = "Email settings are not configured. Please set EMAIL_HOST_USER and EMAIL_HOST_PASSWORD (for SMTP) or SENDGRID_API_KEY (for SendGrid API) in your environment variables."
+                error_msg = "Email settings are not configured. Please set EMAIL_HOST_USER and EMAIL_HOST_PASSWORD (for SMTP) or RESEND_API_KEY (for Resend API) in your environment variables."
                 import logging
                 logger = logging.getLogger(__name__)
                 logger.error(error_msg)
@@ -3843,14 +3843,14 @@ Best regards,
             # Network-related errors (connection refused, unreachable, etc.)
             import logging
             logger = logging.getLogger(__name__)
-            if getattr(settings, 'SENDGRID_API_KEY', None):
-                error_msg = f"Network error: Unable to send email via SendGrid API. Please check your SENDGRID_API_KEY. Error: {str(e)}"
-                messages.error(request, "Unable to send email: Network connection failed. Please check your SendGrid API configuration.")
+            if getattr(settings, 'RESEND_API_KEY', None):
+                error_msg = f"Network error: Unable to send email via Resend API. Please check your RESEND_API_KEY. Error: {str(e)}"
+                messages.error(request, "Unable to send email: Network connection failed. Please check your Resend API configuration.")
             else:
                 email_host = getattr(settings, 'EMAIL_HOST', 'unknown')
                 email_port = getattr(settings, 'EMAIL_PORT', 'unknown')
-                error_msg = f"Network error: Unable to connect to email server ({email_host}:{email_port}). Railway blocks SMTP connections. Please use SendGrid API instead by setting SENDGRID_API_KEY. Error: {str(e)}"
-                messages.error(request, f"Unable to send email: Railway blocks SMTP connections. Please configure SendGrid API by setting SENDGRID_API_KEY environment variable.")
+                error_msg = f"Network error: Unable to connect to email server ({email_host}:{email_port}). Railway blocks SMTP connections. Please use Resend API instead by setting RESEND_API_KEY. Error: {str(e)}"
+                messages.error(request, f"Unable to send email: Railway blocks SMTP connections. Please configure Resend API by setting RESEND_API_KEY environment variable.")
             logger.error(error_msg, exc_info=True)
         except Exception as email_error:
             import logging
@@ -3861,8 +3861,16 @@ Best regards,
             # Check for Resend-specific errors
             error_str = str(email_error)
             if '403' in error_str or 'Forbidden' in error_str:
-                if 'from address' in error_str.lower() or 'sender' in error_str.lower() or 'domain' in error_str.lower():
-                    messages.error(request, f"Resend Error: The 'from' email address ({from_email}) may not be verified. Please check your Resend dashboard: https://resend.com/domains or https://resend.com/emails to verify your sender domain/email.")
+                if 'domain is not verified' in error_str.lower() or 'domain' in error_str.lower():
+                    # Extract domain from from_email if possible
+                    domain_hint = ""
+                    if '@' in from_email:
+                        domain = from_email.split('@')[1]
+                        if domain in ['gmail.com', 'yahoo.com', 'hotmail.com', 'outlook.com']:
+                            domain_hint = f" Gmail/Yahoo/Outlook domains cannot be used directly. "
+                    messages.error(request, f"Resend Error: The domain for '{from_email}' is not verified. {domain_hint}Options: 1) Use 'onboarding@resend.dev' as DEFAULT_FROM_EMAIL (works immediately), or 2) Verify your own domain at https://resend.com/domains")
+                elif 'from address' in error_str.lower() or 'sender' in error_str.lower():
+                    messages.error(request, f"Resend Error: The 'from' email address ({from_email}) may not be verified. Please check your Resend dashboard: https://resend.com/domains to verify your sender domain/email.")
                 else:
                     messages.error(request, f"Resend API Error (403 Forbidden): Please check your RESEND_API_KEY permissions and sender verification in Resend dashboard.")
             elif '401' in error_str or 'Unauthorized' in error_str:
@@ -5279,7 +5287,7 @@ Best regards,
         else:
             # Using SMTP - check for SMTP credentials
             if not getattr(settings, 'EMAIL_HOST_USER', None) or not getattr(settings, 'EMAIL_HOST_PASSWORD', None):
-                error_msg = "Email settings are not configured. Please set EMAIL_HOST_USER and EMAIL_HOST_PASSWORD (for SMTP) or SENDGRID_API_KEY (for SendGrid API) in your environment variables."
+                error_msg = "Email settings are not configured. Please set EMAIL_HOST_USER and EMAIL_HOST_PASSWORD (for SMTP) or RESEND_API_KEY (for Resend API) in your environment variables."
                 import logging
                 logger = logging.getLogger(__name__)
                 logger.error(error_msg)
@@ -5316,14 +5324,14 @@ Best regards,
             # Network-related errors (connection refused, unreachable, etc.)
             import logging
             logger = logging.getLogger(__name__)
-            if getattr(settings, 'SENDGRID_API_KEY', None):
-                error_msg = f"Network error: Unable to send email via SendGrid API. Please check your SENDGRID_API_KEY. Error: {str(e)}"
-                messages.error(request, "Unable to send email: Network connection failed. Please check your SendGrid API configuration.")
+            if getattr(settings, 'RESEND_API_KEY', None):
+                error_msg = f"Network error: Unable to send email via Resend API. Please check your RESEND_API_KEY. Error: {str(e)}"
+                messages.error(request, "Unable to send email: Network connection failed. Please check your Resend API configuration.")
             else:
                 email_host = getattr(settings, 'EMAIL_HOST', 'unknown')
                 email_port = getattr(settings, 'EMAIL_PORT', 'unknown')
-                error_msg = f"Network error: Unable to connect to email server ({email_host}:{email_port}). Railway blocks SMTP connections. Please use SendGrid API instead by setting SENDGRID_API_KEY. Error: {str(e)}"
-                messages.error(request, f"Unable to send email: Railway blocks SMTP connections. Please configure SendGrid API by setting SENDGRID_API_KEY environment variable.")
+                error_msg = f"Network error: Unable to connect to email server ({email_host}:{email_port}). Railway blocks SMTP connections. Please use Resend API instead by setting RESEND_API_KEY. Error: {str(e)}"
+                messages.error(request, f"Unable to send email: Railway blocks SMTP connections. Please configure Resend API by setting RESEND_API_KEY environment variable.")
             logger.error(error_msg, exc_info=True)
         except Exception as email_error:
             import logging
@@ -5334,8 +5342,16 @@ Best regards,
             # Check for Resend-specific errors
             error_str = str(email_error)
             if '403' in error_str or 'Forbidden' in error_str:
-                if 'from address' in error_str.lower() or 'sender' in error_str.lower() or 'domain' in error_str.lower():
-                    messages.error(request, f"Resend Error: The 'from' email address ({from_email}) may not be verified. Please check your Resend dashboard: https://resend.com/domains or https://resend.com/emails to verify your sender domain/email.")
+                if 'domain is not verified' in error_str.lower() or 'domain' in error_str.lower():
+                    # Extract domain from from_email if possible
+                    domain_hint = ""
+                    if '@' in from_email:
+                        domain = from_email.split('@')[1]
+                        if domain in ['gmail.com', 'yahoo.com', 'hotmail.com', 'outlook.com']:
+                            domain_hint = f" Gmail/Yahoo/Outlook domains cannot be used directly. "
+                    messages.error(request, f"Resend Error: The domain for '{from_email}' is not verified. {domain_hint}Options: 1) Use 'onboarding@resend.dev' as DEFAULT_FROM_EMAIL (works immediately), or 2) Verify your own domain at https://resend.com/domains")
+                elif 'from address' in error_str.lower() or 'sender' in error_str.lower():
+                    messages.error(request, f"Resend Error: The 'from' email address ({from_email}) may not be verified. Please check your Resend dashboard: https://resend.com/domains to verify your sender domain/email.")
                 else:
                     messages.error(request, f"Resend API Error (403 Forbidden): Please check your RESEND_API_KEY permissions and sender verification in Resend dashboard.")
             elif '401' in error_str or 'Unauthorized' in error_str:
