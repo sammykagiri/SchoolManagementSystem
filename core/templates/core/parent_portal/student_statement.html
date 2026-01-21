@@ -228,7 +228,7 @@
     <!-- Action Buttons -->
     <div class="d-flex justify-content-between align-items-center mb-3 no-print">
         <div>
-            <a href="{% url 'core:parent_portal_student_fees' student.student_id %}" class="btn btn-sm btn-secondary">
+            <a href="{% url 'core:parent_portal_student_fees' student.get_signed_token %}" class="btn btn-sm btn-secondary">
                 <i class="fas fa-arrow-left"></i> Back to Fees
             </a>
             <a href="{% url 'core:parent_portal_dashboard' %}" class="btn btn-sm btn-outline-secondary">
@@ -257,7 +257,7 @@
                 <button type="submit" class="btn btn-sm btn-primary me-2">
                     <i class="fas fa-filter"></i> Filter
                 </button>
-                <a href="{% url 'core:parent_portal_student_statement' student.student_id %}" class="btn btn-sm btn-outline-secondary">
+                <a href="{% url 'core:parent_portal_student_statement' student.get_signed_token %}" class="btn btn-sm btn-outline-secondary">
                     <i class="fas fa-times"></i> Clear
                 </a>
             </div>

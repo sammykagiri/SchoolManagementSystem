@@ -325,7 +325,7 @@
                                             </td>
                                             <td>
                                                 <div class="btn-group btn-group-sm" role="group">
-                                                    <a href="{% url 'core:parent_detail' parent.id %}" class="btn btn-outline-info" title="View Details">
+                                                    <a href="{% url 'core:parent_detail' parent.get_signed_token %}" class="btn btn-outline-info" title="View Details">
                                                         <i class="fas fa-eye"></i>
                                                     </a>
                                                     {% if parent.email or parent.user.email %}

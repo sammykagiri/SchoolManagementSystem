@@ -12,12 +12,12 @@
             <h3 class="mb-0">{{ teacher.full_name }}</h3>
             <div>
                 {% if user|has_permission:'change_teacher' %}
-                <a href="{% url 'core:teacher_edit' teacher.id %}" class="btn btn-warning">
+                <a href="{% url 'core:teacher_edit' teacher.get_signed_token %}" class="btn btn-warning">
                     <i class="fas fa-edit"></i> Edit
                 </a>
                 {% endif %}
                 {% if user|has_permission:'delete_teacher' %}
-                <a href="{% url 'core:teacher_delete' teacher.id %}" class="btn btn-danger">
+                <a href="{% url 'core:teacher_delete' teacher.get_signed_token %}" class="btn btn-danger">
                     <i class="fas fa-trash"></i> Delete
                 </a>
                 {% endif %}

@@ -85,10 +85,10 @@
                         </td>
                         <td>
                             {% if user|has_permission:'view_parent' %}
-                            <a href="{% url 'core:parent_detail' parent.id %}" class="btn btn-sm btn-outline-info me-1">View</a>
+                            <a href="{% url 'core:parent_detail' parent.get_signed_token %}" class="btn btn-sm btn-outline-info me-1">View</a>
                             {% endif %}
                             {% if user|has_permission:'change_parent' %}
-                            <a href="{% url 'core:parent_edit' parent.id %}" class="btn btn-sm btn-outline-primary">Edit</a>
+                            <a href="{% url 'core:parent_edit' parent.get_signed_token %}" class="btn btn-sm btn-outline-primary">Edit</a>
                             {% endif %}
                         </td>
                     </tr>

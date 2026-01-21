@@ -132,7 +132,7 @@
                                     <td class="text-end"><strong class="text-danger">KES {{ fee.balance|floatformat:2 }}</strong></td>
                                     <td>{{ fee.due_date|indian_date }}</td>
                                     <td>
-                                        <a href="{% url 'core:parent_portal_payment_initiate' fee.student.student_id fee.id %}" class="btn btn-sm btn-primary">
+                                        <a href="{% url 'core:parent_portal_payment_initiate' fee.student.get_signed_token fee.id %}" class="btn btn-sm btn-primary">
                                             <i class="fas fa-credit-card me-1"></i>Pay Now
                                         </a>
                                     </td>

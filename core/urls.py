@@ -42,9 +42,10 @@ urlpatterns = [
     
     # Parents
     path('parents/', views.parent_list, name='parent_list'),
-    path('parents/<int:parent_id>/', views.parent_detail, name='parent_detail'),
-    path('parents/<int:parent_id>/edit/', views.parent_edit, name='parent_edit'),
     path('parents/register/', views.parent_register, name='parent_register'),
+    # Parents (use opaque signed tokens in URLs; keep parameter named parent_id for compatibility)
+    path('parents/<str:parent_id>/', views.parent_detail, name='parent_detail'),
+    path('parents/<str:parent_id>/edit/', views.parent_edit, name='parent_edit'),
     
     # Parent Portal
     path('portal/', views.parent_portal_dashboard, name='parent_portal_dashboard'),
@@ -135,12 +136,12 @@ urlpatterns = [
     path('classes/<int:class_id>/delete/', views.class_delete, name='class_delete'),
     path('classes/bulk-delete/', views.class_bulk_delete, name='class_bulk_delete'),
     
-    # Teachers
+    # Teachers (use opaque tokens)
     path('teachers/', views.teacher_list, name='teacher_list'),
-    path('teachers/<int:teacher_id>/', views.teacher_detail, name='teacher_detail'),
     path('teachers/add/', views.teacher_add, name='teacher_add'),
-    path('teachers/<int:teacher_id>/edit/', views.teacher_edit, name='teacher_edit'),
-    path('teachers/<int:teacher_id>/delete/', views.teacher_delete, name='teacher_delete'),
+    path('teachers/<str:teacher_id>/', views.teacher_detail, name='teacher_detail'),
+    path('teachers/<str:teacher_id>/edit/', views.teacher_edit, name='teacher_edit'),
+    path('teachers/<str:teacher_id>/delete/', views.teacher_delete, name='teacher_delete'),
     
     # User Management
     path('users/', views.user_list, name='user_list'),

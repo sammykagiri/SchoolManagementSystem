@@ -206,6 +206,27 @@ class Teacher(models.Model):
     def full_name(self):
         return f"{self.first_name} {self.last_name}"
 
+    def get_signed_token(self):
+        """Generate an opaque signed token for this teacher to use in URLs."""
+        from django.core import signing
+        payload = {'tid': self.id, 'sch': self.school_id}
+        return signing.dumps(payload)
+
+    @classmethod
+    def from_signed_token(cls, token):
+        """Resolve a signed token back to a Teacher object."""
+        from django.core import signing
+        from django.core.signing import BadSignature
+        try:
+            data = signing.loads(token)
+            teacher_id = data.get('tid')
+            school_id = data.get('sch')
+            if not teacher_id or not school_id:
+                return None
+            return cls.objects.get(id=teacher_id, school_id=school_id)
+        except (BadSignature, ValueError, cls.DoesNotExist, TypeError):
+            return None
+
     class Meta:
         ordering = ['first_name', 'last_name']
         unique_together = ['school', 'employee_id']

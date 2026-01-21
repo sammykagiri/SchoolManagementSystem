@@ -14,7 +14,7 @@
                     <p class="text-muted mb-0">{{ student.full_name }} ({{ student.student_id }})</p>
                 </div>
                 <div>
-                    <a href="{% url 'core:parent_portal_student_statement' student.student_id %}" class="btn btn-info me-2">
+                    <a href="{% url 'core:parent_portal_student_statement' student.get_signed_token %}" class="btn btn-info me-2">
                         <i class="fas fa-file-invoice me-2"></i>View Statement
                     </a>
                     <a href="{% url 'core:parent_portal_dashboard' %}" class="btn btn-secondary">
@@ -127,7 +127,7 @@
                                     </td>
                                     <td colspan="2">
                                         {% if total_balance > 0 %}
-                                        <a href="{% url 'core:parent_portal_payment_initiate' student.student_id 0 %}" class="btn btn-primary">
+                                        <a href="{% url 'core:parent_portal_payment_initiate' student.get_signed_token 0 %}" class="btn btn-primary">
                                             <i class="fas fa-credit-card me-1"></i>Pay Balance
                                         </a>
                                         {% else %}

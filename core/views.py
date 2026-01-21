@@ -2079,8 +2079,8 @@ def profile_view(request):
 @login_required
 def get_student_fees(request, student_id):
     """Get student fees as JSON"""
+    student = _get_student_from_token_or_id(request, student_id)
     school = request.user.profile.school
-    student = get_object_or_404(Student, student_id=student_id, school=school)
     student_fees = StudentFee.objects.filter(student=student).select_related(
         'fee_category', 'term'
     )
@@ -2708,11 +2708,21 @@ def parent_list(request):
 def parent_detail(request, parent_id):
     """View parent/guardian details"""
     school = request.user.profile.school
-    parent = get_object_or_404(
-        Parent.objects.select_related('user', 'school').prefetch_related('children__grade', 'children__school_class'),
-        id=parent_id,
-        school=school
-    )
+    # Try token first, then fallback to numeric id for backward compatibility
+    parent = Parent.from_signed_token(parent_id)
+    if parent and parent.school == school:
+        parent = Parent.objects.select_related('user', 'school').prefetch_related(
+            'children__grade', 'children__school_class'
+        ).get(pk=parent.pk)
+    else:
+        # Fallback only for numeric IDs (old URLs); non-numeric should 404 instead of erroring
+        if not str(parent_id).isdigit():
+            raise Http404("Parent not found")
+        parent = get_object_or_404(
+            Parent.objects.select_related('user', 'school').prefetch_related('children__grade', 'children__school_class'),
+            id=int(parent_id),
+            school=school
+        )
     
     # Get all children linked to this parent
     children = parent.children.all().select_related('grade', 'school_class').order_by('first_name', 'last_name')
@@ -2730,11 +2740,17 @@ def parent_detail(request, parent_id):
 def parent_edit(request, parent_id):
     """Edit parent/guardian information"""
     school = request.user.profile.school
-    parent = get_object_or_404(
-        Parent.objects.select_related('user', 'school'),
-        id=parent_id,
-        school=school
-    )
+    parent = Parent.from_signed_token(parent_id)
+    if parent and parent.school == school:
+        parent = Parent.objects.select_related('user', 'school').get(pk=parent.pk)
+    else:
+        if not str(parent_id).isdigit():
+            raise Http404("Parent not found")
+        parent = get_object_or_404(
+            Parent.objects.select_related('user', 'school'),
+            id=int(parent_id),
+            school=school
+        )
     
     if request.method == 'POST':
         print(f"=== PARENT EDIT POST REQUEST ===")
@@ -3957,7 +3973,11 @@ def class_bulk_delete(request):
 def teacher_detail(request, teacher_id):
     """View teacher details"""
     school = request.user.profile.school
-    teacher = get_object_or_404(Teacher, id=teacher_id, school=school)
+    teacher = Teacher.from_signed_token(teacher_id)
+    if not (teacher and teacher.school == school):
+        if not str(teacher_id).isdigit():
+            raise Http404("Teacher not found")
+        teacher = get_object_or_404(Teacher, id=int(teacher_id), school=school)
     
     # Get classes taught by this teacher
     classes_taught = SchoolClass.objects.filter(class_teacher=teacher, school=school).select_related('grade')
@@ -4095,7 +4115,11 @@ def teacher_add(request):
 def teacher_edit(request, teacher_id):
     """Edit a teacher"""
     school = request.user.profile.school
-    teacher = get_object_or_404(Teacher, id=teacher_id, school=school)
+    teacher = Teacher.from_signed_token(teacher_id)
+    if not (teacher and teacher.school == school):
+        if not str(teacher_id).isdigit():
+            raise Http404("Teacher not found")
+        teacher = get_object_or_404(Teacher, id=int(teacher_id), school=school)
     from timetable.models import Subject as TimetableSubject
     
     if request.method == 'POST':
@@ -4170,7 +4194,11 @@ def teacher_edit(request, teacher_id):
 def teacher_delete(request, teacher_id):
     """Delete a teacher"""
     school = request.user.profile.school
-    teacher = get_object_or_404(Teacher, id=teacher_id, school=school)
+    teacher = Teacher.from_signed_token(teacher_id)
+    if not (teacher and teacher.school == school):
+        if not str(teacher_id).isdigit():
+            raise Http404("Teacher not found")
+        teacher = get_object_or_404(Teacher, id=int(teacher_id), school=school)
     
     if request.method == 'POST':
         teacher_name = teacher.full_name
@@ -5318,19 +5346,15 @@ def parent_portal_student_fees(request, student_id):
             messages.error(request, 'Parent profile not found.')
             return redirect('core:parent_portal_dashboard')
     
-    # Get student - for superusers, allow viewing any student; for parents, verify ownership
+    # Resolve student via token/id then verify ownership
+    student = _get_student_from_token_or_id(request, student_id)
+    if not student:
+        raise Http404("Student not found")
     if request.user.is_superuser and not parent:
-        student = get_object_or_404(
-            Student.objects.select_related('grade', 'school_class', 'school_class__class_teacher'),
-            student_id=student_id
-        )
+        pass  # allowed
     else:
-        # Verify the student belongs to this parent
-        student = get_object_or_404(
-            Student.objects.select_related('grade', 'school_class', 'school_class__class_teacher'),
-            student_id=student_id,
-            parents=parent
-        )
+        if not student.parents.filter(id=parent.id).exists():
+            raise Http404("Student not found")
     
     # Get all fees for this student
     student_fees = StudentFee.objects.filter(
@@ -5373,21 +5397,15 @@ def parent_portal_student_statement(request, student_id):
             messages.error(request, 'Parent profile not found.')
             return redirect('core:parent_portal_dashboard')
     
-    # Get student - for superusers, allow viewing any student; for parents, verify ownership
+    student = _get_student_from_token_or_id(request, student_id)
+    if not student:
+        raise Http404("Student not found")
     if request.user.is_superuser and not parent:
-        student = get_object_or_404(
-            Student.objects.select_related('grade', 'school_class', 'school_class__class_teacher', 'school'),
-            student_id=student_id
-        )
-        school = student.school
+        pass
     else:
-        # Verify the student belongs to this parent
-        student = get_object_or_404(
-            Student.objects.select_related('grade', 'school_class', 'school_class__class_teacher', 'school'),
-            student_id=student_id,
-            parents=parent
-        )
-        school = student.school
+        if not student.parents.filter(id=parent.id).exists():
+            raise Http404("Student not found")
+    school = student.school
     
     # Get date filters
     from datetime import datetime
@@ -5537,12 +5555,10 @@ def parent_portal_student_performance(request, student_id):
         messages.error(request, 'Parent profile not found.')
         return redirect('core:parent_portal_dashboard')
     
-    # Verify the student belongs to this parent
-    student = get_object_or_404(
-        Student.objects.select_related('grade', 'school_class'),
-        student_id=student_id,
-        parents=parent
-    )
+    # Resolve student and verify ownership
+    student = _get_student_from_token_or_id(request, student_id)
+    if not student or not student.parents.filter(id=parent.id).exists():
+        raise Http404("Student not found")
     
     # TODO: Add academic records/performance data when that module is implemented
     # For now, just show basic student info
@@ -5672,11 +5688,12 @@ def parent_portal_payment_initiate(request, student_id, fee_id):
             return JsonResponse({'error': 'Parent profile not found.'}, status=403)
         parent = None
     
-    # Verify the student belongs to this parent (or allow superuser)
-    if request.user.is_superuser and not parent:
-        student = get_object_or_404(Student, student_id=student_id)
-    else:
-        student = get_object_or_404(Student, student_id=student_id, parents=parent)
+    # Resolve student token/id and verify ownership (or allow superuser)
+    student = _get_student_from_token_or_id(request, student_id)
+    if not student:
+        raise Http404("Student not found")
+    if not request.user.is_superuser and parent and not student.parents.filter(id=parent.id).exists():
+        raise Http404("Student not found")
     
     # Handle total balance payment (fee_id=0) or specific fee payment
     if fee_id == 0:

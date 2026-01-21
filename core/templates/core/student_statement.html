@@ -268,7 +268,7 @@
                 <button type="submit" class="btn btn-sm btn-primary me-2">
                     <i class="fas fa-filter"></i> Filter
                 </button>
-                <a href="{% url 'core:student_statement' student.student_id %}" class="btn btn-sm btn-outline-secondary">
+                <a href="{% url 'core:student_statement' student.get_signed_token %}" class="btn btn-sm btn-outline-secondary">
                     <i class="fas fa-times"></i> Clear
                 </a>
             </div>

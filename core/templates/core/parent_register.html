@@ -146,6 +146,7 @@
                                    value="{{ form.username.value|default:'' }}" 
                                    placeholder="Enter your preferred username"
                                    oninput="this.value = this.value.toLowerCase();"
+                                   autocomplete="username"
                                    required>
                             {% if form.username.errors %}
                                 <div class="invalid-feedback">
@@ -165,6 +166,7 @@
                                    id="{{ form.email.id_for_label }}" 
                                    value="{{ form.email.value|default:'' }}" 
                                    placeholder="your.email@example.com"
+                                   autocomplete="email"
                                    required>
                             {% if form.email.errors %}
                                 <div class="invalid-feedback">
@@ -217,6 +219,7 @@
                             <input type="password" name="{{ form.password1.name }}" 
                                    class="form-control {% if form.password1.errors %}is-invalid{% endif %}" 
                                    id="{{ form.password1.id_for_label }}" 
+                                   autocomplete="new-password"
                                    required>
                             {% if form.password1.errors %}
                                 <div class="invalid-feedback">
@@ -232,6 +235,7 @@
                             <input type="password" name="{{ form.password2.name }}" 
                                    class="form-control {% if form.password2.errors %}is-invalid{% endif %}" 
                                    id="{{ form.password2.id_for_label }}" 
+                                   autocomplete="new-password"
                                    required>
                             {% if form.password2.errors %}
                                 <div class="invalid-feedback">

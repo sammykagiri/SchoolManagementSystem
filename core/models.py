@@ -262,6 +262,27 @@ class Parent(models.Model):
     def __str__(self):
         return f"{self.user.get_full_name() or self.user.username} ({self.school.name})"
 
+    def get_signed_token(self):
+        """Generate an opaque signed token for this parent to use in URLs."""
+        from django.core import signing
+        payload = {'pid': self.id, 'sch': self.school_id}
+        return signing.dumps(payload)
+
+    @classmethod
+    def from_signed_token(cls, token):
+        """Resolve a signed token back to a Parent object."""
+        from django.core import signing
+        from django.core.signing import BadSignature
+        try:
+            data = signing.loads(token)
+            parent_id = data.get('pid')
+            school_id = data.get('sch')
+            if not parent_id or not school_id:
+                return None
+            return cls.objects.get(id=parent_id, school_id=school_id)
+        except (BadSignature, ValueError, cls.DoesNotExist, TypeError):
+            return None
+
     @property
     def full_name(self):
         return self.user.get_full_name() or self.user.username

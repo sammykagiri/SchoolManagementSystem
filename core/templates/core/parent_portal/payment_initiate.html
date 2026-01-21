@@ -22,7 +22,7 @@
                     <h2><i class="fas fa-credit-card me-2"></i>Make Payment</h2>
                     <p class="text-muted mb-0">{{ student.full_name }} - {{ student_fee.fee_category.name }}</p>
                 </div>
-                <a href="{% url 'core:parent_portal_student_fees' student.student_id %}" class="btn btn-secondary">
+                <a href="{% url 'core:parent_portal_student_fees' student.get_signed_token %}" class="btn btn-secondary">
                     <i class="fas fa-arrow-left me-2"></i>Back to Fees
                 </a>
             </div>
@@ -105,7 +105,7 @@
                         </div>
 
                         <div class="d-flex justify-content-between">
-                            <a href="{% url 'core:parent_portal_student_fees' student.student_id %}" class="btn btn-secondary">Cancel</a>
+                            <a href="{% url 'core:parent_portal_student_fees' student.get_signed_token %}" class="btn btn-secondary">Cancel</a>
                             <button type="submit" class="btn btn-primary" id="submitBtn">
                                 <i class="fas fa-paper-plane me-2"></i>Initiate Payment
                             </button>
@@ -166,7 +166,7 @@ document.addEventListener('DOMContentLoaded', function() {
             .then(data => {
                 if (data.success) {
                     alert('Payment initiated successfully! Please check your phone for the M-Pesa prompt.');
-                    window.location.href = '{% url "core:parent_portal_student_fees" student.student_id %}';
+                    window.location.href = '{% url "core:parent_portal_student_fees" student.get_signed_token %}';
                 } else {
                     alert(data.message || 'Payment initiation failed. Please try again.');
                     submitBtn.disabled = false;
