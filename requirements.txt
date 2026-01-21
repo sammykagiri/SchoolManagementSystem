@@ -13,3 +13,4 @@ boto3>=1.34.0
 django-widget-tweaks>=1.4.14
 weasyprint>=62.0
 pypdf>=3.0.0
+django-anymail>=11.0.0

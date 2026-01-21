@@ -3774,25 +3774,38 @@ Best regards,
 """
         
         # Validate email settings before attempting to send
-        if not settings.EMAIL_HOST_USER or not settings.EMAIL_HOST_PASSWORD:
-            error_msg = "Email settings are not configured. Please set EMAIL_HOST_USER and EMAIL_HOST_PASSWORD in your environment variables."
-            import logging
-            logger = logging.getLogger(__name__)
-            logger.error(error_msg)
-            messages.error(request, error_msg)
-            student = _get_student_from_token_or_id(request, student_id)
-            return redirect('core:student_statement', student_id=student.get_signed_token())
-        
-        # Determine from_email address
-        from_email = getattr(settings, 'DEFAULT_FROM_EMAIL', None) or settings.EMAIL_HOST_USER
-        if not from_email:
-            error_msg = "From email address is not configured. Please set DEFAULT_FROM_EMAIL or EMAIL_HOST_USER in your environment variables."
-            import logging
-            logger = logging.getLogger(__name__)
-            logger.error(error_msg)
-            messages.error(request, error_msg)
-            student = _get_student_from_token_or_id(request, student_id)
-            return redirect('core:student_statement', student_id=student.get_signed_token())
+        # Check if using SendGrid (API-based) or SMTP
+        sendgrid_api_key = getattr(settings, 'SENDGRID_API_KEY', None)
+        if sendgrid_api_key:
+            # Using SendGrid API - check for from_email
+            from_email = getattr(settings, 'DEFAULT_FROM_EMAIL', None)
+            if not from_email:
+                error_msg = "From email address is not configured. Please set DEFAULT_FROM_EMAIL in your environment variables."
+                import logging
+                logger = logging.getLogger(__name__)
+                logger.error(error_msg)
+                messages.error(request, error_msg)
+                student = _get_student_from_token_or_id(request, student_id)
+                return redirect('core:student_statement', student_id=student.get_signed_token())
+        else:
+            # Using SMTP - check for SMTP credentials
+            if not getattr(settings, 'EMAIL_HOST_USER', None) or not getattr(settings, 'EMAIL_HOST_PASSWORD', None):
+                error_msg = "Email settings are not configured. Please set EMAIL_HOST_USER and EMAIL_HOST_PASSWORD (for SMTP) or SENDGRID_API_KEY (for SendGrid API) in your environment variables."
+                import logging
+                logger = logging.getLogger(__name__)
+                logger.error(error_msg)
+                messages.error(request, error_msg)
+                student = _get_student_from_token_or_id(request, student_id)
+                return redirect('core:student_statement', student_id=student.get_signed_token())
+            from_email = getattr(settings, 'DEFAULT_FROM_EMAIL', None) or getattr(settings, 'EMAIL_HOST_USER', None)
+            if not from_email:
+                error_msg = "From email address is not configured. Please set DEFAULT_FROM_EMAIL or EMAIL_HOST_USER in your environment variables."
+                import logging
+                logger = logging.getLogger(__name__)
+                logger.error(error_msg)
+                messages.error(request, error_msg)
+                student = _get_student_from_token_or_id(request, student_id)
+                return redirect('core:student_statement', student_id=student.get_signed_token())
         
         # Create email with PDF attachment
         email_msg = EmailMessage(
@@ -3814,9 +3827,15 @@ Best regards,
             # Network-related errors (connection refused, unreachable, etc.)
             import logging
             logger = logging.getLogger(__name__)
-            error_msg = f"Network error: Unable to connect to email server ({settings.EMAIL_HOST}:{settings.EMAIL_PORT}). Please check your EMAIL_HOST and EMAIL_PORT settings. Error: {str(e)}"
+            if getattr(settings, 'SENDGRID_API_KEY', None):
+                error_msg = f"Network error: Unable to send email via SendGrid API. Please check your SENDGRID_API_KEY. Error: {str(e)}"
+                messages.error(request, "Unable to send email: Network connection failed. Please check your SendGrid API configuration.")
+            else:
+                email_host = getattr(settings, 'EMAIL_HOST', 'unknown')
+                email_port = getattr(settings, 'EMAIL_PORT', 'unknown')
+                error_msg = f"Network error: Unable to connect to email server ({email_host}:{email_port}). Railway blocks SMTP connections. Please use SendGrid API instead by setting SENDGRID_API_KEY. Error: {str(e)}"
+                messages.error(request, f"Unable to send email: Railway blocks SMTP connections. Please configure SendGrid API by setting SENDGRID_API_KEY environment variable.")
             logger.error(error_msg, exc_info=True)
-            messages.error(request, f"Unable to send email: Network connection failed. Please check email server configuration (host: {settings.EMAIL_HOST}, port: {settings.EMAIL_PORT}).")
         except Exception as email_error:
             import logging
             logger = logging.getLogger(__name__)
@@ -5202,25 +5221,38 @@ Best regards,
 """
         
         # Validate email settings before attempting to send
-        if not settings.EMAIL_HOST_USER or not settings.EMAIL_HOST_PASSWORD:
-            error_msg = "Email settings are not configured. Please set EMAIL_HOST_USER and EMAIL_HOST_PASSWORD in your environment variables."
-            import logging
-            logger = logging.getLogger(__name__)
-            logger.error(error_msg)
-            messages.error(request, error_msg)
-            student = _get_student_from_token_or_id(request, student_id)
-            return redirect('core:student_statement', student_id=student.get_signed_token())
-        
-        # Determine from_email address
-        from_email = getattr(settings, 'DEFAULT_FROM_EMAIL', None) or settings.EMAIL_HOST_USER
-        if not from_email:
-            error_msg = "From email address is not configured. Please set DEFAULT_FROM_EMAIL or EMAIL_HOST_USER in your environment variables."
-            import logging
-            logger = logging.getLogger(__name__)
-            logger.error(error_msg)
-            messages.error(request, error_msg)
-            student = _get_student_from_token_or_id(request, student_id)
-            return redirect('core:student_statement', student_id=student.get_signed_token())
+        # Check if using SendGrid (API-based) or SMTP
+        sendgrid_api_key = getattr(settings, 'SENDGRID_API_KEY', None)
+        if sendgrid_api_key:
+            # Using SendGrid API - check for from_email
+            from_email = getattr(settings, 'DEFAULT_FROM_EMAIL', None)
+            if not from_email:
+                error_msg = "From email address is not configured. Please set DEFAULT_FROM_EMAIL in your environment variables."
+                import logging
+                logger = logging.getLogger(__name__)
+                logger.error(error_msg)
+                messages.error(request, error_msg)
+                student = _get_student_from_token_or_id(request, student_id)
+                return redirect('core:student_statement', student_id=student.get_signed_token())
+        else:
+            # Using SMTP - check for SMTP credentials
+            if not getattr(settings, 'EMAIL_HOST_USER', None) or not getattr(settings, 'EMAIL_HOST_PASSWORD', None):
+                error_msg = "Email settings are not configured. Please set EMAIL_HOST_USER and EMAIL_HOST_PASSWORD (for SMTP) or SENDGRID_API_KEY (for SendGrid API) in your environment variables."
+                import logging
+                logger = logging.getLogger(__name__)
+                logger.error(error_msg)
+                messages.error(request, error_msg)
+                student = _get_student_from_token_or_id(request, student_id)
+                return redirect('core:student_statement', student_id=student.get_signed_token())
+            from_email = getattr(settings, 'DEFAULT_FROM_EMAIL', None) or getattr(settings, 'EMAIL_HOST_USER', None)
+            if not from_email:
+                error_msg = "From email address is not configured. Please set DEFAULT_FROM_EMAIL or EMAIL_HOST_USER in your environment variables."
+                import logging
+                logger = logging.getLogger(__name__)
+                logger.error(error_msg)
+                messages.error(request, error_msg)
+                student = _get_student_from_token_or_id(request, student_id)
+                return redirect('core:student_statement', student_id=student.get_signed_token())
         
         # Create email with PDF attachment
         email_msg = EmailMessage(
@@ -5242,9 +5274,15 @@ Best regards,
             # Network-related errors (connection refused, unreachable, etc.)
             import logging
             logger = logging.getLogger(__name__)
-            error_msg = f"Network error: Unable to connect to email server ({settings.EMAIL_HOST}:{settings.EMAIL_PORT}). Please check your EMAIL_HOST and EMAIL_PORT settings. Error: {str(e)}"
+            if getattr(settings, 'SENDGRID_API_KEY', None):
+                error_msg = f"Network error: Unable to send email via SendGrid API. Please check your SENDGRID_API_KEY. Error: {str(e)}"
+                messages.error(request, "Unable to send email: Network connection failed. Please check your SendGrid API configuration.")
+            else:
+                email_host = getattr(settings, 'EMAIL_HOST', 'unknown')
+                email_port = getattr(settings, 'EMAIL_PORT', 'unknown')
+                error_msg = f"Network error: Unable to connect to email server ({email_host}:{email_port}). Railway blocks SMTP connections. Please use SendGrid API instead by setting SENDGRID_API_KEY. Error: {str(e)}"
+                messages.error(request, f"Unable to send email: Railway blocks SMTP connections. Please configure SendGrid API by setting SENDGRID_API_KEY environment variable.")
             logger.error(error_msg, exc_info=True)
-            messages.error(request, f"Unable to send email: Network connection failed. Please check email server configuration (host: {settings.EMAIL_HOST}, port: {settings.EMAIL_PORT}).")
         except Exception as email_error:
             import logging
             logger = logging.getLogger(__name__)
