@@ -3511,6 +3511,9 @@ def student_statement_pdf(request, student_id):
         from weasyprint import HTML
         import os
         import io
+        from django.conf import settings
+        from django.conf import settings
+        from django.conf import settings
     except ImportError:
         messages.error(request, 'WeasyPrint is not installed. Please install it using: pip install weasyprint')
         # Get student to generate token for redirect
