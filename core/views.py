@@ -13,6 +13,7 @@ from django.core.mail import send_mail
 from django.conf import settings
 from django.core.exceptions import ValidationError
 import json
+import os
 from datetime import datetime
 from decimal import Decimal, InvalidOperation
 from .models import (
@@ -3774,10 +3775,25 @@ Best regards,
 """
         
         # Validate email settings before attempting to send
-        # Check if using SendGrid (API-based) or SMTP
-        sendgrid_api_key = getattr(settings, 'SENDGRID_API_KEY', None)
-        if sendgrid_api_key:
-            # Using SendGrid API - check for from_email
+        # Check if using Resend (API-based) or SMTP
+        resend_api_key = getattr(settings, 'RESEND_API_KEY', None)
+        email_backend = getattr(settings, 'EMAIL_BACKEND', '')
+        
+        # Check if we're using SMTP backend (which won't work on Railway)
+        if 'smtp' in email_backend.lower() and 'resend' not in email_backend.lower():
+            # Detect if we're on Railway (or production) where SMTP is blocked
+            is_railway = os.environ.get('RAILWAY_ENVIRONMENT') or os.environ.get('RAILWAY_SERVICE_NAME')
+            if is_railway or not settings.DEBUG:
+                error_msg = "SMTP email is blocked on Railway. Please configure Resend API by setting RESEND_API_KEY and DEFAULT_FROM_EMAIL environment variables in Railway. See: https://resend.com for a free account."
+                import logging
+                logger = logging.getLogger(__name__)
+                logger.error(error_msg)
+                messages.error(request, "Email sending is not configured. Please set RESEND_API_KEY and DEFAULT_FROM_EMAIL in Railway environment variables. SMTP is blocked on Railway.")
+                student = _get_student_from_token_or_id(request, student_id)
+                return redirect('core:student_statement', student_id=student.get_signed_token())
+        
+        if resend_api_key:
+            # Using Resend API - check for from_email
             from_email = getattr(settings, 'DEFAULT_FROM_EMAIL', None)
             if not from_email:
                 error_msg = "From email address is not configured. Please set DEFAULT_FROM_EMAIL in your environment variables."
@@ -3841,7 +3857,18 @@ Best regards,
             logger = logging.getLogger(__name__)
             error_msg = f"Error sending email: {str(email_error)}"
             logger.error(error_msg, exc_info=True)
-            messages.error(request, f"Error sending email: {str(email_error)}")
+            
+            # Check for Resend-specific errors
+            error_str = str(email_error)
+            if '403' in error_str or 'Forbidden' in error_str:
+                if 'from address' in error_str.lower() or 'sender' in error_str.lower() or 'domain' in error_str.lower():
+                    messages.error(request, f"Resend Error: The 'from' email address ({from_email}) may not be verified. Please check your Resend dashboard: https://resend.com/domains or https://resend.com/emails to verify your sender domain/email.")
+                else:
+                    messages.error(request, f"Resend API Error (403 Forbidden): Please check your RESEND_API_KEY permissions and sender verification in Resend dashboard.")
+            elif '401' in error_str or 'Unauthorized' in error_str:
+                messages.error(request, f"Resend API Error: Invalid API key. Please check your RESEND_API_KEY in Railway environment variables.")
+            else:
+                messages.error(request, f"Error sending email: {str(email_error)}")
     
     except Exception as e:
         import logging
@@ -5221,10 +5248,25 @@ Best regards,
 """
         
         # Validate email settings before attempting to send
-        # Check if using SendGrid (API-based) or SMTP
-        sendgrid_api_key = getattr(settings, 'SENDGRID_API_KEY', None)
-        if sendgrid_api_key:
-            # Using SendGrid API - check for from_email
+        # Check if using Resend (API-based) or SMTP
+        resend_api_key = getattr(settings, 'RESEND_API_KEY', None)
+        email_backend = getattr(settings, 'EMAIL_BACKEND', '')
+        
+        # Check if we're using SMTP backend (which won't work on Railway)
+        if 'smtp' in email_backend.lower() and 'resend' not in email_backend.lower():
+            # Detect if we're on Railway (or production) where SMTP is blocked
+            is_railway = os.environ.get('RAILWAY_ENVIRONMENT') or os.environ.get('RAILWAY_SERVICE_NAME')
+            if is_railway or not settings.DEBUG:
+                error_msg = "SMTP email is blocked on Railway. Please configure Resend API by setting RESEND_API_KEY and DEFAULT_FROM_EMAIL environment variables in Railway. See: https://resend.com for a free account."
+                import logging
+                logger = logging.getLogger(__name__)
+                logger.error(error_msg)
+                messages.error(request, "Email sending is not configured. Please set RESEND_API_KEY and DEFAULT_FROM_EMAIL in Railway environment variables. SMTP is blocked on Railway.")
+                student = _get_student_from_token_or_id(request, student_id)
+                return redirect('core:student_statement', student_id=student.get_signed_token())
+        
+        if resend_api_key:
+            # Using Resend API - check for from_email
             from_email = getattr(settings, 'DEFAULT_FROM_EMAIL', None)
             if not from_email:
                 error_msg = "From email address is not configured. Please set DEFAULT_FROM_EMAIL in your environment variables."
@@ -5288,7 +5330,18 @@ Best regards,
             logger = logging.getLogger(__name__)
             error_msg = f"Error sending email: {str(email_error)}"
             logger.error(error_msg, exc_info=True)
-            messages.error(request, f"Error sending email: {str(email_error)}")
+            
+            # Check for Resend-specific errors
+            error_str = str(email_error)
+            if '403' in error_str or 'Forbidden' in error_str:
+                if 'from address' in error_str.lower() or 'sender' in error_str.lower() or 'domain' in error_str.lower():
+                    messages.error(request, f"Resend Error: The 'from' email address ({from_email}) may not be verified. Please check your Resend dashboard: https://resend.com/domains or https://resend.com/emails to verify your sender domain/email.")
+                else:
+                    messages.error(request, f"Resend API Error (403 Forbidden): Please check your RESEND_API_KEY permissions and sender verification in Resend dashboard.")
+            elif '401' in error_str or 'Unauthorized' in error_str:
+                messages.error(request, f"Resend API Error: Invalid API key. Please check your RESEND_API_KEY in Railway environment variables.")
+            else:
+                messages.error(request, f"Error sending email: {str(email_error)}")
     
     except Exception as e:
         import logging

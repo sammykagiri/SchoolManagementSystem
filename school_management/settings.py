@@ -313,16 +313,16 @@ if not DEBUG:
     ]
 
 # Email settings
-# Use SendGrid API if SENDGRID_API_KEY is set (recommended for Railway/production)
+# Use Resend API if RESEND_API_KEY is set (recommended for Railway/production)
 # Otherwise fall back to SMTP
-SENDGRID_API_KEY = config('SENDGRID_API_KEY', default='')
-if SENDGRID_API_KEY:
-    # Use SendGrid API backend (works on Railway and other platforms that block SMTP)
-    EMAIL_BACKEND = 'anymail.backends.sendgrid.EmailBackend'
+RESEND_API_KEY = config('RESEND_API_KEY', default='')
+if RESEND_API_KEY:
+    # Use Resend API backend (works on Railway and other platforms that block SMTP)
+    EMAIL_BACKEND = 'anymail.backends.resend.EmailBackend'
     ANYMAIL = {
-        "SENDGRID_API_KEY": SENDGRID_API_KEY,
+        "RESEND_API_KEY": RESEND_API_KEY,
     }
-    DEFAULT_FROM_EMAIL = config('DEFAULT_FROM_EMAIL', default=config('EMAIL_HOST_USER', default='noreply@example.com'))
+    DEFAULT_FROM_EMAIL = config('DEFAULT_FROM_EMAIL', default='onboarding@resend.dev')
 else:
     # Fall back to SMTP (works in local development)
     EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
