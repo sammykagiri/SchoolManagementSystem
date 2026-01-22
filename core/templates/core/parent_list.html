@@ -84,12 +84,23 @@
                             {% endif %}
                         </td>
                         <td>
-                            {% if user|has_permission:'view_parent' %}
-                            <a href="{% url 'core:parent_detail' parent.get_signed_token %}" class="btn btn-sm btn-outline-info me-1">View</a>
-                            {% endif %}
-                            {% if user|has_permission:'change_parent' %}
-                            <a href="{% url 'core:parent_edit' parent.get_signed_token %}" class="btn btn-sm btn-outline-primary">Edit</a>
-                            {% endif %}
+                            <div class="btn-group btn-group-sm" role="group">
+                                {% if user|has_permission:'view_parent' %}
+                                <a href="{% url 'core:parent_detail' parent.get_signed_token %}" class="btn btn-outline-info" title="View">
+                                    <i class="fas fa-eye"></i>
+                                </a>
+                                {% endif %}
+                                {% if user|has_permission:'change_parent' %}
+                                <a href="{% url 'core:parent_edit' parent.get_signed_token %}" class="btn btn-outline-primary" title="Edit">
+                                    <i class="fas fa-edit"></i>
+                                </a>
+                                {% endif %}
+                                {% if user|has_permission:'delete_parent' %}
+                                <a href="{% url 'core:parent_delete' parent.get_signed_token %}" class="btn btn-outline-danger" title="Delete">
+                                    <i class="fas fa-trash"></i>
+                                </a>
+                                {% endif %}
+                            </div>
                         </td>
                     </tr>
                     {% empty %}

@@ -239,6 +239,15 @@
             <button onclick="window.print()" class="btn btn-sm btn-primary">
                 <i class="fas fa-print"></i> Print
             </button>
+            {% if request.user.email %}
+            <a href="{% url 'core:parent_portal_student_statement_email' student.get_signed_token %}?{% if start_date %}start_date={{ start_date|date:'Y-m-d' }}&{% endif %}{% if end_date %}end_date={{ end_date|date:'Y-m-d' }}{% endif %}" class="btn btn-sm btn-success" onclick="return confirm('Send statement to {{ request.user.email }}?')">
+                <i class="fas fa-envelope"></i> Send to My Email
+            </a>
+            {% else %}
+            <button class="btn btn-sm btn-secondary" disabled title="No email address found. Please update your email in your profile.">
+                <i class="fas fa-envelope"></i> Send to My Email (No Email)
+            </button>
+            {% endif %}
         </div>
     </div>
 

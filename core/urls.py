@@ -46,11 +46,13 @@ urlpatterns = [
     # Parents (use opaque signed tokens in URLs; keep parameter named parent_id for compatibility)
     path('parents/<str:parent_id>/', views.parent_detail, name='parent_detail'),
     path('parents/<str:parent_id>/edit/', views.parent_edit, name='parent_edit'),
+    path('parents/<str:parent_id>/delete/', views.parent_delete, name='parent_delete'),
     
     # Parent Portal
     path('portal/', views.parent_portal_dashboard, name='parent_portal_dashboard'),
     path('portal/student/<str:student_id>/fees/', views.parent_portal_student_fees, name='parent_portal_student_fees'),
     path('portal/student/<str:student_id>/statement/', views.parent_portal_student_statement, name='parent_portal_student_statement'),
+    path('portal/student/<str:student_id>/statement/email/', views.parent_portal_student_statement_email, name='parent_portal_student_statement_email'),
     path('portal/student/<str:student_id>/performance/', views.parent_portal_student_performance, name='parent_portal_student_performance'),
     path('portal/profile/', views.parent_portal_profile, name='parent_portal_profile'),
     path('portal/payment/<str:student_id>/<int:fee_id>/', views.parent_portal_payment_initiate, name='parent_portal_payment_initiate'),

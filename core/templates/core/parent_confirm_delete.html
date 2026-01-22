@@ -1,0 +1,123 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Delete Parent - {{ parent.full_name }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header">
+                    <h3 class="card-title text-danger">
+                        <i class="fas fa-exclamation-triangle"></i> Delete Parent
+                    </h3>
+                </div>
+                <div class="card-body">
+                    <div class="alert alert-warning">
+                        <h5>Are you sure you want to delete this parent?</h5>
+                        <p>This action cannot be undone. The parent account and associated user account will be permanently removed from the system.</p>
+                    </div>
+                    
+                    <div class="card">
+                        <div class="card-header">
+                            <h5>Parent Details</h5>
+                        </div>
+                        <div class="card-body">
+                            <table class="table table-borderless">
+                                <tr>
+                                    <th width="30%">Name:</th>
+                                    <td><strong>{{ parent.full_name }}</strong></td>
+                                </tr>
+                                <tr>
+                                    <th>Username:</th>
+                                    <td>{{ parent.user.username }}</td>
+                                </tr>
+                                <tr>
+                                    <th>Email:</th>
+                                    <td>
+                                        {% if parent.email %}
+                                            {{ parent.email }}
+                                        {% elif parent.user.email %}
+                                            {{ parent.user.email }}
+                                        {% else %}
+                                            <span class="text-muted">Not provided</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <th>Phone:</th>
+                                    <td>
+                                        {% if parent.phone %}
+                                            {{ parent.phone }}
+                                        {% else %}
+                                            <span class="text-muted">Not provided</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <th>School:</th>
+                                    <td>{{ parent.school.name }}</td>
+                                </tr>
+                                <tr>
+                                    <th>Linked Students:</th>
+                                    <td>
+                                        {% if parent.children.exists %}
+                                            <span class="badge bg-info">{{ parent.children.count }} student{{ parent.children.count|pluralize }}</span>
+                                        {% else %}
+                                            <span class="text-muted">No students linked</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <th>Status:</th>
+                                    <td>
+                                        <span class="badge bg-{% if parent.is_active %}success{% else %}secondary{% endif %}">
+                                            {% if parent.is_active %}Active{% else %}Inactive{% endif %}
+                                        </span>
+                                    </td>
+                                </tr>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- Associated Data Warning -->
+                    {% if parent.children.exists %}
+                    <div class="alert alert-danger mt-3">
+                        <h6><i class="fas fa-warning"></i> Warning: Cannot Delete</h6>
+                        <p>This parent cannot be deleted because they have {{ parent.children.count }} linked student(s). Please unlink all students first.</p>
+                    </div>
+                    {% else %}
+                    <div class="alert alert-danger mt-3">
+                        <h6><i class="fas fa-warning"></i> Warning: Associated Data</h6>
+                        <p>The following will also be deleted:</p>
+                        <ul class="mb-0">
+                            <li>Parent account</li>
+                            <li>User account ({{ parent.user.username }})</li>
+                            <li>All communication logs associated with this parent</li>
+                        </ul>
+                    </div>
+                    {% endif %}
+                </div>
+                <div class="card-footer">
+                    <form method="post" class="d-flex justify-content-between">
+                        {% csrf_token %}
+                        <a href="{% url 'core:parent_detail' parent.get_signed_token %}" class="btn btn-secondary">
+                            <i class="fas fa-arrow-left"></i> Cancel
+                        </a>
+                        {% if not parent.children.exists %}
+                        <button type="submit" class="btn btn-danger">
+                            <i class="fas fa-trash"></i> Yes, Delete Parent
+                        </button>
+                        {% else %}
+                        <button type="button" class="btn btn-danger" disabled>
+                            <i class="fas fa-trash"></i> Cannot Delete (Has Linked Students)
+                        </button>
+                        {% endif %}
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

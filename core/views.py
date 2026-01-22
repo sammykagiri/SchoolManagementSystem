@@ -2849,7 +2849,7 @@ def parent_edit(request, parent_id):
                 parent = form.save()
                 
                 messages.success(request, f'Parent {parent.full_name} updated successfully.')
-                return redirect('core:parent_detail', parent_id=parent.id)
+                return redirect('core:parent_detail', parent_id=parent.get_signed_token())
             except Exception as e:
                 import logging
                 logger = logging.getLogger(__name__)
@@ -2866,6 +2866,43 @@ def parent_edit(request, parent_id):
         'school': school,
     }
     return render(request, 'core/parent_edit.html', context)
+
+
+@login_required
+@permission_required('delete', 'parent')
+def parent_delete(request, parent_id):
+    """Delete a parent/guardian"""
+    school = request.user.profile.school
+    # Try token first, then fallback to numeric id for backward compatibility
+    parent = Parent.from_signed_token(parent_id)
+    if parent and parent.school == school:
+        parent = Parent.objects.select_related('user', 'school').prefetch_related('children').get(pk=parent.pk)
+    else:
+        if not str(parent_id).isdigit():
+            raise Http404("Parent not found")
+        parent = get_object_or_404(
+            Parent.objects.select_related('user', 'school').prefetch_related('children'),
+            id=int(parent_id),
+            school=school
+        )
+    
+    # Prevent deletion if parent has linked children
+    if parent.children.exists():
+        messages.error(request, f'Cannot delete parent {parent.full_name} because they have {parent.children.count} linked student(s). Please unlink all students first.')
+        return redirect('core:parent_detail', parent_id=parent.get_signed_token())
+    
+    if request.method == 'POST':
+        parent_name = parent.full_name
+        username = parent.user.username
+        # Delete parent (this will cascade delete the user due to CASCADE relationship)
+        parent.delete()
+        messages.success(request, f'Parent {parent_name} (username: {username}) deleted successfully.')
+        return redirect('core:parent_list')
+    
+    context = {
+        'parent': parent,
+    }
+    return render(request, 'core/parent_confirm_delete.html', context)
 
 
 @login_required
@@ -5828,6 +5865,273 @@ def parent_portal_student_statement(request, student_id):
     }
     
     return render(request, 'core/parent_portal/student_statement.html', context)
+
+
+@login_required
+def parent_portal_student_statement_email(request, student_id):
+    """Email student statement to parent (parent portal version)"""
+    parent = None
+    try:
+        parent = Parent.objects.get(user=request.user)
+    except Parent.DoesNotExist:
+        # Allow superusers to access even without a Parent profile
+        if not request.user.is_superuser:
+            messages.error(request, 'Parent profile not found.')
+            return redirect('core:parent_portal_dashboard')
+    
+    student = _get_student_from_token_or_id(request, student_id)
+    if not student:
+        raise Http404("Student not found")
+    if request.user.is_superuser and not parent:
+        pass
+    else:
+        if not student.parents.filter(id=parent.id).exists():
+            raise Http404("Student not found")
+    school = student.school
+    
+    # Get parent email - use parent.email, parent.user.email, or request.user.email
+    parent_email = None
+    if parent:
+        parent_email = parent.email or (parent.user.email if parent.user.email else None)
+    if not parent_email:
+        parent_email = request.user.email
+    
+    if not parent_email:
+        messages.error(request, 'No email address found for your account. Please update your email address in your profile.')
+        return redirect('core:parent_portal_student_statement', student_id=student.get_signed_token())
+    
+    # Get date filters
+    from datetime import datetime
+    from django.utils import timezone
+    start_date = request.GET.get('start_date')
+    end_date = request.GET.get('end_date')
+    
+    if start_date:
+        try:
+            start_date = datetime.strptime(start_date, '%Y-%m-%d').date()
+        except ValueError:
+            start_date = None
+    if end_date:
+        try:
+            end_date = datetime.strptime(end_date, '%Y-%m-%d').date()
+        except ValueError:
+            end_date = None
+    
+    # Get all student fees (debits)
+    student_fees = StudentFee.objects.filter(
+        school=school,
+        student=student
+    ).select_related('term', 'fee_category').order_by('term__academic_year', 'term__term_number', 'fee_category__name')
+    
+    # Get all payments (credits)
+    payments = Payment.objects.filter(
+        school=school,
+        student=student,
+        status='completed'
+    ).select_related('student_fee__term', 'student_fee__fee_category').order_by('payment_date')
+    
+    # Calculate opening balance
+    opening_balance = Decimal('0.00')
+    if start_date:
+        opening_fees = StudentFee.objects.filter(
+            school=school,
+            student=student,
+            created_at__date__lt=start_date
+        ).aggregate(total=Sum('amount_charged'))['total'] or Decimal('0.00')
+        
+        opening_payments = Payment.objects.filter(
+            school=school,
+            student=student,
+            status='completed',
+            payment_date__date__lt=start_date
+        ).aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
+        
+        opening_balance = opening_fees - opening_payments
+    
+    # Filter by date range if provided
+    transactions = []
+    
+    # Add fee transactions (debits)
+    for fee in student_fees:
+        transaction_date = fee.created_at.date()
+        fee_due_date = fee.due_date
+        
+        if start_date and transaction_date < start_date:
+            continue
+        if end_date and transaction_date > end_date:
+            continue
+        
+        transactions.append({
+            'date': transaction_date,
+            'description': f"{fee.fee_category.name} - {fee.term.academic_year} Term {fee.term.term_number}",
+            'due_date': fee_due_date,
+            'reference': f"Fee-{fee.id}",
+            'debit': fee.amount_charged,
+            'credit': Decimal('0.00'),
+            'type': 'fee'
+        })
+    
+    # Add payment transactions (credits)
+    for payment in payments:
+        payment_date = payment.payment_date.date() if hasattr(payment.payment_date, 'date') else payment.payment_date
+        if start_date and payment_date < start_date:
+            continue
+        if end_date and payment_date > end_date:
+            continue
+        
+        transactions.append({
+            'date': payment_date,
+            'description': f"Payment - {payment.student_fee.fee_category.name}",
+            'reference': payment.reference_number or str(payment.payment_id),
+            'debit': Decimal('0.00'),
+            'credit': payment.amount,
+            'type': 'payment',
+            'payment_method': payment.get_payment_method_display()
+        })
+    
+    # Sort transactions by date
+    transactions.sort(key=lambda x: x['date'])
+    
+    # Calculate running balance
+    running_balance = opening_balance
+    for transaction in transactions:
+        running_balance += transaction['debit'] - transaction['credit']
+        transaction['balance'] = running_balance
+    
+    # Calculate totals
+    total_debits = sum(t['debit'] for t in transactions)
+    total_credits = sum(t['credit'] for t in transactions)
+    closing_balance = opening_balance + total_debits - total_credits
+    
+    # Determine balance label and type
+    if closing_balance > 0:
+        balance_label = 'Balance Due'
+        balance_type = 'outstanding'
+    elif closing_balance < 0:
+        balance_label = 'Credit Balance'
+        balance_type = 'credit'
+    else:
+        balance_label = 'Closing Balance'
+        balance_type = 'zero'
+    
+    # Get logo path for WeasyPrint
+    logo_path = None
+    if school.logo:
+        import os
+        if settings.MEDIA_ROOT:
+            logo_path = os.path.join(settings.MEDIA_ROOT, school.logo.name)
+            if os.path.exists(logo_path):
+                logo_path = os.path.normpath(logo_path).replace('\\', '/')
+                if not os.path.isabs(logo_path):
+                    logo_path = os.path.abspath(logo_path).replace('\\', '/')
+            else:
+                logo_path = None
+    
+    context = {
+        'student': student,
+        'school': school,
+        'transactions': transactions,
+        'opening_balance': opening_balance,
+        'total_debits': total_debits,
+        'total_credits': total_credits,
+        'closing_balance': closing_balance,
+        'closing_balance_abs': abs(closing_balance),
+        'balance_label': balance_label,
+        'balance_type': balance_type,
+        'start_date': start_date,
+        'end_date': end_date,
+        'statement_date': timezone.now().date(),
+        'logo_path': logo_path,
+    }
+    
+    # Generate PDF using WeasyPrint
+    try:
+        from weasyprint import HTML
+        import os
+        from django.core.mail import EmailMessage
+    except ImportError:
+        messages.error(request, 'WeasyPrint is not installed. Please install it using: pip install weasyprint')
+        return redirect('core:parent_portal_student_statement', student_id=student.get_signed_token())
+    
+    try:
+        # Render HTML template for PDF
+        html_string = render_to_string('core/student_statement_pdf.html', context)
+        
+        # Generate PDF
+        base_url = None
+        if settings.MEDIA_ROOT:
+            base_url = os.path.normpath(settings.MEDIA_ROOT).replace('\\', '/')
+            if not os.path.isabs(base_url):
+                base_url = os.path.abspath(base_url).replace('\\', '/')
+        
+        html = HTML(string=html_string, base_url=base_url)
+        pdf_bytes = html.write_pdf()
+        
+        # Create email message with PDF attachment
+        subject = f'Fee Statement - {student.full_name} - {school.name}'
+        period_text = ''
+        if start_date and end_date:
+            period_text = f' for the period {start_date.strftime("%d %b %Y")} to {end_date.strftime("%d %b %Y")}'
+        elif start_date:
+            period_text = f' from {start_date.strftime("%d %b %Y")}'
+        
+        # Get parent's first name for salutation
+        parent_first_name = 'Parent/Guardian'
+        if parent:
+            parent_first_name = parent.user.first_name or parent.user.username.split('@')[0] if parent.user.username else 'Parent/Guardian'
+        elif request.user.first_name:
+            parent_first_name = request.user.first_name
+        
+        email_body = f"""Dear {parent_first_name},
+
+Please find attached the fee statement for {student.full_name} (Student ID: {student.student_id}){period_text}.
+
+Balance: KES {closing_balance:,.2f}
+
+If you have any questions or concerns, please contact the school administration.
+
+Best regards,
+{school.name}
+"""
+        
+        # Create email message
+        email_msg = EmailMessage(
+            subject=subject,
+            body=email_body,
+            from_email=settings.DEFAULT_FROM_EMAIL,
+            to=[parent_email],
+        )
+        
+        # Attach PDF
+        filename = f"statement_{student.student_id}_{timezone.now().date()}.pdf"
+        email_msg.attach(filename, pdf_bytes, 'application/pdf')
+        
+        # Send email
+        email_msg.send(fail_silently=False)
+        
+        messages.success(request, f'Fee statement has been sent to {parent_email}.')
+        return redirect('core:parent_portal_student_statement', student_id=student.get_signed_token())
+        
+    except Exception as e:
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.error(f'Error sending email with PDF: {str(e)}', exc_info=True)
+        
+        # Check for specific error types
+        error_message = str(e)
+        if 'Network' in error_message or 'unreachable' in error_message or '[Errno 101]' in error_message:
+            messages.error(request, 'Network error: Unable to connect to email server. Railway blocks SMTP connections. Please use Resend API instead by setting RESEND_API_KEY.')
+        elif '403' in error_message or 'Forbidden' in error_message:
+            if 'domain is not verified' in error_message.lower():
+                messages.error(request, 'Email error: Your domain is not verified with Resend. Please verify your domain at https://resend.com/domains or use onboarding@resend.dev as DEFAULT_FROM_EMAIL.')
+            else:
+                messages.error(request, 'Email error: Access forbidden. Please check your Resend API key and domain verification settings.')
+        elif '401' in error_message or 'Unauthorized' in error_message:
+            messages.error(request, 'Email error: Invalid API key. Please check your RESEND_API_KEY environment variable.')
+        else:
+            messages.error(request, f'Error sending email: {str(e)}')
+        
+        return redirect('core:parent_portal_student_statement', student_id=student.get_signed_token())
 
 
 @login_required
