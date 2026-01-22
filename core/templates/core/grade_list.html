@@ -61,12 +61,12 @@
                                         <td>
                                             <div class="btn-group btn-group-sm" role="group">
                                                 {% if user|has_permission:'change_grade' %}
-                                                <a href="{% url 'core:grade_edit' grade.id %}" class="btn btn-outline-primary" title="Edit">
+                                                <a href="{% url 'core:grade_edit' grade.get_signed_token %}" class="btn btn-outline-primary" title="Edit">
                                                     <i class="fas fa-edit"></i>
                                                 </a>
                                                 {% endif %}
                                                 {% if user|has_permission:'delete_grade' %}
-                                                <a href="{% url 'core:grade_delete' grade.id %}" class="btn btn-outline-danger" title="Delete" 
+                                                <a href="{% url 'core:grade_delete' grade.get_signed_token %}" class="btn btn-outline-danger" title="Delete" 
                                                    onclick="return confirm('Are you sure you want to delete this grade?');">
                                                     <i class="fas fa-trash"></i>
                                                 </a>

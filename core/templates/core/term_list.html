@@ -56,8 +56,8 @@ function fetchTerms() {
                         <td>${term.end_date}</td>
                         <td>${term.is_active ? '<span class="badge bg-success">Active</span>' : '<span class="badge bg-secondary">Inactive</span>'}</td>
                         <td>
-                            <a href="/terms/${term.id}/edit/" class="btn btn-sm btn-outline-primary me-1">Edit</a>
-                            <a href="/terms/${term.id}/delete/" class="btn btn-sm btn-outline-danger" onclick="return confirm('Are you sure you want to delete this term?');">Delete</a>
+                            <a href="/terms/${term.token || term.id}/edit/" class="btn btn-sm btn-outline-primary me-1">Edit</a>
+                            <a href="/terms/${term.token || term.id}/delete/" class="btn btn-sm btn-outline-danger" onclick="return confirm('Are you sure you want to delete this term?');">Delete</a>
                         </td>
                     </tr>`;
                 });

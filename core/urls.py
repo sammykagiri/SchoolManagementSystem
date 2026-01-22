@@ -61,40 +61,40 @@ urlpatterns = [
     # Grades
     path('grades/', views.grade_list, name='grade_list'),
     path('grades/generate/', views.grade_generate, name='grade_generate'),
-    path('grades/<int:grade_id>/edit/', views.grade_edit, name='grade_edit'),
-    path('grades/<int:grade_id>/delete/', views.grade_delete, name='grade_delete'),
+    path('grades/<str:grade_id>/edit/', views.grade_edit, name='grade_edit'),
+    path('grades/<str:grade_id>/delete/', views.grade_delete, name='grade_delete'),
     
     # Terms
     path('terms/', views.term_list, name='term_list'),
     path('terms/generate/', views.term_generate, name='term_generate'),
     path('terms/add/', views.term_add, name='term_add'),
-    path('terms/<int:term_id>/edit/', views.term_edit, name='term_edit'),
-    path('terms/<int:term_id>/delete/', views.term_delete, name='term_delete'),
+    path('terms/<str:term_id>/edit/', views.term_edit, name='term_edit'),
+    path('terms/<str:term_id>/delete/', views.term_delete, name='term_delete'),
     
     # Fee Structures
     path('fee-structures/', views.fee_structure_list, name='fee_structure_list'),
     path('fee-structures/generate/', views.generate_student_fees, name='generate_student_fees'),
     path('fee-structures/apply-to-students/', views.generate_student_fees_from_structures, name='generate_student_fees_from_structures'),
-    path('fee-structures/<int:fee_structure_id>/edit/', views.fee_structure_edit, name='fee_structure_edit'),
-    path('fee-structures/<int:fee_structure_id>/delete/', views.fee_structure_delete, name='fee_structure_delete'),
+    path('fee-structures/<str:fee_structure_id>/edit/', views.fee_structure_edit, name='fee_structure_edit'),
+    path('fee-structures/<str:fee_structure_id>/delete/', views.fee_structure_delete, name='fee_structure_delete'),
     
     # Fee Categories
     path('fee-categories/', views.fee_category_list, name='fee_category_list'),
     path('fee-categories/add/', views.fee_category_add, name='fee_category_add'),
-    path('fee-categories/<int:category_id>/edit/', views.fee_category_edit, name='fee_category_edit'),
-    path('fee-categories/<int:category_id>/delete/', views.fee_category_delete, name='fee_category_delete'),
+    path('fee-categories/<str:category_id>/edit/', views.fee_category_edit, name='fee_category_edit'),
+    path('fee-categories/<str:category_id>/delete/', views.fee_category_delete, name='fee_category_delete'),
     
     # Fee Category Types
     path('fee-category-types/', views.fee_category_type_list, name='fee_category_type_list'),
     path('fee-category-types/add/', views.fee_category_type_add, name='fee_category_type_add'),
-    path('fee-category-types/<int:type_id>/edit/', views.fee_category_type_edit, name='fee_category_type_edit'),
-    path('fee-category-types/<int:type_id>/delete/', views.fee_category_type_delete, name='fee_category_type_delete'),
+    path('fee-category-types/<str:type_id>/edit/', views.fee_category_type_edit, name='fee_category_type_edit'),
+    path('fee-category-types/<str:type_id>/delete/', views.fee_category_type_delete, name='fee_category_type_delete'),
     
     # Transport Routes
     path('transport-routes/', views.transport_route_list, name='transport_route_list'),
     path('transport-routes/add/', views.transport_route_add, name='transport_route_add'),
-    path('transport-routes/<int:route_id>/edit/', views.transport_route_edit, name='transport_route_edit'),
-    path('transport-routes/<int:route_id>/delete/', views.transport_route_delete, name='transport_route_delete'),
+    path('transport-routes/<str:route_id>/edit/', views.transport_route_edit, name='transport_route_edit'),
+    path('transport-routes/<str:route_id>/delete/', views.transport_route_delete, name='transport_route_delete'),
     
     # API endpoints
     path('api/dashboard/', views.api_dashboard, name='api_dashboard'),
@@ -121,19 +121,19 @@ urlpatterns = [
 
     # Admin - Schools
     path('manage/schools/', views.school_admin_list, name='school_admin_list'),
-    path('manage/schools/<int:school_id>/edit/', views.school_admin_edit, name='school_admin_edit'),
-    path('manage/schools/<int:school_id>/delete/', views.school_admin_delete, name='school_admin_delete'),
+    path('manage/schools/<str:school_id>/edit/', views.school_admin_edit, name='school_admin_edit'),
+    path('manage/schools/<str:school_id>/delete/', views.school_admin_delete, name='school_admin_delete'),
 
     # API endpoints for school create/update (admin only)
     path('api/schools/create/', views.api_school_create, name='api_school_create'),
-    path('api/schools/<int:pk>/update/', views.api_school_update, name='api_school_update'),
+    path('api/schools/<str:pk>/update/', views.api_school_update, name='api_school_update'),
 
     # Classes
     path('classes/', views.class_list, name='class_list'),
     path('classes/generate/', views.class_generate, name='class_generate'),
     path('classes/add/', views.class_add, name='class_add'),
-    path('classes/<int:class_id>/edit/', views.class_edit, name='class_edit'),
-    path('classes/<int:class_id>/delete/', views.class_delete, name='class_delete'),
+    path('classes/<str:class_id>/edit/', views.class_edit, name='class_edit'),
+    path('classes/<str:class_id>/delete/', views.class_delete, name='class_delete'),
     path('classes/bulk-delete/', views.class_bulk_delete, name='class_bulk_delete'),
     
     # Teachers (use opaque tokens)
@@ -146,15 +146,15 @@ urlpatterns = [
     # User Management
     path('users/', views.user_list, name='user_list'),
     path('users/create/', views.user_create, name='user_create'),
-    path('users/<int:user_id>/edit/', views.user_edit, name='user_edit'),
-    path('users/<int:user_id>/delete/', views.user_delete, name='user_delete'),
+    path('users/<str:user_id>/edit/', views.user_edit, name='user_edit'),
+    path('users/<str:user_id>/delete/', views.user_delete, name='user_delete'),
     
     # Role Management
     path('roles/', views.role_list, name='role_list'),
     path('roles/add/', views.role_add, name='role_add'),
-    path('roles/<int:role_id>/edit/', views.role_edit, name='role_edit'),
-    path('roles/<int:role_id>/delete/', views.role_delete, name='role_delete'),
-    path('roles/<int:role_id>/permissions/', views.role_permissions, name='role_permissions'),
+    path('roles/<str:role_id>/edit/', views.role_edit, name='role_edit'),
+    path('roles/<str:role_id>/delete/', views.role_delete, name='role_delete'),
+    path('roles/<str:role_id>/permissions/', views.role_permissions, name='role_permissions'),
     
     # Student Promotion
     path('promotion/', views.promotion_wizard_step1, name='promotion_wizard_step1'),

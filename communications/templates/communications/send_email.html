@@ -10,7 +10,7 @@
             <div class="card">
                 <div class="card-header d-flex justify-content-between align-items-center">
                     <h3 class="card-title">Send Email to {{ student.first_name }} {{ student.last_name }}</h3>
-                    <a href="{% url 'core:student_detail' student.student_id %}" class="btn btn-secondary">
+                    <a href="{% url 'core:student_detail' student.get_signed_token %}" class="btn btn-secondary">
                         <i class="fas fa-arrow-left"></i> Back to Student
                     </a>
                 </div>
@@ -75,7 +75,7 @@
                             </div>
                         </div>
                         <div class="d-flex justify-content-between">
-                            <a href="{% url 'core:student_detail' student.student_id %}" class="btn btn-secondary">
+                            <a href="{% url 'core:student_detail' student.get_signed_token %}" class="btn btn-secondary">
                                 <i class="fas fa-times"></i> Cancel
                             </a>
                             <button type="submit" class="btn btn-primary">

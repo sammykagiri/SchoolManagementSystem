@@ -55,6 +55,26 @@ class School(models.Model):
     def __str__(self):
         return self.name
 
+    def get_signed_token(self):
+        """Generate an opaque signed token for this school to use in URLs."""
+        from django.core import signing
+        payload = {'schid': self.id}
+        return signing.dumps(payload)
+
+    @classmethod
+    def from_signed_token(cls, token):
+        """Resolve a signed token back to a School object."""
+        from django.core import signing
+        from django.core.signing import BadSignature
+        try:
+            data = signing.loads(token)
+            school_id = data.get('schid')
+            if not school_id:
+                return None
+            return cls.objects.get(id=school_id)
+        except (BadSignature, ValueError, cls.DoesNotExist, TypeError):
+            return None
+
     class Meta:
         constraints = [
             models.UniqueConstraint(fields=['name'], name='unique_school_name'),
@@ -71,6 +91,27 @@ class Grade(models.Model):
 
     def __str__(self):
         return self.name
+
+    def get_signed_token(self):
+        """Generate an opaque signed token for this grade to use in URLs."""
+        from django.core import signing
+        payload = {'gid': self.id, 'sch': self.school_id}
+        return signing.dumps(payload)
+
+    @classmethod
+    def from_signed_token(cls, token):
+        """Resolve a signed token back to a Grade object."""
+        from django.core import signing
+        from django.core.signing import BadSignature
+        try:
+            data = signing.loads(token)
+            grade_id = data.get('gid')
+            school_id = data.get('sch')
+            if not grade_id or not school_id:
+                return None
+            return cls.objects.get(id=grade_id, school_id=school_id)
+        except (BadSignature, ValueError, cls.DoesNotExist, TypeError):
+            return None
 
     class Meta:
         ordering = ['name']
@@ -104,6 +145,27 @@ class Term(models.Model):
     def __str__(self):
         return f"{self.get_display_name()} - {self.academic_year}"
 
+    def get_signed_token(self):
+        """Generate an opaque signed token for this term to use in URLs."""
+        from django.core import signing
+        payload = {'termid': self.id, 'sch': self.school_id}
+        return signing.dumps(payload)
+
+    @classmethod
+    def from_signed_token(cls, token):
+        """Resolve a signed token back to a Term object."""
+        from django.core import signing
+        from django.core.signing import BadSignature
+        try:
+            data = signing.loads(token)
+            term_id = data.get('termid')
+            school_id = data.get('sch')
+            if not term_id or not school_id:
+                return None
+            return cls.objects.get(id=term_id, school_id=school_id)
+        except (BadSignature, ValueError, cls.DoesNotExist, TypeError):
+            return None
+
     class Meta:
         unique_together = ['school', 'term_number', 'academic_year']
         ordering = ['-academic_year', 'term_number']
@@ -121,6 +183,27 @@ class FeeCategoryType(models.Model):
 
     def __str__(self):
         return self.name
+
+    def get_signed_token(self):
+        """Generate an opaque signed token for this fee category type to use in URLs."""
+        from django.core import signing
+        payload = {'fctid': self.id, 'sch': self.school_id}
+        return signing.dumps(payload)
+
+    @classmethod
+    def from_signed_token(cls, token):
+        """Resolve a signed token back to a FeeCategoryType object."""
+        from django.core import signing
+        from django.core.signing import BadSignature
+        try:
+            data = signing.loads(token)
+            type_id = data.get('fctid')
+            school_id = data.get('sch')
+            if not type_id or not school_id:
+                return None
+            return cls.objects.get(id=type_id, school_id=school_id)
+        except (BadSignature, ValueError, cls.DoesNotExist, TypeError):
+            return None
 
     class Meta:
         verbose_name = "Fee Category Type"
@@ -142,6 +225,27 @@ class FeeCategory(models.Model):
 
     def __str__(self):
         return self.name
+
+    def get_signed_token(self):
+        """Generate an opaque signed token for this fee category to use in URLs."""
+        from django.core import signing
+        payload = {'fcid': self.id, 'sch': self.school_id}
+        return signing.dumps(payload)
+
+    @classmethod
+    def from_signed_token(cls, token):
+        """Resolve a signed token back to a FeeCategory object."""
+        from django.core import signing
+        from django.core.signing import BadSignature
+        try:
+            data = signing.loads(token)
+            category_id = data.get('fcid')
+            school_id = data.get('sch')
+            if not category_id or not school_id:
+                return None
+            return cls.objects.get(id=category_id, school_id=school_id)
+        except (BadSignature, ValueError, cls.DoesNotExist, TypeError):
+            return None
 
     class Meta:
         verbose_name_plural = "Fee Categories"
@@ -182,6 +286,27 @@ class TransportRoute(models.Model):
 
     def __str__(self):
         return f"{self.name} - KES {self.base_fare}"
+
+    def get_signed_token(self):
+        """Generate an opaque signed token for this transport route to use in URLs."""
+        from django.core import signing
+        payload = {'trid': self.id, 'sch': self.school_id}
+        return signing.dumps(payload)
+
+    @classmethod
+    def from_signed_token(cls, token):
+        """Resolve a signed token back to a TransportRoute object."""
+        from django.core import signing
+        from django.core.signing import BadSignature
+        try:
+            data = signing.loads(token)
+            route_id = data.get('trid')
+            school_id = data.get('sch')
+            if not route_id or not school_id:
+                return None
+            return cls.objects.get(id=route_id, school_id=school_id)
+        except (BadSignature, ValueError, cls.DoesNotExist, TypeError):
+            return None
 
     class Meta:
         ordering = ['name']
@@ -525,6 +650,27 @@ class FeeStructure(models.Model):
     def __str__(self):
         return f"{self.grade} - {self.term} - {self.fee_category} - KES {self.amount}"
 
+    def get_signed_token(self):
+        """Generate an opaque signed token for this fee structure to use in URLs."""
+        from django.core import signing
+        payload = {'fsid': self.id, 'sch': self.school_id}
+        return signing.dumps(payload)
+
+    @classmethod
+    def from_signed_token(cls, token):
+        """Resolve a signed token back to a FeeStructure object."""
+        from django.core import signing
+        from django.core.signing import BadSignature
+        try:
+            data = signing.loads(token)
+            structure_id = data.get('fsid')
+            school_id = data.get('sch')
+            if not structure_id or not school_id:
+                return None
+            return cls.objects.get(id=structure_id, school_id=school_id)
+        except (BadSignature, ValueError, cls.DoesNotExist, TypeError):
+            return None
+
     class Meta:
         unique_together = ['school', 'grade', 'term', 'fee_category']
         ordering = ['grade', 'term', 'fee_category']
@@ -591,6 +737,26 @@ class Role(models.Model):
     def __str__(self):
         return self.get_display_name()
     
+    def get_signed_token(self):
+        """Generate an opaque signed token for this role to use in URLs."""
+        from django.core import signing
+        payload = {'rid': self.id}
+        return signing.dumps(payload)
+
+    @classmethod
+    def from_signed_token(cls, token):
+        """Resolve a signed token back to a Role object."""
+        from django.core import signing
+        from django.core.signing import BadSignature
+        try:
+            data = signing.loads(token)
+            role_id = data.get('rid')
+            if not role_id:
+                return None
+            return cls.objects.get(id=role_id)
+        except (BadSignature, ValueError, cls.DoesNotExist, TypeError):
+            return None
+
     def get_display_name(self):
         """Get the human-readable name for this role"""
         # If display_name is set, use it
@@ -706,6 +872,26 @@ class UserProfile(models.Model):
     def roles_list(self):
         """Return a list of role names for this user"""
         return [role.name for role in self.roles.all()]
+
+    def get_signed_token(self):
+        """Generate an opaque signed token for this user profile (and thus the user) to use in URLs."""
+        from django.core import signing
+        payload = {'upid': self.id}
+        return signing.dumps(payload)
+
+    @classmethod
+    def from_signed_token(cls, token):
+        """Resolve a signed token back to a UserProfile object."""
+        from django.core import signing
+        from django.core.signing import BadSignature
+        try:
+            data = signing.loads(token)
+            profile_id = data.get('upid')
+            if not profile_id:
+                return None
+            return cls.objects.get(id=profile_id)
+        except (BadSignature, ValueError, cls.DoesNotExist, TypeError):
+            return None
     
     def has_permission(self, permission_type, resource_type):
         """Check if the user has a specific permission through any of their roles"""
@@ -954,6 +1140,27 @@ class SchoolClass(models.Model):
 
     def __str__(self):
         return f"{self.name} ({self.grade.name})"
+
+    def get_signed_token(self):
+        """Generate an opaque signed token for this school class to use in URLs."""
+        from django.core import signing
+        payload = {'scid': self.id, 'sch': self.school_id}
+        return signing.dumps(payload)
+
+    @classmethod
+    def from_signed_token(cls, token):
+        """Resolve a signed token back to a SchoolClass object."""
+        from django.core import signing
+        from django.core.signing import BadSignature
+        try:
+            data = signing.loads(token)
+            class_id = data.get('scid')
+            school_id = data.get('sch')
+            if not class_id or not school_id:
+                return None
+            return cls.objects.get(id=class_id, school_id=school_id)
+        except (BadSignature, ValueError, cls.DoesNotExist, TypeError):
+            return None
 
 
 class AcademicYear(models.Model):

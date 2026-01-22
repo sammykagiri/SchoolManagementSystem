@@ -75,7 +75,7 @@
                         </div>
                         {% endif %}
                         <div class="d-flex justify-content-between">
-                            <a href="{% if template %}{% url 'communications:template_detail' template.id %}{% else %}{% url 'communications:template_list' %}{% endif %}" 
+                            <a href="{% if template %}{% url 'communications:template_detail' template.get_signed_token %}{% else %}{% url 'communications:template_list' %}{% endif %}" 
                                class="btn btn-secondary">
                                 <i class="fas fa-arrow-left"></i> Cancel
                             </a>

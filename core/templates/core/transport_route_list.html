@@ -75,12 +75,12 @@
                                 <td>
                                     <div class="btn-group btn-group-sm" role="group">
                                         {% if user|has_permission:'change_fee' %}
-                                        <a href="{% url 'core:transport_route_edit' route.id %}" class="btn btn-outline-primary" title="Edit">
+                                        <a href="{% url 'core:transport_route_edit' route.get_signed_token %}" class="btn btn-outline-primary" title="Edit">
                                             <i class="fas fa-edit"></i>
                                         </a>
                                         {% endif %}
                                         {% if user|has_permission:'delete_fee' %}
-                                        <a href="{% url 'core:transport_route_delete' route.id %}" class="btn btn-outline-danger" title="Delete" onclick="return confirm('Are you sure you want to delete this transport route?');">
+                                        <a href="{% url 'core:transport_route_delete' route.get_signed_token %}" class="btn btn-outline-danger" title="Delete" onclick="return confirm('Are you sure you want to delete this transport route?');">
                                             <i class="fas fa-trash"></i>
                                         </a>
                                         {% endif %}

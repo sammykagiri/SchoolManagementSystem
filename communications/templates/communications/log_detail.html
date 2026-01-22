@@ -31,7 +31,7 @@
                                     <th>Student:</th>
                                     <td>
                                         {% if log.student %}
-                                            <a href="{% url 'core:student_detail' log.student.student_id %}">
+                                            <a href="{% url 'core:student_detail' log.student.get_signed_token %}">
                                                 {{ log.student.first_name }} {{ log.student.last_name }}
                                             </a>
                                             <br><small class="text-muted">{{ log.student.student_id }}</small>
@@ -44,7 +44,7 @@
                                     <th>Template:</th>
                                     <td>
                                         {% if log.template %}
-                                            <a href="{% url 'communications:template_detail' log.template.id %}">
+                                            <a href="{% url 'communications:template_detail' log.template.get_signed_token %}">
                                                 {{ log.template.name }}
                                             </a>
                                         {% else %}

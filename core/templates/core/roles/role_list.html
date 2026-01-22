@@ -43,13 +43,13 @@
                             <td>{{ role.permissions.count }}</td>
                             <td>
                                 <div class="btn-group" role="group">
-                                    <a href="{% url 'core:role_permissions' role.id %}" class="btn btn-sm btn-outline-info" title="Manage Permissions">
+                                    <a href="{% url 'core:role_permissions' role.get_signed_token %}" class="btn btn-sm btn-outline-info" title="Manage Permissions">
                                         <i class="fas fa-key"></i>
                                     </a>
-                                    <a href="{% url 'core:role_edit' role.id %}" class="btn btn-sm btn-outline-primary" title="Edit Role">
+                                    <a href="{% url 'core:role_edit' role.get_signed_token %}" class="btn btn-sm btn-outline-primary" title="Edit Role">
                                         <i class="fas fa-edit"></i>
                                     </a>
-                                    <a href="{% url 'core:role_delete' role.id %}" class="btn btn-sm btn-outline-danger" title="Delete Role">
+                                    <a href="{% url 'core:role_delete' role.get_signed_token %}" class="btn btn-sm btn-outline-danger" title="Delete Role">
                                         <i class="fas fa-trash"></i>
                                     </a>
                                 </div>

@@ -265,7 +265,7 @@
                                                     <i class="fas fa-phone me-2"></i>Call
                                                 </a>
                                                 {% endif %}
-                                                <a href="{% url 'core:teacher_detail' student.school_class.class_teacher.id %}" class="btn btn-outline-info">
+                                                <a href="{% url 'core:teacher_detail' student.school_class.class_teacher.get_signed_token %}" class="btn btn-outline-info">
                                                     <i class="fas fa-user-tie me-2"></i>View Profile
                                                 </a>
                                             </div>
@@ -360,10 +360,10 @@
                         <div class="col-12">
                             <h5>Communication Actions:</h5>
                             <div class="btn-group" role="group">
-                                <a href="{% url 'communications:send_email' student.id %}" class="btn btn-primary">
+                                <a href="{% url 'communications:send_email' student.get_signed_token %}" class="btn btn-primary">
                                     <i class="fas fa-envelope"></i> Send Email
                                 </a>
-                                <a href="{% url 'communications:send_sms' student.id %}" class="btn btn-success">
+                                <a href="{% url 'communications:send_sms' student.get_signed_token %}" class="btn btn-success">
                                     <i class="fas fa-sms"></i> Send SMS
                                 </a>
                             </div>

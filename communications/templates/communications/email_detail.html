@@ -57,7 +57,7 @@
                                     <th width="30%">Student:</th>
                                     <td>
                                         {% if email.student %}
-                                            <a href="{% url 'core:student_detail' email.student.student_id %}">
+                                            <a href="{% url 'core:student_detail' email.student.get_signed_token %}">
                                                 {{ email.student.first_name }} {{ email.student.last_name }}
                                             </a>
                                             <br><small class="text-muted">{{ email.student.student_id }}</small>
@@ -70,7 +70,7 @@
                                     <th>Template:</th>
                                     <td>
                                         {% if email.template %}
-                                            <a href="{% url 'communications:template_detail' email.template.id %}">
+                                            <a href="{% url 'communications:template_detail' email.template.get_signed_token %}">
                                                 {{ email.template.name }}
                                             </a>
                                         {% else %}

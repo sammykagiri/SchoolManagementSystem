@@ -104,12 +104,12 @@
                                     {% if user|has_permission:'change_user_management' or user|has_permission:'delete_user_management' %}
                                     <div class="btn-group">
                                         {% if user|has_permission:'change_user_management' %}
-                                        <a href="{% url 'core:user_edit' list_user.id %}" class="btn btn-sm btn-outline-primary">
+                                        <a href="{% url 'core:user_edit' list_user.profile.get_signed_token %}" class="btn btn-sm btn-outline-primary">
                                             <i class="fas fa-edit"></i>
                                         </a>
                                         {% endif %}
                                         {% if user|has_permission:'delete_user_management' %}
-                                        <a href="{% url 'core:user_delete' list_user.id %}" class="btn btn-sm btn-outline-danger">
+                                        <a href="{% url 'core:user_delete' list_user.profile.get_signed_token %}" class="btn btn-sm btn-outline-danger">
                                             <i class="fas fa-trash"></i>
                                         </a>
                                         {% endif %}
@@ -119,12 +119,12 @@
                                     {% if user|has_permission:'change_user_management' or user|has_permission:'delete_user_management' %}
                                     <div class="btn-group">
                                         {% if user|has_permission:'change_user_management' %}
-                                        <a href="{% url 'core:user_edit' list_user.id %}" class="btn btn-sm btn-outline-primary">
+                                        <a href="{% url 'core:user_edit' list_user.profile.get_signed_token %}" class="btn btn-sm btn-outline-primary">
                                             <i class="fas fa-edit"></i>
                                         </a>
                                         {% endif %}
                                         {% if user|has_permission:'delete_user_management' %}
-                                        <a href="{% url 'core:user_delete' list_user.id %}" class="btn btn-sm btn-outline-danger">
+                                        <a href="{% url 'core:user_delete' list_user.profile.get_signed_token %}" class="btn btn-sm btn-outline-danger">
                                             <i class="fas fa-trash"></i>
                                         </a>
                                         {% endif %}

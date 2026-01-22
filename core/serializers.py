@@ -15,11 +15,17 @@ class GradeSerializer(serializers.ModelSerializer):
         fields = ['id', 'name', 'description']
 
 class TermSerializer(serializers.ModelSerializer):
+    token = serializers.SerializerMethodField()
+    
     class Meta:
         model = Term
         fields = [
-            'id', 'name', 'term_number', 'academic_year', 'start_date', 'end_date', 'is_active'
+            'id', 'name', 'term_number', 'academic_year', 'start_date', 'end_date', 'is_active', 'token'
         ]
+    
+    def get_token(self, obj):
+        """Return signed token for URL tokenization"""
+        return obj.get_signed_token()
 
 class FeeCategorySerializer(serializers.ModelSerializer):
     class Meta:

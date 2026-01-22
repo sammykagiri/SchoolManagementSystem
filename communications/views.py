@@ -27,6 +27,56 @@ except ImportError as e:
 logger = logging.getLogger(__name__)
 
 
+def _get_template_from_token_or_id(request, token_or_id):
+    """Helper function to resolve communication template from token or id (backward compatibility)"""
+    school = request.user.profile.school
+    template = CommunicationTemplate.from_signed_token(token_or_id)
+    if template and template.school == school:
+        return template
+    if str(token_or_id).isdigit():
+        return get_object_or_404(CommunicationTemplate, id=int(token_or_id), school=school)
+    from django.http import Http404
+    raise Http404("Template not found")
+
+def _get_email_from_token_or_id(request, token_or_id):
+    """Helper function to resolve email message from token or id (backward compatibility)"""
+    school = request.user.profile.school
+    email = EmailMessage.from_signed_token(token_or_id)
+    if email and email.school == school:
+        return email
+    if str(token_or_id).isdigit():
+        return get_object_or_404(EmailMessage, id=int(token_or_id), school=school)
+    from django.http import Http404
+    raise Http404("Email message not found")
+
+def _get_sms_from_token_or_id(request, token_or_id):
+    """Helper function to resolve SMS message from token or id (backward compatibility)"""
+    school = request.user.profile.school
+    sms = SMSMessage.from_signed_token(token_or_id)
+    if sms and sms.school == school:
+        return sms
+    if str(token_or_id).isdigit():
+        return get_object_or_404(SMSMessage, id=int(token_or_id), school=school)
+    from django.http import Http404
+    raise Http404("SMS message not found")
+
+def _get_log_from_token_or_id(request, token_or_id):
+    """Helper function to resolve communication log from token or id (backward compatibility)"""
+    school = request.user.profile.school
+    log = CommunicationLog.from_signed_token(token_or_id)
+    if log and log.school == school:
+        return log
+    if str(token_or_id).isdigit():
+        return get_object_or_404(CommunicationLog, id=int(token_or_id), school=school)
+    from django.http import Http404
+    raise Http404("Communication log not found")
+
+def _get_student_from_token_or_id(request, token_or_id):
+    """Helper function to resolve student from token or student_id (backward compatibility)"""
+    from core.views import _get_student_from_token_or_id as core_get_student
+    return core_get_student(request, token_or_id)
+
+
 @login_required
 @role_required('super_admin', 'school_admin', 'teacher', 'accountant')
 def communications_list(request):
@@ -114,8 +164,7 @@ def template_list(request):
 @role_required('super_admin', 'school_admin', 'teacher')
 def template_detail(request, template_id):
     """Template detail view"""
-    school = request.user.profile.school
-    template = get_object_or_404(CommunicationTemplate, school=school, id=template_id)
+    template = _get_template_from_token_or_id(request, template_id)
     
     context = {
         'template': template,
@@ -128,7 +177,7 @@ def template_detail(request, template_id):
 def template_update(request, template_id):
     """Update template"""
     school = request.user.profile.school
-    template = get_object_or_404(CommunicationTemplate, school=school, id=template_id)
+    template = _get_template_from_token_or_id(request, template_id)
     
     if request.method == 'POST':
         template.name = request.POST.get('name')
@@ -155,6 +204,7 @@ def template_update(request, template_id):
 @role_required('super_admin', 'school_admin')
 def template_delete(request, template_id):
     """Delete template"""
+    template = _get_template_from_token_or_id(request, template_id)
     school = request.user.profile.school
     template = get_object_or_404(CommunicationTemplate, school=school, id=template_id)
     
@@ -211,8 +261,7 @@ def email_list(request):
 @role_required('super_admin', 'school_admin', 'teacher', 'accountant')
 def email_detail(request, email_id):
     """Email detail view"""
-    school = request.user.profile.school
-    email = get_object_or_404(EmailMessage, school=school, id=email_id)
+    email = _get_email_from_token_or_id(request, email_id)
     
     context = {
         'email': email,
@@ -261,8 +310,7 @@ def sms_list(request):
 @role_required('super_admin', 'school_admin', 'teacher', 'accountant')
 def sms_detail(request, sms_id):
     """SMS detail view"""
-    school = request.user.profile.school
-    sms = get_object_or_404(SMSMessage, school=school, id=sms_id)
+    sms = _get_sms_from_token_or_id(request, sms_id)
     
     context = {
         'sms': sms,
@@ -313,8 +361,7 @@ def communication_log_detail(request, log_id):
 @role_required('super_admin', 'school_admin', 'teacher')
 def send_email(request, student_id):
     """Send custom email to student"""
-    school = request.user.profile.school
-    student = get_object_or_404(Student, school=school, id=student_id)
+    student = _get_student_from_token_or_id(request, student_id)
     
     if request.method == 'POST':
         subject = request.POST.get('subject')
@@ -323,16 +370,15 @@ def send_email(request, student_id):
         
         if not subject or not content:
             messages.error(request, 'Subject and content are required.')
-            return redirect('core:student_detail', student_id=student.student_id)
+            return redirect('core:student_detail', student_id=student.get_signed_token())
         
         try:
             template = None
             if template_id:
-                # Validate template_id is a number
+                # Try to resolve template from token or id
                 try:
-                    template_id_int = int(template_id)
-                    template = CommunicationTemplate.objects.get(school=school, id=template_id_int)
-                except (ValueError, CommunicationTemplate.DoesNotExist):
+                    template = _get_template_from_token_or_id(request, template_id)
+                except:
                     # Invalid template_id - ignore it and continue without template
                     pass
             
@@ -354,7 +400,7 @@ def send_email(request, student_id):
             
             if not email_to_parent:
                 messages.error(request, 'No email address found for this student\'s parent(s). Please ensure the student has a parent email or linked parent account with an email address.')
-                return redirect('core:student_detail', student_id=student.student_id)
+                return redirect('core:student_detail', student_id=student.get_signed_token())
             
             # Get student's total balance for {amount} placeholder
             from django.db.models import Sum
@@ -471,7 +517,7 @@ def send_email(request, student_id):
 def send_sms(request, student_id):
     """Send custom SMS to student"""
     school = request.user.profile.school
-    student = get_object_or_404(Student, school=school, id=student_id)
+    student = _get_student_from_token_or_id(request, student_id)
     
     if request.method == 'POST':
         content = request.POST.get('content')
@@ -479,16 +525,15 @@ def send_sms(request, student_id):
         
         if not content:
             messages.error(request, 'Content is required.')
-            return redirect('core:student_detail', student_id=student.student_id)
+            return redirect('core:student_detail', student_id=student.get_signed_token())
         
         try:
             template = None
             if template_id:
-                # Validate template_id is a number
+                # Try to resolve template from token or id
                 try:
-                    template_id_int = int(template_id)
-                    template = CommunicationTemplate.objects.get(school=school, id=template_id_int)
-                except (ValueError, CommunicationTemplate.DoesNotExist):
+                    template = _get_template_from_token_or_id(request, template_id)
+                except:
                     # Invalid template_id - ignore it and continue without template
                     pass
             
@@ -526,15 +571,14 @@ def send_sms(request, student_id):
 @role_required('super_admin', 'school_admin', 'teacher')
 def get_template_content(request, template_id):
     """API endpoint to get template content as JSON"""
-    school = request.user.profile.school
-    try:
-        template = CommunicationTemplate.objects.get(school=school, id=template_id)
+    template = _get_template_from_token_or_id(request, template_id)
+    if template:
         return JsonResponse({
             'success': True,
             'subject': template.subject or '',
             'content': template.content or '',
         })
-    except CommunicationTemplate.DoesNotExist:
+    else:
         return JsonResponse({
             'success': False,
             'error': 'Template not found'

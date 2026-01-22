@@ -128,12 +128,12 @@
                                 </a>
                                 {% endif %}
                                 {% if user|has_permission:'view_email' %}
-                                <a href="{% url 'communications:send_email' student.id %}" class="btn btn-sm btn-outline-success" title="Send Email">
+                                <a href="{% url 'communications:send_email' student.get_signed_token %}" class="btn btn-sm btn-outline-success" title="Send Email">
                                     <i class="fas fa-envelope"></i>
                                 </a>
                                 {% endif %}
                                 {% if user|has_permission:'view_sms' %}
-                                <a href="{% url 'communications:send_sms' student.id %}" class="btn btn-sm btn-outline-info" title="Send SMS">
+                                <a href="{% url 'communications:send_sms' student.get_signed_token %}" class="btn btn-sm btn-outline-info" title="Send SMS">
                                     <i class="fas fa-sms"></i>
                                 </a>
                                 {% endif %}

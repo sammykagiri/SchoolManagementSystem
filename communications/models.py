@@ -36,6 +36,27 @@ class CommunicationTemplate(models.Model):
     def __str__(self):
         return f"{self.name} - {self.get_template_type_display()}"
 
+    def get_signed_token(self):
+        """Generate an opaque signed token for this communication template to use in URLs."""
+        from django.core import signing
+        payload = {'ctid': self.id, 'sch': self.school_id}
+        return signing.dumps(payload)
+
+    @classmethod
+    def from_signed_token(cls, token):
+        """Resolve a signed token back to a CommunicationTemplate object."""
+        from django.core import signing
+        from django.core.signing import BadSignature
+        try:
+            data = signing.loads(token)
+            template_id = data.get('ctid')
+            school_id = data.get('sch')
+            if not template_id or not school_id:
+                return None
+            return cls.objects.get(id=template_id, school_id=school_id)
+        except (BadSignature, ValueError, cls.DoesNotExist, TypeError):
+            return None
+
     class Meta:
         ordering = ['message_type', 'name']
         unique_together = ['school', 'name', 'message_type', 'template_type']
@@ -99,6 +120,27 @@ class SMSMessage(models.Model):
     def __str__(self):
         return f"SMS to {self.recipient_phone} - {self.status}"
 
+    def get_signed_token(self):
+        """Generate an opaque signed token for this SMS message to use in URLs."""
+        from django.core import signing
+        payload = {'smid': self.id, 'sch': self.school_id}
+        return signing.dumps(payload)
+
+    @classmethod
+    def from_signed_token(cls, token):
+        """Resolve a signed token back to an SMSMessage object."""
+        from django.core import signing
+        from django.core.signing import BadSignature
+        try:
+            data = signing.loads(token)
+            sms_id = data.get('smid')
+            school_id = data.get('sch')
+            if not sms_id or not school_id:
+                return None
+            return cls.objects.get(id=sms_id, school_id=school_id)
+        except (BadSignature, ValueError, cls.DoesNotExist, TypeError):
+            return None
+
     class Meta:
         ordering = ['-created_at']
         verbose_name = "SMS Message"
@@ -127,6 +169,27 @@ class CommunicationLog(models.Model):
 
     def __str__(self):
         return f"{self.communication_type} - {self.student} - {self.created_at.date()}"
+
+    def get_signed_token(self):
+        """Generate an opaque signed token for this communication log to use in URLs."""
+        from django.core import signing
+        payload = {'clid': self.id, 'sch': self.school_id}
+        return signing.dumps(payload)
+
+    @classmethod
+    def from_signed_token(cls, token):
+        """Resolve a signed token back to a CommunicationLog object."""
+        from django.core import signing
+        from django.core.signing import BadSignature
+        try:
+            data = signing.loads(token)
+            log_id = data.get('clid')
+            school_id = data.get('sch')
+            if not log_id or not school_id:
+                return None
+            return cls.objects.get(id=log_id, school_id=school_id)
+        except (BadSignature, ValueError, cls.DoesNotExist, TypeError):
+            return None
 
     class Meta:
         ordering = ['-created_at']

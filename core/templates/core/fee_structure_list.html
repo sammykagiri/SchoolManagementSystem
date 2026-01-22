@@ -170,12 +170,12 @@
                                                                                                     <td>
                                                                                                         <div class="btn-group btn-group-sm" role="group">
                                                                                                             {% if user|has_permission:'change_fee_structure' %}
-                                                                                                            <a href="{% url 'core:fee_structure_edit' fee_structure.id %}" class="btn btn-outline-primary" title="Edit">
+                                                                                                            <a href="{% url 'core:fee_structure_edit' fee_structure.get_signed_token %}" class="btn btn-outline-primary" title="Edit">
                                                                                                                 <i class="fas fa-edit"></i>
                                                                                                             </a>
                                                                                                             {% endif %}
                                                                                                             {% if user|has_permission:'delete_fee_structure' %}
-                                                                                                            <a href="{% url 'core:fee_structure_delete' fee_structure.id %}" class="btn btn-outline-danger" title="Delete" onclick="return confirm('Are you sure you want to delete this fee structure?');">
+                                                                                                            <a href="{% url 'core:fee_structure_delete' fee_structure.get_signed_token %}" class="btn btn-outline-danger" title="Delete" onclick="return confirm('Are you sure you want to delete this fee structure?');">
                                                                                                                 <i class="fas fa-trash"></i>
                                                                                                             </a>
                                                                                                             {% endif %}

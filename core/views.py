@@ -18,7 +18,7 @@ from datetime import datetime
 from decimal import Decimal, InvalidOperation
 from .models import (
     School, Grade, Term, FeeCategory, FeeCategoryType, TransportRoute, Student, FeeStructure, StudentFee, SchoolClass,
-    AcademicYear, Section, StudentClassEnrollment, PromotionLog
+    AcademicYear, Section, StudentClassEnrollment, PromotionLog, Role, UserProfile
 )
 from payments.models import Payment
 from timetable.models import Teacher
@@ -387,6 +387,94 @@ def _get_student_from_token_or_id(request, token_or_id):
         return student
     # Fallback to student_id for backward compatibility
     return get_object_or_404(Student, student_id=token_or_id, school=school)
+
+def _get_grade_from_token_or_id(request, token_or_id):
+    """Helper function to resolve grade from token or id (backward compatibility)"""
+    school = request.user.profile.school
+    grade = Grade.from_signed_token(token_or_id)
+    if grade and grade.school == school:
+        return grade
+    if str(token_or_id).isdigit():
+        return get_object_or_404(Grade, id=int(token_or_id), school=school)
+    raise Http404("Grade not found")
+
+def _get_term_from_token_or_id(request, token_or_id):
+    """Helper function to resolve term from token or id (backward compatibility)"""
+    school = request.user.profile.school
+    term = Term.from_signed_token(token_or_id)
+    if term and term.school == school:
+        return term
+    if str(token_or_id).isdigit():
+        return get_object_or_404(Term, id=int(token_or_id), school=school)
+    raise Http404("Term not found")
+
+def _get_fee_structure_from_token_or_id(request, token_or_id):
+    """Helper function to resolve fee structure from token or id (backward compatibility)"""
+    school = request.user.profile.school
+    fee_structure = FeeStructure.from_signed_token(token_or_id)
+    if fee_structure and fee_structure.school == school:
+        return fee_structure
+    if str(token_or_id).isdigit():
+        return get_object_or_404(FeeStructure, id=int(token_or_id), school=school)
+    raise Http404("Fee structure not found")
+
+def _get_fee_category_from_token_or_id(request, token_or_id):
+    """Helper function to resolve fee category from token or id (backward compatibility)"""
+    school = request.user.profile.school
+    category = FeeCategory.from_signed_token(token_or_id)
+    if category and category.school == school:
+        return category
+    if str(token_or_id).isdigit():
+        return get_object_or_404(FeeCategory, id=int(token_or_id), school=school)
+    raise Http404("Fee category not found")
+
+def _get_fee_category_type_from_token_or_id(request, token_or_id):
+    """Helper function to resolve fee category type from token or id (backward compatibility)"""
+    school = request.user.profile.school
+    category_type = FeeCategoryType.from_signed_token(token_or_id)
+    if category_type and category_type.school == school:
+        return category_type
+    if str(token_or_id).isdigit():
+        return get_object_or_404(FeeCategoryType, id=int(token_or_id), school=school)
+    raise Http404("Fee category type not found")
+
+def _get_transport_route_from_token_or_id(request, token_or_id):
+    """Helper function to resolve transport route from token or id (backward compatibility)"""
+    school = request.user.profile.school
+    route = TransportRoute.from_signed_token(token_or_id)
+    if route and route.school == school:
+        return route
+    if str(token_or_id).isdigit():
+        return get_object_or_404(TransportRoute, id=int(token_or_id), school=school)
+    raise Http404("Transport route not found")
+
+def _get_school_from_token_or_id(request, token_or_id):
+    """Helper function to resolve school from token or id (backward compatibility)"""
+    school = School.from_signed_token(token_or_id)
+    if school:
+        return school
+    if str(token_or_id).isdigit():
+        return get_object_or_404(School, id=int(token_or_id))
+    raise Http404("School not found")
+
+def _get_school_class_from_token_or_id(request, token_or_id):
+    """Helper function to resolve school class from token or id (backward compatibility)"""
+    school = request.user.profile.school
+    school_class = SchoolClass.from_signed_token(token_or_id)
+    if school_class and school_class.school == school:
+        return school_class
+    if str(token_or_id).isdigit():
+        return get_object_or_404(SchoolClass, id=int(token_or_id), school=school)
+    raise Http404("School class not found")
+
+def _get_role_from_token_or_id(request, token_or_id):
+    """Helper function to resolve role from token or id (backward compatibility)"""
+    role = Role.from_signed_token(token_or_id)
+    if role:
+        return role
+    if str(token_or_id).isdigit():
+        return get_object_or_404(Role, id=int(token_or_id))
+    raise Http404("Role not found")
 
 
 @login_required
@@ -921,8 +1009,7 @@ def grade_generate(request):
 @permission_required('change', 'grade')
 def grade_edit(request, grade_id):
     """Edit a grade"""
-    school = request.user.profile.school
-    grade = get_object_or_404(Grade, id=grade_id, school=school)
+    grade = _get_grade_from_token_or_id(request, grade_id)
     
     if request.method == 'POST':
         name = request.POST.get('name')
@@ -945,8 +1032,7 @@ def grade_edit(request, grade_id):
 @permission_required('delete', 'grade')
 def grade_delete(request, grade_id):
     """Delete a grade"""
-    school = request.user.profile.school
-    grade = get_object_or_404(Grade, id=grade_id, school=school)
+    grade = _get_grade_from_token_or_id(request, grade_id)
     
     if request.method == 'POST':
         try:
@@ -1194,7 +1280,7 @@ def term_generate(request):
 def term_edit(request, term_id):
     """Edit existing term"""
     school = request.user.profile.school
-    term = get_object_or_404(Term, id=term_id, school=school)
+    term = _get_term_from_token_or_id(request, term_id)
     TERM_CHOICES = [(1, 'Term 1'), (2, 'Term 2'), (3, 'Term 3')]
     if request.method == 'POST':
         term_number = request.POST.get('term_number', '').strip()
@@ -1252,8 +1338,7 @@ def term_edit(request, term_id):
 @permission_required('delete', 'term')
 def term_delete(request, term_id):
     """Delete a term (soft delete)"""
-    school = request.user.profile.school
-    term = get_object_or_404(Term, id=term_id, school=school)
+    term = _get_term_from_token_or_id(request, term_id)
     if request.method == 'POST':
         term.delete()
         messages.success(request, 'Term deleted successfully!')
@@ -1345,7 +1430,7 @@ def fee_structure_list(request):
 def fee_structure_edit(request, fee_structure_id):
     """Edit a fee structure"""
     school = request.user.profile.school
-    fee_structure = get_object_or_404(FeeStructure, id=fee_structure_id, school=school)
+    fee_structure = _get_fee_structure_from_token_or_id(request, fee_structure_id)
     
     if request.method == 'POST':
         grade_id = request.POST.get('grade')
@@ -1381,8 +1466,7 @@ def fee_structure_edit(request, fee_structure_id):
 @permission_required('delete', 'fee_structure')
 def fee_structure_delete(request, fee_structure_id):
     """Delete a fee structure"""
-    school = request.user.profile.school
-    fee_structure = get_object_or_404(FeeStructure, id=fee_structure_id, school=school)
+    fee_structure = _get_fee_structure_from_token_or_id(request, fee_structure_id)
     
     if request.method == 'POST':
         try:
@@ -1484,7 +1568,7 @@ def fee_category_add(request):
 def fee_category_edit(request, category_id):
     """Edit an existing fee category"""
     school = request.user.profile.school
-    category = get_object_or_404(FeeCategory, id=category_id, school=school)
+    category = _get_fee_category_from_token_or_id(request, category_id)
     
     if request.method == 'POST':
         name = request.POST.get('name', '').strip()
@@ -1551,7 +1635,7 @@ def fee_category_edit(request, category_id):
 def fee_category_delete(request, category_id):
     """Delete a fee category"""
     school = request.user.profile.school
-    category = get_object_or_404(FeeCategory, id=category_id, school=school)
+    category = _get_fee_category_from_token_or_id(request, category_id)
     
     if request.method == 'POST':
         is_transport = category.category_type.code == 'transport'
@@ -1671,7 +1755,7 @@ def fee_category_type_add(request):
 def fee_category_type_edit(request, type_id):
     """Edit an existing fee category type"""
     school = request.user.profile.school
-    category_type = get_object_or_404(FeeCategoryType, id=type_id, school=school)
+    category_type = _get_fee_category_type_from_token_or_id(request, type_id)
     
     if request.method == 'POST':
         name = request.POST.get('name', '').strip()
@@ -1724,7 +1808,7 @@ def fee_category_type_edit(request, type_id):
 def fee_category_type_delete(request, type_id):
     """Delete a fee category type"""
     school = request.user.profile.school
-    category_type = get_object_or_404(FeeCategoryType, id=type_id, school=school)
+    category_type = _get_fee_category_type_from_token_or_id(request, type_id)
     
     if request.method == 'POST':
         # Check if category type is used in fee categories
@@ -2206,7 +2290,7 @@ def transport_route_add(request):
 def transport_route_edit(request, route_id):
     """Edit an existing transport route"""
     school = request.user.profile.school
-    route = get_object_or_404(TransportRoute, id=route_id, school=school)
+    route = _get_transport_route_from_token_or_id(request, route_id)
     
     if request.method == 'POST':
         name = request.POST.get('name', '').strip()
@@ -2290,7 +2374,7 @@ def transport_route_edit(request, route_id):
 def transport_route_delete(request, route_id):
     """Delete a transport route"""
     school = request.user.profile.school
-    route = get_object_or_404(TransportRoute, id=route_id, school=school)
+    route = _get_transport_route_from_token_or_id(request, route_id)
     
     if request.method == 'POST':
         # Check if route is assigned to any students
@@ -2934,7 +3018,7 @@ def parent_register(request):
 @staff_member_required
 def school_admin_edit(request, school_id):
     """Edit a school (admin only)"""
-    school = get_object_or_404(School, id=school_id)
+    school = _get_school_from_token_or_id(request, school_id)
     if request.method == 'POST':
         name = request.POST.get('name', '').strip()
         address = request.POST.get('address', '').strip()
@@ -3010,7 +3094,7 @@ def school_admin_edit(request, school_id):
 @staff_member_required
 def school_admin_delete(request, school_id):
     """Delete a school (admin only)"""
-    school = get_object_or_404(School, id=school_id)
+    school = _get_school_from_token_or_id(request, school_id)
     if request.method == 'POST':
         school.delete()
         messages.success(request, 'School deleted successfully!')
@@ -3034,9 +3118,8 @@ def api_school_create(request):
 @permission_classes([IsSuperUser])
 def api_school_update(request, pk):
     """Update a school via API (superuser only)"""
-    try:
-        school = School.objects.get(pk=pk)
-    except School.DoesNotExist:
+    school = _get_school_from_token_or_id(request, pk)
+    if not school:
         return Response({'detail': 'Not found.'}, status=status.HTTP_404_NOT_FOUND)
     serializer = SchoolSerializer(school, data=request.data, partial=True)
     if serializer.is_valid():
@@ -3967,7 +4050,7 @@ def class_add(request):
 @permission_required('change', 'class')
 def class_edit(request, class_id):
     school = request.user.profile.school
-    school_class = get_object_or_404(SchoolClass, id=class_id, school=school)
+    school_class = _get_school_class_from_token_or_id(request, class_id)
     # Debug: Check user's school and available grades
     school = request.user.profile.school
     print(f"User's school: {school.id} - {school.name}")
@@ -4009,7 +4092,7 @@ def class_edit(request, class_id):
 @permission_required('delete', 'class')
 def class_delete(request, class_id):
     school = request.user.profile.school
-    school_class = get_object_or_404(SchoolClass, id=class_id, school=school)
+    school_class = _get_school_class_from_token_or_id(request, class_id)
     if request.method == 'POST':
         school_class.delete()
         messages.success(request, 'Class deleted successfully!')
@@ -4496,7 +4579,24 @@ def user_create(request):
 @permission_required('change', 'user_management')
 def user_edit(request, user_id):
     """Edit an existing user"""
-    user_to_edit = get_object_or_404(User, id=user_id)
+    # Try to resolve as token first (using UserProfile as proxy)
+    # For backward compatibility, also support numeric IDs
+    if str(user_id).isdigit():
+        user_to_edit = get_object_or_404(User, id=int(user_id))
+    else:
+        # Try to resolve via UserProfile token
+        from django.core import signing
+        from django.core.signing import BadSignature
+        try:
+            data = signing.loads(user_id)
+            profile_id = data.get('upid')
+            if profile_id:
+                profile = get_object_or_404(UserProfile, id=profile_id)
+                user_to_edit = profile.user
+            else:
+                raise Http404("User not found")
+        except (BadSignature, ValueError, UserProfile.DoesNotExist, TypeError):
+            raise Http404("User not found")
     
     # Prevent school admins from editing superadmin accounts
     if not is_superadmin_user(request.user) and is_superadmin_user(user_to_edit):
@@ -4560,7 +4660,15 @@ def user_edit(request, user_id):
 @permission_required('delete', 'user_management')
 def user_delete(request, user_id):
     """Delete a user"""
-    user_to_delete = get_object_or_404(User, id=user_id)
+    # Try to resolve as token first (using UserProfile as proxy)
+    # For backward compatibility, also support numeric IDs
+    profile = UserProfile.from_signed_token(user_id)
+    if profile:
+        user_to_delete = profile.user
+    elif str(user_id).isdigit():
+        user_to_delete = get_object_or_404(User, id=int(user_id))
+    else:
+        raise Http404("User not found")
     
     # Prevent school admins from deleting superadmin accounts
     if not is_superadmin_user(request.user) and is_superadmin_user(user_to_delete):
@@ -4629,7 +4737,7 @@ def role_add(request):
 def role_edit(request, role_id):
     """Edit an existing role"""
     from .forms import RoleForm
-    role = get_object_or_404(Role, id=role_id)
+    role = _get_role_from_token_or_id(request, role_id)
     
     if request.method == 'POST':
         form = RoleForm(request.POST, instance=role)
@@ -4651,7 +4759,7 @@ def role_edit(request, role_id):
 @permission_required('delete', 'role_management')
 def role_delete(request, role_id):
     """Delete a role"""
-    role = get_object_or_404(Role, id=role_id)
+    role = _get_role_from_token_or_id(request, role_id)
     
     if request.method == 'POST':
         role_name = role.get_display_name()
@@ -4679,7 +4787,7 @@ def role_delete(request, role_id):
 @permission_required('change', 'role_management')
 def role_permissions(request, role_id):
     """Manage permissions for a role"""
-    role = get_object_or_404(Role, id=role_id)
+    role = _get_role_from_token_or_id(request, role_id)
     
     if request.method == 'POST':
         permission_ids = request.POST.getlist('permissions')
