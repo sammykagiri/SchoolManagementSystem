@@ -78,7 +78,7 @@ class VerificationService:
                 from django.core.mail import send_mail
                 from django.conf import settings
                 
-                subject = 'Email Verification - School Management System'
+                subject = 'Email Verification - Eduvanta'
                 message = f'''
 Hello {verification.parent.full_name},
 
@@ -91,7 +91,7 @@ This code will expire in 15 minutes.
 If you did not request this change, please ignore this email.
 
 Best regards,
-School Management System
+Eduvanta
                 '''
                 
                 send_mail(
