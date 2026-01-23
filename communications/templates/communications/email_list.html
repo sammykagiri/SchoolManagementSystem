@@ -76,9 +76,13 @@
                                         {% endif %}
                                     </td>
                                     <td>
+                                        {% if email.id %}
                                         <a href="{% url 'communications:email_detail' email.get_signed_token %}" class="btn btn-sm btn-outline-primary">
                                             <i class="fas fa-eye"></i>
                                         </a>
+                                        {% else %}
+                                        <span class="text-muted">-</span>
+                                        {% endif %}
                                     </td>
                                 </tr>
                                 {% empty %}

@@ -88,6 +88,27 @@ class EmailMessage(models.Model):
     def __str__(self):
         return f"Email to {self.recipient_email} - {self.status}"
 
+    def get_signed_token(self):
+        """Generate an opaque signed token for this email message to use in URLs."""
+        from django.core import signing
+        payload = {'emid': self.id, 'sch': self.school_id}
+        return signing.dumps(payload)
+
+    @classmethod
+    def from_signed_token(cls, token):
+        """Resolve a signed token back to an EmailMessage object."""
+        from django.core import signing
+        from django.core.signing import BadSignature
+        try:
+            data = signing.loads(token)
+            email_id = data.get('emid')
+            school_id = data.get('sch')
+            if not email_id or not school_id:
+                return None
+            return cls.objects.get(id=email_id, school_id=school_id)
+        except (BadSignature, ValueError, cls.DoesNotExist, TypeError):
+            return None
+
     class Meta:
         ordering = ['-created_at']
         unique_together = ['school', 'recipient_email', 'subject', 'created_at']

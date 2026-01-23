@@ -362,6 +362,7 @@ def communication_log_detail(request, log_id):
 def send_email(request, student_id):
     """Send custom email to student"""
     student = _get_student_from_token_or_id(request, student_id)
+    school = student.school
     
     if request.method == 'POST':
         subject = request.POST.get('subject')
@@ -1478,6 +1479,7 @@ def bulk_estatement_email(request):
                                     subject=email_subject,
                                     content=email_content,
                                     status='sent',
+                                    sent_at=timezone.now(),
                                     sent_by=request.user
                                 )
                                 
