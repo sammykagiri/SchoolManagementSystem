@@ -136,6 +136,28 @@ class CustomLoginView(LoginView):
         return redirect(url)
 
 
+@csrf_exempt
+def custom_logout(request):
+    """
+    Custom logout view that handles expired sessions gracefully.
+    Uses @csrf_exempt to allow logout even when CSRF token is invalid (expired session).
+    This is safe because logout doesn't modify any data - it only clears the session.
+    """
+    from django.contrib.auth import logout
+    
+    # Accept both GET and POST requests
+    # If session is expired, CSRF token will be invalid, but we still want to allow logout
+    if request.user.is_authenticated:
+        try:
+            logout(request)
+        except Exception:
+            # Session already cleared or invalid - that's fine, just continue
+            pass
+    
+    # Always redirect to login page
+    return redirect('login')
+
+
 def root_redirect(request):
     """Root redirect - goes to home page or portal for parent portal users"""
     if request.user.is_authenticated:
