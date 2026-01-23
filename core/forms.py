@@ -370,10 +370,19 @@ class UserProfileForm(forms.ModelForm):
         super().__init__(*args, **kwargs)
         
         # Determine which school's roles to show
-        # Priority: instance.school > current_user's school
+        # Priority: instance.school > POST data school > current_user's school
         target_school = None
         if self.instance and self.instance.pk and self.instance.school:
             target_school = self.instance.school
+        elif self.data and 'school' in self.data:
+            # For new user creation, check POST data for selected school
+            school_id = self.data.get('school')
+            if school_id:
+                try:
+                    from .models import School
+                    target_school = School.objects.get(id=school_id)
+                except (School.DoesNotExist, ValueError, TypeError):
+                    pass
         elif self.current_user and hasattr(self.current_user, 'profile') and self.current_user.profile.school:
             target_school = self.current_user.profile.school
         

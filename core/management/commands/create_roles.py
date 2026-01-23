@@ -50,6 +50,7 @@ class Command(BaseCommand):
                     'view_log', 'add_log', 'change_log', 'delete_log',
                     'view_dashboard', 'view_report',
                     'view_user_management', 'add_user_management', 'change_user_management',
+                    'view_role_management', 'add_role_management', 'change_role_management', 'delete_role_management',
                 ]
             },
             'teacher': {
@@ -161,6 +162,7 @@ class Command(BaseCommand):
                     )
                 
                 # Assign permissions (only if role was just created or permissions are empty)
+                # This preserves user customizations to existing roles
                 if created or role.permissions.count() == 0:
                     if config['permissions'] == ['*']:
                         # Super admin gets all permissions

@@ -264,6 +264,10 @@ def permission_required(permission_type, resource_type):
             if request.user.is_superuser:
                 return view_func(request, *args, **kwargs)
             
+            # Users with super_admin role also have all permissions
+            if hasattr(request.user, 'profile') and request.user.profile.is_super_admin:
+                return view_func(request, *args, **kwargs)
+            
             # Check if user has the required permission
             if not hasattr(request.user, 'profile'):
                 # Try to create a profile if it doesn't exist

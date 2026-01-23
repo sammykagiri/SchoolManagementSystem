@@ -2664,12 +2664,28 @@ def school_admin_list(request):
     """List all schools and allow admin to edit or assign users to schools"""
     from django.contrib.auth.models import User
     from django.shortcuts import redirect
-    from django.db.models import Count, Q
+    from django.db.models import Count, Q, Case, When, Value, IntegerField
     from .models import Student, Parent
     from timetable.models import Teacher
     
-    schools = School.objects.all()
-    users = User.objects.all().select_related('profile')
+    schools = School.objects.all().order_by('name')
+    # Filter to only show superadmins (Django superusers or users with super_admin role)
+    # Sort users by school name, then by username
+    # Users with schools first (sorted by school name, then username)
+    # Users without schools appear last (sorted by username)
+    users = User.objects.filter(
+        Q(is_superuser=True) | Q(profile__roles__name='super_admin')
+    ).select_related('profile', 'profile__school').prefetch_related('profile__roles').distinct().annotate(
+        school_sort_order=Case(
+            When(profile__school__isnull=True, then=Value(1)),
+            default=Value(0),
+            output_field=IntegerField()
+        )
+    ).order_by(
+        'school_sort_order',  # Users with schools first (0), without schools last (1)
+        'profile__school__name',  # Then by school name
+        'username'  # Then by username
+    )
     
     # Calculate statistics for each school
     schools_with_stats = []
@@ -2714,6 +2730,9 @@ def school_admin_list(request):
             'total_teachers': active_teachers + inactive_teachers,
         })
     
+    # Sort schools_with_stats by school name
+    schools_with_stats.sort(key=lambda x: x['school'].name)
+    
     # Calculate grand totals
     totals = {
         'active_students': total_active_students,
@@ -2735,9 +2754,43 @@ def school_admin_list(request):
             try:
                 user = User.objects.get(id=user_id)
                 school = School.objects.get(id=school_id)
+                
+                # Only allow assigning superadmins to schools
+                if not is_superadmin_user(user):
+                    messages.error(request, 'Only superadmins can be assigned to schools.')
+                    return redirect('core:school_admin_list')
+                
+                # Get current role names before changing school
+                current_role_names = list(user.profile.roles.values_list('name', flat=True))
+                
+                # Update school assignment
                 user.profile.school = school
                 user.profile.save()
-                messages.success(request, f'User {user.username} assigned to {school.name}.')
+                
+                # Update roles to match the new school
+                # Find corresponding roles in the new school
+                from core.models import Role
+                new_roles = []
+                for role_name in current_role_names:
+                    # Find the role with the same name in the new school
+                    new_role = Role.objects.filter(name=role_name, school=school, is_active=True).first()
+                    if new_role:
+                        new_roles.append(new_role)
+                    else:
+                        # If role doesn't exist in new school, try to find it without school filter
+                        # (for system-wide roles like super_admin)
+                        new_role = Role.objects.filter(name=role_name, is_active=True).first()
+                        if new_role:
+                            new_roles.append(new_role)
+                
+                # Update user's roles to the new school's roles
+                if new_roles:
+                    user.profile.roles.set(new_roles)
+                else:
+                    # If no matching roles found, clear roles (shouldn't happen for superadmins)
+                    user.profile.roles.clear()
+                
+                messages.success(request, f'User {user.username} assigned to {school.name} and roles updated accordingly.')
                 # Redirect to reload the page and show updated data
                 return redirect('core:school_admin_list')
             except Exception as e:
@@ -4536,14 +4589,15 @@ def user_create(request):
                         logger = logging.getLogger(__name__)
                         logger.info(f'User creation - Extracted school "{school_from_username.name}" from username "{username}" (identifier: {school_identifier})')
                 
-                # Create user first
-                user = user_form.save()
-                
-                # Determine which school to assign
+                # Determine which school to assign BEFORE creating user
+                # This ensures we have the correct school ready when the signal runs
                 assigned_school = None
                 
-                # Priority 1: School extracted from username (if superadmin or matches admin's school)
-                if school_from_username:
+                # Priority 1: School from form (highest priority for superadmins)
+                assigned_school = profile_form.cleaned_data.get('school')
+                
+                # Priority 2: School extracted from username (if superadmin and form didn't specify)
+                if not assigned_school and school_from_username:
                     if is_superadmin_user(request.user):
                         # Superadmins can assign any school from username
                         assigned_school = school_from_username
@@ -4551,10 +4605,6 @@ def user_create(request):
                         # For school admins, only use school from username if it matches their school
                         if school_from_username.id == request.user.profile.school.id:
                             assigned_school = school_from_username
-                
-                # Priority 2: School from form (if not set from username)
-                if not assigned_school:
-                    assigned_school = profile_form.cleaned_data.get('school')
                 
                 # Priority 3: Admin's school (for school admins)
                 if not assigned_school and not is_superadmin_user(request.user):
@@ -4565,19 +4615,39 @@ def user_create(request):
                 if assigned_school:
                     profile_form.cleaned_data['school'] = assigned_school
                 
-                # Check if profile already exists
+                # Create user first (this may trigger signal to create profile)
+                user = user_form.save()
+                
+                # Refresh user from database to get any profile created by signal
+                user.refresh_from_db()
+                
+                # Check if profile already exists (created by signal or otherwise)
                 if hasattr(user, 'profile'):
                     profile = user.profile
                     # Update existing profile
                     for field, value in profile_form.cleaned_data.items():
                         if field != 'roles':  # Skip roles field
                             setattr(profile, field, value)
-                    # Ensure school is set correctly (override with assigned_school if determined)
+                    # CRITICAL: Always override school with assigned_school to ensure correct assignment
                     if assigned_school:
                         profile.school = assigned_school
                     profile.save()
-                    # Update roles separately
-                    profile.roles.set(profile_form.cleaned_data['roles'])
+                    # Update roles separately - ensure roles are from the correct school
+                    selected_roles = profile_form.cleaned_data.get('roles', [])
+                    # Filter roles to only include those from the assigned school
+                    if assigned_school:
+                        from core.models import Role
+                        # Get role names from selected roles
+                        role_names = [role.name for role in selected_roles]
+                        # Get the correct roles for the assigned school
+                        correct_roles = Role.objects.filter(
+                            name__in=role_names,
+                            school=assigned_school,
+                            is_active=True
+                        )
+                        profile.roles.set(correct_roles)
+                    else:
+                        profile.roles.set(selected_roles)
                 else:
                     # Create new profile
                     profile = profile_form.save(commit=False)
@@ -4586,8 +4656,22 @@ def user_create(request):
                     if assigned_school:
                         profile.school = assigned_school
                     profile.save()
-                    # Set roles after saving
-                    profile.roles.set(profile_form.cleaned_data['roles'])
+                    # Set roles after saving - ensure roles are from the correct school
+                    selected_roles = profile_form.cleaned_data.get('roles', [])
+                    # Filter roles to only include those from the assigned school
+                    if assigned_school:
+                        from core.models import Role
+                        # Get role names from selected roles
+                        role_names = [role.name for role in selected_roles]
+                        # Get the correct roles for the assigned school
+                        correct_roles = Role.objects.filter(
+                            name__in=role_names,
+                            school=assigned_school,
+                            is_active=True
+                        )
+                        profile.roles.set(correct_roles)
+                    else:
+                        profile.roles.set(selected_roles)
                 
                 messages.success(request, f"User {user.username} created successfully!")
                 return redirect('core:user_list')

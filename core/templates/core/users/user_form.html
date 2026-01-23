@@ -76,6 +76,7 @@
                                    class="form-control {% if user_form.username.errors %}is-invalid{% endif %}" 
                                    id="{{ user_form.username.id_for_label }}" 
                                    value="{{ user_form.username.value|default:'' }}" 
+                                   autocomplete="username"
                                    {% if user_to_edit %}{% if not user_to_edit.is_superuser %}readonly{% endif %}{% else %}placeholder="Enter username" oninput="this.value = this.value.toLowerCase();"{% endif %}>
                             {% if user_form.username.errors %}
                                 <div class="invalid-feedback">
@@ -98,7 +99,8 @@
                             <input type="email" name="{{ user_form.email.name }}" 
                                    class="form-control {% if user_form.email.errors %}is-invalid{% endif %}" 
                                    id="{{ user_form.email.id_for_label }}" 
-                                   value="{{ user_form.email.value|default:'' }}">
+                                   value="{{ user_form.email.value|default:'' }}"
+                                   autocomplete="email">
                             {% if user_form.email.errors %}
                                 <div class="invalid-feedback">
                                     {{ user_form.email.errors.0 }}
@@ -142,6 +144,7 @@
                             <input type="password" name="{{ user_form.password1.name }}" 
                                    class="form-control {% if user_form.password1.errors %}is-invalid{% endif %}" 
                                    id="{{ user_form.password1.id_for_label }}"
+                                   autocomplete="new-password"
                                    required>
                             {% if user_form.password1.errors %}
                                 <div class="invalid-feedback">
@@ -163,6 +166,7 @@
                             <input type="password" name="{{ user_form.password2.name }}" 
                                    class="form-control {% if user_form.password2.errors %}is-invalid{% endif %}" 
                                    id="{{ user_form.password2.id_for_label }}"
+                                   autocomplete="new-password"
                                    required>
                             {% if user_form.password2.errors %}
                                 <div class="invalid-feedback">

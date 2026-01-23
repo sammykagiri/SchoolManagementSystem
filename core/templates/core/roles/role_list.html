@@ -1,5 +1,6 @@
 {% extends 'base.html' %}
 {% load static %}
+{% load permissions %}
 
 {% block title %}Role Management | Eduvanta{% endblock %}
 
@@ -25,7 +26,9 @@
                             <th>Status</th>
                             <th>Users</th>
                             <th>Permissions</th>
+                            {% if user|has_permission:'view_role_management' or user|has_permission:'change_role_management' or user|has_permission:'delete_role_management' %}
                             <th>Actions</th>
+                            {% endif %}
                         </tr>
                     </thead>
                     <tbody>
@@ -43,15 +46,21 @@
                             <td>{{ role.permissions.count }}</td>
                             <td>
                                 <div class="btn-group" role="group">
+                                    {% if user|has_permission:'view_role_management' %}
                                     <a href="{% url 'core:role_permissions' role.get_signed_token %}" class="btn btn-sm btn-outline-info" title="Manage Permissions">
                                         <i class="fas fa-key"></i>
                                     </a>
+                                    {% endif %}
+                                    {% if user|has_permission:'change_role_management' %}
                                     <a href="{% url 'core:role_edit' role.get_signed_token %}" class="btn btn-sm btn-outline-primary" title="Edit Role">
                                         <i class="fas fa-edit"></i>
                                     </a>
+                                    {% endif %}
+                                    {% if user|has_permission:'delete_role_management' %}
                                     <a href="{% url 'core:role_delete' role.get_signed_token %}" class="btn btn-sm btn-outline-danger" title="Delete Role">
                                         <i class="fas fa-trash"></i>
                                     </a>
+                                    {% endif %}
                                 </div>
                             </td>
                         </tr>

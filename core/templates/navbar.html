@@ -499,7 +499,7 @@
             {% endif %}
             
             <!-- Settings -->
-            {% if user|has_permission:'view_term' or user|has_permission:'view_grade' or user|has_permission:'view_class' %}
+            {% if user|has_permission:'view_term' or user|has_permission:'view_grade' or user|has_permission:'view_class' or user|has_permission:'view_transport_route' or user|has_permission:'view_user_management' or user|has_permission:'view_role_management' %}
             <li class="nav-item">
                 <a class="nav-link {% if request.resolver_match.url_name == 'settings_list' or request.resolver_match.url_name == 'term_list' or request.resolver_match.url_name == 'grade_list' or request.resolver_match.url_name == 'class_list' or request.resolver_match.url_name == 'transport_route_list' %}active{% endif %}" 
                    href="#" data-bs-toggle="collapse" data-bs-target="#settingsSubmenu" aria-expanded="false">
@@ -561,8 +561,8 @@
                         </a>
                     </li>
                     {% endif %}
-                    {% endif %}
                 </ul>
+            {% endif %}
             </li>
             
             {% if user|has_permission:'view_school_management' %}

@@ -777,6 +777,15 @@ class Role(models.Model):
     
     def has_permission(self, permission_type, resource_type):
         """Check if this role has a specific permission"""
+        # Check if this role has all permissions (super_admin role)
+        # This is indicated by having all Permission objects assigned
+        # We check if the role has permissions count equal to total permissions
+        from .models import Permission
+        total_permissions = Permission.objects.count()
+        if total_permissions > 0 and self.permissions.count() == total_permissions:
+            return True
+        
+        # Otherwise, check for the specific permission
         return self.permissions.filter(
             permission_type=permission_type,
             resource_type=resource_type
@@ -902,6 +911,18 @@ class UserProfile(models.Model):
         # Superusers have all permissions
         if self.user.is_superuser:
             return True
+        
+        # Check if user has super_admin role - they have all permissions
+        if self.has_role('super_admin'):
+            return True
+
+        # Backward-compatibility: if user has no M2M roles assigned but still uses the legacy
+        # `role` field, resolve that to a Role object and use its permissions.
+        # This avoids "You do not have permission..." for older users after introducing Role M2M.
+        if self.roles.count() == 0 and self.role:
+            legacy_role = Role.objects.filter(name=self.role, school=self.school).first()
+            if legacy_role and legacy_role.has_permission(permission_type, resource_type):
+                return True
         
         # Check if any of the user's roles have this permission
         for role in self.roles.all():
