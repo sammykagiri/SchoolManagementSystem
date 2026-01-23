@@ -9,7 +9,7 @@ from django.utils import timezone
 from .models import CommunicationTemplate, EmailMessage, SMSMessage, CommunicationLog
 from .services import CommunicationService
 from core.models import Student, StudentFee, Grade, SchoolClass, TransportRoute
-from core.decorators import role_required
+from core.decorators import permission_required
 from payments.models import Payment
 from decimal import Decimal
 from datetime import datetime
@@ -78,14 +78,14 @@ def _get_student_from_token_or_id(request, token_or_id):
 
 
 @login_required
-@role_required('super_admin', 'school_admin', 'teacher', 'accountant')
+@permission_required('view', ['communications_dashboard', 'communications_template', 'email', 'sms', 'communication_logs', 'bulk_email', 'bulk_sms', 'bulk_estatement_email'])
 def communications_list(request):
     """Communications list page showing all communication options"""
     return render(request, 'communications/communications_list.html')
 
 
 @login_required
-@role_required('super_admin', 'school_admin', 'teacher', 'accountant')
+@permission_required('view', 'communications_dashboard')
 def communications_dashboard(request):
     """Communications dashboard"""
     school = request.user.profile.school
@@ -114,7 +114,7 @@ def communications_dashboard(request):
 
 
 @login_required
-@role_required('super_admin', 'school_admin', 'teacher')
+@permission_required('view', 'communications_template')
 def template_list(request):
     """List communication templates"""
     school = request.user.profile.school
@@ -161,7 +161,7 @@ def template_list(request):
 
 
 @login_required
-@role_required('super_admin', 'school_admin', 'teacher')
+@permission_required('view', 'communications_template')
 def template_detail(request, template_id):
     """Template detail view"""
     template = _get_template_from_token_or_id(request, template_id)
@@ -173,7 +173,7 @@ def template_detail(request, template_id):
 
 
 @login_required
-@role_required('super_admin', 'school_admin', 'teacher')
+@permission_required('change', 'communications_template')
 def template_update(request, template_id):
     """Update template"""
     school = request.user.profile.school
@@ -201,7 +201,7 @@ def template_update(request, template_id):
 
 
 @login_required
-@role_required('super_admin', 'school_admin')
+@permission_required('delete', 'communications_template')
 def template_delete(request, template_id):
     """Delete template"""
     template = _get_template_from_token_or_id(request, template_id)
@@ -220,7 +220,7 @@ def template_delete(request, template_id):
 
 
 @login_required
-@role_required('super_admin', 'school_admin', 'teacher', 'accountant')
+@permission_required('view', 'email')
 def email_list(request):
     """List email messages"""
     school = request.user.profile.school
@@ -258,7 +258,7 @@ def email_list(request):
 
 
 @login_required
-@role_required('super_admin', 'school_admin', 'teacher', 'accountant')
+@permission_required('view', 'email')
 def email_detail(request, email_id):
     """Email detail view"""
     email = _get_email_from_token_or_id(request, email_id)
@@ -270,7 +270,7 @@ def email_detail(request, email_id):
 
 
 @login_required
-@role_required('super_admin', 'school_admin', 'teacher', 'accountant')
+@permission_required('view', 'sms')
 def sms_list(request):
     """List SMS messages"""
     school = request.user.profile.school
@@ -307,7 +307,7 @@ def sms_list(request):
 
 
 @login_required
-@role_required('super_admin', 'school_admin', 'teacher', 'accountant')
+@permission_required('view', 'sms')
 def sms_detail(request, sms_id):
     """SMS detail view"""
     sms = _get_sms_from_token_or_id(request, sms_id)
@@ -319,7 +319,7 @@ def sms_detail(request, sms_id):
 
 
 @login_required
-@role_required('super_admin', 'school_admin', 'teacher', 'accountant')
+@permission_required('view', 'communication_logs')
 def communication_log_list(request):
     """List communication logs"""
     school = request.user.profile.school
@@ -345,7 +345,7 @@ def communication_log_list(request):
 
 
 @login_required
-@role_required('super_admin', 'school_admin', 'teacher', 'accountant')
+@permission_required('view', 'communication_logs')
 def communication_log_detail(request, log_id):
     """Communication log detail view"""
     school = request.user.profile.school
@@ -358,7 +358,7 @@ def communication_log_detail(request, log_id):
 
 
 @login_required
-@role_required('super_admin', 'school_admin', 'teacher')
+@permission_required('view', 'email')
 def send_email(request, student_id):
     """Send custom email to student"""
     student = _get_student_from_token_or_id(request, student_id)
@@ -513,7 +513,7 @@ def send_email(request, student_id):
 
 
 @login_required
-@role_required('super_admin', 'school_admin', 'teacher')
+@permission_required('view', 'sms')
 def send_sms(request, student_id):
     """Send custom SMS to student"""
     school = request.user.profile.school
@@ -568,7 +568,7 @@ def send_sms(request, student_id):
 
 
 @login_required
-@role_required('super_admin', 'school_admin', 'teacher')
+@permission_required('view', 'communications_template')
 def get_template_content(request, template_id):
     """API endpoint to get template content as JSON"""
     template = _get_template_from_token_or_id(request, template_id)
@@ -586,7 +586,7 @@ def get_template_content(request, template_id):
 
 
 @login_required
-@role_required('super_admin', 'school_admin', 'teacher')
+@permission_required('view', 'bulk_email')
 def bulk_email(request):
     """Bulk email to multiple students"""
     school = request.user.profile.school
@@ -831,7 +831,7 @@ def bulk_email(request):
 
 
 @login_required
-@role_required('super_admin', 'school_admin', 'teacher')
+@permission_required('view', 'bulk_sms')
 def bulk_sms(request):
     """Bulk SMS to multiple students"""
     school = request.user.profile.school
@@ -1242,7 +1242,7 @@ def generate_student_statement_pdf(student, school, start_date=None, end_date=No
 
 
 @login_required
-@role_required('super_admin', 'school_admin', 'teacher', 'accountant')
+@permission_required('view', 'bulk_estatement_email')
 def bulk_estatement_email(request):
     """Bulk email e-statements (PDF) to multiple students"""
     school = request.user.profile.school
@@ -1577,7 +1577,7 @@ def bulk_estatement_email(request):
 
 
 @login_required
-@role_required('super_admin', 'school_admin', 'teacher', 'accountant')
+@permission_required('view', 'bulk_estatement_email')
 def bulk_estatement_email_count(request):
     """AJAX endpoint to calculate the number of emails that will be sent"""
     if request.method != 'POST':

@@ -85,13 +85,15 @@
                         </a>
                     </li>
                     {% endif %}
-                    {% if user|has_permission:'change_student' %}
+                    {% if user|has_permission:'view_student_promotion' %}
                     <li class="nav-item"><hr class="dropdown-divider my-2"></li>
                     <li class="nav-item">
                         <a class="nav-link {% if 'promotion' in request.resolver_match.url_name %}active{% endif %}" href="{% url 'core:promotion_wizard_step1' %}">
                             <i class="fas fa-graduation-cap me-2"></i>Student Promotion
                         </a>
                     </li>
+                    {% endif %}
+                    {% if user|has_permission:'view_student_promotion_history' %}
                     <li class="nav-item">
                         <a class="nav-link {% if request.resolver_match.url_name == 'promotion_history' %}active{% endif %}" href="{% url 'core:promotion_history' %}">
                             <i class="fas fa-history me-2"></i>Promotion History
@@ -404,7 +406,7 @@
             {% endif %}
             
             <!-- Communications -->
-            {% if user|has_permission:'view_template' or user|has_permission:'view_email' or user|has_permission:'view_sms' or user|has_permission:'view_log' %}
+            {% if user|has_permission:'view_communications_template' or user|has_permission:'view_email' or user|has_permission:'view_sms' or user|has_permission:'view_communication_logs' or user|has_permission:'view_bulk_email' or user|has_permission:'view_bulk_sms' or user|has_permission:'view_bulk_estatement_email' %}
             <li class="nav-item">
                 <a class="nav-link {% if 'communications' in request.resolver_match.namespace %}active{% endif %}" 
                    href="#" data-bs-toggle="collapse" data-bs-target="#communicationsSubmenu" aria-expanded="false">
@@ -413,14 +415,16 @@
                     <i class="fas fa-chevron-down ms-auto"></i>
                 </a>
                 <ul class="collapse nav flex-column submenu" id="communicationsSubmenu">
+                    {% if user|has_permission:'view_communications_dashboard' %}
                     <li class="nav-item">
                         <a class="nav-link {% if request.resolver_match.url_name == 'dashboard' and 'communications' in request.resolver_match.namespace %}active{% endif %}" href="{% url 'communications:dashboard' %}">
                             <i class="fas fa-tachometer-alt me-2"></i>Dashboard
                         </a>
                     </li>
-                    {% if user|has_permission:'view_template' or user|has_permission:'view_email' or user|has_permission:'view_sms' or user|has_permission:'view_log' %}
+                    {% endif %}
+                    {% if user|has_permission:'view_communications_template' or user|has_permission:'view_email' or user|has_permission:'view_sms' or user|has_permission:'view_communication_logs' or user|has_permission:'view_bulk_email' or user|has_permission:'view_bulk_sms' or user|has_permission:'view_bulk_estatement_email' %}
                     <li class="nav-item"><hr class="dropdown-divider my-2"></li>
-                    {% if user|has_permission:'view_template' %}
+                    {% if user|has_permission:'view_communications_template' %}
                     <li class="nav-item">
                         <a class="nav-link {% if request.resolver_match.url_name == 'template_list' or request.resolver_match.url_name == 'template_create' or request.resolver_match.url_name == 'template_edit' %}active{% endif %}" href="{% url 'communications:template_list' %}">
                             <i class="fas fa-file-alt me-2"></i>Templates
@@ -441,27 +445,29 @@
                         </a>
                     </li>
                     {% endif %}
-                    {% if user|has_permission:'view_email' or user|has_permission:'view_sms' %}
+                    {% if user|has_permission:'view_bulk_email' %}
                     <li class="nav-item"><hr class="dropdown-divider my-2"></li>
                     <li class="nav-item">
                         <a class="nav-link {% if request.resolver_match.url_name == 'bulk_email' %}active{% endif %}" href="{% url 'communications:bulk_email' %}">
                             <i class="fas fa-paper-plane me-2"></i>Bulk Email
                         </a>
                     </li>
+                    {% endif %}
+                    {% if user|has_permission:'view_bulk_sms' %}
                     <li class="nav-item">
                         <a class="nav-link {% if request.resolver_match.url_name == 'bulk_sms' %}active{% endif %}" href="{% url 'communications:bulk_sms' %}">
                             <i class="fas fa-comments me-2"></i>Bulk SMS
                         </a>
                     </li>
                     {% endif %}
-                    {% if user|has_permission:'view_email' or user|has_permission:'view_report' %}
+                    {% if user|has_permission:'view_bulk_estatement_email' %}
                     <li class="nav-item">
                         <a class="nav-link {% if request.resolver_match.url_name == 'bulk_estatement_email' %}active{% endif %}" href="{% url 'communications:bulk_estatement_email' %}">
                             <i class="fas fa-file-pdf me-2"></i>Bulk E-Statement
                         </a>
                     </li>
                     {% endif %}
-                    {% if user|has_permission:'view_log' %}
+                    {% if user|has_permission:'view_communication_logs' %}
                     <li class="nav-item">
                         <a class="nav-link {% if request.resolver_match.url_name == 'log_list' or request.resolver_match.url_name == 'log_detail' %}active{% endif %}" href="{% url 'communications:log_list' %}">
                             <i class="fas fa-list me-2"></i>Communication Logs
@@ -531,7 +537,7 @@
                         </a>
                     </li>
                     {% endif %}
-                    {% if user|has_permission:'view_fee' %}
+                    {% if user|has_permission:'view_transport_route' %}
                     <li class="nav-item"><hr class="dropdown-divider my-2"></li>
                     <li class="nav-item">
                         <a class="nav-link {% if request.resolver_match.url_name == 'transport_route_list' or request.resolver_match.url_name == 'transport_route_create' or request.resolver_match.url_name == 'transport_route_edit' %}active{% endif %}" href="{% url 'core:transport_route_list' %}">

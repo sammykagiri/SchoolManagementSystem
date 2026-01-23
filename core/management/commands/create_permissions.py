@@ -50,10 +50,14 @@ class Command(BaseCommand):
             'gradebook',
             'assignment',
             'submission',
-            'template',
+            'communications_template',
             'email',
             'sms',
             'log',
+            'bulk_email',
+            'bulk_sms',
+            'bulk_estatement_email',
+            'communication_logs',
             'dashboard',
             'report',
             'user_management',
@@ -61,6 +65,10 @@ class Command(BaseCommand):
             'school_management',
             'parent',
             'parent_portal',
+            'transport_route',
+            'student_promotion',
+            'student_promotion_history',
+            'communications_dashboard',
         ]
 
         # Define permission types

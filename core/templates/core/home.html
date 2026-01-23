@@ -168,7 +168,7 @@
         </div>
         {% endif %}
 
-        {% if user|has_permission:'view_template' or user|has_permission:'view_email' or user|has_permission:'view_sms' or user|has_permission:'view_log' %}
+        {% if user|has_permission:'view_communications_template' or user|has_permission:'view_email' or user|has_permission:'view_sms' or user|has_permission:'view_communication_logs' or user|has_permission:'view_bulk_email' or user|has_permission:'view_bulk_sms' or user|has_permission:'view_bulk_estatement_email' %}
         <!-- Communications Card -->
         <div class="col-md-4 mb-3">
             <div class="card h-100 shadow-sm">

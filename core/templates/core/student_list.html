@@ -5,7 +5,7 @@
 <div class="container py-4">
     <div class="d-flex justify-content-between align-items-center mb-4">
         <h2 class="mb-0">Students</h2>
-        {% if not can_add_student %}
+        {% if user|has_permission:'add_student' %}
             {% if not grades.exists %}
                 <div class="alert alert-warning mb-0">
                     <i class="fas fa-exclamation-triangle me-2"></i>No grades found. Please <a href="{% url 'core:grade_list' %}">create a grade</a> before adding students.

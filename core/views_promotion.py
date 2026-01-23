@@ -46,7 +46,7 @@ def promotion_wizard_step1(request):
 
 
 @login_required
-@permission_required('change', 'student')
+@permission_required('change', 'student_promotion')
 def promotion_wizard_step2(request):
     """Step 2: Select promotion mode and filters"""
     school = request.user.profile.school
@@ -229,7 +229,7 @@ def promotion_preview(request):
 
 
 @login_required
-@permission_required('change', 'student')
+@permission_required('change', 'student_promotion')
 def promotion_confirm(request):
     """Step 4: Final confirmation before execution"""
     school = request.user.profile.school
@@ -332,7 +332,7 @@ def promotion_confirm(request):
 
 
 @login_required
-@permission_required('view', 'student')
+@permission_required('view', 'student_promotion_history')
 def promotion_history(request):
     """View promotion history/logs"""
     school = request.user.profile.school

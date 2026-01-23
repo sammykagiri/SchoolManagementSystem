@@ -27,7 +27,7 @@
             </div>
         </div>
         
-        {% if user|has_permission:'view_template' %}
+        {% if user|has_permission:'view_communications_template' %}
         <!-- Templates Card -->
         <div class="col-md-4 mb-3">
             <div class="card h-100 shadow-sm">
@@ -69,7 +69,7 @@
         </div>
         {% endif %}
         
-        {% if user|has_permission:'view_email' or user|has_permission:'view_sms' %}
+        {% if user|has_permission:'view_bulk_email' %}
         <!-- Bulk Email Card -->
         <div class="col-md-4 mb-3">
             <div class="card h-100 shadow-sm">
@@ -81,7 +81,9 @@
                 </div>
             </div>
         </div>
+        {% endif %}
         
+        {% if user|has_permission:'view_bulk_sms' %}
         <!-- Bulk SMS Card -->
         <div class="col-md-4 mb-3">
             <div class="card h-100 shadow-sm">
@@ -95,7 +97,7 @@
         </div>
         {% endif %}
         
-        {% if user|has_permission:'view_email' or user|has_permission:'view_report' %}
+        {% if user|has_permission:'view_bulk_estatement_email' %}
         <!-- Bulk E-Statement Card -->
         <div class="col-md-4 mb-3">
             <div class="card h-100 shadow-sm">
@@ -109,7 +111,7 @@
         </div>
         {% endif %}
         
-        {% if user|has_permission:'view_log' %}
+        {% if user|has_permission:'view_communication_logs' %}
         <!-- Communication Logs Card -->
         <div class="col-md-4 mb-3">
             <div class="card h-100 shadow-sm">
