@@ -1058,7 +1058,7 @@ def term_list(request):
 
 
 @login_required
-@role_required('super_admin', 'school_admin', 'teacher')
+@permission_required('add', 'term')
 def term_add(request):
     """Add new term"""
     school = request.user.profile.school
@@ -1347,7 +1347,7 @@ def term_delete(request, term_id):
 
 
 @login_required
-@role_required('super_admin', 'school_admin', 'accountant')
+@permission_required('view', 'fee_structure')
 def fee_structure_list(request):
     """List fee structures"""
     school = request.user.profile.school
@@ -1631,7 +1631,7 @@ def fee_category_edit(request, category_id):
 
 
 @login_required
-@permission_required('delete', 'fee')
+@permission_required('delete', 'fee_category')
 def fee_category_delete(request, category_id):
     """Delete a fee category"""
     school = request.user.profile.school
@@ -1684,7 +1684,7 @@ def fee_category_delete(request, category_id):
 
 
 @login_required
-@role_required('super_admin', 'school_admin', 'accountant')
+@permission_required('view', 'fee_category')
 def fee_category_type_list(request):
     """List and manage fee category types"""
     school = request.user.profile.school
@@ -1697,7 +1697,7 @@ def fee_category_type_list(request):
 
 
 @login_required
-@permission_required('add', 'fee')
+@permission_required('add', 'fee_category')
 def fee_category_type_add(request):
     """Add a new fee category type"""
     school = request.user.profile.school
@@ -1751,7 +1751,7 @@ def fee_category_type_add(request):
 
 
 @login_required
-@permission_required('change', 'fee')
+@permission_required('change', 'fee_category')
 def fee_category_type_edit(request, type_id):
     """Edit an existing fee category type"""
     school = request.user.profile.school
@@ -1804,7 +1804,7 @@ def fee_category_type_edit(request, type_id):
 
 
 @login_required
-@permission_required('delete', 'fee')
+@permission_required('delete', 'fee_category')
 def fee_category_type_delete(request, type_id):
     """Delete a fee category type"""
     school = request.user.profile.school
@@ -1838,7 +1838,7 @@ def fee_category_type_delete(request, type_id):
 
 
 @login_required
-@permission_required('add', 'fee')
+@permission_required('add', 'fee_structure')
 def generate_student_fees(request):
     """Generate student fees - create fee structures for terms and grades"""
     school = request.user.profile.school
@@ -1940,7 +1940,7 @@ def generate_student_fees(request):
 
 
 @login_required
-@permission_required('view', 'fee')
+@permission_required('view', 'fee_structure')
 def get_previous_term_fees(request):
     """API endpoint to get fee structures from a previous term for copying"""
     if request.method != 'GET':
@@ -1978,7 +1978,7 @@ def get_previous_term_fees(request):
 
 
 @login_required
-@permission_required('add', 'fee')
+@permission_required('add', 'fee_structure')
 def generate_student_fees_from_structures(request):
     """Generate StudentFee records from FeeStructure for all students in a term"""
     school = request.user.profile.school
@@ -2147,7 +2147,6 @@ def generate_student_fees_from_structures(request):
 
 
 @login_required
-@login_required
 def profile_view(request):
     """User profile view"""
     user = request.user
@@ -2162,6 +2161,7 @@ def profile_view(request):
 
 # API views for AJAX requests
 @login_required
+@permission_required('view', 'student_fee')
 def get_student_fees(request, student_id):
     """Get student fees as JSON"""
     student = _get_student_from_token_or_id(request, student_id)
@@ -2188,7 +2188,7 @@ def get_student_fees(request, student_id):
 
 
 @login_required
-@role_required('super_admin', 'school_admin', 'accountant')
+@permission_required('view', 'transport_route')
 def transport_route_list(request):
     """List and manage transport routes"""
     school = request.user.profile.school
@@ -2201,7 +2201,7 @@ def transport_route_list(request):
 
 
 @login_required
-@permission_required('add', 'fee')
+@permission_required('add', 'transport_route')
 def transport_route_add(request):
     """Add a new transport route"""
     school = request.user.profile.school
@@ -2286,7 +2286,7 @@ def transport_route_add(request):
 
 
 @login_required
-@permission_required('change', 'fee')
+@permission_required('change', 'transport_route')
 def transport_route_edit(request, route_id):
     """Edit an existing transport route"""
     school = request.user.profile.school
@@ -2370,7 +2370,7 @@ def transport_route_edit(request, route_id):
 
 
 @login_required
-@permission_required('delete', 'fee')
+@permission_required('delete', 'transport_route')
 def transport_route_delete(request, route_id):
     """Delete a transport route"""
     school = request.user.profile.school
@@ -2538,6 +2538,7 @@ class SchoolClassViewSet(viewsets.ModelViewSet):
 
 
 @login_required
+@permission_required('change', 'school')
 def school_update(request):
     """Update school details (single record)"""
     school = request.user.profile.school

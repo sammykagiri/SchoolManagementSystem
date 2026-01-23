@@ -13,7 +13,7 @@ from .decorators import role_required, permission_required
 
 
 @login_required
-@role_required('super_admin', 'school_admin')
+@permission_required('view', 'student_promotion')
 def promotion_wizard_step1(request):
     """Step 1: Select academic years for promotion"""
     school = request.user.profile.school
@@ -104,7 +104,7 @@ def promotion_wizard_step2(request):
 
 
 @login_required
-@role_required('super_admin', 'school_admin')
+@permission_required('view', 'student_promotion')
 def promotion_preview(request):
     """Step 3: Preview promotion before execution"""
     school = request.user.profile.school

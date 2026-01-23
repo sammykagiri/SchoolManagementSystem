@@ -48,8 +48,6 @@ class Command(BaseCommand):
             'timetable',
             'exam',
             'gradebook',
-            'assignment',
-            'submission',
             'communications_template',
             'email',
             'sms',
@@ -69,6 +67,9 @@ class Command(BaseCommand):
             'student_promotion',
             'student_promotion_history',
             'communications_dashboard',
+            'homework_assignment',
+            'homework_submission',
+            'fee_category',
         ]
 
         # Define permission types

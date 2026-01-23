@@ -58,7 +58,7 @@
         {% endif %}
 
         <!-- Transport Routes Card -->
-        {% if user|has_permission:'view_fee' %}
+        {% if user|has_permission:'view_transport_route' %}
         <div class="col-md-4 mb-3">
             <div class="card h-100 shadow-sm">
                 <div class="card-body text-center">
@@ -72,7 +72,7 @@
         {% endif %}
 
         <!-- Fee Categories Card -->
-        {% if user|has_permission:'view_fee' %}
+        {% if user|has_permission:'view_fee_category' %}
         <div class="col-md-4 mb-3">
             <div class="card h-100 shadow-sm">
                 <div class="card-body text-center">
@@ -86,7 +86,7 @@
         {% endif %}
 
         <!-- Fee Category Types Card -->
-        {% if user|has_permission:'view_fee' %}
+        {% if user|has_permission:'view_fee_category' %}
         <div class="col-md-4 mb-3">
             <div class="card h-100 shadow-sm">
                 <div class="card-body text-center">
