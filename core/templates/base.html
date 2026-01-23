@@ -70,16 +70,28 @@
         }
         
         .sidebar::-webkit-scrollbar {
-            width: 6px;
+            width: 10px;
         }
         
         .sidebar::-webkit-scrollbar-track {
             background: var(--sidebar-bg);
+            border-left: 1px solid rgba(255, 255, 255, 0.1);
         }
         
         .sidebar::-webkit-scrollbar-thumb {
-            background: var(--sidebar-hover);
-            border-radius: 3px;
+            background: #5a6c7d;
+            border-radius: 5px;
+            border: 2px solid var(--sidebar-bg);
+        }
+        
+        .sidebar::-webkit-scrollbar-thumb:hover {
+            background: #6b7d8e;
+        }
+        
+        /* Firefox scrollbar styling */
+        .sidebar {
+            scrollbar-width: thin;
+            scrollbar-color: #5a6c7d var(--sidebar-bg);
         }
         
         .sidebar-header {
