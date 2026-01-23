@@ -368,8 +368,21 @@ class UserProfileForm(forms.ModelForm):
         # Extract current_user from kwargs if provided
         self.current_user = kwargs.pop('current_user', None)
         super().__init__(*args, **kwargs)
-        # Filter active roles only
-        roles_queryset = Role.objects.filter(is_active=True)
+        
+        # Determine which school's roles to show
+        # Priority: instance.school > current_user's school
+        target_school = None
+        if self.instance and self.instance.pk and self.instance.school:
+            target_school = self.instance.school
+        elif self.current_user and hasattr(self.current_user, 'profile') and self.current_user.profile.school:
+            target_school = self.current_user.profile.school
+        
+        # Filter active roles by school
+        if target_school:
+            roles_queryset = Role.objects.filter(school=target_school, is_active=True)
+        else:
+            # Fallback: show all active roles (for superadmins creating users without school)
+            roles_queryset = Role.objects.filter(is_active=True)
         
         # Check if current user is a superadmin
         is_superadmin = False
@@ -898,9 +911,9 @@ class ParentRegistrationForm(UserCreationForm):
                         user.profile.school = school
                         user.profile.save()
                         logger.info(f'ParentRegistrationForm.save - Updated UserProfile school to {school.name} (ID: {school.id})')
-                        # Automatically assign "Parent" role if it exists
+                        # Automatically assign "Parent" role if it exists (school-specific)
                         try:
-                            parent_role = Role.objects.filter(name='parent', is_active=True).first()
+                            parent_role = Role.objects.filter(name='parent', school=school, is_active=True).first()
                             if parent_role and not user.profile.roles.filter(name='parent').exists():
                                 user.profile.roles.add(parent_role)
                                 logger.info(f'ParentRegistrationForm.save - Assigned "Parent" role to user {user.username}')
@@ -939,9 +952,9 @@ class ParentRegistrationForm(UserCreationForm):
                         user.profile.school = school
                         user.profile.save()
                         logger.info(f'ParentRegistrationForm.save - Updated UserProfile school to {school.name} (ID: {school.id})')
-                        # Automatically assign "Parent" role if it exists
+                        # Automatically assign "Parent" role if it exists (school-specific)
                         try:
-                            parent_role = Role.objects.filter(name='parent', is_active=True).first()
+                            parent_role = Role.objects.filter(name='parent', school=school, is_active=True).first()
                             if parent_role and not user.profile.roles.filter(name='parent').exists():
                                 user.profile.roles.add(parent_role)
                                 logger.info(f'ParentRegistrationForm.save - Assigned "Parent" role to user {user.username}')
@@ -1455,8 +1468,9 @@ class RoleForm(forms.ModelForm):
         }
     
     def __init__(self, *args, **kwargs):
+        self.school = kwargs.pop('school', None)
         super().__init__(*args, **kwargs)
-        self.fields['name'].help_text = 'Enter a unique role name using lowercase letters and underscores (e.g., "librarian", "security_guard"). This will be used internally.'
+        self.fields['name'].help_text = 'Enter a unique role name using lowercase letters and underscores (e.g., "librarian", "security_guard"). This will be unique within your school.'
         self.fields['display_name'].help_text = 'Optional: Enter a human-readable name for this role. If left blank, it will be auto-generated from the role name.'
         self.fields['description'].help_text = 'Optional description of this role'
         self.fields['is_active'].help_text = 'Inactive roles cannot be assigned to users'
@@ -1464,7 +1478,7 @@ class RoleForm(forms.ModelForm):
         self.fields['permissions'].queryset = Permission.objects.all().order_by('resource_type', 'permission_type')
     
     def clean_name(self):
-        """Validate role name format"""
+        """Validate role name format and uniqueness within school"""
         name = self.cleaned_data.get('name', '').strip().lower()
         
         if not name:
@@ -1478,12 +1492,13 @@ class RoleForm(forms.ModelForm):
                 'Examples: "librarian", "security_guard", "counselor"'
             )
         
-        # Check for uniqueness (excluding current instance if editing)
-        existing = Role.objects.filter(name=name)
-        if self.instance and self.instance.pk:
-            existing = existing.exclude(pk=self.instance.pk)
-        if existing.exists():
-            raise ValidationError(f'A role with the name "{name}" already exists.')
+        # Check for uniqueness within the school (excluding current instance if editing)
+        if self.school:
+            existing = Role.objects.filter(name=name, school=self.school)
+            if self.instance and self.instance.pk:
+                existing = existing.exclude(pk=self.instance.pk)
+            if existing.exists():
+                raise ValidationError(f'A role with the name "{name}" already exists in your school.')
         
         return name
     

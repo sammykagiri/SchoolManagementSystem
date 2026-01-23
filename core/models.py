@@ -706,7 +706,7 @@ class StudentFee(models.Model):
 
 
 class Role(models.Model):
-    """Model to store available roles"""
+    """Model to store available roles - school-specific"""
     ROLE_CHOICES = [
         ('super_admin', 'Super Admin'),
         ('school_admin', 'School Admin'),
@@ -716,11 +716,11 @@ class Role(models.Model):
         ('student', 'Student'),
     ]
     
+    school = models.ForeignKey(School, on_delete=models.CASCADE, related_name='roles', null=True, blank=True, help_text='School this role belongs to. Leave blank for system-wide roles (not recommended).')
     # Allow custom role names - removed choices constraint to enable custom roles
     # ROLE_CHOICES is kept for reference and backward compatibility
     name = models.CharField(
         max_length=50, 
-        unique=True,
         help_text='Role name (use lowercase with underscores, e.g., "librarian", "security_guard")'
     )
     display_name = models.CharField(
@@ -740,7 +740,7 @@ class Role(models.Model):
     def get_signed_token(self):
         """Generate an opaque signed token for this role to use in URLs."""
         from django.core import signing
-        payload = {'rid': self.id}
+        payload = {'rid': self.id, 'sch': self.school_id}
         return signing.dumps(payload)
 
     @classmethod
@@ -751,8 +751,11 @@ class Role(models.Model):
         try:
             data = signing.loads(token)
             role_id = data.get('rid')
+            school_id = data.get('sch')
             if not role_id:
                 return None
+            if school_id:
+                return cls.objects.get(id=role_id, school_id=school_id)
             return cls.objects.get(id=role_id)
         except (BadSignature, ValueError, cls.DoesNotExist, TypeError):
             return None
@@ -783,6 +786,7 @@ class Role(models.Model):
         ordering = ['name']
         verbose_name = 'Role'
         verbose_name_plural = 'Roles'
+        unique_together = [['school', 'name']]
 
 
 class Permission(models.Model):

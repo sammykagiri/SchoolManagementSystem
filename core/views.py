@@ -469,11 +469,15 @@ def _get_school_class_from_token_or_id(request, token_or_id):
 
 def _get_role_from_token_or_id(request, token_or_id):
     """Helper function to resolve role from token or id (backward compatibility)"""
+    school = request.user.profile.school
     role = Role.from_signed_token(token_or_id)
     if role:
-        return role
+        # Verify role belongs to the user's school
+        if role.school == school:
+            return role
+        raise Http404("Role not found")
     if str(token_or_id).isdigit():
-        return get_object_or_404(Role, id=int(token_or_id))
+        return get_object_or_404(Role, id=int(token_or_id), school=school)
     raise Http404("Role not found")
 
 
@@ -4743,8 +4747,9 @@ def user_delete(request, user_id):
 @login_required
 @permission_required('view', 'role_management')
 def role_list(request):
-    """List all roles"""
-    roles = Role.objects.all()
+    """List all roles for the current school"""
+    school = request.user.profile.school
+    roles = Role.objects.filter(school=school).order_by('name')
     return render(request, 'core/roles/role_list.html', {'roles': roles})
 
 
@@ -4753,15 +4758,19 @@ def role_list(request):
 def role_add(request):
     """Add a new role"""
     from .forms import RoleForm
+    school = request.user.profile.school
     
     if request.method == 'POST':
-        form = RoleForm(request.POST)
+        form = RoleForm(request.POST, school=school)
         if form.is_valid():
-            role = form.save()
+            role = form.save(commit=False)
+            role.school = school
+            role.save()
+            form.save_m2m()  # Save many-to-many relationships (permissions)
             messages.success(request, f'Role "{role.get_display_name()}" created successfully!')
             return redirect('core:role_list')
     else:
-        form = RoleForm()
+        form = RoleForm(school=school)
     
     return render(request, 'core/roles/role_form.html', {
         'form': form,
@@ -4775,16 +4784,20 @@ def role_add(request):
 def role_edit(request, role_id):
     """Edit an existing role"""
     from .forms import RoleForm
+    school = request.user.profile.school
     role = _get_role_from_token_or_id(request, role_id)
     
     if request.method == 'POST':
-        form = RoleForm(request.POST, instance=role)
+        form = RoleForm(request.POST, instance=role, school=school)
         if form.is_valid():
-            role = form.save()
+            role = form.save(commit=False)
+            role.school = school  # Ensure school is set
+            role.save()
+            form.save_m2m()  # Save many-to-many relationships (permissions)
             messages.success(request, f'Role "{role.get_display_name()}" updated successfully!')
             return redirect('core:role_list')
     else:
-        form = RoleForm(instance=role)
+        form = RoleForm(instance=role, school=school)
     
     return render(request, 'core/roles/role_form.html', {
         'form': form,

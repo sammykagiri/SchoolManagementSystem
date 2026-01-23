@@ -131,9 +131,9 @@ admin.site.register(SchoolClass)
 
 @admin.register(Role)
 class RoleAdmin(admin.ModelAdmin):
-    list_display = ['name', 'get_display_name', 'is_active', 'permissions_count', 'users_count']
-    list_filter = ['is_active', 'name']
-    search_fields = ['name', 'description']
+    list_display = ['name', 'get_display_name', 'school', 'is_active', 'permissions_count', 'users_count']
+    list_filter = ['is_active', 'name', 'school']
+    search_fields = ['name', 'description', 'school__name']
     filter_horizontal = ['permissions']
     readonly_fields = ['created_at', 'updated_at']
     

@@ -104,12 +104,12 @@
                                     {% if user|has_permission:'change_user_management' or user|has_permission:'delete_user_management' %}
                                     <div class="btn-group">
                                         {% if user|has_permission:'change_user_management' %}
-                                        <a href="{% url 'core:user_edit' list_user.profile.get_signed_token %}" class="btn btn-sm btn-outline-primary">
+                                        <a href="{% url 'core:user_edit' list_user.profile.get_signed_token %}" class="btn btn-sm btn-outline-primary action-btn" data-action="edit">
                                             <i class="fas fa-edit"></i>
                                         </a>
                                         {% endif %}
                                         {% if user|has_permission:'delete_user_management' %}
-                                        <a href="{% url 'core:user_delete' list_user.profile.get_signed_token %}" class="btn btn-sm btn-outline-danger">
+                                        <a href="{% url 'core:user_delete' list_user.profile.get_signed_token %}" class="btn btn-sm btn-outline-danger action-btn" data-action="delete">
                                             <i class="fas fa-trash"></i>
                                         </a>
                                         {% endif %}
@@ -119,12 +119,12 @@
                                     {% if user|has_permission:'change_user_management' or user|has_permission:'delete_user_management' %}
                                     <div class="btn-group">
                                         {% if user|has_permission:'change_user_management' %}
-                                        <a href="{% url 'core:user_edit' list_user.profile.get_signed_token %}" class="btn btn-sm btn-outline-primary">
+                                        <a href="{% url 'core:user_edit' list_user.profile.get_signed_token %}" class="btn btn-sm btn-outline-primary action-btn" data-action="edit">
                                             <i class="fas fa-edit"></i>
                                         </a>
                                         {% endif %}
                                         {% if user|has_permission:'delete_user_management' %}
-                                        <a href="{% url 'core:user_delete' list_user.profile.get_signed_token %}" class="btn btn-sm btn-outline-danger">
+                                        <a href="{% url 'core:user_delete' list_user.profile.get_signed_token %}" class="btn btn-sm btn-outline-danger action-btn" data-action="delete">
                                             <i class="fas fa-trash"></i>
                                         </a>
                                         {% endif %}
@@ -150,30 +150,106 @@
 
 {% block extra_js %}
 <script>
-$(document).ready(function() {
-    // Initialize DataTables with default sorting by School (column 3), then Username (column 0)
-    $('#usersTable').DataTable({
-        order: [[3, 'asc'], [0, 'asc']], // Sort by School (index 3), then Username (index 0)
-        pageLength: 25,
-        lengthMenu: [[10, 25, 50, 100, -1], [10, 25, 50, 100, "All"]],
-        responsive: true,
-        columnDefs: [
-            {
-                targets: [7], // Actions column
-                orderable: false, // Disable sorting on Actions column
-                searchable: false // Disable searching on Actions column
+(function() {
+    'use strict';
+    
+    // Track clicked buttons to prevent double-clicks
+    var clickedButtons = new Set();
+    var clickTimeout = 500; // 500ms cooldown between clicks
+    
+    // Prevent double-clicking on action buttons
+    $(document).on('click', '.action-btn', function(e) {
+        var $btn = $(this);
+        var btnId = $btn.attr('href') || $btn.data('action') + '-' + Math.random();
+        
+        // Check if this button was recently clicked
+        if (clickedButtons.has(btnId)) {
+            e.preventDefault();
+            e.stopImmediatePropagation();
+            return false;
+        }
+        
+        // Mark as clicked
+        clickedButtons.add(btnId);
+        
+        // Disable the button visually
+        $btn.addClass('disabled').css('pointer-events', 'none').prop('disabled', true);
+        
+        // Remove from clicked set after timeout
+        setTimeout(function() {
+            clickedButtons.delete(btnId);
+            $btn.removeClass('disabled').css('pointer-events', '').prop('disabled', false);
+        }, clickTimeout);
+    });
+    
+    // Initialize DataTables with optimized settings
+    $(document).ready(function() {
+        // Delay initialization to allow browser to complete initial render
+        // Using setTimeout after requestAnimationFrame gives browser time to paint
+        var initTable = function() {
+            var table = $('#usersTable').DataTable({
+                order: [[3, 'asc'], [0, 'asc']], // Sort by School (index 3), then Username (index 0)
+                pageLength: 25,
+                lengthMenu: [[10, 25, 50, 100, -1], [10, 25, 50, 100, "All"]],
+                responsive: false, // Disable responsive initially to avoid reflows
+                deferRender: true, // Defer rendering for better performance
+                processing: false, // Disable processing indicator to reduce reflows
+                stateSave: false, // Disable state saving to reduce localStorage operations
+                autoWidth: false, // Disable auto width calculation to prevent reflows
+                scrollX: false, // Disable horizontal scroll to reduce calculations
+                scrollCollapse: false, // Disable scroll collapse calculations
+                pagingType: 'simple_numbers', // Lighter pagination type
+                columnDefs: [
+                    {
+                        targets: [7], // Actions column
+                        orderable: false, // Disable sorting on Actions column
+                        searchable: false // Disable searching on Actions column
+                    }
+                ],
+                language: {
+                    search: "Filter:",
+                    lengthMenu: "Show _MENU_ users per page",
+                    info: "Showing _START_ to _END_ of _TOTAL_ users",
+                    infoEmpty: "No users available",
+                    infoFiltered: "(filtered from _MAX_ total users)",
+                    zeroRecords: "No matching users found"
+                }
+            });
+            
+            // Store table reference for cleanup
+            window.usersTable = table;
+            
+            // Enable responsive mode after initialization completes
+            // This is done asynchronously to avoid blocking
+            setTimeout(function() {
+                if (table && table.responsive) {
+                    try {
+                        table.responsive.enable();
+                    } catch (e) {
+                        // Ignore errors if responsive is not available
+                    }
+                }
+            }, 200);
+        };
+        
+        // Use requestAnimationFrame followed by setTimeout to ensure
+        // browser has time to paint before heavy initialization
+        requestAnimationFrame(function() {
+            setTimeout(initTable, 0);
+        });
+    });
+    
+    // Clean up on page unload
+    $(window).on('beforeunload', function() {
+        if (window.usersTable) {
+            try {
+                window.usersTable.destroy();
+            } catch (e) {
+                // Ignore errors during cleanup
             }
-        ],
-        language: {
-            search: "Filter:",
-            lengthMenu: "Show _MENU_ users per page",
-            info: "Showing _START_ to _END_ of _TOTAL_ users",
-            infoEmpty: "No users available",
-            infoFiltered: "(filtered from _MAX_ total users)",
-            zeroRecords: "No matching users found"
         }
     });
-});
+})();
 </script>
 {% endblock %}
 
