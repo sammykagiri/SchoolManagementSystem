@@ -81,6 +81,7 @@
                                         <th>Fee Category</th>
                                         <th>Term</th>
                                         <th>Amount</th>
+                                        <th>Applied To</th>
                                         <th>Method</th>
                                         <th>Status</th>
                                         <th>Date</th>
@@ -104,6 +105,34 @@
                                         <td>{{ payment.student_fee.fee_category.name }}</td>
                                         <td>{{ payment.student_fee.term.academic_year }} - Term {{ payment.student_fee.term.term_number }}</td>
                                         <td class="text-end">KES {{ payment.amount|floatformat:2 }}</td>
+                                        <td>
+                                            {% if payment.allocations.exists %}
+                                                {% for allocation in payment.allocations.all %}
+                                                    <div>
+                                                        {% with receivable=allocation.student_fee.receivables.first %}
+                                                        {% if receivable %}
+                                                        <a href="{% url 'receivables:receivable_detail' receivable.get_signed_token %}" 
+                                                           class="text-decoration-none" 
+                                                           title="View Receivable">
+                                                            <i class="fas fa-link me-1"></i>
+                                                            {{ allocation.student_fee.fee_category.name }}
+                                                        </a>
+                                                        {% else %}
+                                                        <span>
+                                                            <i class="fas fa-file-invoice me-1"></i>
+                                                            {{ allocation.student_fee.fee_category.name }}
+                                                        </span>
+                                                        {% endif %}
+                                                        {% endwith %}
+                                                        <br>
+                                                        <small class="text-muted">KES {{ allocation.amount_allocated|floatformat:2 }}</small>
+                                                    </div>
+                                                    {% if not forloop.last %}<hr class="my-1">{% endif %}
+                                                {% endfor %}
+                                            {% else %}
+                                                <span class="text-muted">—</span>
+                                            {% endif %}
+                                        </td>
                                         <td>
                                             <span class="badge bg-secondary">{{ payment.get_payment_method_display }}</span>
                                         </td>
@@ -136,7 +165,7 @@
                                     </tr>
                                     {% empty %}
                                     <tr>
-                                        <td colspan="9" class="text-center py-4">
+                                        <td colspan="10" class="text-center py-4">
                                             <i class="fas fa-money-bill-wave fa-3x text-muted mb-3"></i>
                                             <p class="text-muted">No payments found.</p>
                                         </td>

@@ -103,9 +103,20 @@ def _get_unmatched_transaction_from_token_or_id(request, token_or_id):
 @login_required
 def payment_list(request):
     """List all payments"""
+    from django.db.models import Prefetch
     school = request.user.profile.school
     payments = Payment.objects.filter(school=school).select_related(
         'student', 'student_fee__fee_category', 'student_fee__term'
+    ).prefetch_related(
+        Prefetch(
+            'allocations',
+            queryset=PaymentAllocation.objects.select_related(
+                'student_fee__fee_category', 
+                'student_fee__term'
+            ).prefetch_related(
+                'student_fee__receivables'
+            )
+        )
     ).order_by('-payment_date')
     
     # Search functionality
@@ -1223,6 +1234,7 @@ def receivable_list(request):
     """List all receivables with search and allocation viewing"""
     from core.decorators import permission_required
     from django.db.models import Prefetch, F, Case, When, Value, DecimalField
+    from django.db import ProgrammingError
     
     school = request.user.profile.school
     
@@ -1238,43 +1250,84 @@ def receivable_list(request):
     )
     
     # Sync receivables for any StudentFee that doesn't have one or update existing ones
-    for student_fee in student_fees_with_balance:
-        receivable, created = Receivable.objects.get_or_create(
-            school=student_fee.school,
-            student_fee=student_fee,
-            defaults={
-                'student': student_fee.student,
-                'amount_due': student_fee.amount_charged,
-                'amount_paid': student_fee.amount_paid,
-                'due_date': student_fee.due_date,
-                'is_cleared': student_fee.is_paid,
-            }
-        )
-        if not created:
-            # Update existing receivable to match StudentFee
-            receivable.amount_due = student_fee.amount_charged
-            receivable.amount_paid = student_fee.amount_paid
-            receivable.due_date = student_fee.due_date
-            receivable.is_cleared = student_fee.is_paid
-            if student_fee.is_paid and not receivable.cleared_at:
-                from django.utils import timezone
-                receivable.cleared_at = timezone.now()
-            elif not student_fee.is_paid:
-                receivable.cleared_at = None
-            receivable.save()
+    try:
+        for student_fee in student_fees_with_balance:
+            receivable, created = Receivable.objects.get_or_create(
+                school=student_fee.school,
+                student_fee=student_fee,
+                defaults={
+                    'student': student_fee.student,
+                    'amount_due': student_fee.amount_charged,
+                    'amount_paid': student_fee.amount_paid,
+                    'due_date': student_fee.due_date,
+                    'is_cleared': student_fee.is_paid,
+                }
+            )
+            if not created:
+                # Update existing receivable to match StudentFee
+                receivable.amount_due = student_fee.amount_charged
+                receivable.amount_paid = student_fee.amount_paid
+                receivable.due_date = student_fee.due_date
+                receivable.is_cleared = student_fee.is_paid
+                if student_fee.is_paid and not receivable.cleared_at:
+                    from django.utils import timezone
+                    receivable.cleared_at = timezone.now()
+                elif not student_fee.is_paid:
+                    receivable.cleared_at = None
+                receivable.save()
+    except ProgrammingError as e:
+        # Receivable table doesn't exist - migrations not run
+        if 'receivables_receivable' in str(e) or 'does not exist' in str(e):
+            messages.error(
+                request, 
+                'Database migration required: The Receivables table does not exist. '
+                'Please run migrations in production: python manage.py migrate receivables'
+            )
+            # Return empty context to avoid further errors
+            return render(request, 'receivables/receivable_list.html', {
+                'page_obj': None,
+                'search_query': '',
+                'total_due': Decimal('0.00'),
+                'total_paid': Decimal('0.00'),
+                'total_outstanding': Decimal('0.00'),
+            })
+        else:
+            raise  # Re-raise if it's a different ProgrammingError
     
     # Now query Receivable records (which should now exist for all outstanding fees)
-    receivables = Receivable.objects.filter(
-        school=school,
-        is_cleared=False
-    ).select_related(
-        'student', 'student_fee__fee_category', 'student_fee__term'
-    ).prefetch_related(
-        Prefetch(
-            'student_fee__payment_allocations',
-            queryset=PaymentAllocation.objects.select_related('payment', 'payment__student')
-        )
-    ).order_by('due_date', 'student__student_id')
+    try:
+    
+    # Now query Receivable records (which should now exist for all outstanding fees)
+    try:
+        receivables = Receivable.objects.filter(
+            school=school,
+            is_cleared=False
+        ).select_related(
+            'student', 'student_fee__fee_category', 'student_fee__term'
+        ).prefetch_related(
+            Prefetch(
+                'student_fee__payment_allocations',
+                queryset=PaymentAllocation.objects.select_related('payment', 'payment__student')
+            )
+        ).order_by('due_date', 'student__student_id')
+    except ProgrammingError as e:
+        # Receivable table doesn't exist - migrations not run
+        if 'receivables_receivable' in str(e) or 'does not exist' in str(e):
+            messages.error(
+                request, 
+                'Database migration required: The Receivables table does not exist. '
+                'Please run migrations in production: python manage.py migrate receivables'
+            )
+            # Return empty context to avoid further errors
+            return render(request, 'receivables/receivable_list.html', {
+                'page_obj': None,
+                'search_query': '',
+                'total_due': Decimal('0.00'),
+                'total_paid': Decimal('0.00'),
+                'total_outstanding': Decimal('0.00'),
+            })
+        else:
+            raise  # Re-raise if it's a different ProgrammingError
     
     # Search functionality
     search_query = request.GET.get('search', '')
