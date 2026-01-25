@@ -32,7 +32,7 @@ urlpatterns = [
     path('exams/', include('exams.urls')),
     path('homework/', include('homework.urls')),
     path('accounts/login/', core_views.CustomLoginView.as_view(), name='login'),
-    path('accounts/logout/', auth_views.LogoutView.as_view(template_name='auth/logout.html'), name='logout'),
+    path('accounts/logout/', core_views.custom_logout, name='logout'),
     path('accounts/password_reset/', auth_views.PasswordResetView.as_view(template_name='auth/password_reset_form.html'), name='password_reset'),
     path('accounts/password_reset/done/', auth_views.PasswordResetDoneView.as_view(template_name='auth/password_reset_done.html'), name='password_reset_done'),
     path('accounts/reset/<uidb64>/<token>/', auth_views.PasswordResetConfirmView.as_view(template_name='auth/password_reset_confirm.html'), name='password_reset_confirm'),
