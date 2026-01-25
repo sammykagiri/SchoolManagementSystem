@@ -54,48 +54,41 @@ def fix_migration_history():
         db_backend = connection.vendor
         
         # Always update receivables.0001_initial timestamp to be before communications.0002_initial
-        # Use INSERT ... ON CONFLICT DO UPDATE for PostgreSQL, or UPDATE/INSERT for others
+        # Use UPDATE first, then INSERT if it doesn't exist (works for all databases)
         print("Ensuring receivables.0001_initial has correct timestamp...")
         
-        if db_backend == 'postgresql':
-            # PostgreSQL: Use INSERT ... ON CONFLICT DO UPDATE to always set the timestamp
-            cursor.execute("""
-                INSERT INTO django_migrations (app, name, applied)
-                VALUES ('receivables', '0001_initial', %s)
-                ON CONFLICT (app, name) DO UPDATE SET applied = EXCLUDED.applied
-            """, [applied_timestamp])
-            print(f"✓ Set receivables.0001_initial timestamp to {applied_timestamp}")
-        else:
-            # Other databases: Try UPDATE first, then INSERT if it doesn't exist
-            cursor.execute("""
-                UPDATE django_migrations 
-                SET applied = %s 
-                WHERE app = 'receivables' AND name = '0001_initial'
-            """, [applied_timestamp])
-            rows_updated = cursor.rowcount
-            
-            if rows_updated == 0:
-                # Doesn't exist, insert it
-                try:
+        # Try UPDATE first
+        cursor.execute("""
+            UPDATE django_migrations 
+            SET applied = %s 
+            WHERE app = 'receivables' AND name = '0001_initial'
+        """, [applied_timestamp])
+        rows_updated = cursor.rowcount
+        
+        if rows_updated == 0:
+            # Doesn't exist, insert it
+            print("  receivables.0001_initial not found, inserting...")
+            try:
+                cursor.execute("""
+                    INSERT INTO django_migrations (app, name, applied)
+                    VALUES ('receivables', '0001_initial', %s)
+                """, [applied_timestamp])
+                print(f"✓ Inserted receivables.0001_initial with timestamp {applied_timestamp}")
+            except Exception as e:
+                error_str = str(e).lower()
+                if 'unique' in error_str or 'duplicate' in error_str or 'already exists' in error_str:
+                    # Race condition - try update again
+                    print("  Record appeared, updating instead...")
                     cursor.execute("""
-                        INSERT INTO django_migrations (app, name, applied)
-                        VALUES ('receivables', '0001_initial', %s)
+                        UPDATE django_migrations 
+                        SET applied = %s 
+                        WHERE app = 'receivables' AND name = '0001_initial'
                     """, [applied_timestamp])
-                    print(f"✓ Inserted receivables.0001_initial with timestamp {applied_timestamp}")
-                except Exception as e:
-                    error_str = str(e).lower()
-                    if 'unique' in error_str or 'duplicate' in error_str:
-                        # Race condition - try update again
-                        cursor.execute("""
-                            UPDATE django_migrations 
-                            SET applied = %s 
-                            WHERE app = 'receivables' AND name = '0001_initial'
-                        """, [applied_timestamp])
-                        print(f"✓ Updated receivables.0001_initial timestamp to {applied_timestamp}")
-                    else:
-                        raise
-            else:
-                print(f"✓ Updated receivables.0001_initial timestamp to {applied_timestamp}")
+                    print(f"✓ Updated receivables.0001_initial timestamp to {applied_timestamp}")
+                else:
+                    raise
+        else:
+            print(f"✓ Updated receivables.0001_initial timestamp to {applied_timestamp}")
         
         # Also check and insert receivables.0002 if it exists and communications depends on it
         # Check what receivables migrations exist in the filesystem
