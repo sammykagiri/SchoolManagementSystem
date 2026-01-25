@@ -28,9 +28,9 @@ if [ -f "check_and_fix_missing_tables.py" ]; then
     python check_and_fix_missing_tables.py || echo "Table check completed (warnings OK)"
 fi
 
-echo "Quick fix: Unapplying receivables.0001_initial if tables don't exist..."
+echo "Quick fix: Unapplying receivables migrations if tables don't exist..."
 if [ -f "unapply_receivables_0001.py" ]; then
-    python unapply_receivables_0001.py || echo "Unapply check completed (warnings OK)"
+    python unapply_receivables_0001.py 2>&1 || echo "Unapply check completed (warnings OK)"
 fi
 
 echo "Fixing migration history if needed (idempotent - safe to run multiple times)..."

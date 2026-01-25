@@ -57,23 +57,24 @@ def unapply_receivables_0001():
             # Tables exist, migration is correctly applied
             return True
         
-        # Tables don't exist but migration is marked as applied - unapply it
+        # Tables don't exist but migration is marked as applied - unapply it and all dependent migrations
         print("⚠ receivables.0001_initial is marked as applied but tables don't exist")
-        print("  Unapplying receivables.0001_initial...")
+        print("  Unapplying receivables.0001_initial and all subsequent receivables migrations...")
         
+        # Unapply all receivables migrations (they all depend on 0001_initial)
         cursor.execute("""
             DELETE FROM django_migrations 
-            WHERE app = 'receivables' AND name = '0001_initial'
+            WHERE app = 'receivables'
         """)
         connection.commit()
         
         deleted = cursor.rowcount
         if deleted > 0:
-            print(f"✓ Unapplied receivables.0001_initial (removed from migration history)")
-            print("  Migration will run fresh and create the tables")
+            print(f"✓ Unapplied {deleted} receivables migration(s) (removed from migration history)")
+            print("  Migrations will run fresh and create the tables")
             return True
         else:
-            print("✗ Failed to unapply receivables.0001_initial")
+            print("✗ Failed to unapply receivables migrations")
             return False
 
 if __name__ == '__main__':
