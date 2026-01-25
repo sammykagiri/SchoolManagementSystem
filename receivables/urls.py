@@ -44,7 +44,9 @@ urlpatterns = [
     # Credits
     path('credits/', views.credit_list, name='credit_list'),
     path('credits/create/', views.credit_create, name='credit_create'),
+    path('credits/apply-all/', views.credit_apply_all, name='credit_apply_all'),
     path('credits/<str:credit_id>/edit/', views.credit_edit, name='credit_edit'),
+    path('credits/<str:credit_id>/apply/', views.credit_apply, name='credit_apply'),
     path('credits/<str:credit_id>/delete/', views.credit_delete, name='credit_delete'),
     
     # Bank Statement Patterns
@@ -67,6 +69,7 @@ urlpatterns = [
     path('api/receivables/<str:receivable_id>/allocations/', views.api_receivable_allocations, name='api_receivable_allocations'),
     
     # Detail views - must come last as they're catch-alls for tokens
+    # Receivable detail comes first - it will check if token is a payment and redirect if needed
     path('<str:receivable_id>/', views.receivable_detail, name='receivable_detail'),
     path('<str:payment_id>/', views.payment_detail, name='payment_detail'),
 ] 

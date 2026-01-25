@@ -5,12 +5,23 @@
 {% block content %}
 <div class="container py-4">
     <div class="d-flex justify-content-between align-items-center mb-4">
-        <h1><i class="fas fa-cog me-2"></i> Bank Statement Patterns</h1>
+        <div>
+            <h1><i class="fas fa-cog me-2"></i> Bank Statement Patterns</h1>
+            {% if request.GET.school and school %}
+                <p class="text-muted mb-0">For: <strong>{{ school.name }}</strong></p>
+            {% endif %}
+        </div>
         <div class="d-flex gap-2">
-            <a href="{% url 'receivables:receivable_list' %}" class="btn btn-primary">
-                <i class="fas fa-file-invoice-dollar me-2"></i>Receivables
-            </a>
-            <a href="{% url 'receivables:bank_statement_pattern_create' %}" class="btn btn-success">
+            {% if request.GET.school %}
+                <a href="{% url 'core:school_admin_list' %}" class="btn btn-secondary">
+                    <i class="fas fa-arrow-left me-2"></i>Back to Schools
+                </a>
+            {% else %}
+                <a href="{% url 'receivables:receivable_list' %}" class="btn btn-primary">
+                    <i class="fas fa-file-invoice-dollar me-2"></i>Receivables
+                </a>
+            {% endif %}
+            <a href="{% url 'receivables:bank_statement_pattern_create' %}{% if request.GET.school %}?school={{ request.GET.school }}{% endif %}" class="btn btn-success">
                 <i class="fas fa-plus me-2"></i>Create Pattern
             </a>
         </div>
@@ -33,7 +44,8 @@
                             <th>Pattern Name</th>
                             <th>Date Column</th>
                             <th>Amount Column</th>
-                            <th>Reference Column</th>
+                            <th>Narrative Column</th>
+                            <th>Transaction Ref Column</th>
                             <th>Student ID Pattern</th>
                             <th>Date Format</th>
                             <th>Status</th>
@@ -48,6 +60,8 @@
                             <td><code>{{ pattern.date_column }}</code></td>
                             <td><code>{{ pattern.amount_column }}</code></td>
                             <td><code>{{ pattern.reference_column|default:"—" }}</code></td>
+                            <td><code>{{ pattern.transaction_reference_column|default:"—" }}</code></td>
+                            <td><code>{{ pattern.student_id_pattern|default:"—" }}</code></td>
                             <td><code>{{ pattern.date_format }}</code></td>
                             <td>
                                 {% if pattern.is_active %}
@@ -58,12 +72,12 @@
                             </td>
                             <td>
                                 <div class="btn-group btn-group-sm">
-                                    <a href="{% url 'receivables:bank_statement_pattern_edit' pattern.get_signed_token %}" 
+                                    <a href="{% url 'receivables:bank_statement_pattern_edit' pattern.get_signed_token %}{% if request.GET.school %}?school={{ request.GET.school }}{% endif %}" 
                                        class="btn btn-outline-primary" 
                                        title="Edit Pattern">
                                         <i class="fas fa-edit"></i>
                                     </a>
-                                    <a href="{% url 'receivables:bank_statement_pattern_delete' pattern.get_signed_token %}" 
+                                    <a href="{% url 'receivables:bank_statement_pattern_delete' pattern.get_signed_token %}{% if request.GET.school %}?school={{ request.GET.school }}{% endif %}" 
                                        class="btn btn-outline-danger" 
                                        title="Delete Pattern"
                                        onclick="return confirm('Are you sure you want to delete this pattern?');">
@@ -74,10 +88,10 @@
                         </tr>
                         {% empty %}
                         <tr>
-                            <td colspan="9" class="text-center py-4">
+                            <td colspan="10" class="text-center py-4">
                                 <i class="fas fa-cog fa-3x text-muted mb-3"></i>
                                 <p class="text-muted">No bank statement patterns found.</p>
-                                <a href="{% url 'receivables:bank_statement_pattern_create' %}" class="btn btn-primary">
+                                <a href="{% url 'receivables:bank_statement_pattern_create' %}{% if request.GET.school %}?school={{ request.GET.school }}{% endif %}" class="btn btn-primary">
                                     <i class="fas fa-plus me-2"></i>Create First Pattern
                                 </a>
                             </td>

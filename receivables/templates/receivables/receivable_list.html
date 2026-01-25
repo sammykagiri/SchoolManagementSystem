@@ -32,9 +32,9 @@
             <a href="{% url 'receivables:payment_list' %}" class="btn btn-outline-primary">
                 <i class="fas fa-credit-card me-1"></i> View All Payments
             </a>
-            <button type="button" class="btn btn-info" data-bs-toggle="modal" data-bs-target="#processStatementModal">
+            <a href="{% url 'receivables:bank_statement_upload' %}" class="btn btn-info">
                 <i class="fas fa-file-upload me-1"></i> Process Bank Statement
-            </button>
+            </a>
             <a href="{% url 'receivables:bank_statement_pattern_list' %}" class="btn btn-secondary">
                 <i class="fas fa-cog me-1"></i> Bank Patterns
             </a>
@@ -221,43 +221,6 @@
     </div>
 </div>
 
-<!-- Modal for uploading bank statement -->
-<div class="modal fade" id="processStatementModal" tabindex="-1" aria-labelledby="processStatementModalLabel" aria-hidden="true">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title" id="processStatementModalLabel">Upload Bank Statement (CSV File)</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-            <div class="modal-body">
-                <form method="post" action="{% url 'receivables:bank_statement_upload' %}" enctype="multipart/form-data" id="uploadStatementForm">
-                    {% csrf_token %}
-                    <div class="mb-3">
-                        <label for="pattern_id" class="form-label">Bank Statement Pattern</label>
-                        <select name="pattern_id" id="pattern_id" class="form-select" required>
-                            <option value="">Select pattern...</option>
-                            {% for pattern in patterns %}
-                            <option value="{{ pattern.id }}">{{ pattern.bank_name }} - {{ pattern.pattern_name }}</option>
-                            {% endfor %}
-                        </select>
-                        <small class="form-text text-muted">
-                            <a href="{% url 'receivables:bank_statement_pattern_list' %}" target="_blank">Manage patterns</a>
-                        </small>
-                    </div>
-                    <div class="mb-3">
-                        <label for="statementFile" class="form-label">Select Bank Statement (CSV File)</label>
-                        <input type="file" class="form-control" id="statementFile" name="statement_file" accept=".csv" required>
-                        <div class="form-text">Please upload a CSV file containing the bank statement.</div>
-                    </div>
-                    <div class="d-flex justify-content-end">
-                        <button type="button" class="btn btn-secondary me-2" data-bs-dismiss="modal">Cancel</button>
-                        <button type="submit" class="btn btn-primary">Process Payments</button>
-                    </div>
-                </form>
-            </div>
-        </div>
-    </div>
-</div>
 {% endblock %}
 
 {% block scripts %}
@@ -320,11 +283,17 @@ $(document).ready(function() {
                 allocations.forEach(alloc => {
                     const paymentDate = new Date(alloc.payment__payment_date).toLocaleDateString();
                     const reference = alloc.payment__reference_number || alloc.payment__transaction_id || 'N/A';
-                    // Note: Payment links will need token in backend response
+                    // Use payment token for URL - payments are at /receivables/<payment_token>/
+                    // But we need to ensure it doesn't conflict with receivable_detail
+                    // Since payment_detail comes after receivable_detail in URL patterns,
+                    // we'll use the payment token directly - Django will try receivable_detail first,
+                    // fail, then try payment_detail. But to be safe, let's use a more specific approach.
                     const paymentToken = alloc.payment__token || alloc.payment__payment_id;
+                    // Use payment detail URL - encode the token properly
+                    const paymentUrl = `/receivables/${encodeURIComponent(paymentToken)}/`;
                     tableHtml += `
                         <tr>
-                            <td><a href="/receivables/${paymentToken}/">${alloc.payment__payment_id.substring(0, 8)}...</a></td>
+                            <td><a href="${paymentUrl}">${alloc.payment__payment_id.substring(0, 8)}...</a></td>
                             <td>${paymentDate}</td>
                             <td>${alloc.payment__payment_method || 'N/A'}</td>
                             <td><small>${reference}</small></td>

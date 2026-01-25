@@ -21,7 +21,7 @@
                     <form method="post">
                         {% csrf_token %}
                         <div class="d-flex justify-content-between">
-                            <a href="{% url 'receivables:bank_statement_pattern_list' %}" class="btn btn-secondary">
+                            <a href="{% url 'receivables:bank_statement_pattern_list' %}{% if request.GET.school %}?school={{ request.GET.school }}{% elif school_token %}?school={{ school_token }}{% endif %}" class="btn btn-secondary">
                                 <i class="fas fa-times me-2"></i>Cancel
                             </a>
                             <button type="submit" class="btn btn-danger">

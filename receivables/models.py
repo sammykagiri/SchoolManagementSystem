@@ -326,8 +326,12 @@ class BankStatementPattern(models.Model):
     )
     reference_column = models.CharField(
         max_length=50,
+        help_text='Column name or index for narrative/reference containing M-Pesa details (e.g., "Narrative", "Description", "2")'
+    )
+    transaction_reference_column = models.CharField(
+        max_length=50,
         blank=True,
-        help_text='Column name or index for reference/narrative (e.g., "Narrative", "Description", "2")'
+        help_text='Column name or index for unique bank transaction reference number (e.g., "Transaction Ref", "Reference", "3") - used for duplicate detection'
     )
     student_id_pattern = models.CharField(
         max_length=200,
@@ -367,6 +371,7 @@ class BankStatementPattern(models.Model):
         Examples:
         - "123456#00001" -> "00001" (M-Pesa format)
         - "STUDENT 00001" with pattern r"STUDENT\\s*(\\d+)" -> "00001"
+        - "MPS 254721266013 TK18K8USG7 064010#00001 SAMUEL KAGIRI" -> "00001"
         """
         if not reference_text:
             return None
@@ -378,12 +383,58 @@ class BankStatementPattern(models.Model):
                 return match.group(1) if match.groups() else match.group(0)
         
         # Try default M-Pesa pattern: BUSINESS_NUMBER#STUDENT_ID
-        # Format: BUSINESS_NUMBER#STUDENT_ID (e.g., "123456#00001")
+        # Format: BUSINESS_NUMBER#STUDENT_ID (e.g., "123456#00001" or "064010#00001")
         mpesa_match = re.search(r'#(\d+)', reference_text)
         if mpesa_match:
             return mpesa_match.group(1)
         
         return None
+    
+    def extract_mpesa_details(self, narrative_text):
+        """
+        Extract M-Pesa details from narrative text.
+        Format: "MPS [Mobile] [M-Pesa Ref] [Business#StudentID] [Name]"
+        Example: "MPS 254721266013 TK18K8USG7 064010#00001 SAMUEL KAGIRI"
+        
+        Returns:
+            dict with keys: mobile_number, mpesa_reference, business_number, student_id, name
+        """
+        if not narrative_text:
+            return {}
+        
+        details = {}
+        
+        # Pattern: MPS [Mobile] [M-Pesa Ref] [Business#StudentID] [Name]
+        # M-Pesa reference is typically alphanumeric, 10-12 chars (e.g., TK18K8USG7)
+        # Mobile number is typically 12 digits starting with 254
+        # Business#StudentID format: digits#digits
+        
+        # Extract M-Pesa reference (alphanumeric, typically after mobile number)
+        mpesa_ref_match = re.search(r'\b([A-Z0-9]{8,12})\b', narrative_text)
+        if mpesa_ref_match:
+            # Check if it looks like an M-Pesa reference (starts with letters, has numbers)
+            ref = mpesa_ref_match.group(1)
+            if re.match(r'^[A-Z]{2,}[A-Z0-9]+$', ref):
+                details['mpesa_reference'] = ref
+        
+        # Extract mobile number (12 digits starting with 254)
+        mobile_match = re.search(r'\b(254\d{9})\b', narrative_text)
+        if mobile_match:
+            details['mobile_number'] = mobile_match.group(1)
+        
+        # Extract business number and student ID (format: digits#digits)
+        business_student_match = re.search(r'(\d+)#(\d+)', narrative_text)
+        if business_student_match:
+            details['business_number'] = business_student_match.group(1)
+            details['student_id'] = business_student_match.group(2)
+        
+        # Extract name (everything after the business#studentID, or last word sequence)
+        # This is optional and may not always be present
+        name_match = re.search(r'\d+#\d+\s+(.+?)(?:\s|$)', narrative_text)
+        if name_match:
+            details['name'] = name_match.group(1).strip()
+        
+        return details
     
     def get_signed_token(self):
         """Generate an opaque signed token for this pattern to use in URLs."""
@@ -490,6 +541,26 @@ class UnmatchedTransaction(models.Model):
         validators=[MinValueValidator(0)]
     )
     reference_number = models.CharField(max_length=200, blank=True, help_text='Transaction reference/narrative from bank statement')
+    bank_reference_number = models.CharField(
+        max_length=100,
+        blank=True,
+        null=True,
+        db_index=True,
+        help_text='Unique bank transaction reference number (for duplicate detection per school)'
+    )
+    mpesa_reference = models.CharField(
+        max_length=50,
+        blank=True,
+        null=True,
+        db_index=True,
+        help_text='M-Pesa transaction reference (e.g., TK18K8USG7) - unique identifier'
+    )
+    mobile_number = models.CharField(
+        max_length=15,
+        blank=True,
+        null=True,
+        help_text='Mobile number from M-Pesa narrative (e.g., 254721266013)'
+    )
     extracted_student_id = models.CharField(
         max_length=50,
         blank=True,
@@ -565,9 +636,13 @@ class UnmatchedTransaction(models.Model):
     
     class Meta:
         ordering = ['-transaction_date', '-created_at']
+        # Ensure bank_reference_number is unique per school (when not null)
+        unique_together = [['school', 'bank_reference_number']]
         indexes = [
             models.Index(fields=['school', 'status', 'transaction_date']),
             models.Index(fields=['school', 'extracted_student_id']),
+            models.Index(fields=['school', 'bank_reference_number'], name='unmatched_bank_ref_idx'),
+            models.Index(fields=['school', 'mpesa_reference'], name='unmatched_mpesa_ref_idx'),
         ]
 
 

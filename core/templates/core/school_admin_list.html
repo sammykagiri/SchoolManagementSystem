@@ -59,9 +59,12 @@
                                         <br><small class="text-muted">Total: {{ item.total_teachers }}</small>
                                     </td>
                                     <td>
-                                        <div class="d-flex gap-1">
+                                        <div class="d-flex gap-1 flex-wrap">
                                             <a href="{% url 'core:school_admin_edit' item.school.get_signed_token %}" class="btn btn-sm btn-secondary" title="Edit School">
                                                 <i class="fas fa-edit"></i>
+                                            </a>
+                                            <a href="{% url 'receivables:bank_statement_pattern_list' %}?school={{ item.school.get_signed_token }}" class="btn btn-sm btn-info" title="Bank Statement Patterns">
+                                                <i class="fas fa-file-csv"></i>
                                             </a>
                                             <form method="post" action="{% url 'core:school_admin_delete' item.school.get_signed_token %}" style="display:inline;">
                                                 {% csrf_token %}

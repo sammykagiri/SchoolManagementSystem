@@ -66,12 +66,29 @@
                             </div>
                             
                             <div class="col-md-4 mb-3">
-                                <label for="{{ form.reference_column.id_for_label }}" class="form-label">Reference Column</label>
+                                <label for="{{ form.reference_column.id_for_label }}" class="form-label">Narrative Column <span class="text-danger">*</span></label>
                                 {{ form.reference_column }}
                                 {% if form.reference_column.errors %}
                                     <div class="text-danger">{{ form.reference_column.errors }}</div>
                                 {% endif %}
-                                <small class="form-text text-muted">Column for narrative/reference (optional)</small>
+                                <small class="form-text text-muted">
+                                    Column containing M-Pesa narrative (e.g., "MPS 254721266013 TK18K8USG7 064010#00001 SAMUEL KAGIRI")<br>
+                                    <strong>Format:</strong> MPS [Mobile] [M-Pesa Ref] [Business#StudentID] [Name]
+                                </small>
+                            </div>
+                        </div>
+                        
+                        <div class="row">
+                            <div class="col-md-4 mb-3">
+                                <label for="{{ form.transaction_reference_column.id_for_label }}" class="form-label">Transaction Reference Column</label>
+                                {{ form.transaction_reference_column }}
+                                {% if form.transaction_reference_column.errors %}
+                                    <div class="text-danger">{{ form.transaction_reference_column.errors }}</div>
+                                {% endif %}
+                                <small class="form-text text-muted">
+                                    Column containing unique bank transaction reference number (e.g., "Transaction Ref", "Reference", "3")<br>
+                                    <strong>Used for:</strong> Duplicate transaction detection
+                                </small>
                             </div>
                         </div>
                         
@@ -151,7 +168,7 @@
                         </div>
                         
                         <div class="d-flex justify-content-between">
-                            <a href="{% url 'receivables:bank_statement_pattern_list' %}" class="btn btn-secondary">
+                            <a href="{% url 'receivables:bank_statement_pattern_list' %}{% if school_token %}?school={{ school_token }}{% endif %}" class="btn btn-secondary">
                                 <i class="fas fa-times me-2"></i>Cancel
                             </a>
                             <button type="submit" class="btn btn-primary">

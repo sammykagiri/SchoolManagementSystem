@@ -1,6 +1,7 @@
 {% extends 'base.html' %}
 {% load static %}
 {% load humanize %}
+{% load string_utils %}
 
 {% block title %}Credits | Eduvanta{% endblock %}
 
@@ -12,6 +13,24 @@
             <a href="{% url 'receivables:receivable_list' %}" class="btn btn-primary">
                 <i class="fas fa-file-invoice-dollar me-2"></i>Receivables
             </a>
+            {% if has_any_outstanding %}
+            <form method="post" action="{% url 'receivables:credit_apply_all' %}" style="display:inline;">
+                {% csrf_token %}
+                <button type="submit" 
+                        class="btn btn-warning" 
+                        title="Apply all available credits to outstanding receivables"
+                        onclick="return confirm('Apply all available credits to outstanding receivables? This will process all credits that have outstanding fees.');">
+                    <i class="fas fa-check-double me-2"></i>Apply All Credits
+                </button>
+            </form>
+            {% else %}
+            <button type="button" 
+                    class="btn btn-warning" 
+                    disabled
+                    title="No outstanding receivables available for any credits">
+                <i class="fas fa-check-double me-2"></i>Apply All Credits
+            </button>
+            {% endif %}
             <a href="{% url 'receivables:credit_create' %}" class="btn btn-success">
                 <i class="fas fa-plus me-2"></i>Create Credit
             </a>
@@ -99,6 +118,7 @@
                             <th class="text-end">Amount</th>
                             <th>Source</th>
                             <th>Description</th>
+                            <th>Related Payment</th>
                             <th>Status</th>
                             <th>Created At</th>
                             <th>Actions</th>
@@ -121,6 +141,20 @@
                                 <small>{{ credit.description|truncatewords:10|default:"—" }}</small>
                             </td>
                             <td>
+                                {% if credit.payment %}
+                                <a href="{% url 'receivables:payment_detail' credit.payment.get_signed_token %}" 
+                                   class="text-decoration-none" 
+                                   title="View Payment Details">
+                                    <i class="fas fa-link me-1"></i>
+                                    <small>{{ credit.payment.payment_id|truncatechars:12 }}</small>
+                                </a>
+                                <br>
+                                <small class="text-muted">KES {{ credit.payment.amount|floatformat:2 }}</small>
+                                {% else %}
+                                <span class="text-muted">—</span>
+                                {% endif %}
+                            </td>
+                            <td>
                                 {% if credit.is_applied %}
                                 <span class="badge bg-success">Applied</span>
                                 {% if credit.applied_to_fee %}
@@ -134,6 +168,24 @@
                             <td>
                                 <div class="btn-group btn-group-sm">
                                     {% if not credit.is_applied %}
+                                    {% if credit.id in credit_outstanding_info and credit_outstanding_info|get_item:credit.id %}
+                                    <form method="post" action="{% url 'receivables:credit_apply' credit.get_signed_token %}" style="display:inline;">
+                                        {% csrf_token %}
+                                        <button type="submit" 
+                                                class="btn btn-outline-success" 
+                                                title="Apply Credit to Outstanding Receivables"
+                                                onclick="return confirm('Apply this credit to the oldest outstanding receivable?');">
+                                            <i class="fas fa-check-circle"></i> Apply
+                                        </button>
+                                    </form>
+                                    {% else %}
+                                    <button type="button" 
+                                            class="btn btn-outline-secondary" 
+                                            disabled
+                                            title="No outstanding receivables available">
+                                        <i class="fas fa-check-circle"></i> Apply
+                                    </button>
+                                    {% endif %}
                                     <a href="{% url 'receivables:credit_edit' credit.get_signed_token %}" 
                                        class="btn btn-outline-primary" 
                                        title="Edit Credit">
@@ -153,7 +205,7 @@
                         </tr>
                         {% empty %}
                         <tr>
-                            <td colspan="8" class="text-center py-4">
+                            <td colspan="9" class="text-center py-4">
                                 <i class="fas fa-credit-card fa-3x text-muted mb-3"></i>
                                 <p class="text-muted">No credits found.</p>
                             </td>

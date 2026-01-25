@@ -51,7 +51,7 @@ class BankStatementPatternForm(forms.ModelForm):
         model = BankStatementPattern
         fields = [
             'school', 'bank_name', 'pattern_name',
-            'date_column', 'amount_column', 'reference_column',
+            'date_column', 'amount_column', 'reference_column', 'transaction_reference_column',
             'student_id_pattern', 'amount_pattern',
             'date_format', 'has_header', 'delimiter', 'encoding', 'is_active'
         ]
@@ -61,7 +61,8 @@ class BankStatementPatternForm(forms.ModelForm):
             'pattern_name': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'e.g., Equity CSV Format'}),
             'date_column': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Date or 0'}),
             'amount_column': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Amount or 1'}),
-            'reference_column': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Narrative or 2'}),
+            'reference_column': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Narrative or 2', 'required': True}),
+            'transaction_reference_column': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Transaction Ref or 3'}),
             'student_id_pattern': forms.TextInput(attrs={'class': 'form-control', 'placeholder': r'#(\d+) for M-Pesa format or r"STUDENT\s*(\d+)"'}),
             'amount_pattern': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Optional regex pattern'}),
             'date_format': forms.TextInput(attrs={'class': 'form-control', 'placeholder': '%Y-%m-%d'}),
@@ -75,6 +76,8 @@ class BankStatementPatternForm(forms.ModelForm):
         super().__init__(*args, **kwargs)
         # School field will be set in the view
         self.fields['school'].widget = forms.HiddenInput()
+        # Make reference_column required (Narrative column)
+        self.fields['reference_column'].required = True
         self.fields['delimiter'].widget = forms.Select(choices=[
             (',', 'Comma (,)'),
             (';', 'Semicolon (;)'),

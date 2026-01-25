@@ -151,7 +151,7 @@
                                 <i class="fas fa-sync me-2"></i>Check Status
                             </button>
                         {% endif %}
-                        {% if payment.status == 'completed' %}
+                        {% if payment.status == 'completed' and payment.receipt %}
                             <a href="{% url 'receivables:view_receipt' payment.receipt.receipt_number %}" class="btn btn-outline-success">
                                 <i class="fas fa-receipt me-2"></i>View Receipt
                             </a>
