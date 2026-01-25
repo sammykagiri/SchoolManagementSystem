@@ -1296,9 +1296,6 @@ def receivable_list(request):
     
     # Now query Receivable records (which should now exist for all outstanding fees)
     try:
-    
-    # Now query Receivable records (which should now exist for all outstanding fees)
-    try:
         receivables = Receivable.objects.filter(
             school=school,
             is_cleared=False
