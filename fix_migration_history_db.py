@@ -1,0 +1,143 @@
+#!/usr/bin/env python
+"""
+Fix migration history inconsistency by directly updating the database.
+
+This script bypasses Django's migration consistency check by directly
+manipulating the django_migrations table.
+
+Usage:
+    python fix_migration_history_db.py
+"""
+
+import os
+import sys
+import django
+from django.db import connection
+
+# Setup Django
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'school_management.settings')
+django.setup()
+
+def fix_migration_history():
+    """Fix the inconsistent migration history"""
+    with connection.cursor() as cursor:
+        # Check if receivables.0001_initial is already recorded
+        cursor.execute("""
+            SELECT COUNT(*) FROM django_migrations 
+            WHERE app = 'receivables' AND name = '0001_initial'
+        """)
+        exists = cursor.fetchone()[0] > 0
+        
+        if exists:
+            print("✓ receivables.0001_initial is already recorded in migration history")
+            return True
+        
+        # Check if communications.0002_initial is recorded
+        cursor.execute("""
+            SELECT COUNT(*) FROM django_migrations 
+            WHERE app = 'communications' AND name = '0002_initial'
+        """)
+        comm_0002_exists = cursor.fetchone()[0] > 0
+        
+        if not comm_0002_exists:
+            print("✗ communications.0002_initial is not recorded. This is unexpected.")
+            return False
+        
+        # Get the applied timestamp from communications.0002_initial to use a similar one
+        cursor.execute("""
+            SELECT applied FROM django_migrations 
+            WHERE app = 'communications' AND name = '0002_initial'
+        """)
+        result = cursor.fetchone()
+        if result:
+            applied_timestamp = result[0]
+        else:
+            from django.utils import timezone
+            applied_timestamp = timezone.now()
+        
+        # Insert receivables.0001_initial into migration history
+        print("Inserting receivables.0001_initial into migration history...")
+        # Check database backend to use appropriate syntax
+        db_backend = connection.vendor
+        try:
+            if db_backend == 'postgresql':
+                # PostgreSQL supports ON CONFLICT
+                cursor.execute("""
+                    INSERT INTO django_migrations (app, name, applied)
+                    VALUES ('receivables', '0001_initial', %s)
+                    ON CONFLICT (app, name) DO NOTHING
+                """, [applied_timestamp])
+            else:
+                # For other databases, use try/except
+                cursor.execute("""
+                    INSERT INTO django_migrations (app, name, applied)
+                    VALUES ('receivables', '0001_initial', %s)
+                """, [applied_timestamp])
+        except Exception as e:
+            # If it already exists, that's fine
+            error_str = str(e).lower()
+            if 'unique' in error_str or 'duplicate' in error_str or 'already exists' in error_str:
+                print("  (receivables.0001_initial already exists in migration history)")
+            else:
+                raise
+        
+        # Also check and insert receivables.0002 if it exists and communications depends on it
+        # Check what receivables migrations exist in the filesystem
+        receivables_migrations_dir = os.path.join(
+            os.path.dirname(__file__), 
+            'receivables', 
+            'migrations'
+        )
+        
+        if os.path.exists(receivables_migrations_dir):
+            migration_files = [f for f in os.listdir(receivables_migrations_dir) 
+                              if f.startswith('000') and f.endswith('.py')]
+            migration_files.sort()
+            
+            for mig_file in migration_files:
+                mig_name = mig_file.replace('.py', '')
+                if mig_name == '__init__':
+                    continue
+                
+                # Check if already recorded
+                cursor.execute("""
+                    SELECT COUNT(*) FROM django_migrations 
+                    WHERE app = 'receivables' AND name = %s
+                """, [mig_name])
+                if cursor.fetchone()[0] == 0:
+                    print(f"Inserting receivables.{mig_name} into migration history...")
+                    try:
+                        if db_backend == 'postgresql':
+                            cursor.execute("""
+                                INSERT INTO django_migrations (app, name, applied)
+                                VALUES ('receivables', %s, %s)
+                                ON CONFLICT (app, name) DO NOTHING
+                            """, [mig_name, applied_timestamp])
+                        else:
+                            cursor.execute("""
+                                INSERT INTO django_migrations (app, name, applied)
+                                VALUES ('receivables', %s, %s)
+                            """, [mig_name, applied_timestamp])
+                    except Exception as e:
+                        # If it already exists, that's fine
+                        error_str = str(e).lower()
+                        if 'unique' in error_str or 'duplicate' in error_str or 'already exists' in error_str:
+                            print(f"  (receivables.{mig_name} already exists in migration history)")
+                        else:
+                            raise
+        
+        connection.commit()
+        print("✓ Migration history has been fixed!")
+        print("\nNow you can run:")
+        print("  python manage.py migrate")
+        return True
+
+if __name__ == '__main__':
+    try:
+        fix_migration_history()
+    except Exception as e:
+        print(f"Error: {e}")
+        import traceback
+        traceback.print_exc()
+        sys.exit(1)

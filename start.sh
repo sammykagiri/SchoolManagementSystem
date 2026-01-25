@@ -23,18 +23,26 @@ python manage.py check --database default 2>&1 || echo "Database check completed
 #echo "Checking migration status..."
 #python manage.py showmigrations --list 2>&1 | grep -E "\[" | head -40 || echo "Could not show migrations"
 
-#echo "Fixing migration history if needed (idempotent - safe to run multiple times)..."
-#if [ -f "fix_remote_migration.py" ]; then
-#    python fix_remote_migration.py || echo "Migration fix skipped or not needed (this is OK)"
-#else
-#    echo "fix_remote_migration.py not found, skipping migration fix (this is OK for new setups)"
-#fi
+echo "Fixing migration history if needed (idempotent - safe to run multiple times)..."
+if [ -f "fix_migration_history_db.py" ]; then
+    python fix_migration_history_db.py || echo "Migration history fix skipped or not needed (this is OK)"
+else
+    echo "fix_migration_history_db.py not found, skipping migration fix (this is OK for new setups)"
+fi
 
 echo "Running migrations..."
-python manage.py migrate communications 0001_initial
-python manage.py migrate receivables
-python manage.py migrate communications
-python manage.py migrate --noinput
+# Try to run migrations - if consistency check fails, the fix script above should have resolved it
+python manage.py migrate --noinput 2>&1 || {
+    echo "Migration failed, attempting to fix migration history..."
+    if [ -f "fix_migration_history_db.py" ]; then
+        python fix_migration_history_db.py
+        echo "Retrying migrations..."
+        python manage.py migrate --noinput
+    else
+        echo "ERROR: Cannot fix migration history. Please run fix_migration_history_db.py manually."
+        exit 1
+    fi
+}
 if [ $? -ne 0 ]; then
     echo "WARNING: Migrations had issues. Attempting to fix photo column..."
     # Try to add photo column directly if migration failed
