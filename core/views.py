@@ -2637,6 +2637,7 @@ def school_add(request):
     """Add a new school (admin only)"""
     if request.method == 'POST':
         name = request.POST.get('name', '').strip()
+        short_name = request.POST.get('short_name', '').strip()
         address = request.POST.get('address', '').strip()
         email = request.POST.get('email', '').strip()
         phone = request.POST.get('phone', '').strip()
@@ -2648,8 +2649,12 @@ def school_add(request):
         errors = []
         if not name:
             errors.append('School name is required.')
+        if not short_name:
+            errors.append('Short name is required.')
         if School.objects.filter(name=name).exists():
             errors.append('A school with this name already exists.')
+        if short_name and School.objects.filter(short_name=short_name.lower()).exists():
+            errors.append('A school with this short name already exists.')
         if email and School.objects.filter(email=email).exists():
             errors.append('A school with this email already exists.')
         # Validate color format (hex code)
@@ -2666,7 +2671,8 @@ def school_add(request):
                 messages.error(request, error)
             return render(request, 'core/school_add_form.html', {'post': request.POST})
         School.objects.create(
-            name=name, 
+            name=name,
+            short_name=short_name,
             address=address, 
             email=email, 
             phone=phone, 
@@ -4847,6 +4853,42 @@ def user_delete(request, user_id):
         return redirect('core:user_list')
     
     return render(request, 'core/users/user_confirm_delete.html', {'user': user_to_delete})
+
+
+# API endpoint to fetch roles for a school
+@login_required
+def api_roles_by_school(request, school_id):
+    """API endpoint to get roles for a specific school"""
+    from django.http import JsonResponse
+    from .models import School, Role
+    
+    try:
+        school = School.objects.get(id=school_id)
+        # Check if user has permission to view roles for this school
+        # Superadmins can view all, school admins can only view their own school
+        if not (request.user.is_superuser or 
+                (hasattr(request.user, 'profile') and 
+                 (request.user.profile.is_super_admin or request.user.profile.school == school))):
+            return JsonResponse({'error': 'Permission denied'}, status=403)
+        
+        roles = Role.objects.filter(school=school, is_active=True).order_by('name')
+        # Exclude super_admin role for non-superadmins
+        if not (request.user.is_superuser or 
+                (hasattr(request.user, 'profile') and request.user.profile.is_super_admin)):
+            roles = roles.exclude(name='super_admin')
+        
+        roles_data = [{
+            'id': role.id,
+            'name': role.name,
+            'display_name': role.get_display_name(),
+            'description': role.description
+        } for role in roles]
+        
+        return JsonResponse({'roles': roles_data}, safe=False)
+    except School.DoesNotExist:
+        return JsonResponse({'error': 'School not found'}, status=404)
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=500)
 
 
 # Role Management Views

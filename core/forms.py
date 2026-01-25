@@ -390,8 +390,9 @@ class UserProfileForm(forms.ModelForm):
         if target_school:
             roles_queryset = Role.objects.filter(school=target_school, is_active=True)
         else:
-            # Fallback: show all active roles (for superadmins creating users without school)
-            roles_queryset = Role.objects.filter(is_active=True)
+            # For superadmins creating users without school selected, show empty queryset
+            # Roles will be loaded dynamically via JavaScript when school is selected
+            roles_queryset = Role.objects.none()
         
         # Check if current user is a superadmin
         is_superadmin = False

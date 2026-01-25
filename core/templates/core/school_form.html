@@ -30,11 +30,11 @@
                                    id="id_short_name" 
                                    class="form-control" 
                                    value="{{ school.short_name|default:'' }}" 
-                                   pattern="^[a-zA-Z0-9]+([._-][a-zA-Z0-9]+)?$"
+                                   pattern="^[a-zA-Z0-9]+([-._][a-zA-Z0-9]+)?$"
                                    title="One word or two words separated by dot (.), underscore (_), or hyphen (-). No spaces or other special characters."
                                    placeholder="e.g., ambassador, hip.hop, school-name, amb_assad"
-                                   onkeypress="return /[a-zA-Z0-9._-]/.test(event.key)"
-                                   oninput="this.value = this.value.replace(/[^a-zA-Z0-9._-]/g, '')"
+                                   onkeypress="return /[a-zA-Z0-9\-._]/.test(event.key)"
+                                   oninput="this.value = this.value.replace(/[^a-zA-Z0-9\-._]/g, '')"
                                    required>
                             <div class="form-text">
                                 <i class="fas fa-info-circle me-1"></i>

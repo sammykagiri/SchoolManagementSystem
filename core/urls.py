@@ -103,6 +103,7 @@ urlpatterns = [
     path('api/students/<str:student_id>/fees/', views.get_student_fees, name='get_student_fees'),
     path('api/transport-routes/', views.get_transport_routes, name='get_transport_routes'),
     path('api/previous-term-fees/', views.get_previous_term_fees, name='get_previous_term_fees'),
+    path('api/schools/<int:school_id>/roles/', views.api_roles_by_school, name='api_roles_by_school'),
 
     # Authentication
     path('login/', views.CustomLoginView.as_view(), name='login'),

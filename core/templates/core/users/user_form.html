@@ -243,21 +243,31 @@
                     </div>
                 </div>
                 
-                <div class="form-section">
+                <div class="form-section" id="roles-section">
                     <h5 class="form-section-title">User Roles</h5>
                     <p class="text-muted mb-3">Select one or more roles for this user:</p>
                     
-                    <div class="row">
-                        {% for role_option in profile_form.roles %}
-                            <div class="col-md-4 mb-3">
-                                <div class="form-check">
-                                    {{ role_option.tag }}
-                                    <label class="form-check-label" for="{{ role_option.id_for_label }}">
-                                        {{ role_option.choice_label }}
-                                    </label>
-                                </div>
+                    <div class="row" id="roles-container">
+                        {% if is_superadmin and not profile_form.school.value %}
+                            <div class="col-12">
+                                <p class="text-muted">Please select a school to see available roles.</p>
                             </div>
-                        {% endfor %}
+                        {% else %}
+                            {% for role_option in profile_form.roles %}
+                                <div class="col-md-4 mb-3">
+                                    <div class="form-check">
+                                        {{ role_option.tag }}
+                                        <label class="form-check-label" for="{{ role_option.id_for_label }}">
+                                            {{ role_option.choice_label }}
+                                        </label>
+                                    </div>
+                                </div>
+                            {% empty %}
+                                <div class="col-12">
+                                    <p class="text-muted">No roles available for this school.</p>
+                                </div>
+                            {% endfor %}
+                        {% endif %}
                     </div>
                     {% if profile_form.roles.errors %}
                         <div class="text-danger small">
@@ -292,6 +302,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const schoolSelect = document.getElementById('{{ profile_form.school.id_for_label }}');
     const previewDiv = document.getElementById('username-preview');
     const previewText = document.getElementById('preview-text');
+    const rolesContainer = document.getElementById('roles-container');
     
     function updateUsernamePreview() {
         if (!usernameInput || !schoolSelect || !previewDiv || !previewText) return;
@@ -316,9 +327,93 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
     
+    function loadRolesForSchool(schoolId) {
+        if (!schoolId || !rolesContainer) return;
+        
+        // Show loading state
+        rolesContainer.innerHTML = '<div class="col-12"><p class="text-muted">Loading roles...</p></div>';
+        
+        // Fetch roles for the selected school
+        const url = '{% url "core:api_roles_by_school" 0 %}'.replace('0', schoolId);
+        fetch(url)
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Network response was not ok');
+                }
+                return response.json();
+            })
+            .then(data => {
+                if (data.error) {
+                    console.error('Error loading roles:', data.error);
+                    rolesContainer.innerHTML = '<div class="col-12"><p class="text-danger">Error loading roles: ' + data.error + '</p></div>';
+                    return;
+                }
+                
+                // Clear existing roles
+                rolesContainer.innerHTML = '';
+                
+                // Add roles as checkboxes
+                if (data.roles && data.roles.length > 0) {
+                    data.roles.forEach(function(role) {
+                        const col = document.createElement('div');
+                        col.className = 'col-md-4 mb-3';
+                        
+                        const formCheck = document.createElement('div');
+                        formCheck.className = 'form-check';
+                        
+                        const checkbox = document.createElement('input');
+                        checkbox.type = 'checkbox';
+                        checkbox.name = 'roles';
+                        checkbox.value = role.id;
+                        checkbox.id = 'id_roles_' + role.id;
+                        checkbox.className = 'form-check-input';
+                        
+                        const label = document.createElement('label');
+                        label.className = 'form-check-label';
+                        label.htmlFor = 'id_roles_' + role.id;
+                        label.textContent = role.display_name || role.name;
+                        
+                        formCheck.appendChild(checkbox);
+                        formCheck.appendChild(label);
+                        col.appendChild(formCheck);
+                        rolesContainer.appendChild(col);
+                    });
+                } else {
+                    rolesContainer.innerHTML = '<div class="col-12"><p class="text-muted">No roles available for this school.</p></div>';
+                }
+            })
+            .catch(error => {
+                console.error('Error fetching roles:', error);
+                rolesContainer.innerHTML = '<div class="col-12"><p class="text-danger">Error loading roles. Please try again.</p></div>';
+            });
+    }
+    
     if (usernameInput && schoolSelect) {
         usernameInput.addEventListener('input', updateUsernamePreview);
-        schoolSelect.addEventListener('change', updateUsernamePreview);
+        
+        // Only add school change listener if school select is visible (superadmin case)
+        {% if is_superadmin %}
+        schoolSelect.addEventListener('change', function() {
+            updateUsernamePreview();
+            // Load roles when school changes
+            if (schoolSelect.value) {
+                loadRolesForSchool(schoolSelect.value);
+            } else {
+                // Clear roles if no school selected
+                if (rolesContainer) {
+                    rolesContainer.innerHTML = '<div class="col-12"><p class="text-muted">Please select a school to see available roles.</p></div>';
+                }
+            }
+        });
+        
+        // Initial load if school is already selected
+        if (schoolSelect.value) {
+            loadRolesForSchool(schoolSelect.value);
+        } else if (rolesContainer) {
+            // Show message if no school selected
+            rolesContainer.innerHTML = '<div class="col-12"><p class="text-muted">Please select a school to see available roles.</p></div>';
+        }
+        {% endif %}
         
         // Initial preview if both fields have values
         if (usernameInput.value && schoolSelect.value) {
