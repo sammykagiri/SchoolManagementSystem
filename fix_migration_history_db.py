@@ -44,43 +44,68 @@ def fix_migration_history():
             print("✗ communications.0002_initial is not recorded. This is unexpected.")
             return False
         
-        # Get the applied timestamp from communications.0002_initial to use a similar one
+        # Get the applied timestamp from communications.0002_initial
         cursor.execute("""
             SELECT applied FROM django_migrations 
             WHERE app = 'communications' AND name = '0002_initial'
         """)
         result = cursor.fetchone()
-        if result:
-            applied_timestamp = result[0]
-        else:
-            from django.utils import timezone
-            applied_timestamp = timezone.now()
+        if not result:
+            print("✗ Could not find communications.0002_initial timestamp")
+            return False
         
-        # Insert receivables.0001_initial into migration history
-        print("Inserting receivables.0001_initial into migration history...")
+        comm_timestamp = result[0]
+        # Use a timestamp BEFORE communications.0002_initial to satisfy dependency order
+        from datetime import timedelta
+        applied_timestamp = comm_timestamp - timedelta(seconds=1)
+        print(f"Using timestamp {applied_timestamp} (before communications.0002_initial at {comm_timestamp})")
+        
         # Check database backend to use appropriate syntax
         db_backend = connection.vendor
-        try:
-            if db_backend == 'postgresql':
-                # PostgreSQL supports ON CONFLICT
+        
+        # Check if receivables.0001_initial exists and update its timestamp if needed
+        cursor.execute("""
+            SELECT applied FROM django_migrations 
+            WHERE app = 'receivables' AND name = '0001_initial'
+        """)
+        existing = cursor.fetchone()
+        
+        if existing:
+            existing_timestamp = existing[0]
+            # If existing timestamp is AFTER or EQUAL to communications.0002_initial, update it
+            if existing_timestamp >= comm_timestamp:
+                print(f"Updating receivables.0001_initial timestamp from {existing_timestamp} to {applied_timestamp}")
                 cursor.execute("""
-                    INSERT INTO django_migrations (app, name, applied)
-                    VALUES ('receivables', '0001_initial', %s)
-                    ON CONFLICT (app, name) DO NOTHING
+                    UPDATE django_migrations 
+                    SET applied = %s 
+                    WHERE app = 'receivables' AND name = '0001_initial'
                 """, [applied_timestamp])
+                print("✓ Updated receivables.0001_initial timestamp")
             else:
-                # For other databases, use try/except
-                cursor.execute("""
-                    INSERT INTO django_migrations (app, name, applied)
-                    VALUES ('receivables', '0001_initial', %s)
-                """, [applied_timestamp])
-        except Exception as e:
-            # If it already exists, that's fine
-            error_str = str(e).lower()
-            if 'unique' in error_str or 'duplicate' in error_str or 'already exists' in error_str:
-                print("  (receivables.0001_initial already exists in migration history)")
-            else:
-                raise
+                print(f"✓ receivables.0001_initial already exists with correct timestamp ({existing_timestamp})")
+        else:
+            # Insert receivables.0001_initial into migration history
+            print("Inserting receivables.0001_initial into migration history...")
+            try:
+                if db_backend == 'postgresql':
+                    cursor.execute("""
+                        INSERT INTO django_migrations (app, name, applied)
+                        VALUES ('receivables', '0001_initial', %s)
+                        ON CONFLICT (app, name) DO NOTHING
+                    """, [applied_timestamp])
+                else:
+                    cursor.execute("""
+                        INSERT INTO django_migrations (app, name, applied)
+                        VALUES ('receivables', '0001_initial', %s)
+                    """, [applied_timestamp])
+                print("✓ Inserted receivables.0001_initial")
+            except Exception as e:
+                # If it already exists, that's fine
+                error_str = str(e).lower()
+                if 'unique' in error_str or 'duplicate' in error_str or 'already exists' in error_str:
+                    print("  (receivables.0001_initial already exists in migration history)")
+                else:
+                    raise
         
         # Also check and insert receivables.0002 if it exists and communications depends on it
         # Check what receivables migrations exist in the filesystem
@@ -102,10 +127,12 @@ def fix_migration_history():
                 
                 # Check if already recorded
                 cursor.execute("""
-                    SELECT COUNT(*) FROM django_migrations 
+                    SELECT applied FROM django_migrations 
                     WHERE app = 'receivables' AND name = %s
                 """, [mig_name])
-                if cursor.fetchone()[0] == 0:
+                existing_mig = cursor.fetchone()
+                
+                if not existing_mig:
                     print(f"Inserting receivables.{mig_name} into migration history...")
                     try:
                         if db_backend == 'postgresql':
@@ -119,6 +146,7 @@ def fix_migration_history():
                                 INSERT INTO django_migrations (app, name, applied)
                                 VALUES ('receivables', %s, %s)
                             """, [mig_name, applied_timestamp])
+                        print(f"✓ Inserted receivables.{mig_name}")
                     except Exception as e:
                         # If it already exists, that's fine
                         error_str = str(e).lower()
@@ -126,6 +154,19 @@ def fix_migration_history():
                             print(f"  (receivables.{mig_name} already exists in migration history)")
                         else:
                             raise
+                else:
+                    existing_timestamp = existing_mig[0]
+                    # Ensure this migration is also before communications.0002_initial
+                    if existing_timestamp >= comm_timestamp:
+                        print(f"Updating receivables.{mig_name} timestamp from {existing_timestamp} to {applied_timestamp}")
+                        cursor.execute("""
+                            UPDATE django_migrations 
+                            SET applied = %s 
+                            WHERE app = 'receivables' AND name = %s
+                        """, [applied_timestamp, mig_name])
+                        print(f"✓ Updated receivables.{mig_name} timestamp")
+                    else:
+                        print(f"  (receivables.{mig_name} already exists with correct timestamp)")
         
         connection.commit()
         print("✓ Migration history has been fixed!")
