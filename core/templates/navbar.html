@@ -163,7 +163,7 @@
             <!-- Fees -->
             {% if user|has_permission:'view_fee' or user|has_permission:'view_fee_structure' or user|has_permission:'view_payment' or user|has_permission:'view_receipt' %}
             <li class="nav-item">
-                <a class="nav-link {% if 'payments' in request.resolver_match.namespace or request.resolver_match.url_name == 'fee_structure_list' or request.resolver_match.url_name == 'generate_student_fees' or request.resolver_match.url_name == 'fee_category_list' or request.resolver_match.url_name == 'fee_category_type_list' %}active{% endif %}" 
+                <a class="nav-link {% if 'receivables' in request.resolver_match.namespace or request.resolver_match.url_name == 'fee_structure_list' or request.resolver_match.url_name == 'generate_student_fees' or request.resolver_match.url_name == 'fee_category_list' or request.resolver_match.url_name == 'fee_category_type_list' %}active{% endif %}" 
                    href="#" data-bs-toggle="collapse" data-bs-target="#feesSubmenu" aria-expanded="false">
                     <i class="fas fa-money-bill-wave me-2"></i>
                     <span>Fees</span>
@@ -198,7 +198,7 @@
                     {% endif %}
                     {% if user|has_permission:'view_fee' %}
                     <li class="nav-item">
-                        <a class="nav-link {% if request.resolver_match.url_name == 'fee_summary' %}active{% endif %}" href="{% url 'payments:fee_summary' %}">
+                        <a class="nav-link {% if request.resolver_match.url_name == 'fee_summary' %}active{% endif %}" href="{% url 'receivables:fee_summary' %}">
                             <i class="fas fa-file-invoice-dollar me-2"></i>Fee Summary
                         </a>
                     </li>
@@ -207,21 +207,31 @@
                     <li class="nav-item"><hr class="dropdown-divider my-2"></li>
                     {% if user|has_permission:'view_payment' %}
                     <li class="nav-item">
-                        <a class="nav-link {% if request.resolver_match.url_name == 'payment_list' or request.resolver_match.url_name == 'payment_detail' or request.resolver_match.url_name == 'payment_create' %}active{% endif %}" href="{% url 'payments:payment_list' %}">
-                            <i class="fas fa-credit-card me-2"></i>Payments
+                        <a class="nav-link {% if request.resolver_match.url_name == 'receivable_list' or request.resolver_match.url_name == 'receivable_detail' or request.resolver_match.url_name == 'payment_list' or request.resolver_match.url_name == 'payment_detail' %}active{% endif %}" href="{% url 'receivables:receivable_list' %}">
+                            <i class="fas fa-file-invoice-dollar me-2"></i>Receivables
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {% if request.resolver_match.url_name == 'credit_list' or request.resolver_match.url_name == 'credit_create' or request.resolver_match.url_name == 'credit_edit' %}active{% endif %}" href="{% url 'receivables:credit_list' %}">
+                            <i class="fas fa-credit-card me-2"></i>Credits
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {% if request.resolver_match.url_name == 'unmatched_transaction_list' or request.resolver_match.url_name == 'unmatched_transaction_detail' %}active{% endif %}" href="{% url 'receivables:unmatched_transaction_list' %}">
+                            <i class="fas fa-exclamation-triangle me-2"></i>Unmatched Transactions
                         </a>
                     </li>
                     {% endif %}
                     {% if user|has_permission:'view_receipt' %}
                     <li class="nav-item">
-                        <a class="nav-link {% if request.resolver_match.url_name == 'receipt_list' or request.resolver_match.url_name == 'receipt_detail' %}active{% endif %}" href="{% url 'payments:receipt_list' %}">
+                        <a class="nav-link {% if request.resolver_match.url_name == 'receipt_list' or request.resolver_match.url_name == 'receipt_detail' %}active{% endif %}" href="{% url 'receivables:receipt_list' %}">
                             <i class="fas fa-receipt me-2"></i>Receipts
                         </a>
                     </li>
                     {% endif %}
                     {% if user|has_permission:'view_reminder' %}
                     <li class="nav-item">
-                        <a class="nav-link {% if request.resolver_match.url_name == 'reminder_list' or request.resolver_match.url_name == 'reminder_create' %}active{% endif %}" href="{% url 'payments:reminder_list' %}">
+                        <a class="nav-link {% if request.resolver_match.url_name == 'reminder_list' or request.resolver_match.url_name == 'reminder_create' %}active{% endif %}" href="{% url 'receivables:reminder_list' %}">
                             <i class="fas fa-bell me-2"></i>Reminders
                         </a>
                     </li>
@@ -490,7 +500,7 @@
                 </a>
                 <ul class="collapse nav flex-column submenu" id="reportsSubmenu">
                     <li class="nav-item">
-                        <a class="nav-link {% if request.resolver_match.url_name == 'financial_reports' or request.resolver_match.url_name == 'payment_collection_report' or request.resolver_match.url_name == 'outstanding_fees_report' or request.resolver_match.url_name == 'collection_summary_report' or request.resolver_match.url_name == 'payment_method_analysis' %}active{% endif %}" href="{% url 'payments:financial_reports' %}">
+                        <a class="nav-link {% if request.resolver_match.url_name == 'financial_reports' or request.resolver_match.url_name == 'payment_collection_report' or request.resolver_match.url_name == 'outstanding_fees_report' or request.resolver_match.url_name == 'collection_summary_report' or request.resolver_match.url_name == 'payment_method_analysis' %}active{% endif %}" href="{% url 'receivables:financial_reports' %}">
                             <i class="fas fa-file-invoice-dollar me-2"></i>Financial Reports
                         </a>
                     </li>

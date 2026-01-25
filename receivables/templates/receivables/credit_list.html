@@ -1,0 +1,214 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load humanize %}
+
+{% block title %}Credits | Eduvanta{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1><i class="fas fa-credit-card me-2"></i> Credits</h1>
+        <div class="d-flex gap-2">
+            <a href="{% url 'receivables:receivable_list' %}" class="btn btn-primary">
+                <i class="fas fa-file-invoice-dollar me-2"></i>Receivables
+            </a>
+            <a href="{% url 'receivables:credit_create' %}" class="btn btn-success">
+                <i class="fas fa-plus me-2"></i>Create Credit
+            </a>
+        </div>
+    </div>
+    
+    <!-- Summary Cards -->
+    <div class="row mb-4">
+        <div class="col-md-4">
+            <div class="card bg-primary text-white">
+                <div class="card-body">
+                    <h5 class="card-title">Total Credits</h5>
+                    <h3 class="mb-0">KES {{ total_credits|floatformat:2|intcomma }}</h3>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card bg-success text-white">
+                <div class="card-body">
+                    <h5 class="card-title">Applied Credits</h5>
+                    <h3 class="mb-0">KES {{ applied_credits|floatformat:2|intcomma }}</h3>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card bg-info text-white">
+                <div class="card-body">
+                    <h5 class="card-title">Available Credits</h5>
+                    <h3 class="mb-0">KES {{ available_credits|floatformat:2|intcomma }}</h3>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Search and Filter Form -->
+    <form method="get" class="mb-4" id="filterForm">
+        <div class="row g-3">
+            <div class="col-md-5">
+                <div class="input-group">
+                    <span class="input-group-text"><i class="fas fa-search"></i></span>
+                    <input type="text" name="search" class="form-control" 
+                           placeholder="Search by student ID, name, or description..." 
+                           value="{{ search_query }}" id="searchInput">
+                </div>
+            </div>
+            <div class="col-md-3">
+                <select name="applied" class="form-select" id="appliedFilter">
+                    <option value="">All Credits</option>
+                    <option value="yes" {% if applied_filter == 'yes' %}selected{% endif %}>Applied Only</option>
+                    <option value="no" {% if applied_filter == 'no' %}selected{% endif %}>Available Only</option>
+                </select>
+            </div>
+            <div class="col-md-2">
+                <select name="source" class="form-select" id="sourceFilter">
+                    <option value="">All Sources</option>
+                    <option value="overpayment" {% if source_filter == 'overpayment' %}selected{% endif %}>Overpayment</option>
+                    <option value="refund" {% if source_filter == 'refund' %}selected{% endif %}>Refund</option>
+                    <option value="adjustment" {% if source_filter == 'adjustment' %}selected{% endif %}>Adjustment</option>
+                    <option value="reassignment" {% if source_filter == 'reassignment' %}selected{% endif %}>Reassignment</option>
+                    <option value="other" {% if source_filter == 'other' %}selected{% endif %}>Other</option>
+                </select>
+            </div>
+            <div class="col-md-2">
+                {% if search_query or applied_filter or source_filter %}
+                <a href="{% url 'receivables:credit_list' %}" class="btn btn-outline-danger w-100">
+                    <i class="fas fa-times me-1"></i> Clear Filters
+                </a>
+                {% else %}
+                <button type="button" class="btn btn-outline-secondary w-100" disabled>
+                    <i class="fas fa-filter me-1"></i> Auto-Filter Active
+                </button>
+                {% endif %}
+            </div>
+        </div>
+    </form>
+    
+    <div class="card shadow-sm">
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-striped table-hover">
+                    <thead>
+                        <tr>
+                            <th>Student ID</th>
+                            <th>Student Name</th>
+                            <th class="text-end">Amount</th>
+                            <th>Source</th>
+                            <th>Description</th>
+                            <th>Status</th>
+                            <th>Created At</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for credit in page_obj %}
+                        <tr>
+                            <td>{{ credit.student.student_id }}</td>
+                            <td>
+                                <strong>{{ credit.student.full_name }}</strong>
+                            </td>
+                            <td class="text-end">
+                                <strong class="text-success">KES {{ credit.amount|floatformat:2|intcomma }}</strong>
+                            </td>
+                            <td>
+                                <span class="badge bg-secondary">{{ credit.get_source_display }}</span>
+                            </td>
+                            <td>
+                                <small>{{ credit.description|truncatewords:10|default:"—" }}</small>
+                            </td>
+                            <td>
+                                {% if credit.is_applied %}
+                                <span class="badge bg-success">Applied</span>
+                                {% if credit.applied_to_fee %}
+                                <br><small class="text-muted">To: {{ credit.applied_to_fee.fee_category.name }}</small>
+                                {% endif %}
+                                {% else %}
+                                <span class="badge bg-warning">Available</span>
+                                {% endif %}
+                            </td>
+                            <td>{{ credit.created_at|date:"d M, Y" }}</td>
+                            <td>
+                                <div class="btn-group btn-group-sm">
+                                    {% if not credit.is_applied %}
+                                    <a href="{% url 'receivables:credit_edit' credit.get_signed_token %}" 
+                                       class="btn btn-outline-primary" 
+                                       title="Edit Credit">
+                                        <i class="fas fa-edit"></i>
+                                    </a>
+                                    <a href="{% url 'receivables:credit_delete' credit.get_signed_token %}" 
+                                       class="btn btn-outline-danger" 
+                                       title="Delete Credit"
+                                       onclick="return confirm('Are you sure you want to delete this credit?');">
+                                        <i class="fas fa-trash"></i>
+                                    </a>
+                                    {% else %}
+                                    <span class="text-muted">—</span>
+                                    {% endif %}
+                                </div>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="8" class="text-center py-4">
+                                <i class="fas fa-credit-card fa-3x text-muted mb-3"></i>
+                                <p class="text-muted">No credits found.</p>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            
+            <!-- Pagination -->
+            {% if page_obj.has_other_pages %}
+            <nav aria-label="Credit pagination">
+                <ul class="pagination justify-content-center">
+                    {% if page_obj.has_previous %}
+                        <li class="page-item">
+                            <a class="page-link" href="?page=1{% if search_query %}&search={{ search_query }}{% endif %}{% if applied_filter %}&applied={{ applied_filter }}{% endif %}{% if source_filter %}&source={{ source_filter }}{% endif %}">First</a>
+                        </li>
+                        <li class="page-item">
+                            <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if search_query %}&search={{ search_query }}{% endif %}{% if applied_filter %}&applied={{ applied_filter }}{% endif %}{% if source_filter %}&source={{ source_filter }}{% endif %}">Previous</a>
+                        </li>
+                    {% endif %}
+                    
+                    <li class="page-item active">
+                        <span class="page-link">
+                            Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}
+                        </span>
+                    </li>
+                    
+                    {% if page_obj.has_next %}
+                        <li class="page-item">
+                            <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if search_query %}&search={{ search_query }}{% endif %}{% if applied_filter %}&applied={{ applied_filter }}{% endif %}{% if source_filter %}&source={{ source_filter }}{% endif %}">Next</a>
+                        </li>
+                        <li class="page-item">
+                            <a class="page-link" href="?page={{ page_obj.paginator.num_pages }}{% if search_query %}&search={{ search_query }}{% endif %}{% if applied_filter %}&applied={{ applied_filter }}{% endif %}{% if source_filter %}&source={{ source_filter }}{% endif %}">Last</a>
+                        </li>
+                    {% endif %}
+                </ul>
+            </nav>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+$(document).ready(function() {
+    // Auto-filter on input change
+    let filterTimeout;
+    $('#searchInput, #appliedFilter, #sourceFilter').on('input change', function() {
+        clearTimeout(filterTimeout);
+        filterTimeout = setTimeout(function() {
+            $('#filterForm').submit();
+        }, 500); // Wait 500ms after user stops typing
+    });
+});
+</script>
+{% endblock %}

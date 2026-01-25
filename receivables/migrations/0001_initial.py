@@ -55,7 +55,7 @@ class Migration(migrations.Migration):
                 ('created_at', models.DateTimeField(auto_now_add=True)),
                 ('updated_at', models.DateTimeField(auto_now=True)),
                 ('school', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='mpesa_payments', to='core.school')),
-                ('payment', models.OneToOneField(on_delete=django.db.models.deletion.CASCADE, related_name='mpesa_details', to='payments.payment')),
+                ('payment', models.OneToOneField(on_delete=django.db.models.deletion.CASCADE, related_name='mpesa_details', to='receivables.payment')),
             ],
             options={
                 'verbose_name': 'M-Pesa Payment',
@@ -76,7 +76,7 @@ class Migration(migrations.Migration):
                 ('academic_year', models.CharField(max_length=9)),
                 ('issued_at', models.DateTimeField(auto_now_add=True)),
                 ('issued_by', models.ForeignKey(null=True, on_delete=django.db.models.deletion.SET_NULL, to=settings.AUTH_USER_MODEL)),
-                ('payment', models.OneToOneField(on_delete=django.db.models.deletion.CASCADE, related_name='receipt', to='payments.payment')),
+                ('payment', models.OneToOneField(on_delete=django.db.models.deletion.CASCADE, related_name='receipt', to='receivables.payment')),
                 ('school', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='payment_receipts', to='core.school')),
                 ('student', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='receipts', to='core.student')),
             ],

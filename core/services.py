@@ -8,7 +8,7 @@ from datetime import date, timedelta
 from .models import School, Student, Term, StudentFee, Grade, SchoolClass
 from attendance.models import Attendance, AttendanceSummary
 from exams.models import Exam, Gradebook, GradebookSummary
-from payments.models import Payment
+from receivables.models import Payment
 
 
 class DashboardService:

@@ -91,7 +91,7 @@ class MpesaService:
                 "PartyA": phone_number,
                 "PartyB": self.business_shortcode,
                 "PhoneNumber": phone_number,
-                "CallBackURL": f"{settings.BASE_URL}/payments/mpesa/callback/",
+                "CallBackURL": f"{settings.BASE_URL}/receivables/mpesa/callback/",
                 "AccountReference": reference,
                 "TransactionDesc": f"School Fees - {reference}"
             }

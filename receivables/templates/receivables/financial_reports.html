@@ -10,7 +10,7 @@
             <h1 class="mb-1"><i class="fas fa-chart-line me-2"></i>Financial Reports</h1>
             <p class="text-muted mb-0">Comprehensive financial analysis and reporting</p>
         </div>
-        <a href="{% url 'payments:payment_list' %}" class="btn btn-outline-secondary">
+        <a href="{% url 'receivables:payment_list' %}" class="btn btn-outline-secondary">
             <i class="fas fa-arrow-left me-2"></i>Back to Payments
         </a>
     </div>
@@ -30,7 +30,7 @@
                         </div>
                     </div>
                     <p class="text-muted">View payment collections by period with detailed breakdowns and trends.</p>
-                    <a href="{% url 'payments:payment_collection_report' %}" class="btn btn-primary w-100">
+                    <a href="{% url 'receivables:payment_collection_report' %}" class="btn btn-primary w-100">
                         <i class="fas fa-file-alt me-2"></i>View Report
                     </a>
                 </div>
@@ -51,7 +51,7 @@
                         </div>
                     </div>
                     <p class="text-muted">Detailed list of all outstanding fees with student information and due dates.</p>
-                    <a href="{% url 'payments:outstanding_fees_report' %}" class="btn btn-danger w-100">
+                    <a href="{% url 'receivables:outstanding_fees_report' %}" class="btn btn-danger w-100">
                         <i class="fas fa-file-alt me-2"></i>View Report
                     </a>
                 </div>
@@ -72,7 +72,7 @@
                         </div>
                     </div>
                     <p class="text-muted">Collection trends, rates, and performance analysis over time.</p>
-                    <a href="{% url 'payments:collection_summary_report' %}" class="btn btn-success w-100">
+                    <a href="{% url 'receivables:collection_summary_report' %}" class="btn btn-success w-100">
                         <i class="fas fa-file-alt me-2"></i>View Report
                     </a>
                 </div>
@@ -93,7 +93,7 @@
                         </div>
                     </div>
                     <p class="text-muted">Breakdown of payments by method with trends and statistics.</p>
-                    <a href="{% url 'payments:payment_method_analysis' %}" class="btn btn-info w-100">
+                    <a href="{% url 'receivables:payment_method_analysis' %}" class="btn btn-info w-100">
                         <i class="fas fa-file-alt me-2"></i>View Report
                     </a>
                 </div>
@@ -114,7 +114,7 @@
                         </div>
                     </div>
                     <p class="text-muted">Complete fee management overview with all statistics and breakdowns.</p>
-                    <a href="{% url 'payments:fee_report' %}" class="btn btn-warning w-100">
+                    <a href="{% url 'receivables:fee_report' %}" class="btn btn-warning w-100">
                         <i class="fas fa-file-alt me-2"></i>View Report
                     </a>
                 </div>

@@ -1,0 +1,167 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ title }} | Eduvanta{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="row justify-content-center">
+        <div class="col-md-10">
+            <div class="card shadow-sm">
+                <div class="card-header bg-primary text-white">
+                    <h4 class="mb-0">{{ title }}</h4>
+                </div>
+                <div class="card-body">
+                    {% if messages %}
+                        {% for message in messages %}
+                            <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                                {{ message }}
+                                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                            </div>
+                        {% endfor %}
+                    {% endif %}
+                    
+                    <form method="post">
+                        {% csrf_token %}
+                        {{ form.school }}
+                        
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="{{ form.bank_name.id_for_label }}" class="form-label">Bank Name <span class="text-danger">*</span></label>
+                                {{ form.bank_name }}
+                                {% if form.bank_name.errors %}
+                                    <div class="text-danger">{{ form.bank_name.errors }}</div>
+                                {% endif %}
+                                <small class="form-text text-muted">e.g., Equity Bank, KCB, Co-operative Bank</small>
+                            </div>
+                            
+                            <div class="col-md-6 mb-3">
+                                <label for="{{ form.pattern_name.id_for_label }}" class="form-label">Pattern Name <span class="text-danger">*</span></label>
+                                {{ form.pattern_name }}
+                                {% if form.pattern_name.errors %}
+                                    <div class="text-danger">{{ form.pattern_name.errors }}</div>
+                                {% endif %}
+                                <small class="form-text text-muted">e.g., Equity CSV Format, KCB Excel Export</small>
+                            </div>
+                        </div>
+                        
+                        <hr>
+                        <h5>CSV Column Mapping</h5>
+                        <div class="row">
+                            <div class="col-md-4 mb-3">
+                                <label for="{{ form.date_column.id_for_label }}" class="form-label">Date Column <span class="text-danger">*</span></label>
+                                {{ form.date_column }}
+                                {% if form.date_column.errors %}
+                                    <div class="text-danger">{{ form.date_column.errors }}</div>
+                                {% endif %}
+                                <small class="form-text text-muted">Column name or index (e.g., "Date" or "0")</small>
+                            </div>
+                            
+                            <div class="col-md-4 mb-3">
+                                <label for="{{ form.amount_column.id_for_label }}" class="form-label">Amount Column <span class="text-danger">*</span></label>
+                                {{ form.amount_column }}
+                                {% if form.amount_column.errors %}
+                                    <div class="text-danger">{{ form.amount_column.errors }}</div>
+                                {% endif %}
+                                <small class="form-text text-muted">Column name or index (e.g., "Amount" or "1")</small>
+                            </div>
+                            
+                            <div class="col-md-4 mb-3">
+                                <label for="{{ form.reference_column.id_for_label }}" class="form-label">Reference Column</label>
+                                {{ form.reference_column }}
+                                {% if form.reference_column.errors %}
+                                    <div class="text-danger">{{ form.reference_column.errors }}</div>
+                                {% endif %}
+                                <small class="form-text text-muted">Column for narrative/reference (optional)</small>
+                            </div>
+                        </div>
+                        
+                        <hr>
+                        <h5>Pattern Matching</h5>
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="{{ form.student_id_pattern.id_for_label }}" class="form-label">Student ID Pattern</label>
+                                {{ form.student_id_pattern }}
+                                {% if form.student_id_pattern.errors %}
+                                    <div class="text-danger">{{ form.student_id_pattern.errors }}</div>
+                                {% endif %}
+                                <small class="form-text text-muted">
+                                    Regex to extract student ID from reference.<br>
+                                    <strong>M-Pesa format:</strong> <code>#(\d+)</code> (for BUSINESS#STUDENT_ID)<br>
+                                    <strong>Other examples:</strong> <code>STUDENT\s*(\d+)</code> or <code>(\d{5})</code>
+                                </small>
+                            </div>
+                            
+                            <div class="col-md-6 mb-3">
+                                <label for="{{ form.amount_pattern.id_for_label }}" class="form-label">Amount Pattern</label>
+                                {{ form.amount_pattern }}
+                                {% if form.amount_pattern.errors %}
+                                    <div class="text-danger">{{ form.amount_pattern.errors }}</div>
+                                {% endif %}
+                                <small class="form-text text-muted">Optional regex to extract amount if needed</small>
+                            </div>
+                        </div>
+                        
+                        <hr>
+                        <h5>CSV Settings</h5>
+                        <div class="row">
+                            <div class="col-md-4 mb-3">
+                                <label for="{{ form.date_format.id_for_label }}" class="form-label">Date Format <span class="text-danger">*</span></label>
+                                {{ form.date_format }}
+                                {% if form.date_format.errors %}
+                                    <div class="text-danger">{{ form.date_format.errors }}</div>
+                                {% endif %}
+                                <small class="form-text text-muted">Python strftime format (e.g., "%Y-%m-%d", "%d/%m/%Y")</small>
+                            </div>
+                            
+                            <div class="col-md-4 mb-3">
+                                <label for="{{ form.delimiter.id_for_label }}" class="form-label">Delimiter <span class="text-danger">*</span></label>
+                                {{ form.delimiter }}
+                                {% if form.delimiter.errors %}
+                                    <div class="text-danger">{{ form.delimiter.errors }}</div>
+                                {% endif %}
+                            </div>
+                            
+                            <div class="col-md-4 mb-3">
+                                <label for="{{ form.encoding.id_for_label }}" class="form-label">Encoding <span class="text-danger">*</span></label>
+                                {{ form.encoding }}
+                                {% if form.encoding.errors %}
+                                    <div class="text-danger">{{ form.encoding.errors }}</div>
+                                {% endif %}
+                            </div>
+                        </div>
+                        
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <div class="form-check">
+                                    {{ form.has_header }}
+                                    <label class="form-check-label" for="{{ form.has_header.id_for_label }}">
+                                        Has Header Row
+                                    </label>
+                                </div>
+                            </div>
+                            
+                            <div class="col-md-6 mb-3">
+                                <div class="form-check">
+                                    {{ form.is_active }}
+                                    <label class="form-check-label" for="{{ form.is_active.id_for_label }}">
+                                        Active
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="d-flex justify-content-between">
+                            <a href="{% url 'receivables:bank_statement_pattern_list' %}" class="btn btn-secondary">
+                                <i class="fas fa-times me-2"></i>Cancel
+                            </a>
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-save me-2"></i>Save
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

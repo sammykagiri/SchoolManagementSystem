@@ -12,11 +12,11 @@
                     <h4 class="mb-0">Payment Details</h4>
                     <div class="d-flex gap-2">
                         {% if payment.status == 'completed' %}
-                            <a href="{% url 'payments:generate_receipt' payment.payment_id %}" class="btn btn-success btn-sm">
+                            <a href="{% url 'receivables:generate_receipt' payment.payment_id %}" class="btn btn-success btn-sm">
                                 <i class="fas fa-receipt me-1"></i>Generate Receipt
                             </a>
                         {% endif %}
-                        <a href="{% url 'payments:payment_list' %}" class="btn btn-secondary btn-sm">
+                        <a href="{% url 'receivables:payment_list' %}" class="btn btn-secondary btn-sm">
                             <i class="fas fa-arrow-left me-1"></i>Back to List
                         </a>
                     </div>
@@ -152,7 +152,7 @@
                             </button>
                         {% endif %}
                         {% if payment.status == 'completed' %}
-                            <a href="{% url 'payments:view_receipt' payment.receipt.receipt_number %}" class="btn btn-outline-success">
+                            <a href="{% url 'receivables:view_receipt' payment.receipt.receipt_number %}" class="btn btn-outline-success">
                                 <i class="fas fa-receipt me-2"></i>View Receipt
                             </a>
                         {% endif %}
@@ -190,7 +190,7 @@ function checkPaymentStatus() {
         <p class="mt-2 mb-0">Checking payment status...</p>
     `;
     
-    fetch('{% url "payments:check_payment_status" payment.payment_id %}')
+    fetch('{% url "receivables:check_payment_status" payment.payment_id %}')
         .then(response => response.json())
         .then(data => {
             if (data.status) {

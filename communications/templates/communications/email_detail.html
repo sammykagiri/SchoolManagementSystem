@@ -82,7 +82,7 @@
                                     <th>Payment:</th>
                                     <td>
                                         {% if email.payment %}
-                                            <a href="{% url 'payments:payment_detail' email.payment.id %}">
+                                            <a href="{% url 'receivables:payment_detail' email.payment.id %}">
                                                 Payment #{{ email.payment.id }}
                                             </a>
                                         {% else %}

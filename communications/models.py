@@ -1,7 +1,7 @@
 from django.db import models
 from django.contrib.auth.models import User
 from core.models import School, Student
-from payments.models import Payment, PaymentReminder
+from receivables.models import Payment, PaymentReminder
 from django.core.validators import MinValueValidator
 
 

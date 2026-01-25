@@ -1,0 +1,140 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load humanize %}
+
+{% block title %}Receivable Details | Eduvanta{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1><i class="fas fa-file-invoice-dollar me-2"></i> Receivable Details</h1>
+        <a href="{% url 'receivables:receivable_list' %}" class="btn btn-secondary">
+            <i class="fas fa-arrow-left me-2"></i>Back to Receivables
+        </a>
+    </div>
+    
+    <div class="row">
+        <div class="col-md-8">
+            <div class="card shadow-sm mb-4">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0">Receivable Information</h5>
+                </div>
+                <div class="card-body">
+                    <table class="table table-borderless">
+                        <tr>
+                            <th style="width: 30%;">Student:</th>
+                            <td>
+                                <strong>{{ receivable.student.full_name }}</strong><br>
+                                <small class="text-muted">{{ receivable.student.student_id }}</small>
+                            </td>
+                        </tr>
+                        <tr>
+                            <th>Fee Category:</th>
+                            <td>{{ receivable.student_fee.fee_category.name }}</td>
+                        </tr>
+                        <tr>
+                            <th>Term:</th>
+                            <td>{{ receivable.student_fee.term.academic_year }} - Term {{ receivable.student_fee.term.term_number }}</td>
+                        </tr>
+                        <tr>
+                            <th>Amount Due:</th>
+                            <td><strong>KES {{ receivable.amount_due|floatformat:2|intcomma }}</strong></td>
+                        </tr>
+                        <tr>
+                            <th>Amount Paid:</th>
+                            <td>KES {{ receivable.amount_paid|floatformat:2|intcomma }}</td>
+                        </tr>
+                        <tr>
+                            <th>Balance:</th>
+                            <td>
+                                <strong class="{% if receivable.balance > 0 %}text-danger{% else %}text-success{% endif %}">
+                                    KES {{ receivable.balance|floatformat:2|intcomma }}
+                                </strong>
+                            </td>
+                        </tr>
+                        <tr>
+                            <th>Due Date:</th>
+                            <td>
+                                {{ receivable.due_date|date:"d M, Y" }}
+                                {% if receivable.is_overdue %}
+                                <span class="badge bg-danger ms-2">Overdue</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        <tr>
+                            <th>Status:</th>
+                            <td>
+                                {% if receivable.is_cleared %}
+                                <span class="badge bg-success">Cleared</span>
+                                {% else %}
+                                <span class="badge bg-warning">Outstanding</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                    </table>
+                </div>
+            </div>
+            
+            <!-- Payment Allocations -->
+            <div class="card shadow-sm">
+                <div class="card-header bg-info text-white">
+                    <h5 class="mb-0">Payment Allocations</h5>
+                </div>
+                <div class="card-body">
+                    {% if allocations %}
+                    <div class="table-responsive">
+                        <table class="table table-striped">
+                            <thead>
+                                <tr>
+                                    <th>Payment ID</th>
+                                    <th>Payment Date</th>
+                                    <th>Payment Method</th>
+                                    <th class="text-end">Payment Amount</th>
+                                    <th class="text-end">Allocated Amount</th>
+                                    <th>Created By</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for allocation in allocations %}
+                                <tr>
+                                    <td>
+                                        <a href="{% url 'receivables:payment_detail' allocation.payment.payment_id %}">
+                                            {{ allocation.payment.payment_id|truncatechars:10 }}
+                                        </a>
+                                    </td>
+                                    <td>{{ allocation.payment.payment_date|date:"d M, Y" }}</td>
+                                    <td>{{ allocation.payment.get_payment_method_display }}</td>
+                                    <td class="text-end">KES {{ allocation.payment.amount|floatformat:2|intcomma }}</td>
+                                    <td class="text-end">
+                                        <strong>KES {{ allocation.amount_allocated|floatformat:2|intcomma }}</strong>
+                                    </td>
+                                    <td>
+                                        {% if allocation.created_by %}
+                                        {{ allocation.created_by.username }}
+                                        {% else %}
+                                        System
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                            <tfoot>
+                                <tr class="table-primary">
+                                    <th colspan="4" class="text-end">Total Allocated:</th>
+                                    <th class="text-end">
+                                        KES {{ receivable.amount_paid|floatformat:2|intcomma }}
+                                    </th>
+                                    <th></th>
+                                </tr>
+                            </tfoot>
+                        </table>
+                    </div>
+                    {% else %}
+                    <p class="text-muted">No payment allocations recorded for this receivable.</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

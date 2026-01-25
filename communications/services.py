@@ -6,7 +6,7 @@ import requests
 import re
 from .models import EmailMessage, SMSMessage, CommunicationTemplate, CommunicationLog
 from core.models import Student
-from payments.models import Payment, PaymentReminder
+from receivables.models import Payment, PaymentReminder
 import logging
 
 logger = logging.getLogger(__name__)

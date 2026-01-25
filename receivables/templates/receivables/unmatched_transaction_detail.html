@@ -1,0 +1,167 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load humanize %}
+
+{% block title %}Unmatched Transaction Details | Eduvanta{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1><i class="fas fa-exclamation-triangle me-2"></i> Unmatched Transaction Details</h1>
+        <a href="{% url 'receivables:unmatched_transaction_list' %}" class="btn btn-secondary">
+            <i class="fas fa-arrow-left me-2"></i>Back to List
+        </a>
+    </div>
+    
+    <div class="row">
+        <div class="col-md-8">
+            <div class="card shadow-sm mb-4">
+                <div class="card-header bg-warning">
+                    <h5 class="mb-0">Transaction Information</h5>
+                </div>
+                <div class="card-body">
+                    <table class="table table-borderless">
+                        <tr>
+                            <th width="30%">Transaction Date:</th>
+                            <td>{{ transaction.transaction_date|date:"d M, Y" }}</td>
+                        </tr>
+                        <tr>
+                            <th>Amount:</th>
+                            <td><strong class="text-primary">KES {{ transaction.amount|floatformat:2|intcomma }}</strong></td>
+                        </tr>
+                        <tr>
+                            <th>Reference Number:</th>
+                            <td><code>{{ transaction.reference_number|default:"—" }}</code></td>
+                        </tr>
+                        <tr>
+                            <th>Extracted Student ID:</th>
+                            <td>
+                                {% if transaction.extracted_student_id %}
+                                    <code>{{ transaction.extracted_student_id }}</code>
+                                    {% if transaction.matched_student %}
+                                        <span class="badge bg-success ms-2">Student Found</span>
+                                    {% else %}
+                                        <span class="badge bg-danger ms-2">Student Not Found</span>
+                                    {% endif %}
+                                {% else %}
+                                    <span class="text-muted">No student ID extracted</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        <tr>
+                            <th>Status:</th>
+                            <td>
+                                {% if transaction.status == 'matched' %}
+                                    <span class="badge bg-success">Matched</span>
+                                {% elif transaction.status == 'ignored' %}
+                                    <span class="badge bg-secondary">Ignored</span>
+                                {% else %}
+                                    <span class="badge bg-warning">Unmatched</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% if transaction.matched_student %}
+                        <tr>
+                            <th>Matched Student:</th>
+                            <td>
+                                <a href="{% url 'core:student_detail' transaction.matched_student.student_id %}">
+                                    {{ transaction.matched_student.full_name }} ({{ transaction.matched_student.student_id }})
+                                </a>
+                            </td>
+                        </tr>
+                        {% endif %}
+                        {% if transaction.matched_payment %}
+                        <tr>
+                            <th>Matched Payment:</th>
+                            <td>
+                                <a href="{% url 'receivables:payment_detail' transaction.matched_payment.payment_id %}">
+                                    {{ transaction.matched_payment.payment_id }}
+                                </a>
+                            </td>
+                        </tr>
+                        {% endif %}
+                        {% if transaction.notes %}
+                        <tr>
+                            <th>Notes:</th>
+                            <td>{{ transaction.notes }}</td>
+                        </tr>
+                        {% endif %}
+                        <tr>
+                            <th>Created At:</th>
+                            <td>{{ transaction.created_at|date:"d M, Y H:i" }}</td>
+                        </tr>
+                        {% if transaction.matched_at %}
+                        <tr>
+                            <th>Matched At:</th>
+                            <td>{{ transaction.matched_at|date:"d M, Y H:i" }} by {{ transaction.matched_by.get_full_name|default:transaction.matched_by.username }}</td>
+                        </tr>
+                        {% endif %}
+                    </table>
+                </div>
+            </div>
+            
+            {% if potential_matches %}
+            <div class="card shadow-sm">
+                <div class="card-header bg-info text-white">
+                    <h5 class="mb-0">Potential Matches</h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-sm">
+                            <thead>
+                                <tr>
+                                    <th>Payment ID</th>
+                                    <th>Student</th>
+                                    <th>Amount</th>
+                                    <th>Date</th>
+                                    <th>Reference</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for match in potential_matches %}
+                                <tr>
+                                    <td><a href="{% url 'receivables:payment_detail' match.payment.get_signed_token %}"><code>{{ match.payment.payment_id|truncatechars:12 }}</code></a></td>
+                                    <td>{{ match.payment.student.full_name }}</td>
+                                    <td>KES {{ match.payment.amount|floatformat:2|intcomma }}</td>
+                                    <td>{{ match.payment.payment_date|date:"d M, Y" }}</td>
+                                    <td><small>{{ match.payment.reference_number|truncatewords:5|default:"—" }}</small></td>
+                                    <td>
+                                        <a href="{% url 'receivables:payment_detail' match.payment.payment_id %}" 
+                                           class="btn btn-sm btn-outline-primary">
+                                            <i class="fas fa-eye"></i>
+                                        </a>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+        
+        <div class="col-md-4">
+            {% if transaction.status == 'unmatched' %}
+            <div class="card shadow-sm mb-3">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0">Actions</h5>
+                </div>
+                <div class="card-body">
+                    <a href="{% url 'receivables:unmatched_transaction_match' transaction.get_signed_token %}" 
+                       class="btn btn-primary w-100 mb-2">
+                        <i class="fas fa-link me-2"></i>Match Transaction
+                    </a>
+                    <a href="{% url 'receivables:unmatched_transaction_ignore' transaction.get_signed_token %}" 
+                       class="btn btn-secondary w-100"
+                       onclick="return confirm('Mark this transaction as ignored?');">
+                        <i class="fas fa-ban me-2"></i>Ignore Transaction
+                    </a>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

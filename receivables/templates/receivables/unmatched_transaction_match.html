@@ -1,0 +1,133 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load humanize %}
+
+{% block title %}Match Transaction | Eduvanta{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1><i class="fas fa-link me-2"></i> Match Transaction</h1>
+        <a href="{% url 'receivables:unmatched_transaction_detail' transaction.get_signed_token %}" class="btn btn-secondary">
+            <i class="fas fa-arrow-left me-2"></i>Back
+        </a>
+    </div>
+    
+    <div class="row">
+        <div class="col-md-8">
+            <div class="card shadow-sm mb-4">
+                <div class="card-header bg-info">
+                    <h5 class="mb-0">Transaction to Match</h5>
+                </div>
+                <div class="card-body">
+                    <table class="table table-borderless">
+                        <tr>
+                            <th width="30%">Date:</th>
+                            <td>{{ transaction.transaction_date|date:"d M, Y" }}</td>
+                        </tr>
+                        <tr>
+                            <th>Amount:</th>
+                            <td><strong>KES {{ transaction.amount|floatformat:2|intcomma }}</strong></td>
+                        </tr>
+                        <tr>
+                            <th>Reference:</th>
+                            <td><code>{{ transaction.reference_number|default:"—" }}</code></td>
+                        </tr>
+                        <tr>
+                            <th>Extracted Student ID:</th>
+                            <td>
+                                {% if transaction.extracted_student_id %}
+                                    <code>{{ transaction.extracted_student_id }}</code>
+                                {% else %}
+                                    <span class="text-muted">None</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                    </table>
+                </div>
+            </div>
+            
+            <div class="card shadow-sm">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0">Match to Payment or Student</h5>
+                </div>
+                <div class="card-body">
+                    <form method="post">
+                        {% csrf_token %}
+                        
+                        {% if potential_payments %}
+                        <div class="mb-4">
+                            <label class="form-label fw-bold">Select Existing Payment:</label>
+                            <select name="payment_id" class="form-select" id="paymentSelect">
+                                <option value="">-- Select Payment --</option>
+                                {% for payment in potential_payments %}
+                                <option value="{{ payment.get_signed_token }}">
+                                    {{ payment.payment_id|truncatechars:20 }} - {{ payment.student.full_name }} - 
+                                    KES {{ payment.amount|floatformat:2|intcomma }} - 
+                                    {{ payment.payment_date|date:"d M, Y" }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                            <small class="form-text text-muted">Payments for student: {{ transaction.extracted_student_id|default:"N/A" }}</small>
+                        </div>
+                        {% endif %}
+                        
+                        <div class="mb-4">
+                            <label class="form-label fw-bold">Or Select Student:</label>
+                            <select name="student_id" class="form-select" id="studentSelect">
+                                <option value="">-- Select Student --</option>
+                                {% for student in students %}
+                                <option value="{{ student.student_id }}">
+                                    {{ student.student_id }} - {{ student.full_name }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                            <small class="form-text text-muted">Select a student if no matching payment exists</small>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="notes" class="form-label">Notes (Optional):</label>
+                            <textarea name="notes" id="notes" class="form-control" rows="3" 
+                                      placeholder="Add any notes about this match...">{{ transaction.notes }}</textarea>
+                        </div>
+                        
+                        <div class="d-flex justify-content-between">
+                            <a href="{% url 'receivables:unmatched_transaction_detail' transaction.get_signed_token %}" 
+                               class="btn btn-secondary">
+                                <i class="fas fa-times me-2"></i>Cancel
+                            </a>
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-link me-2"></i>Match Transaction
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const paymentSelect = document.getElementById('paymentSelect');
+    const studentSelect = document.getElementById('studentSelect');
+    
+    // Only allow one selection at a time
+    if (paymentSelect) {
+        paymentSelect.addEventListener('change', function() {
+            if (this.value && studentSelect) {
+                studentSelect.value = '';
+            }
+        });
+    }
+    
+    if (studentSelect) {
+        studentSelect.addEventListener('change', function() {
+            if (this.value && paymentSelect) {
+                paymentSelect.value = '';
+            }
+        });
+    }
+});
+</script>
+{% endblock %}

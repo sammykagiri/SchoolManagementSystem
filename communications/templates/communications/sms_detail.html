@@ -78,7 +78,7 @@
                                     <th>Payment:</th>
                                     <td>
                                         {% if sms.payment %}
-                                            <a href="{% url 'payments:payment_detail' sms.payment.id %}">
+                                            <a href="{% url 'receivables:payment_detail' sms.payment.id %}">
                                                 Payment #{{ sms.payment.id }}
                                             </a>
                                         {% else %}

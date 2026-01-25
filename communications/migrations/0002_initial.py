@@ -12,7 +12,7 @@ class Migration(migrations.Migration):
     dependencies = [
         ('communications', '0001_initial'),
         ('core', '0001_initial'),
-        ('payments', '0001_initial'),
+        ('receivables', '0001_initial'),
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
     ]
 
@@ -20,12 +20,12 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name='communicationlog',
             name='payment',
-            field=models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, to='payments.payment'),
+            field=models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, to='receivables.payment'),
         ),
         migrations.AddField(
             model_name='communicationlog',
             name='payment_reminder',
-            field=models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, to='payments.paymentreminder'),
+            field=models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, to='receivables.paymentreminder'),
         ),
         migrations.AddField(
             model_name='communicationlog',
@@ -60,12 +60,12 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name='emailmessage',
             name='payment',
-            field=models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, to='payments.payment'),
+            field=models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, to='receivables.payment'),
         ),
         migrations.AddField(
             model_name='emailmessage',
             name='payment_reminder',
-            field=models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, to='payments.paymentreminder'),
+            field=models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, to='receivables.paymentreminder'),
         ),
         migrations.AddField(
             model_name='emailmessage',
@@ -95,12 +95,12 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name='smsmessage',
             name='payment',
-            field=models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, to='payments.payment'),
+            field=models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, to='receivables.payment'),
         ),
         migrations.AddField(
             model_name='smsmessage',
             name='payment_reminder',
-            field=models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, to='payments.paymentreminder'),
+            field=models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, to='receivables.paymentreminder'),
         ),
         migrations.AddField(
             model_name='smsmessage',

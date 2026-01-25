@@ -69,7 +69,7 @@ INSTALLED_APPS = [
     'widget_tweaks',
     'anymail',  # For SendGrid/Mailgun API-based email (works on Railway)
     'core',
-    'payments',
+    'receivables',
     'communications',
     'attendance',
     'timetable',
@@ -97,7 +97,7 @@ TEMPLATES = [
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
         'DIRS': [
             os.path.join(BASE_DIR, 'core', 'templates'),
-            os.path.join(BASE_DIR, 'payments', 'templates'),
+            os.path.join(BASE_DIR, 'receivables', 'templates'),
             os.path.join(BASE_DIR, 'communications', 'templates'),
         ],
         'APP_DIRS': True,

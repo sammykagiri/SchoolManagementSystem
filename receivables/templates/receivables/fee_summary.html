@@ -11,10 +11,10 @@
             <p class="text-muted mb-0">Per student totals with filters by academic year and term</p>
         </div>
         <div>
-            <a href="{% url 'payments:financial_reports' %}" class="btn btn-primary me-2">
+            <a href="{% url 'receivables:financial_reports' %}" class="btn btn-primary me-2">
                 <i class="fas fa-chart-line me-2"></i>Financial Reports
             </a>
-            <a href="{% url 'payments:payment_list' %}" class="btn btn-outline-secondary">
+            <a href="{% url 'receivables:payment_list' %}" class="btn btn-outline-secondary">
                 <i class="fas fa-arrow-left me-2"></i>Back to Payments
             </a>
         </div>
@@ -22,7 +22,7 @@
 
     <div class="card shadow-sm mb-4">
         <div class="card-body">
-            <form method="get" action="{% url 'payments:fee_summary' %}" id="feeSummaryFilterForm" class="row g-3">
+            <form method="get" action="{% url 'receivables:fee_summary' %}" id="feeSummaryFilterForm" class="row g-3">
                 <div class="col-md-3">
                     <label for="searchInput" class="form-label">Search</label>
                     <input type="text" name="search" id="searchInput" class="form-control" placeholder="Search by name, ID, parent..." value="{{ search_query }}">
@@ -63,7 +63,7 @@
                     </div>
                 </div>
                 <div class="col-md-1 d-flex align-items-end">
-                    <a href="{% url 'payments:fee_summary' %}{% if show_inactive %}?show_inactive=true{% endif %}" class="btn btn-outline-secondary w-100">
+                    <a href="{% url 'receivables:fee_summary' %}{% if show_inactive %}?show_inactive=true{% endif %}" class="btn btn-outline-secondary w-100">
                         <i class="fas fa-times"></i> Clear
                     </a>
                 </div>

@@ -1,0 +1,93 @@
+{% extends 'base.html' %}
+
+{% block title %}Upload Bank Statement | Eduvanta{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1><i class="fas fa-upload me-2"></i> Upload Bank Statement</h1>
+        <div class="d-flex gap-2">
+            <a href="{% url 'receivables:receivable_list' %}" class="btn btn-primary">
+                <i class="fas fa-file-invoice-dollar me-2"></i>Receivables
+            </a>
+            <a href="{% url 'receivables:bank_statement_pattern_list' %}" class="btn btn-secondary">
+                <i class="fas fa-cog me-2"></i>Manage Patterns
+            </a>
+        </div>
+    </div>
+    
+    <div class="row">
+        <div class="col-md-8">
+            <div class="card shadow-sm mb-4">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0">Upload Bank Statement</h5>
+                </div>
+                <div class="card-body">
+                    <form method="post" enctype="multipart/form-data">
+                        {% csrf_token %}
+                        <div class="mb-3">
+                            <label for="pattern_id" class="form-label">Bank Statement Pattern <span class="text-danger">*</span></label>
+                            <select name="pattern_id" id="pattern_id" class="form-select" required>
+                                <option value="">Select pattern...</option>
+                                {% for pattern in patterns %}
+                                <option value="{{ pattern.id }}">{{ pattern.bank_name }} - {{ pattern.pattern_name }}</option>
+                                {% endfor %}
+                            </select>
+                            <small class="form-text text-muted">
+                                Select the pattern that matches your bank statement format. 
+                                <a href="{% url 'receivables:bank_statement_pattern_list' %}" target="_blank">Manage patterns</a>
+                            </small>
+                        </div>
+                        <div class="mb-3">
+                            <label for="statement_file" class="form-label">Bank Statement File (CSV) <span class="text-danger">*</span></label>
+                            <input type="file" class="form-control" id="statement_file" name="statement_file" accept=".csv" required>
+                            <small class="form-text text-muted">Please upload a CSV file containing the bank statement.</small>
+                        </div>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-upload me-2"></i>Process Statement
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-4">
+            <div class="card shadow-sm">
+                <div class="card-header bg-info text-white">
+                    <h5 class="mb-0">Recent Uploads</h5>
+                </div>
+                <div class="card-body">
+                    {% if recent_uploads %}
+                    <div class="list-group">
+                        {% for upload in recent_uploads %}
+                        <div class="list-group-item">
+                            <div class="d-flex justify-content-between align-items-start">
+                                <div>
+                                    <h6 class="mb-1">{{ upload.file_name|truncatechars:30 }}</h6>
+                                    <small class="text-muted">{{ upload.uploaded_at|date:"d M, Y H:i" }}</small>
+                                </div>
+                                <span class="badge bg-{% if upload.status == 'completed' %}success{% elif upload.status == 'failed' %}danger{% else %}warning{% endif %}">
+                                    {{ upload.get_status_display }}
+                                </span>
+                            </div>
+                            {% if upload.status == 'completed' %}
+                            <div class="mt-2">
+                                <small class="text-muted">
+                                    Total: {{ upload.total_transactions }}, 
+                                    Matched: {{ upload.matched_payments }}, 
+                                    Unmatched: {{ upload.unmatched_payments }}
+                                </small>
+                            </div>
+                            {% endif %}
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <p class="text-muted">No recent uploads</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

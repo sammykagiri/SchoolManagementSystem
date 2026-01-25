@@ -10,7 +10,7 @@ from .models import CommunicationTemplate, EmailMessage, SMSMessage, Communicati
 from .services import CommunicationService
 from core.models import Student, StudentFee, Grade, SchoolClass, TransportRoute
 from core.decorators import permission_required
-from payments.models import Payment
+from receivables.models import Payment
 from decimal import Decimal
 from datetime import datetime
 import json

@@ -25,7 +25,7 @@ from core import views as core_views
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('', include('core.urls')),
-    path('payments/', include('payments.urls')),
+    path('receivables/', include('receivables.urls')),
     path('communications/', include('communications.urls')),
     path('attendance/', include('attendance.urls')),
     path('timetable/', include('timetable.urls')),

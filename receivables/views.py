@@ -6,12 +6,77 @@ from django.views.decorators.csrf import csrf_exempt
 from django.core.paginator import Paginator
 from django.db.models import Q, Sum, F, Case, When, Value, DecimalField, Count, Avg
 from django.utils import timezone
-from .models import Payment, MpesaPayment, PaymentReceipt, PaymentReminder
+from .models import (
+    Payment, MpesaPayment, PaymentReceipt, PaymentReminder,
+    PaymentAllocation, Receivable, Credit, BankStatementPattern, BankStatementUpload,
+    UnmatchedTransaction
+)
 from .mpesa_service import MpesaService
 from communications.services import CommunicationService
 from core.models import Student, StudentFee, Term
 import json
 import uuid
+from decimal import Decimal
+
+
+# Helper functions for token resolution
+def _get_payment_from_token_or_id(request, token_or_id):
+    """Helper function to resolve payment from token or payment_id (backward compatibility)"""
+    school = request.user.profile.school
+    # Try to resolve as token first
+    payment = Payment.from_signed_token(token_or_id)
+    if payment and payment.school == school:
+        return payment
+    # Fallback to payment_id (UUID) for backward compatibility
+    try:
+        return Payment.objects.get(payment_id=token_or_id, school=school)
+    except (Payment.DoesNotExist, ValueError):
+        from django.http import Http404
+        raise Http404("Payment not found")
+
+def _get_receivable_from_token_or_id(request, token_or_id):
+    """Helper function to resolve receivable from token or id (backward compatibility)"""
+    school = request.user.profile.school
+    receivable = Receivable.from_signed_token(token_or_id)
+    if receivable and receivable.school == school:
+        return receivable
+    if str(token_or_id).isdigit():
+        return get_object_or_404(Receivable, id=int(token_or_id), school=school)
+    from django.http import Http404
+    raise Http404("Receivable not found")
+
+def _get_credit_from_token_or_id(request, token_or_id):
+    """Helper function to resolve credit from token or id (backward compatibility)"""
+    school = request.user.profile.school
+    credit = Credit.from_signed_token(token_or_id)
+    if credit and credit.school == school:
+        return credit
+    if str(token_or_id).isdigit():
+        return get_object_or_404(Credit, id=int(token_or_id), school=school)
+    from django.http import Http404
+    raise Http404("Credit not found")
+
+def _get_pattern_from_token_or_id(request, token_or_id):
+    """Helper function to resolve bank statement pattern from token or id (backward compatibility)"""
+    school = request.user.profile.school
+    pattern = BankStatementPattern.from_signed_token(token_or_id)
+    if pattern and pattern.school == school:
+        return pattern
+    if str(token_or_id).isdigit():
+        return get_object_or_404(BankStatementPattern, id=int(token_or_id), school=school)
+    from django.http import Http404
+    raise Http404("Bank statement pattern not found")
+
+def _get_unmatched_transaction_from_token_or_id(request, token_or_id):
+    """Helper function to resolve unmatched transaction from token or id (backward compatibility)"""
+    school = request.user.profile.school
+    transaction = UnmatchedTransaction.from_signed_token(token_or_id)
+    if transaction and transaction.school == school:
+        return transaction
+    if str(token_or_id).isdigit():
+        return get_object_or_404(UnmatchedTransaction, id=int(token_or_id), school=school)
+    from django.http import Http404
+    raise Http404("Unmatched transaction not found")
 
 
 @login_required
@@ -55,7 +120,7 @@ def payment_list(request):
         'method_filter': method_filter,
     }
     
-    return render(request, 'payments/payment_list.html', context)
+    return render(request, 'receivables/payment_list.html', context)
 
 
 @login_required
@@ -68,7 +133,7 @@ def payment_detail(request, payment_id):
         'payment': payment,
     }
     
-    return render(request, 'payments/payment_detail.html', context)
+    return render(request, 'receivables/payment_detail.html', context)
 
 
 @login_required
@@ -91,8 +156,10 @@ def initiate_mpesa_payment(request, student_fee_id):
                 messages.error(request, 'Amount must be greater than 0.')
                 return redirect('core:student_detail', student_id=student_fee.student.student_id)
             
-            # Generate reference number
-            reference = f"FEES{student_fee.student.student_id}{int(timezone.now().timestamp())}"
+            # Generate reference number in format: BUSINESS_NUMBER#STUDENT_ID
+            mpesa_service = MpesaService()
+            business_number = mpesa_service.business_shortcode
+            reference = f"{business_number}#{student_fee.student.student_id}"
             
             # Initiate M-Pesa payment
             mpesa_service = MpesaService()
@@ -105,7 +172,7 @@ def initiate_mpesa_payment(request, student_fee_id):
             
             if result['success']:
                 messages.success(request, 'M-Pesa payment initiated. Please check your phone for the STK push.')
-                return redirect('payments:payment_detail', payment_id=result['payment_id'])
+                return redirect('receivables:payment_detail', payment_id=result['payment_id'])
             else:
                 messages.error(request, f'Failed to initiate payment: {result["message"]}')
                 
@@ -119,7 +186,7 @@ def initiate_mpesa_payment(request, student_fee_id):
         'student': student_fee.student,
     }
     
-    return render(request, 'payments/initiate_mpesa_payment.html', context)
+    return render(request, 'receivables/initiate_mpesa_payment.html', context)
 
 
 @login_required
@@ -167,7 +234,7 @@ def record_cash_payment(request, student_fee_id):
             communication_service.send_payment_receipt(payment)
             
             messages.success(request, f'Cash payment of KES {amount} recorded successfully.')
-            return redirect('payments:payment_detail', payment_id=payment.payment_id)
+            return redirect('receivables:payment_detail', payment_id=payment.get_signed_token())
             
         except ValueError:
             messages.error(request, 'Invalid amount.')
@@ -179,7 +246,7 @@ def record_cash_payment(request, student_fee_id):
         'student': student_fee.student,
     }
     
-    return render(request, 'payments/record_cash_payment.html', context)
+    return render(request, 'receivables/record_cash_payment.html', context)
 
 
 @login_required
@@ -229,7 +296,7 @@ def record_bank_payment(request, student_fee_id):
             communication_service.send_payment_receipt(payment)
             
             messages.success(request, f'Bank payment of KES {amount} recorded successfully.')
-            return redirect('payments:payment_detail', payment_id=payment.payment_id)
+            return redirect('receivables:payment_detail', payment_id=payment.get_signed_token())
             
         except ValueError:
             messages.error(request, 'Invalid amount.')
@@ -241,7 +308,7 @@ def record_bank_payment(request, student_fee_id):
         'student': student_fee.student,
     }
     
-    return render(request, 'payments/record_bank_payment.html', context)
+    return render(request, 'receivables/record_bank_payment.html', context)
 
 
 @csrf_exempt
@@ -332,7 +399,7 @@ def payment_receipt_list(request):
         'search_query': search_query,
     }
     
-    return render(request, 'payments/receipt_list.html', context)
+    return render(request, 'receivables/receipt_list.html', context)
 
 
 @login_required
@@ -344,7 +411,7 @@ def generate_receipt(request, payment_id):
     # Check if receipt already exists
     if hasattr(payment, 'receipt'):
         messages.info(request, 'Receipt already exists for this payment.')
-        return redirect('payments:payment_detail', payment_id=payment.payment_id)
+        return redirect('receivables:payment_detail', payment_id=payment.payment_id)
     
     try:
         # Create receipt
@@ -362,11 +429,11 @@ def generate_receipt(request, payment_id):
         )
         
         messages.success(request, f'Receipt {receipt.receipt_number} generated successfully.')
-        return redirect('payments:payment_detail', payment_id=payment.payment_id)
+        return redirect('receivables:payment_detail', payment_id=payment.payment_id)
         
     except Exception as e:
         messages.error(request, f'Error generating receipt: {str(e)}')
-        return redirect('payments:payment_detail', payment_id=payment.payment_id)
+        return redirect('receivables:payment_detail', payment_id=payment.payment_id)
 
 
 @login_required
@@ -379,7 +446,7 @@ def view_receipt(request, receipt_number):
         'receipt': receipt,
     }
     
-    return render(request, 'payments/view_receipt.html', context)
+    return render(request, 'receivables/view_receipt.html', context)
 
 
 @login_required
@@ -501,7 +568,7 @@ def fee_summary(request):
         'grades': grades,
     }
     
-    return render(request, 'payments/fee_summary.html', context)
+    return render(request, 'receivables/fee_summary.html', context)
 
 
 @login_required
@@ -653,14 +720,14 @@ def fee_report(request):
         'report_date': timezone.now().date(),
     }
     
-    return render(request, 'payments/fee_report.html', context)
+    return render(request, 'receivables/fee_report.html', context)
 
 
 @login_required
 def financial_reports(request):
     """Financial reports dashboard"""
     school = request.user.profile.school
-    return render(request, 'payments/financial_reports.html', {'school': school})
+    return render(request, 'receivables/financial_reports.html', {'school': school})
 
 
 @login_required
@@ -748,7 +815,7 @@ def payment_collection_report(request):
         'report_date': timezone.now().date(),
     }
     
-    return render(request, 'payments/payment_collection_report.html', context)
+    return render(request, 'receivables/payment_collection_report.html', context)
 
 
 @login_required
@@ -840,7 +907,7 @@ def outstanding_fees_report(request):
         'report_date': timezone.now().date(),
     }
     
-    return render(request, 'payments/outstanding_fees_report.html', context)
+    return render(request, 'receivables/outstanding_fees_report.html', context)
 
 
 @login_required
@@ -942,7 +1009,7 @@ def collection_summary_report(request):
         'report_date': timezone.now().date(),
     }
     
-    return render(request, 'payments/collection_summary_report.html', context)
+    return render(request, 'receivables/collection_summary_report.html', context)
 
 
 @login_required
@@ -1040,7 +1107,7 @@ def payment_method_analysis(request):
         'report_date': timezone.now().date(),
     }
     
-    return render(request, 'payments/payment_method_analysis.html', context)
+    return render(request, 'receivables/payment_method_analysis.html', context)
 
 
 @login_required
@@ -1066,7 +1133,7 @@ def payment_reminder_list(request):
         'reminder_type': reminder_type,
     }
     
-    return render(request, 'payments/reminder_list.html', context)
+    return render(request, 'receivables/reminder_list.html', context)
 
 
 @login_required
@@ -1119,4 +1186,897 @@ def send_reminder(request, student_fee_id):
         'student': student_fee.student,
     }
     
-    return render(request, 'payments/send_reminder.html', context)
+    return render(request, 'receivables/send_reminder.html', context)
+
+
+# ==================== Receivables Views ====================
+
+@login_required
+def receivable_list(request):
+    """List all receivables with search and allocation viewing"""
+    from core.decorators import permission_required
+    from django.db.models import Prefetch, F, Case, When, Value, DecimalField
+    
+    school = request.user.profile.school
+    
+    # Get all StudentFee records with outstanding balances
+    # This ensures we show all fees that match the dashboard calculation
+    # First, ensure all StudentFee records have corresponding Receivable records
+    # Note: StudentFee has a balance property, so we filter using F() expressions
+    # Filter: amount_charged > amount_paid (which means balance > 0)
+    student_fees_with_balance = StudentFee.objects.filter(
+        school=school
+    ).filter(
+        amount_charged__gt=F('amount_paid')
+    )
+    
+    # Sync receivables for any StudentFee that doesn't have one or update existing ones
+    for student_fee in student_fees_with_balance:
+        receivable, created = Receivable.objects.get_or_create(
+            school=student_fee.school,
+            student_fee=student_fee,
+            defaults={
+                'student': student_fee.student,
+                'amount_due': student_fee.amount_charged,
+                'amount_paid': student_fee.amount_paid,
+                'due_date': student_fee.due_date,
+                'is_cleared': student_fee.is_paid,
+            }
+        )
+        if not created:
+            # Update existing receivable to match StudentFee
+            receivable.amount_due = student_fee.amount_charged
+            receivable.amount_paid = student_fee.amount_paid
+            receivable.due_date = student_fee.due_date
+            receivable.is_cleared = student_fee.is_paid
+            if student_fee.is_paid and not receivable.cleared_at:
+                from django.utils import timezone
+                receivable.cleared_at = timezone.now()
+            elif not student_fee.is_paid:
+                receivable.cleared_at = None
+            receivable.save()
+    
+    # Now query Receivable records (which should now exist for all outstanding fees)
+    receivables = Receivable.objects.filter(
+        school=school,
+        is_cleared=False
+    ).select_related(
+        'student', 'student_fee__fee_category', 'student_fee__term'
+    ).prefetch_related(
+        Prefetch(
+            'student_fee__payment_allocations',
+            queryset=PaymentAllocation.objects.select_related('payment', 'payment__student')
+        )
+    ).order_by('due_date', 'student__student_id')
+    
+    # Search functionality
+    search_query = request.GET.get('search', '')
+    if search_query:
+        receivables = receivables.filter(
+            Q(student__student_id__icontains=search_query) |
+            Q(student__first_name__icontains=search_query) |
+            Q(student__last_name__icontains=search_query) |
+            Q(student_fee__fee_category__name__icontains=search_query)
+        )
+    
+    # Filter by status
+    # Note: Receivable has a balance property, so we filter using F() expressions on fields directly
+    status_filter = request.GET.get('status', '')
+    if status_filter == 'outstanding':
+        # Already filtered by is_cleared=False, but ensure amount_due > amount_paid
+        receivables = receivables.filter(
+            amount_due__gt=F('amount_paid')
+        )
+    elif status_filter == 'overdue':
+        from django.utils import timezone
+        receivables = receivables.filter(
+            due_date__lt=timezone.now().date(),
+            amount_due__gt=F('amount_paid')
+        )
+    elif status_filter == 'cleared':
+        receivables = Receivable.objects.filter(
+            school=school,
+            is_cleared=True
+        ).select_related(
+            'student', 'student_fee__fee_category', 'student_fee__term'
+        ).prefetch_related(
+            Prefetch(
+                'student_fee__payment_allocations',
+                queryset=PaymentAllocation.objects.select_related('payment', 'payment__student')
+            )
+        ).order_by('-cleared_at', 'student__student_id')
+    
+    # Calculate totals - use the filtered queryset
+    # For outstanding balance, calculate using F() expression with different annotation name
+    total_due = receivables.aggregate(total=Sum('amount_due'))['total'] or Decimal('0.00')
+    total_paid = receivables.aggregate(total=Sum('amount_paid'))['total'] or Decimal('0.00')
+    # For outstanding, calculate difference using annotation with different name to avoid conflict
+    if status_filter != 'cleared':
+        # Use outstanding_amt to avoid conflict with balance property
+        receivables_with_outstanding = receivables.annotate(
+            outstanding_amt=F('amount_due') - F('amount_paid')
+        ).filter(outstanding_amt__gt=0)
+        total_outstanding = receivables_with_outstanding.aggregate(
+            total=Sum('outstanding_amt')
+        )['total'] or Decimal('0.00')
+    else:
+        total_outstanding = Decimal('0.00')
+    
+    # Pagination
+    paginator = Paginator(receivables, 20)
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+    
+    # Get bank statement patterns for upload modal
+    patterns = BankStatementPattern.objects.filter(school=school, is_active=True).order_by('bank_name', 'pattern_name')
+    
+    context = {
+        'page_obj': page_obj,
+        'search_query': search_query,
+        'status_filter': status_filter,
+        'total_due': total_due,
+        'total_paid': total_paid,
+        'total_outstanding': total_outstanding,
+        'patterns': patterns,
+    }
+    
+    return render(request, 'receivables/receivable_list.html', context)
+
+
+@login_required
+def receivable_detail(request, receivable_id):
+    """View receivable details and allocations"""
+    receivable = _get_receivable_from_token_or_id(request, receivable_id)
+    school = receivable.school
+    
+    # Get all payment allocations for this receivable's student_fee
+    allocations = PaymentAllocation.objects.filter(
+        school=school,
+        student_fee=receivable.student_fee
+    ).select_related('payment', 'payment__student', 'created_by').order_by('-created_at')
+    
+    context = {
+        'receivable': receivable,
+        'allocations': allocations,
+    }
+    
+    return render(request, 'receivables/receivable_detail.html', context)
+
+
+# ==================== Credits Views ====================
+
+@login_required
+def credit_list(request):
+    """List all credits"""
+    school = request.user.profile.school
+    credits = Credit.objects.filter(school=school).select_related(
+        'student', 'payment', 'applied_to_fee', 'created_by'
+    ).order_by('-created_at')
+    
+    # Search functionality
+    search_query = request.GET.get('search', '')
+    if search_query:
+        credits = credits.filter(
+            Q(student__student_id__icontains=search_query) |
+            Q(student__first_name__icontains=search_query) |
+            Q(student__last_name__icontains=search_query) |
+            Q(description__icontains=search_query)
+        )
+    
+    # Filter by applied status
+    applied_filter = request.GET.get('applied', '')
+    if applied_filter == 'yes':
+        credits = credits.filter(is_applied=True)
+    elif applied_filter == 'no':
+        credits = credits.filter(is_applied=False)
+    
+    # Filter by source
+    source_filter = request.GET.get('source', '')
+    if source_filter:
+        credits = credits.filter(source=source_filter)
+    
+    # Pagination
+    paginator = Paginator(credits, 20)
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+    
+    # Calculate totals
+    total_credits = credits.aggregate(total=Sum('amount'))['total'] or 0
+    applied_credits = credits.filter(is_applied=True).aggregate(total=Sum('amount'))['total'] or 0
+    available_credits = total_credits - applied_credits
+    
+    context = {
+        'page_obj': page_obj,
+        'search_query': search_query,
+        'applied_filter': applied_filter,
+        'source_filter': source_filter,
+        'total_credits': total_credits,
+        'applied_credits': applied_credits,
+        'available_credits': available_credits,
+    }
+    
+    return render(request, 'receivables/credit_list.html', context)
+
+
+@login_required
+def credit_create(request):
+    """Create a new credit"""
+    from .forms import CreditForm
+    
+    school = request.user.profile.school
+    
+    if request.method == 'POST':
+        form = CreditForm(request.POST, school=school)
+        if form.is_valid():
+            credit = form.save(commit=False)
+            credit.school = school
+            credit.created_by = request.user
+            credit.save()
+            messages.success(request, f'Credit of KES {credit.amount} created for {credit.student.full_name}.')
+            return redirect('receivables:credit_list')
+    else:
+        form = CreditForm(school=school)
+    
+    return render(request, 'receivables/credit_form.html', {
+        'form': form,
+        'title': 'Create Credit'
+    })
+
+
+@login_required
+def credit_edit(request, credit_id):
+    """Edit an existing credit"""
+    from .forms import CreditForm
+    
+    school = request.user.profile.school
+    credit = get_object_or_404(Credit, school=school, id=credit_id)
+    
+    # Prevent editing applied credits
+    if credit.is_applied:
+        messages.error(request, 'Cannot edit a credit that has already been applied.')
+        return redirect('receivables:credit_list')
+    
+    if request.method == 'POST':
+        form = CreditForm(request.POST, instance=credit, school=school)
+        if form.is_valid():
+            form.save()
+            messages.success(request, 'Credit updated successfully.')
+            return redirect('receivables:credit_list')
+    else:
+        form = CreditForm(instance=credit, school=school)
+    
+    return render(request, 'receivables/credit_form.html', {
+        'form': form,
+        'title': 'Edit Credit',
+        'credit': credit
+    })
+
+
+@login_required
+def credit_delete(request, credit_id):
+    """Delete a credit"""
+    school = request.user.profile.school
+    credit = get_object_or_404(Credit, school=school, id=credit_id)
+    
+    # Prevent deleting applied credits
+    if credit.is_applied:
+        messages.error(request, 'Cannot delete a credit that has already been applied.')
+        return redirect('receivables:credit_list')
+    
+    if request.method == 'POST':
+        student_name = credit.student.full_name
+        amount = credit.amount
+        credit.delete()
+        messages.success(request, f'Credit of KES {amount} for {student_name} deleted successfully.')
+        return redirect('receivables:credit_list')
+    
+    return render(request, 'receivables/credit_confirm_delete.html', {'credit': credit})
+
+
+# ==================== Bank Statement Pattern Views ====================
+
+@login_required
+def bank_statement_pattern_list(request):
+    """List all bank statement patterns for the school"""
+    school = request.user.profile.school
+    patterns = BankStatementPattern.objects.filter(school=school).order_by('bank_name', 'pattern_name')
+    
+    context = {
+        'patterns': patterns,
+    }
+    
+    return render(request, 'receivables/bank_statement_pattern_list.html', context)
+
+
+@login_required
+def bank_statement_pattern_create(request):
+    """Create a new bank statement pattern"""
+    from receivables.forms import BankStatementPatternForm
+    
+    school = request.user.profile.school
+    
+    if request.method == 'POST':
+        form = BankStatementPatternForm(request.POST)
+        if form.is_valid():
+            pattern = form.save(commit=False)
+            pattern.school = school
+            pattern.save()
+            messages.success(request, f'Bank statement pattern "{pattern.pattern_name}" created successfully.')
+            return redirect('receivables:bank_statement_pattern_list')
+    else:
+        form = BankStatementPatternForm(initial={'school': school})
+        form.fields['school'].widget.attrs['readonly'] = True
+    
+    return render(request, 'receivables/bank_statement_pattern_form.html', {
+        'form': form,
+        'title': 'Create Bank Statement Pattern'
+    })
+
+
+@login_required
+def bank_statement_pattern_edit(request, pattern_id):
+    """Edit a bank statement pattern"""
+    from receivables.forms import BankStatementPatternForm
+    
+    school = request.user.profile.school
+    pattern = get_object_or_404(BankStatementPattern, school=school, id=pattern_id)
+    
+    if request.method == 'POST':
+        form = BankStatementPatternForm(request.POST, instance=pattern)
+        if form.is_valid():
+            form.save()
+            messages.success(request, 'Bank statement pattern updated successfully.')
+            return redirect('receivables:bank_statement_pattern_list')
+    else:
+        form = BankStatementPatternForm(instance=pattern)
+        # School is hidden, so no need to set readonly
+    
+    return render(request, 'receivables/bank_statement_pattern_form.html', {
+        'form': form,
+        'title': 'Edit Bank Statement Pattern',
+        'pattern': pattern
+    })
+
+
+@login_required
+def bank_statement_pattern_delete(request, pattern_id):
+    """Delete a bank statement pattern"""
+    school = request.user.profile.school
+    pattern = get_object_or_404(BankStatementPattern, school=school, id=pattern_id)
+    
+    if request.method == 'POST':
+        pattern_name = pattern.pattern_name
+        pattern.delete()
+        messages.success(request, f'Bank statement pattern "{pattern_name}" deleted successfully.')
+        return redirect('receivables:bank_statement_pattern_list')
+    
+    return render(request, 'receivables/bank_statement_pattern_confirm_delete.html', {'pattern': pattern})
+
+
+# ==================== Bank Statement Upload Views ====================
+
+@login_required
+def bank_statement_upload(request):
+    """Upload and process bank statement"""
+    school = request.user.profile.school
+    patterns = BankStatementPattern.objects.filter(school=school, is_active=True).order_by('bank_name', 'pattern_name')
+    
+    if request.method == 'POST':
+        pattern_id = request.POST.get('pattern_id')
+        statement_file = request.FILES.get('statement_file')
+        
+        if not pattern_id or not statement_file:
+            messages.error(request, 'Please select a pattern and upload a file.')
+            return redirect('receivables:bank_statement_upload')
+        
+        try:
+            pattern = BankStatementPattern.objects.get(school=school, id=pattern_id, is_active=True)
+        except BankStatementPattern.DoesNotExist:
+            messages.error(request, 'Selected pattern not found.')
+            return redirect('receivables:bank_statement_upload')
+        
+        # Create upload record
+        upload = BankStatementUpload.objects.create(
+            school=school,
+            pattern=pattern,
+            file_name=statement_file.name,
+            uploaded_by=request.user,
+            status='processing'
+        )
+        
+        # Process the statement asynchronously (or synchronously for now)
+        try:
+            result = process_bank_statement(upload, statement_file, pattern)
+            upload.status = 'completed'
+            upload.total_transactions = result.get('total_transactions', 0)
+            upload.matched_payments = result.get('matched_payments', 0)
+            upload.unmatched_payments = result.get('unmatched_payments', 0)
+            upload.duplicate_transactions = result.get('duplicate_transactions', 0)
+            upload.processed_at = timezone.now()
+            upload.save()
+            
+            messages.success(
+                request,
+                f'Bank statement processed successfully. '
+                f'Total: {result.get("total_transactions", 0)}, '
+                f'Matched: {result.get("matched_payments", 0)}, '
+                f'Unmatched: {result.get("unmatched_payments", 0)}'
+            )
+        except Exception as e:
+            upload.status = 'failed'
+            upload.error_message = str(e)
+            upload.save()
+            messages.error(request, f'Error processing bank statement: {str(e)}')
+        
+        return redirect('receivables:receivable_list')
+    
+    # Get recent uploads
+    recent_uploads = BankStatementUpload.objects.filter(school=school).order_by('-uploaded_at')[:10]
+    
+    context = {
+        'patterns': patterns,
+        'recent_uploads': recent_uploads,
+    }
+    
+    return render(request, 'receivables/bank_statement_upload.html', context)
+
+
+def process_bank_statement(upload, statement_file, pattern):
+    """Process bank statement file and match payments"""
+    import csv
+    import re
+    from datetime import datetime
+    from decimal import Decimal, InvalidOperation
+    
+    result = {
+        'total_transactions': 0,
+        'matched_payments': 0,
+        'unmatched_payments': 0,
+        'duplicate_transactions': 0,
+        'transactions': []
+    }
+    
+    # Read CSV file
+    content = statement_file.read()
+    if pattern.encoding != 'utf-8':
+        try:
+            content = content.decode(pattern.encoding).encode('utf-8')
+        except:
+            content = content.decode('utf-8', errors='ignore').encode('utf-8')
+    else:
+        content = content.decode('utf-8', errors='ignore').encode('utf-8')
+    
+    csv_content = content.decode('utf-8')
+    lines = csv_content.split('\n')
+    
+    # Skip header if present
+    start_line = 1 if pattern.has_header else 0
+    
+    # Determine delimiter
+    delimiter = ',' if pattern.delimiter == ',' else (';' if pattern.delimiter == ';' else '\t')
+    
+    # Process each line
+    for line_num, line in enumerate(lines[start_line:], start=start_line + 1):
+        if not line.strip():
+            continue
+        
+        try:
+            reader = csv.reader([line], delimiter=delimiter)
+            row = next(reader)
+            
+            if len(row) < 2:
+                continue
+            
+            # Extract data based on pattern
+            date_str = extract_column_value(row, pattern.date_column)
+            amount_str = extract_column_value(row, pattern.amount_column)
+            reference_str = extract_column_value(row, pattern.reference_column) if pattern.reference_column else ''
+            
+            # Parse date
+            try:
+                transaction_date = datetime.strptime(date_str, pattern.date_format).date()
+            except:
+                continue
+            
+            # Parse amount
+            try:
+                # Remove currency symbols and commas
+                amount_str_clean = re.sub(r'[^\d.-]', '', amount_str)
+                amount = Decimal(amount_str_clean)
+            except (InvalidOperation, ValueError):
+                continue
+            
+            # Extract student ID from reference using pattern's extract method
+            student_id = None
+            if reference_str:
+                student_id = pattern.extract_student_id(reference_str)
+            
+            result['total_transactions'] += 1
+            
+            # Try to match with existing payment or create unmatched payment
+            matched = False
+            if student_id:
+                # Try to find student and match payment
+                try:
+                    student = Student.objects.get(school=upload.school, student_id=student_id)
+                    # Check if payment already exists
+                    existing_payment = Payment.objects.filter(
+                        school=upload.school,
+                        student=student,
+                        amount=amount,
+                        payment_date__date=transaction_date,
+                        reference_number__icontains=reference_str[:50] if reference_str else ''
+                    ).first()
+                    
+                    if existing_payment:
+                        result['duplicate_transactions'] += 1
+                        matched = True
+                    else:
+                        # Create unmatched transaction record
+                        UnmatchedTransaction.objects.create(
+                            school=upload.school,
+                            upload=upload,
+                            transaction_date=transaction_date,
+                            amount=amount,
+                            reference_number=reference_str[:200] if reference_str else '',
+                            extracted_student_id=student_id,
+                            transaction_type='credit',
+                            status='unmatched'
+                        )
+                        result['unmatched_payments'] += 1
+                except Student.DoesNotExist:
+                    # Create unmatched transaction record - student not found
+                    UnmatchedTransaction.objects.create(
+                        school=upload.school,
+                        upload=upload,
+                        transaction_date=transaction_date,
+                        amount=amount,
+                        reference_number=reference_str[:200] if reference_str else '',
+                        extracted_student_id=student_id,
+                        transaction_type='credit',
+                        status='unmatched'
+                    )
+                    result['unmatched_payments'] += 1
+            else:
+                # Create unmatched transaction record - no student ID extracted
+                UnmatchedTransaction.objects.create(
+                    school=upload.school,
+                    upload=upload,
+                    transaction_date=transaction_date,
+                    amount=amount,
+                    reference_number=reference_str[:200] if reference_str else '',
+                    extracted_student_id=None,
+                    transaction_type='credit',
+                    status='unmatched'
+                )
+                result['unmatched_payments'] += 1
+            
+            result['transactions'].append({
+                'transaction_id': f"{upload.id}-{line_num}",
+                'student_id': student_id,
+                'amount': float(amount),
+                'payment_date': transaction_date.isoformat(),
+                'narrative': reference_str,
+                'status': 'Matched' if matched else 'Unmatched'
+            })
+            
+        except Exception as e:
+            continue
+    
+    return result
+
+
+def extract_column_value(row, column_spec):
+    """Extract value from row based on column specification (name or index)"""
+    if not column_spec:
+        return ''
+    
+    # Try as index first
+    try:
+        index = int(column_spec)
+        if 0 <= index < len(row):
+            return row[index].strip()
+    except ValueError:
+        pass
+    
+    # Try as column name
+    try:
+        index = row.index(column_spec)
+        return row[index].strip()
+    except (ValueError, AttributeError):
+        pass
+    
+    return ''
+
+
+# ==================== Unmatched Transactions Views ====================
+
+@login_required
+def unmatched_transaction_list(request):
+    """List all unmatched transactions with search and filter functionality"""
+    from core.decorators import permission_required
+    from django.db.models import Sum
+    school = request.user.profile.school
+    transactions = UnmatchedTransaction.objects.filter(
+        school=school
+    ).select_related('upload', 'matched_payment', 'matched_student', 'matched_by').order_by('-transaction_date', '-created_at')
+    
+    # Search functionality
+    search_query = request.GET.get('search', '')
+    if search_query:
+        transactions = transactions.filter(
+            Q(reference_number__icontains=search_query) |
+            Q(extracted_student_id__icontains=search_query) |
+            Q(matched_student__student_id__icontains=search_query) |
+            Q(matched_student__first_name__icontains=search_query) |
+            Q(matched_student__last_name__icontains=search_query)
+        )
+    
+    # Filter by status
+    status_filter = request.GET.get('status', '')
+    if status_filter:
+        transactions = transactions.filter(status=status_filter)
+    
+    # Filter by date range
+    date_from = request.GET.get('date_from', '')
+    date_to = request.GET.get('date_to', '')
+    if date_from:
+        transactions = transactions.filter(transaction_date__gte=date_from)
+    if date_to:
+        transactions = transactions.filter(transaction_date__lte=date_to)
+    
+    # Calculate totals
+    total_amount = transactions.aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
+    unmatched_count = transactions.filter(status='unmatched').count()
+    matched_count = transactions.filter(status='matched').count()
+    
+    # Pagination
+    paginator = Paginator(transactions, 25)
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+    
+    context = {
+        'page_obj': page_obj,
+        'search_query': search_query,
+        'status_filter': status_filter,
+        'date_from': date_from,
+        'date_to': date_to,
+        'total_amount': total_amount,
+        'unmatched_count': unmatched_count,
+        'matched_count': matched_count,
+    }
+    
+    return render(request, 'receivables/unmatched_transaction_list.html', context)
+
+
+@login_required
+def unmatched_transaction_detail(request, transaction_id):
+    """View details of an unmatched transaction"""
+    from core.decorators import permission_required
+    transaction = _get_unmatched_transaction_from_token_or_id(request, transaction_id)
+    school = transaction.school
+    
+    # Get potential matches
+    potential_matches = []
+    if transaction.extracted_student_id:
+        try:
+            student = Student.objects.get(school=school, student_id=transaction.extracted_student_id)
+            # Find payments that might match
+            potential_payments = Payment.objects.filter(
+                school=school,
+                student=student,
+                amount=transaction.amount,
+                payment_date__date=transaction.transaction_date,
+                status='completed'
+            ).exclude(
+                matched_transactions__isnull=False
+            ).order_by('-payment_date')[:10]
+            
+            potential_matches = [
+                {
+                    'payment': payment,
+                    'match_score': 100 if payment.reference_number and transaction.reference_number and payment.reference_number in transaction.reference_number else 80
+                }
+                for payment in potential_payments
+            ]
+        except Student.DoesNotExist:
+            pass
+    
+    context = {
+        'transaction': transaction,
+        'potential_matches': potential_matches,
+    }
+    
+    return render(request, 'receivables/unmatched_transaction_detail.html', context)
+
+
+@login_required
+def unmatched_transaction_match(request, transaction_id):
+    """Match an unmatched transaction to a payment"""
+    from core.decorators import permission_required
+    transaction = _get_unmatched_transaction_from_token_or_id(request, transaction_id)
+    school = transaction.school
+    
+    if request.method == 'POST':
+        payment_id = request.POST.get('payment_id')
+        student_id = request.POST.get('student_id')
+        
+        try:
+            if payment_id:
+                payment = _get_payment_from_token_or_id(request, payment_id)
+                transaction.matched_payment = payment
+                transaction.matched_student = payment.student
+            elif student_id:
+                student = Student.objects.get(school=school, student_id=student_id)
+                transaction.matched_student = student
+                # Try to find or create a payment
+                # This could be enhanced to create a payment record
+                messages.info(request, 'Student matched. You may need to create a payment record manually.')
+            
+            # Update notes if provided
+            notes = request.POST.get('notes', '')
+            if notes:
+                transaction.notes = notes
+            
+            transaction.status = 'matched'
+            transaction.matched_by = request.user
+            transaction.matched_at = timezone.now()
+            transaction.save()
+            
+            messages.success(request, 'Transaction matched successfully.')
+            return redirect('receivables:unmatched_transaction_detail', transaction_id=transaction.get_signed_token())
+            
+        except Payment.DoesNotExist:
+            messages.error(request, 'Payment not found.')
+        except Student.DoesNotExist:
+            messages.error(request, 'Student not found.')
+        except Exception as e:
+            messages.error(request, f'Error matching transaction: {str(e)}')
+    
+    school = transaction.school
+    # Get potential matches
+    potential_payments = []
+    if transaction.extracted_student_id:
+        try:
+            student = Student.objects.get(school=school, student_id=transaction.extracted_student_id)
+            potential_payments = Payment.objects.filter(
+                school=school,
+                student=student,
+                status='completed'
+            ).order_by('-payment_date')[:20]
+        except Student.DoesNotExist:
+            pass
+    
+    # Get all students for manual selection
+    students = Student.objects.filter(school=school, is_active=True).order_by('student_id')[:100]
+    
+    context = {
+        'transaction': transaction,
+        'potential_payments': potential_payments,
+        'students': students,
+    }
+    
+    return render(request, 'receivables/unmatched_transaction_match.html', context)
+
+
+@login_required
+def unmatched_transaction_ignore(request, transaction_id):
+    """Mark an unmatched transaction as ignored"""
+    from core.decorators import permission_required
+    transaction = _get_unmatched_transaction_from_token_or_id(request, transaction_id)
+    
+    if request.method == 'POST':
+        transaction.status = 'ignored'
+        transaction.matched_by = request.user
+        transaction.matched_at = timezone.now()
+        transaction.save()
+        
+        messages.success(request, 'Transaction marked as ignored.')
+        return redirect('receivables:unmatched_transaction_list')
+    
+    context = {
+        'transaction': transaction,
+    }
+    
+    return render(request, 'receivables/unmatched_transaction_ignore.html', context)
+
+
+@login_required
+def unmatched_transaction_delete(request, transaction_id):
+    """Delete an unmatched transaction"""
+    from core.decorators import permission_required
+    transaction = _get_unmatched_transaction_from_token_or_id(request, transaction_id)
+    
+    if request.method == 'POST':
+        transaction.delete()
+        messages.success(request, 'Unmatched transaction deleted successfully.')
+        return redirect('receivables:unmatched_transaction_list')
+    
+    context = {
+        'transaction': transaction,
+    }
+    
+    return render(request, 'receivables/unmatched_transaction_confirm_delete.html', context)
+
+
+# ==================== API Views for Receivables ====================
+
+@login_required
+@csrf_exempt
+def api_receivable_allocations(request, receivable_id):
+    """API endpoint to get allocations for a receivable"""
+    receivable = _get_receivable_from_token_or_id(request, receivable_id)
+    
+    allocations = PaymentAllocation.objects.filter(
+        school=school,
+        student_fee=receivable.student_fee
+    ).select_related('payment', 'payment__student').order_by('-created_at')
+    
+    results = []
+    for alloc in allocations:
+        results.append({
+            'id': alloc.id,
+            'amount_allocated': str(alloc.amount_allocated),
+            'created_at': alloc.created_at.strftime('%Y-%m-%d %H:%M:%S'),
+            'payment__payment_id': str(alloc.payment.payment_id),
+            'payment__token': alloc.payment.get_signed_token(),
+            'payment__amount': str(alloc.payment.amount),
+            'payment__payment_date': alloc.payment.payment_date.strftime('%Y-%m-%d'),
+            'payment__payment_method': alloc.payment.get_payment_method_display(),
+            'payment__reference_number': alloc.payment.reference_number or '',
+            'payment__transaction_id': alloc.payment.transaction_id or '',
+        })
+    
+    return JsonResponse({
+        'results': results
+    })
+
+
+@login_required
+@csrf_exempt
+def api_receivable_search(request):
+    """API endpoint for searching receivables"""
+    school = request.user.profile.school
+    search_query = request.GET.get('search', '')
+    page = int(request.GET.get('page', 1))
+    page_size = int(request.GET.get('page_size', 10))
+    
+    receivables = Receivable.objects.filter(
+        school=school,
+        is_cleared=False
+    ).select_related('student', 'student_fee__fee_category', 'student_fee__term')
+    
+    if search_query:
+        receivables = receivables.filter(
+            Q(student__student_id__icontains=search_query) |
+            Q(student__first_name__icontains=search_query) |
+            Q(student__last_name__icontains=search_query) |
+            Q(student_fee__fee_category__name__icontains=search_query)
+        )
+    
+    paginator = Paginator(receivables, page_size)
+    page_obj = paginator.get_page(page)
+    
+    results = []
+    for rec in page_obj:
+        results.append({
+            'id': rec.id,
+            'student_id': rec.student.student_id,
+            'student_name': rec.student.full_name,
+            'fee_category': rec.student_fee.fee_category.name,
+            'term': f"{rec.student_fee.term.academic_year} Term {rec.student_fee.term.term_number}",
+            'amount_due': float(rec.amount_due),
+            'amount_paid': float(rec.amount_paid),
+            'balance': float(rec.balance),
+            'due_date': rec.due_date.isoformat(),
+            'is_overdue': rec.is_overdue,
+            'has_allocations': rec.student_fee.payment_allocations.exists(),
+        })
+    
+    return JsonResponse({
+        'results': results,
+        'count': paginator.count,
+        'page': page,
+        'page_size': page_size,
+        'total_pages': paginator.num_pages,
+    })

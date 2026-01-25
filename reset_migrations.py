@@ -23,7 +23,7 @@ APPS_WITH_MIGRATIONS = [
     'communications',
     'exams',
     'homework',
-    'payments',
+    'receivables',
     'timetable',
 ]
 

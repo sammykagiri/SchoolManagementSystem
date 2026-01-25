@@ -11,10 +11,10 @@
                 <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
                     <h4 class="mb-0">Payment Records</h4>
                     <div class="d-flex gap-2">
-                        <a href="{% url 'payments:receipt_list' %}" class="btn btn-success btn-sm">
+                        <a href="{% url 'receivables:receipt_list' %}" class="btn btn-success btn-sm">
                             <i class="fas fa-receipt me-1"></i>Receipts
                         </a>
-                        <a href="{% url 'payments:reminder_list' %}" class="btn btn-warning btn-sm">
+                        <a href="{% url 'receivables:reminder_list' %}" class="btn btn-warning btn-sm">
                             <i class="fas fa-bell me-1"></i>Reminders
                         </a>
                     </div>
@@ -30,18 +30,18 @@
                     {% endif %}
                     
                     <!-- Search and Filter Form -->
-                    <form method="get" class="mb-4">
+                    <form method="get" class="mb-4" id="filterForm">
                         <div class="row g-3">
                             <div class="col-md-4">
                                 <div class="input-group">
                                     <span class="input-group-text"><i class="fas fa-search"></i></span>
                                     <input type="text" name="search" class="form-control" 
                                            placeholder="Search by student ID, name, or reference..." 
-                                           value="{{ search_query }}">
+                                           value="{{ search_query }}" id="searchInput">
                                 </div>
                             </div>
                             <div class="col-md-3">
-                                <select name="status" class="form-select">
+                                <select name="status" class="form-select" id="statusFilter">
                                     <option value="">All Status</option>
                                     <option value="pending" {% if status_filter == 'pending' %}selected{% endif %}>Pending</option>
                                     <option value="processing" {% if status_filter == 'processing' %}selected{% endif %}>Processing</option>
@@ -50,7 +50,7 @@
                                 </select>
                             </div>
                             <div class="col-md-3">
-                                <select name="method" class="form-select">
+                                <select name="method" class="form-select" id="methodFilter">
                                     <option value="">All Methods</option>
                                     <option value="cash" {% if method_filter == 'cash' %}selected{% endif %}>Cash</option>
                                     <option value="mpesa" {% if method_filter == 'mpesa' %}selected{% endif %}>M-Pesa</option>
@@ -58,9 +58,15 @@
                                 </select>
                             </div>
                             <div class="col-md-2">
-                                <button type="submit" class="btn btn-outline-primary w-100">
-                                    <i class="fas fa-filter me-1"></i>Filter
+                                {% if search_query or status_filter or method_filter %}
+                                <a href="{% url 'receivables:payment_list' %}" class="btn btn-outline-danger w-100">
+                                    <i class="fas fa-times me-1"></i> Clear Filters
+                                </a>
+                                {% else %}
+                                <button type="button" class="btn btn-outline-secondary w-100" disabled>
+                                    <i class="fas fa-filter me-1"></i> Auto-Filter Active
                                 </button>
+                                {% endif %}
                             </div>
                         </div>
                     </form>
@@ -85,7 +91,7 @@
                                     {% for payment in page_obj %}
                                     <tr>
                                         <td>
-                                            <a href="{% url 'payments:payment_detail' payment.payment_id %}" class="text-decoration-none">
+                                            <a href="{% url 'receivables:payment_detail' payment.payment_id %}" class="text-decoration-none">
                                                 {{ payment.payment_id|truncatechars:10 }}
                                             </a>
                                         </td>
@@ -115,12 +121,12 @@
                                         <td>{{ payment.payment_date|indian_date }}</td>
                                         <td>
                                             <div class="btn-group btn-group-sm" role="group">
-                                                <a href="{% url 'payments:payment_detail' payment.payment_id %}" 
+                                                <a href="{% url 'receivables:payment_detail' payment.payment_id %}" 
                                                    class="btn btn-outline-primary" title="View Details">
                                                     <i class="fas fa-eye"></i>
                                                 </a>
                                                 {% if payment.status == 'completed' %}
-                                                    <a href="{% url 'payments:generate_receipt' payment.payment_id %}" 
+                                                    <a href="{% url 'receivables:generate_receipt' payment.get_signed_token %}" 
                                                        class="btn btn-outline-success" title="Generate Receipt">
                                                         <i class="fas fa-receipt"></i>
                                                     </a>
@@ -185,4 +191,19 @@
         </div>
     </div>
 </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+$(document).ready(function() {
+    // Auto-filter on input change
+    let filterTimeout;
+    $('#searchInput, #statusFilter, #methodFilter').on('input change', function() {
+        clearTimeout(filterTimeout);
+        filterTimeout = setTimeout(function() {
+            $('#filterForm').submit();
+        }, 500); // Wait 500ms after user stops typing
+    });
+});
+</script>
 {% endblock %}

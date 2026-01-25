@@ -20,7 +20,7 @@ from .models import (
     School, Grade, Term, FeeCategory, FeeCategoryType, TransportRoute, Student, FeeStructure, StudentFee, SchoolClass,
     AcademicYear, Section, StudentClassEnrollment, PromotionLog, Role, UserProfile
 )
-from payments.models import Payment
+from receivables.models import Payment
 from timetable.models import Teacher
 from rest_framework import viewsets, permissions
 from .serializers import (
@@ -5680,7 +5680,7 @@ from django.http import JsonResponse
 from django.db.models import Sum
 from decimal import Decimal, InvalidOperation
 from .models import Parent, Student, StudentFee
-from payments.models import Payment
+from receivables.models import Payment
 
 
 @login_required
@@ -6570,7 +6570,7 @@ def mpesa_callback(request):
                         student_fee = StudentFee.objects.get(id=fee_id)
                         
                         # Create payment record
-                        from payments.models import Payment
+                        from receivables.models import Payment
                         payment = Payment.objects.create(
                             student=student_fee.student,
                             student_fee=student_fee,
