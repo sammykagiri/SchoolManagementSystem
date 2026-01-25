@@ -22,17 +22,6 @@ django.setup()
 def fix_migration_history():
     """Fix the inconsistent migration history"""
     with connection.cursor() as cursor:
-        # Check if receivables.0001_initial is already recorded
-        cursor.execute("""
-            SELECT COUNT(*) FROM django_migrations 
-            WHERE app = 'receivables' AND name = '0001_initial'
-        """)
-        exists = cursor.fetchone()[0] > 0
-        
-        if exists:
-            print("✓ receivables.0001_initial is already recorded in migration history")
-            return True
-        
         # Check if communications.0002_initial is recorded
         cursor.execute("""
             SELECT COUNT(*) FROM django_migrations 
@@ -72,6 +61,8 @@ def fix_migration_history():
         
         if existing:
             existing_timestamp = existing[0]
+            print(f"Found receivables.0001_initial with timestamp: {existing_timestamp}")
+            print(f"communications.0002_initial timestamp: {comm_timestamp}")
             # If existing timestamp is AFTER or EQUAL to communications.0002_initial, update it
             if existing_timestamp >= comm_timestamp:
                 print(f"Updating receivables.0001_initial timestamp from {existing_timestamp} to {applied_timestamp}")
@@ -80,30 +71,46 @@ def fix_migration_history():
                     SET applied = %s 
                     WHERE app = 'receivables' AND name = '0001_initial'
                 """, [applied_timestamp])
-                print("✓ Updated receivables.0001_initial timestamp")
+                # Verify the update
+                cursor.execute("""
+                    SELECT applied FROM django_migrations 
+                    WHERE app = 'receivables' AND name = '0001_initial'
+                """)
+                updated = cursor.fetchone()
+                if updated:
+                    print(f"✓ Updated receivables.0001_initial timestamp to {updated[0]}")
+                else:
+                    print("✗ Failed to verify timestamp update")
             else:
-                print(f"✓ receivables.0001_initial already exists with correct timestamp ({existing_timestamp})")
+                print(f"✓ receivables.0001_initial already exists with correct timestamp ({existing_timestamp} < {comm_timestamp})")
         else:
             # Insert receivables.0001_initial into migration history
             print("Inserting receivables.0001_initial into migration history...")
             try:
                 if db_backend == 'postgresql':
+                    # Use DO UPDATE to ensure timestamp is set correctly even if it exists
                     cursor.execute("""
                         INSERT INTO django_migrations (app, name, applied)
                         VALUES ('receivables', '0001_initial', %s)
-                        ON CONFLICT (app, name) DO NOTHING
+                        ON CONFLICT (app, name) DO UPDATE SET applied = EXCLUDED.applied
                     """, [applied_timestamp])
                 else:
                     cursor.execute("""
                         INSERT INTO django_migrations (app, name, applied)
                         VALUES ('receivables', '0001_initial', %s)
                     """, [applied_timestamp])
-                print("✓ Inserted receivables.0001_initial")
+                print("✓ Inserted/Updated receivables.0001_initial")
             except Exception as e:
-                # If it already exists, that's fine
+                # If it already exists, try to update it
                 error_str = str(e).lower()
                 if 'unique' in error_str or 'duplicate' in error_str or 'already exists' in error_str:
-                    print("  (receivables.0001_initial already exists in migration history)")
+                    print("  (receivables.0001_initial already exists, updating timestamp...)")
+                    cursor.execute("""
+                        UPDATE django_migrations 
+                        SET applied = %s 
+                        WHERE app = 'receivables' AND name = '0001_initial'
+                    """, [applied_timestamp])
+                    print("✓ Updated receivables.0001_initial timestamp")
                 else:
                     raise
         
