@@ -31,6 +31,8 @@ python manage.py check --database default 2>&1 || echo "Database check completed
 #fi
 
 echo "Running migrations..."
+python manage.py migrate receivables 0001_initial --fake
+python manage.py migrate receivables
 python manage.py migrate --noinput
 if [ $? -ne 0 ]; then
     echo "WARNING: Migrations had issues. Attempting to fix photo column..."

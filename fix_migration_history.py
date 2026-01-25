@@ -1,10 +1,15 @@
+#!/usr/bin/env python
 """
-Script to fix migration history after renaming payments app to receivables.
+Script to fix inconsistent migration history.
+
+The issue: communications.0002_initial was applied before receivables.0001_initial,
+but communications.0002_initial depends on receivables.0001_initial.
 
 This script will:
-1. Mark receivables.0001_initial as applied (fake) since the tables already exist
-2. Update any references in django_migrations table if needed
+1. Check if receivables.0001_initial needs to be faked
+2. Provide instructions for fixing the migration history
 """
+
 import os
 import sys
 import django
@@ -16,88 +21,47 @@ django.setup()
 
 from django.db import connection
 from django.core.management import call_command
+from django.db.migrations.recorder import MigrationRecorder
 
-def fix_migration_history():
-    """Fix the migration history after app rename"""
-    print("=" * 60)
-    print("Fixing Migration History After App Rename")
-    print("=" * 60)
+def check_migration_status():
+    """Check which migrations are applied"""
+    recorder = MigrationRecorder(connection)
+    applied = recorder.applied_migrations()
+    
+    receivables_0001_applied = ('receivables', '0001_initial') in applied
+    communications_0002_applied = ('communications', '0002_initial') in applied
+    
+    print("Current Migration Status:")
+    print(f"  receivables.0001_initial: {'✓ Applied' if receivables_0001_applied else '✗ Not Applied'}")
+    print(f"  communications.0002_initial: {'✓ Applied' if communications_0002_applied else '✗ Not Applied'}")
     print()
     
-    with connection.cursor() as cursor:
-        # Check if receivables.0001_initial is already recorded
-        cursor.execute("""
-            SELECT COUNT(*) FROM django_migrations 
-            WHERE app = 'receivables' AND name = '0001_initial'
-        """)
-        receivables_exists = cursor.fetchone()[0] > 0
-        
-        # Check if payments.0001_initial exists (old app name)
-        cursor.execute("""
-            SELECT COUNT(*) FROM django_migrations 
-            WHERE app = 'payments' AND name = '0001_initial'
-        """)
-        payments_exists = cursor.fetchone()[0] > 0
-        
-        print(f"Current state:")
-        print(f"  - receivables.0001_initial in history: {receivables_exists}")
-        print(f"  - payments.0001_initial in history: {payments_exists}")
+    if communications_0002_applied and not receivables_0001_applied:
+        print("ERROR: communications.0002_initial is applied but receivables.0001_initial is not!")
+        print("This is the inconsistent state causing the error.")
         print()
-        
-        if receivables_exists:
-            print("[OK] receivables.0001_initial already in migration history")
-        else:
-            if payments_exists:
-                # Update the old payments migration to receivables
-                print("Updating payments.0001_initial to receivables.0001_initial...")
-                cursor.execute("""
-                    UPDATE django_migrations 
-                    SET app = 'receivables' 
-                    WHERE app = 'payments' AND name = '0001_initial'
-                """)
-                print("[OK] Updated migration history")
-            else:
-                # Insert receivables.0001_initial as applied
-                print("Adding receivables.0001_initial to migration history...")
-                cursor.execute("""
-                    INSERT INTO django_migrations (app, name, applied)
-                    SELECT 'receivables', '0001_initial', MAX(applied)
-                    FROM django_migrations
-                    WHERE app = 'core' AND name = '0001_initial'
-                """)
-                print("[OK] Added receivables.0001_initial to migration history")
-        
-        # Check for any other payments migrations
-        cursor.execute("""
-            SELECT COUNT(*) FROM django_migrations 
-            WHERE app = 'payments'
-        """)
-        other_payments = cursor.fetchone()[0]
-        
-        if other_payments > 0:
-            print(f"\nFound {other_payments} other migration(s) with 'payments' app name.")
-            print("Updating all 'payments' migrations to 'receivables'...")
-            cursor.execute("""
-                UPDATE django_migrations 
-                SET app = 'receivables' 
-                WHERE app = 'payments'
-            """)
-            print("[OK] Updated all payments migrations to receivables")
-        
-        connection.commit()
+        print("Solution:")
+        print("Option 1 (Recommended if receivables tables don't exist yet):")
+        print("  1. Unapply communications.0002_initial:")
+        print("     python manage.py migrate communications 0001_initial")
+        print("  2. Apply receivables migrations:")
+        print("     python manage.py migrate receivables")
+        print("  3. Re-apply communications.0002_initial:")
+        print("     python manage.py migrate communications")
         print()
-        print("=" * 60)
-        print("Migration history fixed successfully!")
-        print("=" * 60)
-        print()
-        print("You can now run: python manage.py makemigrations")
-        print()
+        print("Option 2 (If receivables tables already exist from manual creation):")
+        print("  1. Fake receivables.0001_initial:")
+        print("     python manage.py migrate receivables 0001_initial --fake")
+        print("  2. Continue with normal migrations:")
+        print("     python manage.py migrate")
+        return False
+    elif receivables_0001_applied and communications_0002_applied:
+        print("Both migrations are applied. The issue may be resolved.")
+        return True
+    else:
+        print("Migration state looks okay. You can run normal migrations:")
+        print("  python manage.py migrate")
+        return True
 
 if __name__ == '__main__':
-    try:
-        fix_migration_history()
-    except Exception as e:
-        print(f"\n[ERROR] {e}")
-        import traceback
-        traceback.print_exc()
-        sys.exit(1)
+    check_migration_status()
