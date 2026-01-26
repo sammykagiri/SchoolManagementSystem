@@ -56,3 +56,8 @@ class AttendanceSummary(models.Model):
     class Meta:
         unique_together = ['school', 'student', 'term']
         ordering = ['-term', 'student']
+        indexes = [
+            models.Index(fields=['school', 'student', 'term'], name='att_sum_sch_stu_term_idx'),
+            models.Index(fields=['student', 'term'], name='att_sum_stu_term_idx'),
+            models.Index(fields=['term'], name='att_sum_term_idx'),
+        ]

@@ -70,6 +70,13 @@ class Payment(models.Model):
     class Meta:
         ordering = ['-payment_date']
         unique_together = ['school', 'payment_id']
+        indexes = [
+            models.Index(fields=['school', 'student', 'payment_date'], name='pay_sch_stu_date_idx'),
+            models.Index(fields=['school', 'status', 'payment_date'], name='payment_school_status_date_idx'),
+            models.Index(fields=['student', 'payment_date'], name='payment_student_date_idx'),
+            models.Index(fields=['payment_date'], name='payment_date_idx'),
+            models.Index(fields=['status'], name='payment_status_idx'),
+        ]
 
 
 class MpesaPayment(models.Model):
@@ -127,6 +134,11 @@ class PaymentReceipt(models.Model):
     class Meta:
         ordering = ['-issued_at']
         unique_together = ['school', 'receipt_number']
+        indexes = [
+            models.Index(fields=['school', 'student', 'issued_at'], name='pay_receipt_sch_stu_iss_idx'),
+            models.Index(fields=['student', 'issued_at'], name='pay_receipt_stu_iss_idx'),
+            models.Index(fields=['issued_at'], name='paymentreceipt_issued_at_idx'),
+        ]
 
 
 class PaymentReminder(models.Model):
@@ -156,6 +168,11 @@ class PaymentReminder(models.Model):
     class Meta:
         ordering = ['-created_at']
         unique_together = ['school', 'student', 'student_fee', 'reminder_type', 'created_at']
+        indexes = [
+            models.Index(fields=['school', 'student', 'created_at'], name='pay_remind_sch_stu_crt_idx'),
+            models.Index(fields=['student', 'created_at'], name='pay_remind_stu_crt_idx'),
+            models.Index(fields=['reminder_type', 'created_at'], name='pay_remind_type_crt_idx'),
+        ]
 
 
 class PaymentAllocation(models.Model):
@@ -177,6 +194,10 @@ class PaymentAllocation(models.Model):
     class Meta:
         ordering = ['-created_at']
         unique_together = ['school', 'payment', 'student_fee']
+        indexes = [
+            models.Index(fields=['payment', 'student_fee'], name='pay_alloc_pay_fee_idx'),
+            models.Index(fields=['student_fee'], name='pay_alloc_stu_fee_idx'),
+        ]
 
 
 class Receivable(models.Model):
@@ -238,6 +259,13 @@ class Receivable(models.Model):
     class Meta:
         ordering = ['due_date', 'student']
         unique_together = ['school', 'student_fee']
+        indexes = [
+            models.Index(fields=['school', 'student', 'is_cleared'], name='receiv_sch_stu_clr_idx'),
+            models.Index(fields=['school', 'due_date', 'is_cleared'], name='receiv_sch_due_clr_idx'),
+            models.Index(fields=['student', 'is_cleared'], name='receivable_student_cleared_idx'),
+            models.Index(fields=['due_date'], name='receivable_due_date_idx'),
+            models.Index(fields=['is_cleared'], name='receivable_is_cleared_idx'),
+        ]
 
 
 class Credit(models.Model):
@@ -307,6 +335,11 @@ class Credit(models.Model):
     
     class Meta:
         ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['school', 'student', 'is_applied'], name='credit_sch_stu_app_idx'),
+            models.Index(fields=['student', 'is_applied'], name='credit_student_applied_idx'),
+            models.Index(fields=['is_applied'], name='credit_is_applied_idx'),
+        ]
 
 
 class BankStatementPattern(models.Model):

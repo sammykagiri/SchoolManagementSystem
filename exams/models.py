@@ -27,6 +27,9 @@ class ExamType(models.Model):
     class Meta:
         unique_together = ['school', 'name']
         ordering = ['name']
+        indexes = [
+            models.Index(fields=['school', 'is_active'], name='examtype_school_active_idx'),
+        ]
 
 
 class Exam(models.Model):
@@ -141,3 +144,8 @@ class GradebookSummary(models.Model):
     class Meta:
         unique_together = ['school', 'student', 'term', 'subject']
         ordering = ['student', 'term', 'subject']
+        indexes = [
+            models.Index(fields=['school', 'student', 'term'], name='gb_sum_sch_stu_term_idx'),
+            models.Index(fields=['student', 'term', 'subject'], name='gb_sum_stu_term_sub_idx'),
+            models.Index(fields=['term', 'subject'], name='gb_sum_term_sub_idx'),
+        ]

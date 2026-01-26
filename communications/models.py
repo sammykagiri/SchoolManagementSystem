@@ -112,6 +112,12 @@ class EmailMessage(models.Model):
     class Meta:
         ordering = ['-created_at']
         unique_together = ['school', 'recipient_email', 'subject', 'created_at']
+        indexes = [
+            models.Index(fields=['school', 'student', 'status', 'created_at'], name='email_msg_sch_stu_st_crt_idx'),
+            models.Index(fields=['school', 'status', 'created_at'], name='email_msg_sch_st_crt_idx'),
+            models.Index(fields=['student', 'status'], name='email_msg_stu_st_idx'),
+            models.Index(fields=['status', 'created_at'], name='email_msg_st_crt_idx'),
+        ]
 
 
 class SMSMessage(models.Model):
@@ -167,6 +173,12 @@ class SMSMessage(models.Model):
         verbose_name = "SMS Message"
         verbose_name_plural = "SMS Messages"
         unique_together = ['school', 'recipient_phone', 'content', 'created_at']
+        indexes = [
+            models.Index(fields=['school', 'student', 'status', 'created_at'], name='sms_msg_sch_stu_st_crt_idx'),
+            models.Index(fields=['school', 'status', 'created_at'], name='sms_msg_sch_st_crt_idx'),
+            models.Index(fields=['student', 'status'], name='sms_msg_stu_st_idx'),
+            models.Index(fields=['status', 'created_at'], name='sms_msg_st_crt_idx'),
+        ]
 
 
 class CommunicationLog(models.Model):
@@ -215,3 +227,8 @@ class CommunicationLog(models.Model):
     class Meta:
         ordering = ['-created_at']
         unique_together = ['school', 'student', 'communication_type', 'created_at']
+        indexes = [
+            models.Index(fields=['school', 'student', 'communication_type', 'created_at'], name='comm_log_sch_stu_typ_crt_idx'),
+            models.Index(fields=['school', 'communication_type', 'created_at'], name='comm_log_sch_typ_crt_idx'),
+            models.Index(fields=['student', 'created_at'], name='comm_log_stu_crt_idx'),
+        ]

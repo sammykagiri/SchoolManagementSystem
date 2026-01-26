@@ -230,6 +230,10 @@ class Teacher(models.Model):
     class Meta:
         ordering = ['first_name', 'last_name']
         unique_together = ['school', 'employee_id']
+        indexes = [
+            models.Index(fields=['school', 'is_active'], name='teacher_school_active_idx'),
+            models.Index(fields=['employee_id'], name='teacher_employee_id_idx'),
+        ]
 
 
 class TimeSlot(models.Model):
@@ -264,6 +268,10 @@ class TimeSlot(models.Model):
     class Meta:
         unique_together = ['school', 'day', 'period_number']
         ordering = ['day', 'period_number']
+        indexes = [
+            models.Index(fields=['school', 'day'], name='timeslot_school_day_idx'),
+            models.Index(fields=['school', 'is_break'], name='timeslot_school_break_idx'),
+        ]
 
 
 class Timetable(models.Model):
@@ -284,6 +292,12 @@ class Timetable(models.Model):
     class Meta:
         unique_together = ['school', 'school_class', 'time_slot']
         ordering = ['school_class', 'time_slot__day', 'time_slot__period_number']
+        indexes = [
+            models.Index(fields=['school', 'school_class', 'is_active'], name='tt_sch_cls_act_idx'),
+            models.Index(fields=['school', 'is_active'], name='timetable_school_active_idx'),
+            models.Index(fields=['school_class', 'is_active'], name='timetable_class_active_idx'),
+            models.Index(fields=['subject', 'is_active'], name='timetable_subject_active_idx'),
+        ]
 
 
 class StudentSubjectSelection(models.Model):

@@ -116,6 +116,9 @@ class Grade(models.Model):
     class Meta:
         ordering = ['name']
         unique_together = ['school', 'name']
+        indexes = [
+            models.Index(fields=['school'], name='grade_school_idx'),
+        ]
 
 
 class Term(models.Model):
@@ -169,6 +172,11 @@ class Term(models.Model):
     class Meta:
         unique_together = ['school', 'term_number', 'academic_year']
         ordering = ['-academic_year', 'term_number']
+        indexes = [
+            models.Index(fields=['school', 'is_active'], name='term_school_active_idx'),
+            models.Index(fields=['school', 'academic_year', 'is_active'], name='term_school_year_active_idx'),
+            models.Index(fields=['academic_year', 'is_active'], name='term_year_active_idx'),
+        ]
 
 
 class FeeCategoryType(models.Model):
@@ -210,6 +218,9 @@ class FeeCategoryType(models.Model):
         verbose_name_plural = "Fee Category Types"
         ordering = ['name']
         unique_together = ['school', 'code']
+        indexes = [
+            models.Index(fields=['school', 'is_active'], name='fee_cat_type_sch_act_idx'),
+        ]
 
 
 class FeeCategory(models.Model):
@@ -251,6 +262,9 @@ class FeeCategory(models.Model):
         verbose_name_plural = "Fee Categories"
         ordering = ['category_type__name', 'name']
         unique_together = ['school', 'name', 'category_type']
+        indexes = [
+            models.Index(fields=['school', 'category_type'], name='feecategory_school_type_idx'),
+        ]
 
 
 class TransportRoute(models.Model):
@@ -311,6 +325,9 @@ class TransportRoute(models.Model):
     class Meta:
         ordering = ['name']
         unique_together = ['school', 'name']
+        indexes = [
+            models.Index(fields=['school', 'is_active'], name='trans_route_sch_act_idx'),
+        ]
 
 
 class ParentManager(models.Manager):
@@ -383,6 +400,10 @@ class Parent(models.Model):
     class Meta:
         ordering = ['user__first_name', 'user__last_name']
         unique_together = ['school', 'user']
+        indexes = [
+            models.Index(fields=['school', 'is_active'], name='parent_school_active_idx'),
+            models.Index(fields=['user'], name='parent_user_idx'),
+        ]
 
     def __str__(self):
         return f"{self.user.get_full_name() or self.user.username} ({self.school.name})"
@@ -631,6 +652,14 @@ class Student(models.Model):
     class Meta:
         ordering = ['grade', 'first_name', 'middle_name', 'last_name']
         unique_together = ['school', 'student_id']
+        indexes = [
+            models.Index(fields=['school', 'is_active'], name='student_school_active_idx'),
+            models.Index(fields=['school', 'grade', 'is_active'], name='stud_sch_gr_act_idx'),
+            models.Index(fields=['school', 'school_class', 'is_active'], name='stud_sch_cls_act_idx'),
+            models.Index(fields=['student_id'], name='student_id_idx'),
+            models.Index(fields=['upi'], name='student_upi_idx'),
+            models.Index(fields=['grade', 'is_active'], name='student_grade_active_idx'),
+        ]
 
 
 class FeeStructure(models.Model):
@@ -674,6 +703,11 @@ class FeeStructure(models.Model):
     class Meta:
         unique_together = ['school', 'grade', 'term', 'fee_category']
         ordering = ['grade', 'term', 'fee_category']
+        indexes = [
+            models.Index(fields=['school', 'grade', 'term'], name='fee_struct_sch_gr_term_idx'),
+            models.Index(fields=['school', 'is_active'], name='fee_struct_sch_act_idx'),
+            models.Index(fields=['grade', 'term', 'is_active'], name='fee_struct_gr_term_act_idx'),
+        ]
 
 
 class StudentFee(models.Model):
@@ -703,6 +737,13 @@ class StudentFee(models.Model):
     class Meta:
         unique_together = ['school', 'student', 'term', 'fee_category']
         ordering = ['student', 'term', 'fee_category']
+        indexes = [
+            models.Index(fields=['school', 'student', 'term'], name='stud_fee_sch_stu_term_idx'),
+            models.Index(fields=['school', 'student', 'is_paid'], name='stud_fee_sch_stu_paid_idx'),
+            models.Index(fields=['school', 'due_date', 'is_paid'], name='stud_fee_sch_due_paid_idx'),
+            models.Index(fields=['student', 'term', 'is_paid'], name='stud_fee_stu_term_paid_idx'),
+            models.Index(fields=['due_date'], name='student_fee_due_date_idx'),
+        ]
 
 
 class Role(models.Model):
@@ -796,6 +837,10 @@ class Role(models.Model):
         verbose_name = 'Role'
         verbose_name_plural = 'Roles'
         unique_together = [['school', 'name']]
+        indexes = [
+            models.Index(fields=['school', 'is_active'], name='role_school_active_idx'),
+            models.Index(fields=['name', 'is_active'], name='role_name_active_idx'),
+        ]
 
 
 class Permission(models.Model):
@@ -905,6 +950,13 @@ class UserProfile(models.Model):
             return cls.objects.get(id=profile_id)
         except (BadSignature, ValueError, cls.DoesNotExist, TypeError):
             return None
+    
+    class Meta:
+        indexes = [
+            models.Index(fields=['user'], name='userprofile_user_idx'),
+            models.Index(fields=['school', 'is_active'], name='userprofile_school_active_idx'),
+            models.Index(fields=['user', 'school'], name='userprofile_user_school_idx'),
+        ]
     
     def has_permission(self, permission_type, resource_type):
         """Check if the user has a specific permission through any of their roles"""
@@ -1162,6 +1214,11 @@ class SchoolClass(models.Model):
         unique_together = ('school', 'grade', 'name')
         verbose_name = 'Class'
         verbose_name_plural = 'Classes'
+        indexes = [
+            models.Index(fields=['school', 'grade', 'is_active'], name='school_cls_sch_gr_act_idx'),
+            models.Index(fields=['school', 'is_active'], name='schoolclass_school_active_idx'),
+            models.Index(fields=['grade', 'is_active'], name='schoolclass_grade_active_idx'),
+        ]
 
     def __str__(self):
         return f"{self.name} ({self.grade.name})"
@@ -1204,6 +1261,11 @@ class AcademicYear(models.Model):
         ordering = ['-start_date']
         verbose_name = 'Academic Year'
         verbose_name_plural = 'Academic Years'
+        indexes = [
+            models.Index(fields=['school', 'is_active'], name='academicyear_school_active_idx'),
+            models.Index(fields=['school', 'is_current'], name='acad_year_sch_curr_idx'),
+            models.Index(fields=['is_active', 'is_current'], name='acad_year_act_curr_idx'),
+        ]
 
     def __str__(self):
         return f"{self.name} ({self.school.name})"
@@ -1238,6 +1300,10 @@ class Section(models.Model):
         ordering = ['school_class__grade__name', 'school_class__name', 'name']
         verbose_name = 'Section'
         verbose_name_plural = 'Sections'
+        indexes = [
+            models.Index(fields=['school_class', 'is_active'], name='section_class_active_idx'),
+            models.Index(fields=['school', 'is_active'], name='section_school_active_idx'),
+        ]
 
     def __str__(self):
         return f"{self.school_class.name} - {self.name}"
@@ -1335,6 +1401,10 @@ class PromotionLog(models.Model):
         ordering = ['-created_at']
         verbose_name = 'Promotion Log'
         verbose_name_plural = 'Promotion Logs'
+        indexes = [
+            models.Index(fields=['school', 'created_at'], name='promo_log_sch_crt_idx'),
+            models.Index(fields=['from_academic_year', 'to_academic_year'], name='promotionlog_years_idx'),
+        ]
 
     def __str__(self):
         return f"Promotion: {self.from_academic_year.name} → {self.to_academic_year.name} ({self.created_at.date()})"
