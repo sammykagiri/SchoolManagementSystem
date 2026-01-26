@@ -70,6 +70,8 @@
                     </thead>
                     <tbody>
                         {% for resource_type, data in grouped_permissions.items %}
+                        {% if resource_type == 'school_management' and not is_superadmin %}
+                        {% else %}
                         <tr>
                             <td class="module-name">{{ data.display_name }}</td>
                             <td>
@@ -121,6 +123,7 @@
                                 {% endfor %}
                             </td>
                         </tr>
+                        {% endif %}
                         {% endfor %}
                     </tbody>
                 </table>

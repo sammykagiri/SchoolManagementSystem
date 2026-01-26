@@ -4897,7 +4897,7 @@ def api_roles_by_school(request, school_id):
 def role_list(request):
     """List all roles for the current school"""
     school = request.user.profile.school
-    roles = Role.objects.filter(school=school).order_by('name')
+    roles = Role.objects.filter(school=school).exclude(name='super_admin').order_by('name')
     return render(request, 'core/roles/role_list.html', {'roles': roles})
 
 
@@ -4984,9 +4984,36 @@ def role_delete(request, role_id):
 
 @login_required
 @permission_required('change', 'role_management')
+@login_required
+@permission_required('view', 'role_management')
 def role_permissions(request, role_id):
-    """Manage permissions for a role"""
-    role = _get_role_from_token_or_id(request, role_id)
+    """Manage permissions for a role - Accessible by school admins and superadmins"""
+    # Check if user has permission to manage roles
+    if not request.user.profile.has_permission('view', 'role_management'):
+        messages.error(request, 'You do not have permission to access this page.')
+        return redirect('core:role_list')
+    
+    # Get role - school admins can only access roles from their school
+    school = request.user.profile.school
+    role = None
+    if Role.from_signed_token(role_id):
+        role = Role.from_signed_token(role_id)
+    elif str(role_id).isdigit():
+        role = get_object_or_404(Role, id=int(role_id))
+    else:
+        raise Http404("Role not found")
+    
+    # School admins can only manage roles from their school
+    # Superadmins can manage roles from any school
+    is_superadmin = is_superadmin_user(request.user)
+    if not is_superadmin:
+        if role.school != school:
+            messages.error(request, 'You can only manage roles from your assigned school.')
+            return redirect('core:role_list')
+        # School admins cannot manage super_admin role
+        if role.name == 'super_admin':
+            messages.error(request, 'You do not have permission to manage super_admin role.')
+            return redirect('core:role_list')
     
     if request.method == 'POST':
         permission_ids = request.POST.getlist('permissions')
@@ -4996,7 +5023,12 @@ def role_permissions(request, role_id):
         return redirect('core:role_list')
     
     # Get all permissions and group them by resource type
-    all_permissions = Permission.objects.all().order_by('resource_type', 'permission_type')
+    # Filter school_management permissions - only show to superadmins
+    if is_superadmin:
+        all_permissions = Permission.objects.all().order_by('resource_type', 'permission_type')
+    else:
+        all_permissions = Permission.objects.exclude(resource_type='school_management').order_by('resource_type', 'permission_type')
+    
     grouped_permissions = {}
     
     # Get the role's current permissions
@@ -5004,6 +5036,10 @@ def role_permissions(request, role_id):
     
     # Group permissions by resource type
     for perm in all_permissions:
+        # Skip school_management if user is not superadmin
+        if perm.resource_type == 'school_management' and not is_superadmin:
+            continue
+            
         if perm.resource_type not in grouped_permissions:
             grouped_permissions[perm.resource_type] = {
                 'display_name': perm.resource_type.replace('_', ' ').title(),
@@ -5021,7 +5057,8 @@ def role_permissions(request, role_id):
     
     return render(request, 'core/roles/role_permissions.html', {
         'role': role,
-        'grouped_permissions': grouped_permissions
+        'grouped_permissions': grouped_permissions,
+        'is_superadmin': is_superadmin
     })
 
 
