@@ -4768,6 +4768,12 @@ def user_edit(request, user_id):
         user_form = UserEditForm(request.POST, instance=user_to_edit)
         profile_form = UserProfileForm(request.POST, instance=user_to_edit.profile, current_user=request.user)
         
+        # Handle disabled school field - disabled fields don't submit values, so preserve existing value
+        if user_to_edit.profile.school:
+            # Manually set the school value from the instance since the field is disabled
+            profile_form.data = profile_form.data.copy()
+            profile_form.data['school'] = str(user_to_edit.profile.school.id)
+        
         if user_form.is_valid() and profile_form.is_valid():
             # Additional security check before saving
             if not is_superadmin_user(request.user) and is_superadmin_user(user_to_edit):
@@ -4862,6 +4868,32 @@ def api_roles_by_school(request, school_id):
     from django.http import JsonResponse
     from .models import School, Role
     
+    # Check if requesting super_admin only (when no school selected)
+    super_admin_only = request.GET.get('super_admin_only') == 'true'
+    
+    if super_admin_only or school_id == '0' or not school_id:
+        # Return only super_admin role (prefer one without school, only return one)
+        # Super_admin should not be assigned to a school, so prefer the one without school
+        super_admin_roles = Role.objects.filter(name='super_admin', is_active=True).order_by('school')
+        # Get the one without school first, or the first one if all have schools
+        super_admin_without_school = super_admin_roles.filter(school__isnull=True).first()
+        if super_admin_without_school:
+            role = super_admin_without_school
+        else:
+            # If no super_admin without school exists, just get the first one
+            role = super_admin_roles.first()
+        
+        if role:
+            roles_data = [{
+                'id': role.id,
+                'name': role.name,
+                'display_name': role.get_display_name(),
+                'description': role.description
+            }]
+        else:
+            roles_data = []
+        return JsonResponse({'roles': roles_data}, safe=False)
+    
     try:
         school = School.objects.get(id=school_id)
         # Check if user has permission to view roles for this school
@@ -4871,11 +4903,8 @@ def api_roles_by_school(request, school_id):
                  (request.user.profile.is_super_admin or request.user.profile.school == school))):
             return JsonResponse({'error': 'Permission denied'}, status=403)
         
-        roles = Role.objects.filter(school=school, is_active=True).order_by('name')
-        # Exclude super_admin role for non-superadmins
-        if not (request.user.is_superuser or 
-                (hasattr(request.user, 'profile') and request.user.profile.is_super_admin)):
-            roles = roles.exclude(name='super_admin')
+        # When school is selected: show all roles for that school EXCEPT super_admin
+        roles = Role.objects.filter(school=school, is_active=True).exclude(name='super_admin').order_by('name')
         
         roles_data = [{
             'id': role.id,

@@ -186,7 +186,17 @@
                     <div class="row">
                         <div class="col-md-6 mb-3">
                             <label for="{{ profile_form.school.id_for_label }}" class="form-label">School</label>
-                            {{ profile_form.school }}
+                            {% if user_to_edit %}
+                                {% if user_to_edit.profile.school %}
+                                    <input type="text" class="form-control" value="{{ user_to_edit.profile.school.name }}" disabled>
+                                    <input type="hidden" name="school" value="{{ user_to_edit.profile.school.id }}">
+                                {% else %}
+                                    <input type="text" class="form-control" value="No school assigned" disabled>
+                                    <input type="hidden" name="school" value="">
+                                {% endif %}
+                            {% else %}
+                                {{ profile_form.school }}
+                            {% endif %}
                             {% if profile_form.school.errors %}
                                 <div class="text-danger small">
                                     {{ profile_form.school.errors.0 }}
@@ -248,26 +258,20 @@
                     <p class="text-muted mb-3">Select one or more roles for this user:</p>
                     
                     <div class="row" id="roles-container">
-                        {% if is_superadmin and not profile_form.school.value %}
-                            <div class="col-12">
-                                <p class="text-muted">Please select a school to see available roles.</p>
+                        {% for role_option in profile_form.roles %}
+                            <div class="col-md-4 mb-3">
+                                <div class="form-check">
+                                    {{ role_option.tag }}
+                                    <label class="form-check-label" for="{{ role_option.id_for_label }}">
+                                        {{ role_option.choice_label }}
+                                    </label>
+                                </div>
                             </div>
-                        {% else %}
-                            {% for role_option in profile_form.roles %}
-                                <div class="col-md-4 mb-3">
-                                    <div class="form-check">
-                                        {{ role_option.tag }}
-                                        <label class="form-check-label" for="{{ role_option.id_for_label }}">
-                                            {{ role_option.choice_label }}
-                                        </label>
-                                    </div>
-                                </div>
-                            {% empty %}
-                                <div class="col-12">
-                                    <p class="text-muted">No roles available for this school.</p>
-                                </div>
-                            {% endfor %}
-                        {% endif %}
+                        {% empty %}
+                            <div class="col-12">
+                                <p class="text-muted">No roles available{% if is_superadmin and not profile_form.school.value %}. Please select a school to see available roles.{% else %} for this school.{% endif %}</p>
+                            </div>
+                        {% endfor %}
                     </div>
                     {% if profile_form.roles.errors %}
                         <div class="text-danger small">
@@ -328,12 +332,38 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     
     function loadRolesForSchool(schoolId) {
-        if (!schoolId || !rolesContainer) return;
+        if (!rolesContainer) return;
         
         // Show loading state
         rolesContainer.innerHTML = '<div class="col-12"><p class="text-muted">Loading roles...</p></div>';
         
-        // Fetch roles for the selected school
+        // If no school selected, show only super_admin role
+        if (!schoolId) {
+            // Fetch super_admin roles (from any school or no school)
+            const url = '{% url "core:api_roles_by_school" 0 %}'.replace('0', '0') + '?super_admin_only=true';
+            fetch(url)
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('Network response was not ok');
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    if (data.error) {
+                        console.error('Error loading roles:', data.error);
+                        rolesContainer.innerHTML = '<div class="col-12"><p class="text-danger">Error loading roles: ' + data.error + '</p></div>';
+                        return;
+                    }
+                    renderRoles(data.roles || []);
+                })
+                .catch(error => {
+                    console.error('Error fetching roles:', error);
+                    rolesContainer.innerHTML = '<div class="col-12"><p class="text-danger">Error loading roles. Please try again.</p></div>';
+                });
+            return;
+        }
+        
+        // Fetch roles for the selected school (excluding super_admin)
         const url = '{% url "core:api_roles_by_school" 0 %}'.replace('0', schoolId);
         fetch(url)
             .then(response => {
@@ -348,44 +378,47 @@ document.addEventListener('DOMContentLoaded', function() {
                     rolesContainer.innerHTML = '<div class="col-12"><p class="text-danger">Error loading roles: ' + data.error + '</p></div>';
                     return;
                 }
-                
-                // Clear existing roles
-                rolesContainer.innerHTML = '';
-                
-                // Add roles as checkboxes
-                if (data.roles && data.roles.length > 0) {
-                    data.roles.forEach(function(role) {
-                        const col = document.createElement('div');
-                        col.className = 'col-md-4 mb-3';
-                        
-                        const formCheck = document.createElement('div');
-                        formCheck.className = 'form-check';
-                        
-                        const checkbox = document.createElement('input');
-                        checkbox.type = 'checkbox';
-                        checkbox.name = 'roles';
-                        checkbox.value = role.id;
-                        checkbox.id = 'id_roles_' + role.id;
-                        checkbox.className = 'form-check-input';
-                        
-                        const label = document.createElement('label');
-                        label.className = 'form-check-label';
-                        label.htmlFor = 'id_roles_' + role.id;
-                        label.textContent = role.display_name || role.name;
-                        
-                        formCheck.appendChild(checkbox);
-                        formCheck.appendChild(label);
-                        col.appendChild(formCheck);
-                        rolesContainer.appendChild(col);
-                    });
-                } else {
-                    rolesContainer.innerHTML = '<div class="col-12"><p class="text-muted">No roles available for this school.</p></div>';
-                }
+                renderRoles(data.roles || []);
             })
             .catch(error => {
                 console.error('Error fetching roles:', error);
                 rolesContainer.innerHTML = '<div class="col-12"><p class="text-danger">Error loading roles. Please try again.</p></div>';
             });
+    }
+    
+    function renderRoles(roles) {
+        // Clear existing roles
+        rolesContainer.innerHTML = '';
+        
+        // Add roles as checkboxes
+        if (roles && roles.length > 0) {
+            roles.forEach(function(role) {
+                const col = document.createElement('div');
+                col.className = 'col-md-4 mb-3';
+                
+                const formCheck = document.createElement('div');
+                formCheck.className = 'form-check';
+                
+                const checkbox = document.createElement('input');
+                checkbox.type = 'checkbox';
+                checkbox.name = 'roles';
+                checkbox.value = role.id;
+                checkbox.id = 'id_roles_' + role.id;
+                checkbox.className = 'form-check-input';
+                
+                const label = document.createElement('label');
+                label.className = 'form-check-label';
+                label.htmlFor = 'id_roles_' + role.id;
+                label.textContent = role.display_name || role.name;
+                
+                formCheck.appendChild(checkbox);
+                formCheck.appendChild(label);
+                col.appendChild(formCheck);
+                rolesContainer.appendChild(col);
+            });
+        } else {
+            rolesContainer.innerHTML = '<div class="col-12"><p class="text-muted">No roles available.</p></div>';
+        }
     }
     
     if (usernameInput && schoolSelect) {
@@ -396,23 +429,14 @@ document.addEventListener('DOMContentLoaded', function() {
         schoolSelect.addEventListener('change', function() {
             updateUsernamePreview();
             // Load roles when school changes
-            if (schoolSelect.value) {
-                loadRolesForSchool(schoolSelect.value);
-            } else {
-                // Clear roles if no school selected
-                if (rolesContainer) {
-                    rolesContainer.innerHTML = '<div class="col-12"><p class="text-muted">Please select a school to see available roles.</p></div>';
-                }
-            }
+            // Handle empty value (----- option) - treat as no school selected
+            const schoolValue = schoolSelect.value && schoolSelect.value.trim() !== '' ? schoolSelect.value : null;
+            loadRolesForSchool(schoolValue);
         });
         
-        // Initial load if school is already selected
-        if (schoolSelect.value) {
-            loadRolesForSchool(schoolSelect.value);
-        } else if (rolesContainer) {
-            // Show message if no school selected
-            rolesContainer.innerHTML = '<div class="col-12"><p class="text-muted">Please select a school to see available roles.</p></div>';
-        }
+        // Initial load - handle empty value (----- option)
+        const initialSchoolValue = schoolSelect.value && schoolSelect.value.trim() !== '' ? schoolSelect.value : null;
+        loadRolesForSchool(initialSchoolValue);
         {% endif %}
         
         // Initial preview if both fields have values

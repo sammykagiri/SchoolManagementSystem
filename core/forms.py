@@ -369,6 +369,10 @@ class UserProfileForm(forms.ModelForm):
         self.current_user = kwargs.pop('current_user', None)
         super().__init__(*args, **kwargs)
         
+        # Sort school dropdown by name
+        from .models import School
+        self.fields['school'].queryset = School.objects.all().order_by('name')
+        
         # Determine which school's roles to show
         # Priority: instance.school > POST data school > current_user's school
         target_school = None
@@ -387,12 +391,37 @@ class UserProfileForm(forms.ModelForm):
             target_school = self.current_user.profile.school
         
         # Filter active roles by school
+        # Logic: 
+        # - If no school selected: show only super_admin role (prefer one without school, only show one)
+        # - If school selected: show all roles for that school EXCEPT super_admin
         if target_school:
-            roles_queryset = Role.objects.filter(school=target_school, is_active=True)
+            # School selected: show all roles for that school except super_admin
+            roles_queryset = Role.objects.filter(school=target_school, is_active=True).exclude(name='super_admin')
         else:
-            # For superadmins creating users without school selected, show empty queryset
-            # Roles will be loaded dynamically via JavaScript when school is selected
-            roles_queryset = Role.objects.none()
+            # No school selected: show only super_admin role
+            # Prefer super_admin without a school, and only show one instance
+            # Use distinct() to ensure we only get one, and order by school (nulls first)
+            from django.db.models import F
+            super_admin_without_school = Role.objects.filter(
+                name='super_admin', 
+                is_active=True,
+                school__isnull=True
+            ).first()
+            
+            if super_admin_without_school:
+                # Use the one without school
+                roles_queryset = Role.objects.filter(id=super_admin_without_school.id)
+            else:
+                # If no super_admin without school exists, get the first one (preferring null school)
+                first_super_admin = Role.objects.filter(
+                    name='super_admin', 
+                    is_active=True
+                ).order_by('school').first()
+                
+                if first_super_admin:
+                    roles_queryset = Role.objects.filter(id=first_super_admin.id)
+                else:
+                    roles_queryset = Role.objects.none()
         
         # Check if current user is a superadmin
         is_superadmin = False
@@ -401,8 +430,8 @@ class UserProfileForm(forms.ModelForm):
                 self.current_user.is_superuser or 
                 (hasattr(self.current_user, 'profile') and self.current_user.profile.is_super_admin)
             )
+            # Non-superadmins should never see super_admin role
             if not is_superadmin:
-                # Exclude super_admin role for non-superadmins
                 roles_queryset = roles_queryset.exclude(name='super_admin')
                 
                 # Hide school field for school admins - they can only assign users to their own school
@@ -425,9 +454,15 @@ class UserProfileForm(forms.ModelForm):
                     # School admin without a school - hide the field
                     self.fields['school'].widget = forms.HiddenInput()
         
-        self.fields['roles'].queryset = roles_queryset
+        # Ensure roles queryset is distinct to avoid duplicates
+        self.fields['roles'].queryset = roles_queryset.distinct()
         self.fields['roles'].help_text = 'Select one or more roles for this user'
-        if is_superadmin:
+        
+        # Disable school field when editing an existing user
+        if self.instance and self.instance.pk:
+            self.fields['school'].widget.attrs['disabled'] = True
+            self.fields['school'].help_text = 'School cannot be changed after user creation'
+        elif is_superadmin:
             self.fields['school'].help_text = 'Assign user to a school'
     
     def clean_school(self):
