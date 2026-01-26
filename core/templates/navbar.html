@@ -388,7 +388,7 @@
             {% endif %}
             
             <!-- Homework -->
-            {% if user|has_permission:'view_assignment' or user|has_permission:'view_submission' %}
+            {% if user|has_permission:'view_homework_assignment' or user|has_permission:'view_homework_submission' %}
             <li class="nav-item">
                 <a class="nav-link {% if 'homework' in request.resolver_match.namespace %}active{% endif %}" 
                    href="#" data-bs-toggle="collapse" data-bs-target="#homeworkSubmenu" aria-expanded="false">
@@ -397,14 +397,14 @@
                     <i class="fas fa-chevron-down ms-auto"></i>
                 </a>
                 <ul class="collapse nav flex-column submenu" id="homeworkSubmenu">
-                    {% if user|has_permission:'view_assignment' %}
+                    {% if user|has_permission:'view_homework_assignment' %}
                     <li class="nav-item">
                         <a class="nav-link {% if request.resolver_match.url_name == 'assignment_list' or request.resolver_match.url_name == 'assignment_detail' or request.resolver_match.url_name == 'assignment_create' or request.resolver_match.url_name == 'assignment_edit' %}active{% endif %}" href="{% url 'homework:assignment_list' %}">
                             <i class="fas fa-list me-2"></i>Assignments
                         </a>
                     </li>
                     {% endif %}
-                    {% if user|has_permission:'view_submission' %}
+                    {% if user|has_permission:'view_homework_submission' %}
                     <li class="nav-item">
                         <a class="nav-link {% if request.resolver_match.url_name == 'submission_list' or request.resolver_match.url_name == 'submission_detail' %}active{% endif %}" href="{% url 'homework:submission_list' %}">
                             <i class="fas fa-check-circle me-2"></i>View Submissions

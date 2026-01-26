@@ -118,7 +118,7 @@ class AssignmentSubmissionViewSet(viewsets.ModelViewSet):
 
 # UI Views
 @login_required
-@permission_required('view', 'assignment')
+@permission_required('view', 'homework_assignment')
 def assignment_list(request):
     """List all assignments"""
     school = request.user.profile.school
@@ -180,7 +180,7 @@ def assignment_list(request):
 
 
 @login_required
-@permission_required('add', 'assignment')
+@permission_required('add', 'homework_assignment')
 def assignment_create(request):
     """Create new assignment"""
     school = request.user.profile.school
@@ -206,7 +206,7 @@ def assignment_create(request):
 
 
 @login_required
-@permission_required('view', 'assignment')
+@permission_required('view', 'homework_assignment')
 def assignment_detail(request, assignment_id):
     """View assignment details"""
     school = request.user.profile.school
@@ -234,7 +234,7 @@ def assignment_detail(request, assignment_id):
 
 
 @login_required
-@permission_required('change', 'assignment')
+@permission_required('change', 'homework_assignment')
 def assignment_update(request, assignment_id):
     """Update assignment"""
     school = request.user.profile.school
@@ -263,7 +263,7 @@ def assignment_update(request, assignment_id):
 
 
 @login_required
-@permission_required('delete', 'assignment')
+@permission_required('delete', 'homework_assignment')
 def assignment_delete(request, assignment_id):
     """Delete assignment"""
     school = request.user.profile.school
@@ -284,7 +284,7 @@ def assignment_delete(request, assignment_id):
 
 
 @login_required
-@permission_required('view', 'submission')
+@permission_required('view', 'homework_submission')
 def submission_list(request):
     """List submissions (Admin/Teacher only for MVP)"""
     school = request.user.profile.school
@@ -330,7 +330,7 @@ def submission_list(request):
 
 
 @login_required
-@permission_required('add', 'submission')
+@permission_required('add', 'homework_submission')
 def submission_create(request, assignment_id):
     """Create submission on behalf of student (Admin/Teacher only for MVP)"""
     school = request.user.profile.school
@@ -378,7 +378,7 @@ def submission_create(request, assignment_id):
 
 
 @login_required
-@permission_required('view', 'submission')
+@permission_required('view', 'homework_submission')
 def submission_detail(request, submission_id):
     """View submission details (Admin/Teacher only for MVP)"""
     school = request.user.profile.school
@@ -391,7 +391,7 @@ def submission_detail(request, submission_id):
 
 
 @login_required
-@permission_required('change', 'submission')
+@permission_required('change', 'homework_submission')
 def grade_submission(request, submission_id):
     """Grade a submission"""
     school = request.user.profile.school

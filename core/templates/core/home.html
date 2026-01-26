@@ -154,7 +154,7 @@
         </div>
         {% endif %}
 
-        {% if user|has_permission:'view_assignment' or user|has_permission:'view_submission' %}
+        {% if user|has_permission:'view_homework_assignment' or user|has_permission:'view_homework_submission' %}
         <!-- Homework Card -->
         <div class="col-md-4 mb-3">
             <div class="card h-100 shadow-sm">
