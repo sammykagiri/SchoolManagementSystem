@@ -32,15 +32,27 @@
             <a href="{% url 'receivables:payment_list' %}" class="btn btn-outline-primary">
                 <i class="fas fa-credit-card me-1"></i> View All Payments
             </a>
-            <a href="{% url 'receivables:bank_statement_upload' %}" class="btn btn-info">
+            {% if has_bank_patterns|default:False %}
+            <a href="{% url 'receivables:bank_statement_upload' %}" class="btn btn-info" title="Upload and process a bank statement file">
                 <i class="fas fa-file-upload me-1"></i> Process Bank Statement
             </a>
+            {% else %}
+            <span class="d-inline-block" title="Add at least one Bank Pattern before processing statements." style="cursor: not-allowed;">
+                <span class="btn btn-info disabled" style="pointer-events: none; opacity: 0.7;"><i class="fas fa-file-upload me-1"></i> Process Bank Statement</span>
+            </span>
+            {% endif %}
             <a href="{% url 'receivables:bank_statement_pattern_list' %}" class="btn btn-secondary">
                 <i class="fas fa-cog me-1"></i> Bank Patterns
             </a>
-            <a href="{% url 'receivables:unmatched_transaction_list' %}" class="btn btn-warning">
+            {% if has_unmatched_transactions|default:False %}
+            <a href="{% url 'receivables:unmatched_transaction_list' %}" class="btn btn-warning" title="View unmatched bank transactions">
                 <i class="fas fa-exclamation-triangle me-1"></i> Unmatched Transactions
             </a>
+            {% else %}
+            <span class="d-inline-block" title="There are no unmatched transactions." style="cursor: not-allowed;">
+                <span class="btn btn-warning disabled" style="pointer-events: none; opacity: 0.7;"><i class="fas fa-exclamation-triangle me-1"></i> Unmatched Transactions</span>
+            </span>
+            {% endif %}
         </div>
     </div>
     

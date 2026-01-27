@@ -1290,6 +1290,8 @@ def receivable_list(request):
                 'total_due': Decimal('0.00'),
                 'total_paid': Decimal('0.00'),
                 'total_outstanding': Decimal('0.00'),
+                'has_bank_patterns': False,
+                'has_unmatched_transactions': False,
             })
         else:
             raise  # Re-raise if it's a different ProgrammingError
@@ -1322,6 +1324,8 @@ def receivable_list(request):
                 'total_due': Decimal('0.00'),
                 'total_paid': Decimal('0.00'),
                 'total_outstanding': Decimal('0.00'),
+                'has_bank_patterns': False,
+                'has_unmatched_transactions': False,
             })
         else:
             raise  # Re-raise if it's a different ProgrammingError
@@ -1383,7 +1387,11 @@ def receivable_list(request):
     paginator = Paginator(receivables, 20)
     page_number = request.GET.get('page')
     page_obj = paginator.get_page(page_number)
-    
+
+    # For button state: disable "Process Bank Statement" if no patterns; disable "Unmatched" if none
+    has_bank_patterns = BankStatementPattern.objects.filter(school=school).exists()
+    has_unmatched_transactions = UnmatchedTransaction.objects.filter(school=school, status='unmatched').exists()
+
     context = {
         'page_obj': page_obj,
         'search_query': search_query,
@@ -1391,6 +1399,8 @@ def receivable_list(request):
         'total_due': total_due,
         'total_paid': total_paid,
         'total_outstanding': total_outstanding,
+        'has_bank_patterns': has_bank_patterns,
+        'has_unmatched_transactions': has_unmatched_transactions,
     }
     
     return render(request, 'receivables/receivable_list.html', context)
