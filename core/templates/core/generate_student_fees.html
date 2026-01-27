@@ -46,17 +46,12 @@
                                 <div class="form-text">Select the term for which to set fee amounts.</div>
                             </div>
                             
-                            <!-- Copy from Previous Term -->
+                            <!-- Copy from Previous Term (options populated by JS: only terms before selected term) -->
                             <div class="col-md-6">
                                 <label class="form-label">Copy from Previous Term</label>
                                 <div class="input-group">
                                     <select id="copy_from_term" class="form-select">
                                         <option value="">Select term to copy from...</option>
-                                        {% for term in terms %}
-                                            <option value="{{ term.id }}">
-                                                {{ term.academic_year }} - Term {{ term.term_number }}
-                                            </option>
-                                        {% endfor %}
                                     </select>
                                     <button type="button" class="btn btn-outline-secondary" id="btnCopyFees" disabled>
                                         <i class="fas fa-copy me-2"></i>Copy
@@ -158,7 +153,35 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Load existing structures from server
     const existingStructures = {{ existing_structures_json|safe }};
-    
+    const allTerms = {{ terms_json|safe }};
+
+    // Terms strictly before (academic_year, term_number)
+    function getPreviousTerms(selectedTermId) {
+        const selected = allTerms.find(t => String(t.id) === String(selectedTermId));
+        if (!selected) return [];
+        return allTerms.filter(t => (
+            t.academic_year < selected.academic_year ||
+            (t.academic_year === selected.academic_year && t.term_number < selected.term_number)
+        ));
+    }
+
+    function populateCopyFromDropdown(selectedTermId) {
+        const copySelect = document.getElementById('copy_from_term');
+        copySelect.innerHTML = '<option value="">Select term to copy from...</option>';
+        if (!selectedTermId) {
+            btnCopyFees.disabled = true;
+            return;
+        }
+        const previousTerms = getPreviousTerms(selectedTermId);
+        previousTerms.forEach(t => {
+            const opt = document.createElement('option');
+            opt.value = t.id;
+            opt.textContent = t.label;
+            copySelect.appendChild(opt);
+        });
+        btnCopyFees.disabled = previousTerms.length === 0;
+    }
+
     // Function to load existing values for selected term
     function loadExistingValues(termId) {
         if (existingStructures[termId]) {
@@ -193,14 +216,12 @@ document.addEventListener('DOMContentLoaded', function() {
             // Load existing values for this term
             loadExistingValues(selectedTermId);
             
-            // Enable copy button if there are previous terms
-            if (copyFromTermSelect.options.length > 1) {
-                btnCopyFees.disabled = false;
-            }
+            // Show only previous terms in "Copy from Previous Term" and enable/disable copy button
+            populateCopyFromDropdown(selectedTermId);
         } else {
             feeTableContainer.style.display = 'none';
             noTermSelected.style.display = 'block';
-            btnCopyFees.disabled = true;
+            populateCopyFromDropdown(null);
             
             // Clear all inputs
             feeInputs.forEach(function(input) {

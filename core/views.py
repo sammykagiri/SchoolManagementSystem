@@ -1927,8 +1927,8 @@ def generate_student_fees(request):
         
         return redirect('core:generate_student_fees')
     
-    # GET request - display form
-    terms = Term.objects.filter(school=school).order_by('-academic_year', '-term_number')
+    # GET request - display form (only active terms, sorted by academic year then term number)
+    terms = Term.objects.filter(school=school, is_active=True).order_by('academic_year', 'term_number')
     grades = Grade.objects.filter(school=school).order_by('name')
     # Exclude transport categories - transport fees are route-based
     try:
@@ -1956,11 +1956,16 @@ def generate_student_fees(request):
             category_key = str(structure.fee_category.id)
             existing_structures_json[term_key][grade_key][category_key] = float(structure.amount)
     
+    terms_json = json.dumps([
+        {'id': t.id, 'academic_year': t.academic_year, 'term_number': t.term_number, 'label': f'{t.academic_year} - Term {t.term_number}'}
+        for t in terms
+    ])
     context = {
         'terms': terms,
         'grades': grades,
         'fee_categories': fee_categories,
-        'existing_structures_json': json.dumps(existing_structures_json)
+        'existing_structures_json': json.dumps(existing_structures_json),
+        'terms_json': terms_json,
     }
     return render(request, 'core/generate_student_fees.html', context)
 
