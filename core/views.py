@@ -21,7 +21,7 @@ from .models import (
     AcademicYear, Section, StudentClassEnrollment, PromotionLog, Role, UserProfile
 )
 from receivables.models import Payment
-from timetable.models import Teacher
+from timetable.models import Teacher, Timetable
 from rest_framework import viewsets, permissions
 from .serializers import (
     SchoolSerializer, GradeSerializer, TermSerializer, FeeCategorySerializer,
@@ -4279,11 +4279,17 @@ def teacher_detail(request, teacher_id):
             raise Http404("Teacher not found")
         teacher = get_object_or_404(Teacher, id=int(teacher_id), school=school)
     
-    # Get classes taught by this teacher
-    classes_taught = SchoolClass.objects.filter(class_teacher=teacher, school=school).select_related('grade')
-    
+    # Class Teacher In: classes where this teacher is assigned as class teacher
+    class_teacher_in = SchoolClass.objects.filter(class_teacher=teacher, school=school).select_related('grade')
+    # Classes Taught: from timetable (teaching assignments)
+    classes_taught = (
+        Timetable.objects.filter(teacher=teacher, school=school, is_active=True)
+        .select_related('school_class', 'school_class__grade', 'subject', 'time_slot')
+        .order_by('school_class__grade__name', 'school_class__name', 'time_slot__day', 'time_slot__period_number')
+    )
     context = {
         'teacher': teacher,
+        'class_teacher_in': class_teacher_in,
         'classes_taught': classes_taught,
     }
     return render(request, 'core/teacher_detail.html', context)
@@ -4364,12 +4370,15 @@ def teacher_add(request):
         
         if field_errors:
             subjects = TimetableSubject.objects.filter(school=school, is_active=True).order_by('name')
+            classes = SchoolClass.objects.filter(school=school, is_active=True).select_related('grade').order_by('grade__name', 'name')
             return render(request, 'core/teacher_form.html', {
-                'post': request.POST, 
-                'teacher': None, 
+                'post': request.POST,
+                'teacher': None,
                 'subjects': subjects,
                 'selected_specializations': request.POST.getlist('specialization'),
-                'field_errors': field_errors
+                'field_errors': field_errors,
+                'classes': classes,
+                'assign_class_teacher_to_ids': [int(x) for x in request.POST.getlist('assign_class_teacher_to') if x.isdigit()],
             })
         
         # Generate employee ID
@@ -4395,18 +4404,29 @@ def teacher_add(request):
             photo=photo,
             is_active=is_active
         )
+        # Optionally assign as class teacher to one or more classes
+        assign_ids = [int(x) for x in request.POST.getlist('assign_class_teacher_to') if x.isdigit()]
+        if assign_ids:
+            for pk in assign_ids:
+                school_class = SchoolClass.objects.filter(id=pk, school=school).first()
+                if school_class:
+                    school_class.class_teacher = teacher
+                    school_class.save(update_fields=['class_teacher'])
         
         messages.success(request, f'Teacher {teacher.full_name} added successfully!')
         return redirect('core:teacher_list')
     
+    classes = SchoolClass.objects.filter(school=school, is_active=True).select_related('grade').order_by('grade__name', 'name')
     subjects = TimetableSubject.objects.filter(school=school, is_active=True).order_by('name')
     selected_specializations = []
     return render(request, 'core/teacher_form.html', {
-        'post': {}, 
-        'teacher': None, 
+        'post': {},
+        'teacher': None,
         'subjects': subjects,
         'selected_specializations': selected_specializations,
-        'field_errors': {}
+        'field_errors': {},
+        'classes': classes,
+        'assign_class_teacher_to_ids': [],
     })
 
 
@@ -4463,29 +4483,45 @@ def teacher_edit(request, teacher_id):
             subjects = TimetableSubject.objects.filter(school=school, is_active=True).order_by('name')
             specialization_list = request.POST.getlist('specialization')
             selected_specializations = [s.strip() for s in specialization_list if s.strip()]
+            classes = SchoolClass.objects.filter(school=school, is_active=True).select_related('grade').order_by('grade__name', 'name')
             return render(request, 'core/teacher_form.html', {
-                'post': request.POST, 
-                'teacher': teacher, 
+                'post': request.POST,
+                'teacher': teacher,
                 'subjects': subjects,
                 'selected_specializations': selected_specializations,
-                'field_errors': field_errors
+                'field_errors': field_errors,
+                'classes': classes,
+                'assign_class_teacher_to_ids': [int(x) for x in request.POST.getlist('assign_class_teacher_to') if x.isdigit()],
             })
         
         teacher.save()
+        # Update class teacher assignment: clear from any current class, then set chosen ones
+        SchoolClass.objects.filter(class_teacher=teacher, school=school).update(class_teacher=None)
+        assign_ids = [int(x) for x in request.POST.getlist('assign_class_teacher_to') if x.isdigit()]
+        if assign_ids:
+            for pk in assign_ids:
+                school_class = SchoolClass.objects.filter(id=pk, school=school).first()
+                if school_class:
+                    school_class.class_teacher = teacher
+                    school_class.save(update_fields=['class_teacher'])
         messages.success(request, f'Teacher {teacher.full_name} updated successfully!')
         return redirect('core:teacher_list')
     
+    classes = SchoolClass.objects.filter(school=school, is_active=True).select_related('grade').order_by('grade__name', 'name')
+    current_class_ids = list(SchoolClass.objects.filter(class_teacher=teacher, school=school).values_list('id', flat=True))
     subjects = TimetableSubject.objects.filter(school=school, is_active=True).order_by('name')
     # Parse existing specializations from comma-separated string
     selected_specializations = []
     if teacher and teacher.specialization:
         selected_specializations = [s.strip() for s in teacher.specialization.split(',') if s.strip()]
     return render(request, 'core/teacher_form.html', {
-        'post': {}, 
-        'teacher': teacher, 
+        'post': {},
+        'teacher': teacher,
         'subjects': subjects,
         'selected_specializations': selected_specializations,
-        'field_errors': {}
+        'field_errors': {},
+        'classes': classes,
+        'assign_class_teacher_to_ids': current_class_ids,
     })
 
 

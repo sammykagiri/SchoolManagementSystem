@@ -135,6 +135,18 @@
                                     <label class="form-check-label" for="id_is_active">Active</label>
                                 </div>
                             </div>
+                            
+                            <div class="col-md-12">
+                                <label for="id_assign_class_teacher_to" class="form-label">Assign as class teacher to</label>
+                                <div class="multi-select-wrapper">
+                                    <select name="assign_class_teacher_to" id="id_assign_class_teacher_to" class="form-select select2" multiple="multiple">
+                                        {% for c in classes %}
+                                            <option value="{{ c.id }}" {% if c.id in assign_class_teacher_to_ids %}selected{% endif %}>{{ c.grade.name }} - {{ c.name }}</option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                                <div class="form-text">Optionally assign this teacher as class teacher of one or more classes. Multiple selections allowed. You can also set this when adding or editing a class.</div>
+                            </div>
                         </div>
                         
                         <div class="d-flex justify-content-between mt-4">
@@ -211,11 +223,24 @@
 <script>
 $(document).ready(function() {
     // Initialize Select2 for specialization selection
-    $('#id_specialization').select2('destroy'); // Destroy any existing initialization
+    if ($('#id_specialization').hasClass('select2-hidden-accessible')) {
+        $('#id_specialization').select2('destroy');
+    }
     $('#id_specialization').select2({
         theme: 'bootstrap-5',
         width: '100%',
         placeholder: 'Select subjects for specialization (optional)',
+        closeOnSelect: false
+    });
+    
+    // Initialize Select2 for "Assign as class teacher to" (multiselect, same style as student form)
+    if ($('#id_assign_class_teacher_to').hasClass('select2-hidden-accessible')) {
+        $('#id_assign_class_teacher_to').select2('destroy');
+    }
+    $('#id_assign_class_teacher_to').select2({
+        theme: 'bootstrap-5',
+        width: '100%',
+        placeholder: 'Select class(es) to assign as class teacher (optional)',
         closeOnSelect: false
     });
     

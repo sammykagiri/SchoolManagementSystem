@@ -120,11 +120,11 @@
                         </div>
                     </div>
                     
-                    <!-- Classes Taught -->
-                    {% if classes_taught %}
+                    <!-- Class Teacher In -->
+                    {% if class_teacher_in %}
                     <div class="row mt-4">
                         <div class="col-12">
-                            <h5>Classes Taught:</h5>
+                            <h5>Class Teacher In:</h5>
                             <div class="table-responsive">
                                 <table class="table table-bordered">
                                     <thead class="table-light">
@@ -135,7 +135,7 @@
                                         </tr>
                                     </thead>
                                     <tbody>
-                                        {% for class in classes_taught %}
+                                        {% for class in class_teacher_in %}
                                         <tr>
                                             <td><a href="{% url 'core:class_edit' class.get_signed_token %}">{{ class.name }}</a></td>
                                             <td>{{ class.grade.name }}</td>
@@ -155,7 +155,48 @@
                     <div class="row mt-4">
                         <div class="col-12">
                             <div class="alert alert-info">
-                                <i class="fas fa-info-circle me-2"></i>This teacher is not currently assigned to any classes.
+                                <i class="fas fa-info-circle me-2"></i>This teacher is not assigned as class teacher to any class.
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+                    
+                    <!-- Classes Taught (from timetable) -->
+                    {% if classes_taught %}
+                    <div class="row mt-4">
+                        <div class="col-12">
+                            <h5>Classes Taught:</h5>
+                            <div class="table-responsive">
+                                <table class="table table-bordered">
+                                    <thead class="table-light">
+                                        <tr>
+                                            <th>Class</th>
+                                            <th>Grade</th>
+                                            <th>Subject</th>
+                                            <th>Time Slot</th>
+                                            <th>Room</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for entry in classes_taught %}
+                                        <tr>
+                                            <td><a href="{% url 'core:class_edit' entry.school_class.get_signed_token %}">{{ entry.school_class.name }}</a></td>
+                                            <td>{{ entry.school_class.grade.name }}</td>
+                                            <td>{{ entry.subject.name }}{% if entry.subject.code %} ({{ entry.subject.code }}){% endif %}</td>
+                                            <td>{{ entry.time_slot.get_day_display }} - Period {{ entry.time_slot.period_number }} ({{ entry.time_slot.start_time|time:"H:i" }}–{{ entry.time_slot.end_time|time:"H:i" }})</td>
+                                            <td>{{ entry.room|default:"–" }}</td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                    {% else %}
+                    <div class="row mt-4">
+                        <div class="col-12">
+                            <div class="alert alert-info">
+                                <i class="fas fa-info-circle me-2"></i>No timetable assignments for this teacher.
                             </div>
                         </div>
                     </div>
