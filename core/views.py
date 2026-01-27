@@ -3306,7 +3306,7 @@ def class_list(request):
             messages.success(request, 'Class added successfully!')
             return redirect('core:class_list')
     
-    classes = SchoolClass.objects.filter(school=school).select_related('grade', 'class_teacher')
+    classes = SchoolClass.objects.filter(school=school).select_related('grade', 'class_teacher').order_by('grade__name', 'name', 'class_teacher__first_name', 'class_teacher__last_name')
     teachers = Teacher.objects.filter(school=school, is_active=True).order_by('first_name', 'last_name')
     return render(request, 'core/class_list.html', {'classes': classes, 'grades': grades, 'teachers': teachers})
 
