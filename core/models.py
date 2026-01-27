@@ -564,7 +564,23 @@ class Student(models.Model):
             name_parts.append(self.middle_name)
         name_parts.append(self.last_name)
         return ' '.join(name_parts)
-    
+
+    @property
+    def display_parent_name(self):
+        """Parent name for display: use denormalized field or first linked Parent."""
+        if self.parent_name and str(self.parent_name).strip():
+            return self.parent_name
+        first = self.parents.first()
+        return first.full_name if first else ''
+
+    @property
+    def display_parent_phone(self):
+        """Parent phone for display: use denormalized field or first linked Parent."""
+        if self.parent_phone and str(self.parent_phone).strip():
+            return self.parent_phone
+        first = self.parents.first()
+        return first.phone if first else ''
+
     def get_parent_email(self):
         """Get parent email from student.parent_email or linked Parent objects"""
         # First check student.parent_email field

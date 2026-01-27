@@ -113,8 +113,8 @@
                                 </span>
                             {% endif %}
                         </td>
-                        <td>{{ student.parent_name }}</td>
-                        <td>{{ student.parent_phone }}</td>
+                        <td>{% if student.display_parent_name %}{{ student.display_parent_name }}{% else %}<span class="text-muted">–</span>{% endif %}</td>
+                        <td>{% if student.display_parent_phone %}{{ student.display_parent_phone }}{% else %}<span class="text-muted">–</span>{% endif %}</td>
                         <td>
                             <div class="d-flex gap-1 flex-wrap">
                                 {% if user|has_permission:'view_student' %}
