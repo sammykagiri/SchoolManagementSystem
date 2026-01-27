@@ -2,12 +2,31 @@
 
 {% block title %}Generate Student Fees | Eduvanta{% endblock %}
 
+{% block extra_css %}
+<style>
+    /* Tighter layout so the fee table fits width-wise */
+    .generate-fees-page { padding-left: 0.5rem !important; padding-right: 0.5rem !important; }
+    .generate-fees-page .card-body { padding: 0.5rem 0.5rem !important; }
+    .generate-fees-page .row.mb-4 { margin-bottom: 1rem !important; }
+    .generate-fees-page hr { margin: 0.5rem 0 !important; }
+    .generate-fees-page #feeTableContainer .d-flex.mb-3,
+    .generate-fees-page #feeTableContainer .d-flex.mb-2 { margin-bottom: 0.5rem !important; }
+    .generate-fees-page #feeTableContainer .alert.alert-warning { margin-top: 0.5rem !important; margin-bottom: 0 !important; }
+    .generate-fees-page .alert-info { margin-bottom: 0.5rem !important; }
+    .generate-fees-page #feeAmountsTable { margin-bottom: 0 !important; }
+    .generate-fees-page #feeAmountsTable th,
+    .generate-fees-page #feeAmountsTable td { padding: 0.25rem 0.2rem !important; }
+    .generate-fees-page #feeAmountsTable .form-control { padding-left: 0.25rem; padding-right: 0.25rem; min-width: 3.5rem; }
+    .generate-fees-page .table-responsive { margin-left: -0.5rem; margin-right: -0.5rem; padding-left: 0.5rem; padding-right: 0.5rem; }
+</style>
+{% endblock %}
+
 {% block content %}
-<div class="container py-4">
-    <div class="row">
+<div class="container-fluid generate-fees-page py-2 px-2">
+    <div class="row g-2">
         <div class="col-12">
             <div class="card">
-                <div class="card-header bg-primary text-white">
+                <div class="card-header py-2 bg-primary text-white">
                     <h4 class="mb-0">
                         <i class="fas fa-calculator me-2"></i>Generate Student Fees
                     </h4>
@@ -65,7 +84,7 @@
                         
                         <!-- Fee Amounts Table -->
                         <div id="feeTableContainer" style="display: none;">
-                            <div class="d-flex justify-content-between align-items-center mb-3">
+                            <div class="d-flex justify-content-between align-items-center mb-2">
                                 <h5 class="mb-0">Fee Amounts by Grade and Category</h5>
                                 <div class="d-flex gap-2">
                                     <a href="{% url 'core:generate_student_fees_from_structures' %}" class="btn btn-warning">
@@ -117,7 +136,7 @@
                                 </table>
                             </div>
                             
-                            <div class="alert alert-warning mt-3">
+                            <div class="alert alert-warning mt-2">
                                 <i class="fas fa-exclamation-triangle me-2"></i>
                                 <strong>Note:</strong> 
                                 <ul class="mb-0 mt-2">
@@ -129,7 +148,7 @@
                             </div>
                         </div>
                         
-                        <div id="noTermSelected" class="text-center py-5 text-muted">
+                        <div id="noTermSelected" class="text-center py-3 text-muted">
                             <i class="fas fa-calendar-alt fa-3x mb-3"></i>
                             <p>Please select a term to begin entering fee amounts.</p>
                         </div>
