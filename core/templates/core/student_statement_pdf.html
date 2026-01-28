@@ -125,6 +125,14 @@
             color: #0275d8;
         }
         
+        .summary-amount.balance.credit {
+            color: #5cb85c;
+        }
+        
+        .summary-amount.balance.debit {
+            color: #d9534f;
+        }
+        
         table {
             width: 100%;
             border-collapse: collapse;
@@ -297,13 +305,10 @@
                 <div class="summary-amount credit">KES {{ total_credits|floatformat:2|intcomma }}</div>
             </div>
             <div class="summary-box">
-                <div class="summary-label">{% if balance_label %}{{ balance_label }}{% else %}Closing Balance{% endif %}</div>
-                <div class="summary-amount balance {% if closing_balance > 0 %}debit{% else %}credit{% endif %}">
-                    KES {{ closing_balance|floatformat:2|intcomma }}
+                <div class="summary-label">{% if closing_balance < 0 %}Credit Balance{% else %}{% if balance_label %}{{ balance_label }}{% else %}Balance Due{% endif %}{% endif %}</div>
+                <div class="summary-amount balance {% if closing_balance > 0 %}debit{% elif closing_balance < 0 %}credit{% endif %}">
+                    KES {% if closing_balance < 0 %}{{ closing_balance_abs|floatformat:2|intcomma }}{% else %}{{ closing_balance|floatformat:2|intcomma }}{% endif %}
                 </div>
-                {% if closing_balance > 0 %}
-                <div style="font-size: 7px; color: #666; margin-top: 2px;">Outstanding</div>
-                {% endif %}
             </div>
         </div>
     </div>
@@ -378,7 +383,7 @@
                     <td class="text-right debit-amount" style="width: 12%;"><strong>{{ total_debits|floatformat:2|intcomma }}</strong></td>
                     <td class="text-right credit-amount" style="width: 12%;"><strong>{{ total_credits|floatformat:2|intcomma }}</strong></td>
                     <td class="text-right balance-amount {% if closing_balance > 0 %}balance-positive{% elif closing_balance < 0 %}balance-negative{% endif %}" style="width: 12%;">
-                        <strong>{{ closing_balance|floatformat:2|intcomma }}</strong>
+                        <strong>{% if closing_balance < 0 %}{{ closing_balance_abs|floatformat:2|intcomma }}{% else %}{{ closing_balance|floatformat:2|intcomma }}{% endif %}</strong>
                     </td>
                 </tr>
             </tfoot>
@@ -401,7 +406,7 @@
         Your current outstanding balance is <strong>KES {{ closing_balance|floatformat:2|intcomma }}</strong>.
         Please make payment to clear your account.
         {% elif closing_balance < 0 %}
-        You have a credit balance of <strong>KES {{ closing_balance_abs|floatformat:2|intcomma }}</strong>.
+        You have a credit balance of <strong style="color: #5cb85c;">KES {{ closing_balance_abs|floatformat:2|intcomma }}</strong>.
         This will be applied to future fees.
         {% else %}
         Your account is fully paid up. Thank you!
