@@ -2076,8 +2076,11 @@ def generate_student_fees_from_structures(request):
         deleted_count = 0
         
         for student in students:
-            # Process fee structures for this student's grade
-            student_grade_structures = fee_structures.filter(grade=student.grade)
+            # Process fee structures for this student's grade in allocation_order
+            # (same order used when applying payments/credits to receivables)
+            student_grade_structures = fee_structures.filter(
+                grade=student.grade
+            ).order_by('fee_category__allocation_order', 'fee_category__name')
             
             for fee_structure in student_grade_structures:
                 category = fee_structure.fee_category
@@ -3508,7 +3511,8 @@ def student_statement(request, student_id):
             'reference': f"Fee-{fee.id}",
             'debit': fee.amount_charged,
             'credit': Decimal('0.00'),
-            'type': 'fee'
+            'type': 'fee',
+            'allocation_order': getattr(fee.fee_category, 'allocation_order', 999),
         })
     
     # Add payment transactions (credits)
@@ -3526,11 +3530,13 @@ def student_statement(request, student_id):
             'debit': Decimal('0.00'),
             'credit': payment.amount,
             'type': 'payment',
-            'payment_method': payment.get_payment_method_display()
+            'payment_method': payment.get_payment_method_display(),
+            'allocation_order': (min(getattr(a.student_fee.fee_category, 'allocation_order', 999) for a in payment.allocations.all()) if payment.allocations.exists() else getattr(payment.student_fee.fee_category, 'allocation_order', 999)),
         })
     
-    # Sort transactions by date
-    transactions.sort(key=lambda x: x['date'])
+    # Sort by date, then fees before payments, then by allocation_order within each type.
+    # So on a given day all receivables (fees) show in category order, then all payments after.
+    transactions.sort(key=lambda x: (x['date'], (0 if x.get('type') == 'fee' else 1), x.get('allocation_order', 999)))
     
     # Calculate running balance
     running_balance = opening_balance
@@ -3644,7 +3650,8 @@ def student_statement_pdf(request, student_id):
             'reference': f"Fee-{fee.id}",
             'debit': fee.amount_charged,
             'credit': Decimal('0.00'),
-            'type': 'fee'
+            'type': 'fee',
+            'allocation_order': getattr(fee.fee_category, 'allocation_order', 999),
         })
     
     # Add payment transactions (credits)
@@ -3662,11 +3669,13 @@ def student_statement_pdf(request, student_id):
             'debit': Decimal('0.00'),
             'credit': payment.amount,
             'type': 'payment',
-            'payment_method': payment.get_payment_method_display()
+            'payment_method': payment.get_payment_method_display(),
+            'allocation_order': (min(getattr(a.student_fee.fee_category, 'allocation_order', 999) for a in payment.allocations.all()) if payment.allocations.exists() else getattr(payment.student_fee.fee_category, 'allocation_order', 999)),
         })
     
-    # Sort transactions by date
-    transactions.sort(key=lambda x: x['date'])
+    # Sort by date, then fees before payments, then by allocation_order within each type.
+    # So on a given day all receivables (fees) show in category order, then all payments after.
+    transactions.sort(key=lambda x: (x['date'], (0 if x.get('type') == 'fee' else 1), x.get('allocation_order', 999)))
     
     # Calculate running balance
     running_balance = opening_balance
@@ -3857,7 +3866,8 @@ def student_statement_email(request, student_id):
             'reference': f"Fee-{fee.id}",
             'debit': fee.amount_charged,
             'credit': Decimal('0.00'),
-            'type': 'fee'
+            'type': 'fee',
+            'allocation_order': getattr(fee.fee_category, 'allocation_order', 999),
         })
     
     # Add payment transactions (credits)
@@ -3875,11 +3885,13 @@ def student_statement_email(request, student_id):
             'debit': Decimal('0.00'),
             'credit': payment.amount,
             'type': 'payment',
-            'payment_method': payment.get_payment_method_display()
+            'payment_method': payment.get_payment_method_display(),
+            'allocation_order': (min(getattr(a.student_fee.fee_category, 'allocation_order', 999) for a in payment.allocations.all()) if payment.allocations.exists() else getattr(payment.student_fee.fee_category, 'allocation_order', 999)),
         })
     
-    # Sort transactions by date
-    transactions.sort(key=lambda x: x['date'])
+    # Sort by date, then fees before payments, then by allocation_order within each type.
+    # So on a given day all receivables (fees) show in category order, then all payments after.
+    transactions.sort(key=lambda x: (x['date'], (0 if x.get('type') == 'fee' else 1), x.get('allocation_order', 999)))
     
     # Calculate running balance
     running_balance = opening_balance
@@ -5213,7 +5225,8 @@ def student_statement(request, student_id):
             'reference': f"Fee-{fee.id}",
             'debit': fee.amount_charged,
             'credit': Decimal('0.00'),
-            'type': 'fee'
+            'type': 'fee',
+            'allocation_order': getattr(fee.fee_category, 'allocation_order', 999),
         })
     
     # Add payment transactions (credits)
@@ -5231,11 +5244,13 @@ def student_statement(request, student_id):
             'debit': Decimal('0.00'),
             'credit': payment.amount,
             'type': 'payment',
-            'payment_method': payment.get_payment_method_display()
+            'payment_method': payment.get_payment_method_display(),
+            'allocation_order': (min(getattr(a.student_fee.fee_category, 'allocation_order', 999) for a in payment.allocations.all()) if payment.allocations.exists() else getattr(payment.student_fee.fee_category, 'allocation_order', 999)),
         })
     
-    # Sort transactions by date
-    transactions.sort(key=lambda x: x['date'])
+    # Sort by date, then fees before payments, then by allocation_order within each type.
+    # So on a given day all receivables (fees) show in category order, then all payments after.
+    transactions.sort(key=lambda x: (x['date'], (0 if x.get('type') == 'fee' else 1), x.get('allocation_order', 999)))
     
     # Calculate running balance
     running_balance = opening_balance
@@ -5334,7 +5349,8 @@ def student_statement_pdf(request, student_id):
             'reference': f"Fee-{fee.id}",
             'debit': fee.amount_charged,
             'credit': Decimal('0.00'),
-            'type': 'fee'
+            'type': 'fee',
+            'allocation_order': getattr(fee.fee_category, 'allocation_order', 999),
         })
     
     # Add payment transactions (credits)
@@ -5352,11 +5368,13 @@ def student_statement_pdf(request, student_id):
             'debit': Decimal('0.00'),
             'credit': payment.amount,
             'type': 'payment',
-            'payment_method': payment.get_payment_method_display()
+            'payment_method': payment.get_payment_method_display(),
+            'allocation_order': (min(getattr(a.student_fee.fee_category, 'allocation_order', 999) for a in payment.allocations.all()) if payment.allocations.exists() else getattr(payment.student_fee.fee_category, 'allocation_order', 999)),
         })
     
-    # Sort transactions by date
-    transactions.sort(key=lambda x: x['date'])
+    # Sort by date, then fees before payments, then by allocation_order within each type.
+    # So on a given day all receivables (fees) show in category order, then all payments after.
+    transactions.sort(key=lambda x: (x['date'], (0 if x.get('type') == 'fee' else 1), x.get('allocation_order', 999)))
     
     # Calculate running balance
     running_balance = opening_balance
@@ -5541,7 +5559,8 @@ def student_statement_email(request, student_id):
             'reference': f"Fee-{fee.id}",
             'debit': fee.amount_charged,
             'credit': Decimal('0.00'),
-            'type': 'fee'
+            'type': 'fee',
+            'allocation_order': getattr(fee.fee_category, 'allocation_order', 999),
         })
     
     # Add payment transactions (credits)
@@ -5559,11 +5578,13 @@ def student_statement_email(request, student_id):
             'debit': Decimal('0.00'),
             'credit': payment.amount,
             'type': 'payment',
-            'payment_method': payment.get_payment_method_display()
+            'payment_method': payment.get_payment_method_display(),
+            'allocation_order': (min(getattr(a.student_fee.fee_category, 'allocation_order', 999) for a in payment.allocations.all()) if payment.allocations.exists() else getattr(payment.student_fee.fee_category, 'allocation_order', 999)),
         })
     
-    # Sort transactions by date
-    transactions.sort(key=lambda x: x['date'])
+    # Sort by date, then fees before payments, then by allocation_order within each type.
+    # So on a given day all receivables (fees) show in category order, then all payments after.
+    transactions.sort(key=lambda x: (x['date'], (0 if x.get('type') == 'fee' else 1), x.get('allocation_order', 999)))
     
     # Calculate running balance
     running_balance = opening_balance
@@ -6082,7 +6103,8 @@ def parent_portal_student_statement(request, student_id):
             'reference': f"Fee-{fee.id}",
             'debit': fee.amount_charged,
             'credit': Decimal('0.00'),
-            'type': 'fee'
+            'type': 'fee',
+            'allocation_order': getattr(fee.fee_category, 'allocation_order', 999),
         })
     
     # Add payment transactions (credits)
@@ -6100,11 +6122,13 @@ def parent_portal_student_statement(request, student_id):
             'debit': Decimal('0.00'),
             'credit': payment.amount,
             'type': 'payment',
-            'payment_method': payment.get_payment_method_display()
+            'payment_method': payment.get_payment_method_display(),
+            'allocation_order': (min(getattr(a.student_fee.fee_category, 'allocation_order', 999) for a in payment.allocations.all()) if payment.allocations.exists() else getattr(payment.student_fee.fee_category, 'allocation_order', 999)),
         })
     
-    # Sort transactions by date
-    transactions.sort(key=lambda x: x['date'])
+    # Sort by date, then fees before payments, then by allocation_order within each type.
+    # So on a given day all receivables (fees) show in category order, then all payments after.
+    transactions.sort(key=lambda x: (x['date'], (0 if x.get('type') == 'fee' else 1), x.get('allocation_order', 999)))
     
     # Calculate running balance
     running_balance = opening_balance
@@ -6249,7 +6273,8 @@ def parent_portal_student_statement_email(request, student_id):
             'reference': f"Fee-{fee.id}",
             'debit': fee.amount_charged,
             'credit': Decimal('0.00'),
-            'type': 'fee'
+            'type': 'fee',
+            'allocation_order': getattr(fee.fee_category, 'allocation_order', 999),
         })
     
     # Add payment transactions (credits)
@@ -6267,11 +6292,13 @@ def parent_portal_student_statement_email(request, student_id):
             'debit': Decimal('0.00'),
             'credit': payment.amount,
             'type': 'payment',
-            'payment_method': payment.get_payment_method_display()
+            'payment_method': payment.get_payment_method_display(),
+            'allocation_order': (min(getattr(a.student_fee.fee_category, 'allocation_order', 999) for a in payment.allocations.all()) if payment.allocations.exists() else getattr(payment.student_fee.fee_category, 'allocation_order', 999)),
         })
     
-    # Sort transactions by date
-    transactions.sort(key=lambda x: x['date'])
+    # Sort by date, then fees before payments, then by allocation_order within each type.
+    # So on a given day all receivables (fees) show in category order, then all payments after.
+    transactions.sort(key=lambda x: (x['date'], (0 if x.get('type') == 'fee' else 1), x.get('allocation_order', 999)))
     
     # Calculate running balance
     running_balance = opening_balance

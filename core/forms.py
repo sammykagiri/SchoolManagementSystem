@@ -83,23 +83,11 @@ class StudentForm(forms.ModelForm):
                 # No school provided - hide the field
                 self.fields['optional_fee_categories'].queryset = FeeCategory.objects.none()
         
-        # Filter school_class based on selected grade when editing
-        if self.instance and self.instance.pk and self.instance.grade:
-            # Filter classes by the student's grade
-            queryset = SchoolClass.objects.filter(
-                school=school if school else self.instance.school,
-                grade=self.instance.grade,
-                is_active=True
-            ).select_related('class_teacher')
-            # Ensure the currently assigned class is included even if it doesn't match the grade filter
-        
-            if self.instance.school_class:
-                queryset = queryset | SchoolClass.objects.filter(
-                    id=self.instance.school_class.id,
-                    school=school if school else self.instance.school
-                ).select_related('class_teacher')
-            self.fields['school_class'].queryset = queryset.distinct()
-        
+        # Keep school_class queryset as all active classes so the template can render
+        # every class with data-grade-id. The JS in student_form_new.html filters classes
+        # by selected grade; if we restricted queryset here when editing, changing grade
+        # would leave the class dropdown empty for the new grade.
+
         # Make required fields more obvious
         self.fields['first_name'].required = True
         self.fields['last_name'].required = True
