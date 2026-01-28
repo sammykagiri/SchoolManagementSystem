@@ -1533,6 +1533,11 @@ def fee_category_add(request):
         description = request.POST.get('description', '').strip()
         is_optional = bool(request.POST.get('is_optional'))
         apply_by_default = bool(request.POST.get('apply_by_default'))
+        try:
+            allocation_order = int(request.POST.get('allocation_order', 999))
+            allocation_order = max(1, min(999, allocation_order))
+        except (TypeError, ValueError):
+            allocation_order = 999
         
         errors = []
         if not name:
@@ -1568,7 +1573,8 @@ def fee_category_add(request):
                 category_type=category_type,
                 description=description,
                 is_optional=is_optional,
-                apply_by_default=apply_by_default if is_optional else False  # Only apply if optional
+                apply_by_default=apply_by_default if is_optional else False,  # Only apply if optional
+                allocation_order=allocation_order,
             )
             messages.success(request, 'Fee category created successfully!')
             return redirect('core:fee_category_list')
@@ -1602,6 +1608,11 @@ def fee_category_edit(request, category_id):
         description = request.POST.get('description', '').strip()
         is_optional = bool(request.POST.get('is_optional'))
         apply_by_default = bool(request.POST.get('apply_by_default'))
+        try:
+            allocation_order = int(request.POST.get('allocation_order', 999))
+            allocation_order = max(1, min(999, allocation_order))
+        except (TypeError, ValueError):
+            allocation_order = 999
         
         errors = []
         if not name:
@@ -1636,6 +1647,7 @@ def fee_category_edit(request, category_id):
             category.description = description
             category.is_optional = is_optional
             category.apply_by_default = apply_by_default if is_optional else False  # Only apply if optional
+            category.allocation_order = allocation_order
             category.save()
             messages.success(request, 'Fee category updated successfully!')
             return redirect('core:fee_category_list')

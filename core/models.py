@@ -232,6 +232,10 @@ class FeeCategory(models.Model):
     description = models.TextField(blank=True)
     is_optional = models.BooleanField(default=False, help_text='If checked, this fee is optional and students can opt in/out')
     apply_by_default = models.BooleanField(default=False, help_text='If checked, optional fees will be selected by default when adding/editing students')
+    allocation_order = models.PositiveIntegerField(
+        default=999,
+        help_text='Order when splitting payments across receivables: lower numbers are allocated first (e.g. 1=Tuition, 2=Transport, 3=Diary).'
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

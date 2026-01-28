@@ -26,6 +26,7 @@
                             <tr>
                                 <th>Name</th>
                                 <th>Type</th>
+                                <th>Alloc. Order</th>
                                 <th>Optional</th>
                                 <th>Apply by Default</th>
                                 <th>Description</th>
@@ -39,6 +40,7 @@
                                 <td>
                                     <span class="badge bg-secondary">{{ category.category_type.name }}</span>
                                 </td>
+                                <td>{{ category.allocation_order }}</td>
                                 <td>
                                     {% if category.is_optional %}
                                         <span class="badge bg-info">Yes</span>

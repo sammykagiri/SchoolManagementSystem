@@ -91,6 +91,19 @@
                             <div class="form-text">If this is an optional fee, check this to have it selected by default when adding/editing students</div>
                         </div>
                         
+                        <div class="mb-3">
+                            <label for="id_allocation_order" class="form-label">Allocation Order</label>
+                            <input type="number" 
+                                   name="allocation_order" 
+                                   id="id_allocation_order" 
+                                   class="form-control" 
+                                   value="{% if category %}{{ category.allocation_order }}{% else %}{{ post.allocation_order|default:'999' }}{% endif %}"
+                                   min="1" 
+                                   max="999"
+                                   placeholder="999">
+                            <div class="form-text">When a payment is split across receivables, lower numbers are allocated first (e.g. 1=Tuition, 2=Transport, 3=Diary). Default 999 = lowest priority.</div>
+                        </div>
+                        
                         <div class="d-flex justify-content-end gap-2">
                             <a href="{% url 'core:fee_category_list' %}" class="btn btn-secondary">
                                 <i class="fas fa-times me-2"></i>Cancel

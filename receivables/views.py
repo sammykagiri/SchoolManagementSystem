@@ -1684,14 +1684,16 @@ def credit_apply(request, credit_id):
                     else:
                         messages.success(request, f'Credit of KES {amount_to_apply:.2f} applied to {student_fee.fee_category.name}.')
                 else:
-                    # Apply to multiple outstanding fees (oldest first)
-                    outstanding_fees = StudentFee.objects.filter(
+                    # Apply to multiple outstanding fees (by fee category allocation_order, then due_date)
+                    outstanding_fees = list(StudentFee.objects.filter(
                         school=school,
                         student=credit.student,
                         amount_charged__gt=F('amount_paid')
-                    ).order_by('due_date', 'created_at')
+                    ).select_related('fee_category').order_by('due_date', 'created_at'))
+                    _alloc_key = lambda f: (getattr(f.fee_category, 'allocation_order', 999), f.due_date, float(f.amount_charged - f.amount_paid))
+                    outstanding_fees = sorted(outstanding_fees, key=_alloc_key)
                     
-                    if not outstanding_fees.exists():
+                    if not outstanding_fees:
                         messages.error(request, 'No outstanding receivables found for this student.')
                         return redirect('receivables:credit_list')
                     
@@ -1791,14 +1793,16 @@ def credit_apply_all(request):
         try:
             with db_transaction.atomic():
                 for credit in available_credits:
-                    # Get outstanding fees for this student
-                    outstanding_fees = StudentFee.objects.filter(
+                    # Get outstanding fees for this student, ordered by fee category allocation_order then due_date
+                    qs = StudentFee.objects.filter(
                         school=school,
                         student=credit.student,
                         amount_charged__gt=F('amount_paid')
-                    ).order_by('due_date', 'created_at')
+                    ).select_related('fee_category').order_by('due_date', 'created_at')
+                    _alloc_key = lambda f: (getattr(f.fee_category, 'allocation_order', 999), f.due_date, float(f.amount_charged - f.amount_paid))
+                    outstanding_fees = sorted(qs, key=_alloc_key)
                     
-                    if not outstanding_fees.exists():
+                    if not outstanding_fees:
                         skipped_count += 1
                         continue
                     
@@ -2343,7 +2347,7 @@ def process_bank_statement(upload, statement_file, pattern):
                             student=student
                         ).filter(
                             amount_charged__gt=F('amount_paid')
-                        ).order_by('due_date', 'created_at')
+                        ).select_related('fee_category').order_by('due_date', 'created_at')
                         
                         # Debug logging
                         import logging
@@ -2357,13 +2361,12 @@ def process_bank_statement(upload, statement_file, pattern):
                         total_outstanding = sum(float(fee.amount_charged - fee.amount_paid) for fee in outstanding_fees)
                         logger.info(f'Total outstanding for student {student_id}: {total_outstanding}, transaction amount: {amount}')
                         
-                        # Strategy: Try to match to multiple fees if payment covers them
+                        # Strategy: Try to match to multiple fees if payment covers them.
+                        # Sort by fee category allocation_order (lower first), then due_date, then outstanding.
+                        _alloc_order = lambda f: (getattr(f.fee_category, 'allocation_order', 999), f.due_date, float(f.amount_charged - f.amount_paid))
                         matched_fees = []  # List of (fee, amount_to_allocate) tuples
                         remaining_amount = float(amount)
-                        
-                        # Sort fees by due date (oldest first) and then by amount (smallest first)
-                        # This prioritizes clearing older/smaller fees first
-                        fees_sorted = sorted(outstanding_fees, key=lambda f: (f.due_date, float(f.amount_charged - f.amount_paid)))
+                        fees_sorted = sorted(outstanding_fees, key=_alloc_order)
                         
                         # Try to allocate payment across multiple fees
                         for fee in fees_sorted:
@@ -2438,9 +2441,9 @@ def process_bank_statement(upload, statement_file, pattern):
                                     if bank_reference:
                                         payment_ref = f"BankRef: {bank_reference} | {payment_ref}"
                                     
-                                    # Allocate payment across multiple fees if possible
-                                    # Sort fees by due date (oldest first) to prioritize clearing older fees
-                                    fees_to_allocate = sorted(outstanding_fees, key=lambda f: (f.due_date, float(f.amount_charged - f.amount_paid)))
+                                    # Allocate payment across multiple fees if possible.
+                                    # Sort by fee category allocation_order, then due_date, then outstanding.
+                                    fees_to_allocate = sorted(outstanding_fees, key=_alloc_order)
                                     
                                     remaining_amount = float(amount)
                                     allocations = []  # List of (fee, amount) tuples
@@ -2817,7 +2820,7 @@ def unmatched_transaction_match(request, transaction_id):
                         school=school,
                         student=student,
                         amount_charged__gt=F('amount_paid')
-                    ).order_by('due_date', 'created_at')
+                    ).select_related('fee_category').order_by('due_date', 'created_at')
                     
                     payment = None
                     total_outstanding = sum(float(fee.amount_charged - fee.amount_paid) for fee in outstanding_fees)
@@ -2877,8 +2880,9 @@ def unmatched_transaction_match(request, transaction_id):
                             messages.success(request, f'Payment of KES {transaction.amount} matched and allocated to fee.')
                     
                     elif outstanding_fees.exists():
-                        # Allocate to largest outstanding fee
-                        fees_sorted = sorted(outstanding_fees, key=lambda f: float(f.amount_charged - f.amount_paid), reverse=True)
+                        # Allocate to the fee that comes first by allocation_order (fee category), then due_date
+                        _order_key = lambda f: (getattr(f.fee_category, 'allocation_order', 999), f.due_date)
+                        fees_sorted = sorted(outstanding_fees, key=_order_key)
                         matched_fee = fees_sorted[0]
                         outstanding_amount = matched_fee.amount_charged - matched_fee.amount_paid
                         amount_to_allocate = min(float(transaction.amount), float(outstanding_amount))
