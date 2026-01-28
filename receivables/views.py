@@ -4,7 +4,9 @@ from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.http import JsonResponse, HttpResponse, Http404
 from django.views.decorators.csrf import csrf_exempt
+from django.views.decorators.http import require_POST
 from django.core.paginator import Paginator
+from django.db import transaction
 from django.db.models import Q, Sum, F, Case, When, Value, DecimalField, Count, Avg
 from django.utils import timezone
 from .models import (
@@ -172,6 +174,40 @@ def payment_detail(request, payment_id):
     }
     
     return render(request, 'receivables/payment_detail.html', context)
+
+
+@login_required
+@require_POST
+def payment_delete(request, payment_id):
+    """Delete a payment and reverse its allocations (reduce student_fee.amount_paid)."""
+    school = request.user.profile.school
+    try:
+        payment = _get_payment_from_token_or_id(request, payment_id)
+    except (Http404, Payment.DoesNotExist):
+        raise Http404("Payment not found")
+    if payment.school != school:
+        raise Http404("Payment not found")
+
+    with transaction.atomic():
+        # Group allocations by student_fee so we subtract the correct total per fee
+        # (one payment can allocate to multiple fees; each fee may appear in multiple allocations)
+        from collections import defaultdict
+        fee_reversals = defaultdict(lambda: Decimal('0'))
+        for allocation in payment.allocations.select_related('student_fee').all():
+            fee_reversals[allocation.student_fee_id] += allocation.amount_allocated
+        for fee_id, to_reverse in fee_reversals.items():
+            fee = StudentFee.objects.get(pk=fee_id)
+            # Cap reversal to what the fee actually shows as paid (avoids negative when
+            # allocations exceed actual amount_paid, e.g. after credits were deleted)
+            to_reverse = min(to_reverse, max(Decimal('0'), fee.amount_paid))
+            new_amount_paid = max(Decimal('0'), fee.amount_paid - to_reverse)
+            fee.amount_paid = new_amount_paid
+            fee.is_paid = fee.amount_paid >= fee.amount_charged
+            fee.save(update_fields=['amount_paid', 'is_paid'])
+        payment.delete()
+
+    messages.success(request, 'Payment deleted successfully. Allocations have been reversed.')
+    return redirect('receivables:payment_list')
 
 
 @login_required
@@ -1264,9 +1300,9 @@ def receivable_list(request):
                 }
             )
             if not created:
-                # Update existing receivable to match StudentFee
+                # Update existing receivable to match StudentFee; clamp amount_paid so it is never negative (e.g. after reversal)
                 receivable.amount_due = student_fee.amount_charged
-                receivable.amount_paid = student_fee.amount_paid
+                receivable.amount_paid = max(Decimal('0'), student_fee.amount_paid)
                 receivable.due_date = student_fee.due_date
                 receivable.is_cleared = student_fee.is_paid
                 if student_fee.is_paid and not receivable.cleared_at:
@@ -1367,19 +1403,14 @@ def receivable_list(request):
             )
         ).order_by('-cleared_at', 'student__student_id')
     
-    # Calculate totals - use the filtered queryset
-    # For outstanding balance, calculate using F() expression with different annotation name
+    # Calculate totals from the filtered queryset
+    # Use max(0, ...) so Total Paid is never negative after payment reversals
     total_due = receivables.aggregate(total=Sum('amount_due'))['total'] or Decimal('0.00')
-    total_paid = receivables.aggregate(total=Sum('amount_paid'))['total'] or Decimal('0.00')
-    # For outstanding, calculate difference using annotation with different name to avoid conflict
+    total_paid_raw = receivables.aggregate(total=Sum('amount_paid'))['total'] or Decimal('0.00')
+    total_paid = max(Decimal('0.00'), total_paid_raw)
     if status_filter != 'cleared':
-        # Use outstanding_amt to avoid conflict with balance property
-        receivables_with_outstanding = receivables.annotate(
-            outstanding_amt=F('amount_due') - F('amount_paid')
-        ).filter(outstanding_amt__gt=0)
-        total_outstanding = receivables_with_outstanding.aggregate(
-            total=Sum('outstanding_amt')
-        )['total'] or Decimal('0.00')
+        # Outstanding = Total Due - Total Paid so the three totals are always consistent
+        total_outstanding = max(Decimal('0.00'), total_due - total_paid)
     else:
         total_outstanding = Decimal('0.00')
     
@@ -2400,10 +2431,12 @@ def process_bank_statement(upload, statement_file, pattern):
                                     # Create payment record
                                     from django.utils import timezone as tz
                                     from receivables.models import Credit
-                                    # Build reference number with M-Pesa details if available
+                                    # Build reference number with M-Pesa and bank ref for duplicate detection
                                     payment_ref = reference_str[:100] if reference_str else ''
                                     if mpesa_details.get('mpesa_reference'):
                                         payment_ref = f"M-Pesa: {mpesa_details.get('mpesa_reference')} - {payment_ref}"
+                                    if bank_reference:
+                                        payment_ref = f"BankRef: {bank_reference} | {payment_ref}"
                                     
                                     # Allocate payment across multiple fees if possible
                                     # Sort fees by due date (oldest first) to prioritize clearing older fees
@@ -2444,7 +2477,8 @@ def process_bank_statement(upload, statement_file, pattern):
                                                 fee.is_paid = True
                                             fee.save()
                                         
-                                        # Create payment record with the full amount
+                                        # Create payment record with the full amount; store mpesa_ref and bank_ref for duplicate detection
+                                        txn_id = (mpesa_details.get('mpesa_reference') or bank_reference or '')[:50]
                                         payment = Payment.objects.create(
                                             school=upload.school,
                                             student=student,
@@ -2453,7 +2487,7 @@ def process_bank_statement(upload, statement_file, pattern):
                                             payment_method='bank_transfer',
                                             status='completed',
                                             reference_number=payment_ref[:100],
-                                            transaction_id=mpesa_details.get('mpesa_reference', '')[:50] if mpesa_details else '',
+                                            transaction_id=txn_id,
                                             payment_date=tz.make_aware(datetime.combine(transaction_date, datetime.min.time())),
                                             processed_by=upload.uploaded_by,
                                             notes=f'Auto-matched from bank statement upload: {upload.file_name}'
@@ -2495,10 +2529,12 @@ def process_bank_statement(upload, statement_file, pattern):
                                     logger.error(f'Error creating payment for student {student_id}, amount {amount}: {str(payment_error)}', exc_info=True)
                                     
                                     # Rollback student fee update if payment creation failed
-                                    matched_fee.amount_paid -= amount
-                                    if matched_fee.amount_paid < matched_fee.amount_charged:
-                                        matched_fee.is_paid = False
-                                    matched_fee.save()
+                                    matched_fee.amount_paid = max(
+                                        Decimal('0'),
+                                        matched_fee.amount_paid - amount
+                                    )
+                                    matched_fee.is_paid = matched_fee.amount_paid >= matched_fee.amount_charged
+                                    matched_fee.save(update_fields=['amount_paid', 'is_paid'])
                                     
                                     # Create unmatched transaction with error note
                                     UnmatchedTransaction.objects.create(

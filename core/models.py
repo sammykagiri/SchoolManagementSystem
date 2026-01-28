@@ -1,6 +1,7 @@
 from django.db import models
 from django.contrib.auth.models import User
 from django.core.validators import MinValueValidator
+from decimal import Decimal
 import uuid
 from django.db.models.signals import post_save, pre_save
 from django.dispatch import receiver
@@ -741,9 +742,21 @@ class StudentFee(models.Model):
     def __str__(self):
         return f"{self.student} - {self.fee_category} - {self.term}"
 
+    def save(self, *args, **kwargs):
+        # Never persist negative amount_paid (e.g. after reversal > allocated or credits deleted)
+        if self.amount_paid < 0:
+            self.amount_paid = Decimal('0')
+        self.is_paid = self.amount_paid >= self.amount_charged
+        super().save(*args, **kwargs)
+
+    @property
+    def effective_amount_paid(self):
+        """Amount paid for display/calculations; never negative."""
+        return max(Decimal('0'), self.amount_paid)
+
     @property
     def balance(self):
-        return self.amount_charged - self.amount_paid
+        return self.amount_charged - self.effective_amount_paid
 
     @property
     def is_overdue(self):

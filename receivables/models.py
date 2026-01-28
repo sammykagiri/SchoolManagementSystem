@@ -4,6 +4,7 @@ from core.models import School, Student, StudentFee
 from django.core.validators import MinValueValidator
 from django.db.models.signals import post_save, post_delete
 from django.dispatch import receiver
+from decimal import Decimal
 import uuid
 import re
 
@@ -427,6 +428,7 @@ class BankStatementPattern(models.Model):
         """
         Extract M-Pesa details from narrative text.
         Format: "MPS [Mobile] [M-Pesa Ref] [Business#StudentID] [Name]"
+        Example: "MPS 254721266013 YM18K8UXY7 4908054#00001 SAMUEL1 KAGIRI1"
         Example: "MPS 254721266013 TK18K8USG7 064010#00001 SAMUEL KAGIRI"
         
         Returns:
@@ -437,23 +439,22 @@ class BankStatementPattern(models.Model):
         
         details = {}
         
-        # Pattern: MPS [Mobile] [M-Pesa Ref] [Business#StudentID] [Name]
-        # M-Pesa reference is typically alphanumeric, 10-12 chars (e.g., TK18K8USG7)
-        # Mobile number is typically 12 digits starting with 254
-        # Business#StudentID format: digits#digits
-        
-        # Extract M-Pesa reference (alphanumeric, typically after mobile number)
-        mpesa_ref_match = re.search(r'\b([A-Z0-9]{8,12})\b', narrative_text)
-        if mpesa_ref_match:
-            # Check if it looks like an M-Pesa reference (starts with letters, has numbers)
-            ref = mpesa_ref_match.group(1)
-            if re.match(r'^[A-Z]{2,}[A-Z0-9]+$', ref):
-                details['mpesa_reference'] = ref
-        
-        # Extract mobile number (12 digits starting with 254)
+        # Extract mobile number first (12 digits starting with 254)
         mobile_match = re.search(r'\b(254\d{9})\b', narrative_text)
         if mobile_match:
             details['mobile_number'] = mobile_match.group(1)
+        
+        # M-Pesa reference: alphanumeric 8–12 chars, typically after mobile, e.g. YM18K8UXY7, TK18K8USG7.
+        # Find all such tokens and pick the one that looks like M-Pesa (starts with 2+ letters, not all digits).
+        candidates = re.findall(r'\b([A-Z0-9]{8,12})\b', narrative_text)
+        for tok in candidates:
+            if re.match(r'^254\d{9}$', tok):
+                continue  # skip mobile
+            if re.match(r'^\d+$', tok):
+                continue  # skip pure numbers (e.g. business number part)
+            if re.match(r'^[A-Z]{2,}[A-Z0-9]*$', tok):
+                details['mpesa_reference'] = tok
+                break
         
         # Extract business number and student ID (format: digits#digits)
         business_student_match = re.search(r'(\d+)#(\d+)', narrative_text)
@@ -697,14 +698,16 @@ def sync_receivable_from_student_fee(sender, instance, created, **kwargs):
             }
         )
         if not created_rec:
-            # Update existing receivable
+            # Update existing receivable; ensure amount_paid never goes negative (e.g. after payment reversal)
             receivable.amount_due = instance.amount_charged
-            receivable.amount_paid = instance.amount_paid
+            receivable.amount_paid = max(Decimal('0'), instance.amount_paid)
             receivable.due_date = instance.due_date
             receivable.is_cleared = instance.is_paid
             if instance.is_paid and not receivable.cleared_at:
                 from django.utils import timezone
                 receivable.cleared_at = timezone.now()
+            elif not instance.is_paid:
+                receivable.cleared_at = None
             receivable.save()
 
 

@@ -10,6 +10,7 @@ urlpatterns = [
     
     # Payments
     path('payments/', views.payment_list, name='payment_list'),
+    path('payments/delete/<str:payment_id>/', views.payment_delete, name='payment_delete'),
     
     # M-Pesa payments
     path('mpesa/initiate/<int:student_fee_id>/', views.initiate_mpesa_payment, name='initiate_mpesa_payment'),

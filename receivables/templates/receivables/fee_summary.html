@@ -159,7 +159,7 @@
                                                     </td>
                                                     <td>{{ fee.fee_category.name }}</td>
                                                     <td class="text-end">KES {{ fee.amount_charged|floatformat:2 }}</td>
-                                                    <td class="text-end">KES {{ fee.amount_paid|floatformat:2 }}</td>
+                                                    <td class="text-end">KES {{ fee.effective_amount_paid|floatformat:2 }}</td>
                                                     <td class="text-end">
                                                         <strong class="{% if fee.balance > 0 %}text-danger fw-bold{% elif fee.balance < 0 %}text-success{% else %}text-muted{% endif %}" style="{% if fee.balance > 0 %}color: #dc3545 !important;{% endif %}">
                                                             KES {{ fee.balance|floatformat:2 }}

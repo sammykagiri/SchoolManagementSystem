@@ -370,7 +370,7 @@
                             </td>
                             <td>{{ fee.fee_category.name }}</td>
                             <td class="text-end">{{ fee.amount_charged|floatformat:2 }}</td>
-                            <td class="text-end">{{ fee.amount_paid|floatformat:2 }}</td>
+                            <td class="text-end">{{ fee.effective_amount_paid|floatformat:2 }}</td>
                             <td class="text-end"><strong class="text-danger">{{ fee.balance|floatformat:2 }}</strong></td>
                             <td>
                                 {{ fee.due_date|indian_date }}
