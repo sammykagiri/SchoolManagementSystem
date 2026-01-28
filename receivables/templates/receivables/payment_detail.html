@@ -96,24 +96,50 @@
                                 </tr>
                                 <tr>
                                     <td><strong>Fee Category:</strong></td>
-                                    <td>{{ payment.student_fee.fee_category.name }}</td>
+                                    <td>
+                                        {% if payment.allocations.exists %}
+                                            {% for allocation in payment.allocations.all %}{{ allocation.student_fee.fee_category.name }}{% if not forloop.last %}, {% endif %}{% endfor %}
+                                        {% else %}
+                                            {{ payment.student_fee.fee_category.name }}
+                                        {% endif %}
+                                    </td>
                                 </tr>
                                 <tr>
                                     <td><strong>Term:</strong></td>
-                                    <td>{{ payment.student_fee.term.academic_year }} - Term {{ payment.student_fee.term.term_number }}</td>
+                                    <td>
+                                        {% if payment.allocations.count > 1 %}
+                                            Various
+                                        {% else %}
+                                            {{ payment.student_fee.term.academic_year }} - Term {{ payment.student_fee.term.term_number }}
+                                        {% endif %}
+                                    </td>
                                 </tr>
                                 <tr>
                                     <td><strong>Amount Charged:</strong></td>
-                                    <td>KES {{ payment.student_fee.amount_charged|floatformat:2 }}</td>
+                                    <td>
+                                        {% if payment.allocations.count > 1 %}
+                                            <span class="text-muted">Various — see allocations below</span>
+                                        {% else %}
+                                            KES {{ payment.student_fee.amount_charged|floatformat:2 }}
+                                        {% endif %}
+                                    </td>
                                 </tr>
                                 <tr>
                                     <td><strong>Amount Paid:</strong></td>
-                                    <td>KES {{ payment.student_fee.effective_amount_paid|floatformat:2 }}</td>
+                                    <td>
+                                        {% if payment.allocations.count > 1 %}
+                                            <span class="text-muted">Various — see allocations below</span>
+                                        {% else %}
+                                            KES {{ payment.student_fee.effective_amount_paid|floatformat:2 }}
+                                        {% endif %}
+                                    </td>
                                 </tr>
                                 <tr>
                                     <td><strong>Balance:</strong></td>
                                     <td>
-                                        {% if payment.student_fee.balance > 0 %}
+                                        {% if payment.allocations.count > 1 %}
+                                            <span class="text-muted">Various — see allocations below</span>
+                                        {% elif payment.student_fee.balance > 0 %}
                                             <span class="text-danger">KES {{ payment.student_fee.balance|floatformat:2 }}</span>
                                         {% else %}
                                             <span class="text-success">KES 0.00</span>

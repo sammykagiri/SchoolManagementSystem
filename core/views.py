@@ -3452,7 +3452,7 @@ def student_statement(request, student_id):
         school=school,
         student=student,
         status='completed'
-    ).select_related('student_fee__term', 'student_fee__fee_category').order_by('payment_date')
+    ).select_related('student_fee__term', 'student_fee__fee_category').prefetch_related('allocations__student_fee__fee_category').order_by('payment_date')
     
     # Calculate opening balance (all fees and payments before start_date)
     # Use created_at (transaction date) for fees to match transaction date filtering
@@ -3509,7 +3509,7 @@ def student_statement(request, student_id):
         
         transactions.append({
             'date': payment_date,
-            'description': f"Payment - {payment.student_fee.fee_category.name}",
+            'description': ("Payment - " + ", ".join(list(dict.fromkeys([a.student_fee.fee_category.name for a in payment.allocations.all()]))) if payment.allocations.exists() else f"Payment - {payment.student_fee.fee_category.name}"),
             'reference': payment.reference_number or str(payment.payment_id),
             'debit': Decimal('0.00'),
             'credit': payment.amount,
@@ -3588,7 +3588,7 @@ def student_statement_pdf(request, student_id):
         school=school,
         student=student,
         status='completed'
-    ).select_related('student_fee__term', 'student_fee__fee_category').order_by('payment_date')
+    ).select_related('student_fee__term', 'student_fee__fee_category').prefetch_related('allocations__student_fee__fee_category').order_by('payment_date')
     
     # Calculate opening balance
     # Use created_at (transaction date) for fees to match transaction date filtering
@@ -3645,7 +3645,7 @@ def student_statement_pdf(request, student_id):
         
         transactions.append({
             'date': payment_date,
-            'description': f"Payment - {payment.student_fee.fee_category.name}",
+            'description': ("Payment - " + ", ".join(list(dict.fromkeys([a.student_fee.fee_category.name for a in payment.allocations.all()]))) if payment.allocations.exists() else f"Payment - {payment.student_fee.fee_category.name}"),
             'reference': payment.reference_number or str(payment.payment_id),
             'debit': Decimal('0.00'),
             'credit': payment.amount,
@@ -3803,7 +3803,7 @@ def student_statement_email(request, student_id):
         school=school,
         student=student,
         status='completed'
-    ).select_related('student_fee__term', 'student_fee__fee_category').order_by('payment_date')
+    ).select_related('student_fee__term', 'student_fee__fee_category').prefetch_related('allocations__student_fee__fee_category').order_by('payment_date')
     
     # Calculate opening balance
     opening_balance = Decimal('0.00')
@@ -3858,7 +3858,7 @@ def student_statement_email(request, student_id):
         
         transactions.append({
             'date': payment_date,
-            'description': f"Payment - {payment.student_fee.fee_category.name}",
+            'description': ("Payment - " + ", ".join(list(dict.fromkeys([a.student_fee.fee_category.name for a in payment.allocations.all()]))) if payment.allocations.exists() else f"Payment - {payment.student_fee.fee_category.name}"),
             'reference': payment.reference_number or str(payment.payment_id),
             'debit': Decimal('0.00'),
             'credit': payment.amount,
@@ -5159,7 +5159,7 @@ def student_statement(request, student_id):
         school=school,
         student=student,
         status='completed'
-    ).select_related('student_fee__term', 'student_fee__fee_category').order_by('payment_date')
+    ).select_related('student_fee__term', 'student_fee__fee_category').prefetch_related('allocations__student_fee__fee_category').order_by('payment_date')
     
     # Calculate opening balance (all fees and payments before start_date)
     opening_balance = Decimal('0.00')
@@ -5214,7 +5214,7 @@ def student_statement(request, student_id):
         
         transactions.append({
             'date': payment_date,
-            'description': f"Payment - {payment.student_fee.fee_category.name}",
+            'description': ("Payment - " + ", ".join(list(dict.fromkeys([a.student_fee.fee_category.name for a in payment.allocations.all()]))) if payment.allocations.exists() else f"Payment - {payment.student_fee.fee_category.name}"),
             'reference': payment.reference_number or str(payment.payment_id),
             'debit': Decimal('0.00'),
             'credit': payment.amount,
@@ -5280,7 +5280,7 @@ def student_statement_pdf(request, student_id):
         school=school,
         student=student,
         status='completed'
-    ).select_related('student_fee__term', 'student_fee__fee_category').order_by('payment_date')
+    ).select_related('student_fee__term', 'student_fee__fee_category').prefetch_related('allocations__student_fee__fee_category').order_by('payment_date')
     
     # Calculate opening balance
     opening_balance = Decimal('0.00')
@@ -5335,7 +5335,7 @@ def student_statement_pdf(request, student_id):
         
         transactions.append({
             'date': payment_date,
-            'description': f"Payment - {payment.student_fee.fee_category.name}",
+            'description': ("Payment - " + ", ".join(list(dict.fromkeys([a.student_fee.fee_category.name for a in payment.allocations.all()]))) if payment.allocations.exists() else f"Payment - {payment.student_fee.fee_category.name}"),
             'reference': payment.reference_number or str(payment.payment_id),
             'debit': Decimal('0.00'),
             'credit': payment.amount,
@@ -5487,7 +5487,7 @@ def student_statement_email(request, student_id):
         school=school,
         student=student,
         status='completed'
-    ).select_related('student_fee__term', 'student_fee__fee_category').order_by('payment_date')
+    ).select_related('student_fee__term', 'student_fee__fee_category').prefetch_related('allocations__student_fee__fee_category').order_by('payment_date')
     
     # Calculate opening balance
     opening_balance = Decimal('0.00')
@@ -5542,7 +5542,7 @@ def student_statement_email(request, student_id):
         
         transactions.append({
             'date': payment_date,
-            'description': f"Payment - {payment.student_fee.fee_category.name}",
+            'description': ("Payment - " + ", ".join(list(dict.fromkeys([a.student_fee.fee_category.name for a in payment.allocations.all()]))) if payment.allocations.exists() else f"Payment - {payment.student_fee.fee_category.name}"),
             'reference': payment.reference_number or str(payment.payment_id),
             'debit': Decimal('0.00'),
             'credit': payment.amount,
@@ -6026,7 +6026,7 @@ def parent_portal_student_statement(request, student_id):
         school=school,
         student=student,
         status='completed'
-    ).select_related('student_fee__term', 'student_fee__fee_category').order_by('payment_date')
+    ).select_related('student_fee__term', 'student_fee__fee_category').prefetch_related('allocations__student_fee__fee_category').order_by('payment_date')
     
     # Calculate opening balance (all fees and payments before start_date)
     # Use created_at (transaction date) for fees to match transaction date filtering
@@ -6083,7 +6083,7 @@ def parent_portal_student_statement(request, student_id):
         
         transactions.append({
             'date': payment_date,
-            'description': f"Payment - {payment.student_fee.fee_category.name}",
+            'description': ("Payment - " + ", ".join(list(dict.fromkeys([a.student_fee.fee_category.name for a in payment.allocations.all()]))) if payment.allocations.exists() else f"Payment - {payment.student_fee.fee_category.name}"),
             'reference': payment.reference_number or str(payment.payment_id),
             'debit': Decimal('0.00'),
             'credit': payment.amount,
@@ -6197,7 +6197,7 @@ def parent_portal_student_statement_email(request, student_id):
         school=school,
         student=student,
         status='completed'
-    ).select_related('student_fee__term', 'student_fee__fee_category').order_by('payment_date')
+    ).select_related('student_fee__term', 'student_fee__fee_category').prefetch_related('allocations__student_fee__fee_category').order_by('payment_date')
     
     # Calculate opening balance
     opening_balance = Decimal('0.00')
@@ -6250,7 +6250,7 @@ def parent_portal_student_statement_email(request, student_id):
         
         transactions.append({
             'date': payment_date,
-            'description': f"Payment - {payment.student_fee.fee_category.name}",
+            'description': ("Payment - " + ", ".join(list(dict.fromkeys([a.student_fee.fee_category.name for a in payment.allocations.all()]))) if payment.allocations.exists() else f"Payment - {payment.student_fee.fee_category.name}"),
             'reference': payment.reference_number or str(payment.payment_id),
             'debit': Decimal('0.00'),
             'credit': payment.amount,
