@@ -96,6 +96,8 @@
     
     .statement-table {
         font-size: 0.9rem;
+        border-collapse: collapse;
+        border: 0.5px solid #ccc;
     }
     
     .statement-table thead {
@@ -105,6 +107,7 @@
     .statement-table th,
     .statement-table td {
         padding: 8px;
+        border: 0.5px solid #ccc;
     }
     
     .debit-cell {
@@ -366,9 +369,9 @@
             <strong>Note:</strong> 
             This statement shows all fee charges and payments. Transaction dates reflect when fees were charged or payments were made. Due dates for fees are shown in the transaction description.
             {% if closing_balance > 0 %}
-            Outstanding balance: <strong>KES {{ closing_balance|floatformat:2|intcomma }}</strong>.
+            Your current outstanding balance is <strong class="text-danger">KES {{ closing_balance|floatformat:2|intcomma }}</strong>.
             {% elif closing_balance < 0 %}
-            Credit balance: <strong class="text-success">KES {{ closing_balance_abs|floatformat:2|intcomma }}</strong>.
+            Your current credit balance is <strong class="text-success">KES {{ closing_balance_abs|floatformat:2|intcomma }}</strong>.
             {% else %}
             Account fully paid.
             {% endif %}
