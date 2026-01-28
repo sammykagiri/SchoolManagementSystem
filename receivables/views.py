@@ -2493,10 +2493,12 @@ def process_bank_statement(upload, statement_file, pattern):
                                             notes=f'Auto-matched from bank statement upload: {upload.file_name}'
                                         )
                                         
-                                        # Create allocations for all fees
+                                        # Create allocations for all fees (update_or_create so we overwrite the
+                                        # allocation the Payment post_save signal created for primary_fee with
+                                        # the full amount — we need the split amount per fee)
                                         from receivables.models import PaymentAllocation
                                         for fee, alloc_amount in allocations:
-                                            PaymentAllocation.objects.get_or_create(
+                                            PaymentAllocation.objects.update_or_create(
                                                 school=upload.school,
                                                 payment=payment,
                                                 student_fee=fee,
@@ -2505,7 +2507,7 @@ def process_bank_statement(upload, statement_file, pattern):
                                                     'created_by': upload.uploaded_by
                                                 }
                                             )
-                                            logger.info(f'  Created allocation: {alloc_amount} to fee ID {fee.id}')
+                                            logger.info(f'  Created/updated allocation: {alloc_amount} to fee ID {fee.id}')
                                         
                                         # Create credit for overpayment if any (only after allocating to all possible fees)
                                         if overpayment_amount > 0.01:  # Only create credit if overpayment is more than 1 cent
